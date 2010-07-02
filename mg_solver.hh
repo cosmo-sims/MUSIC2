@@ -114,7 +114,7 @@ template< class S, class I, class O, typename T >
 solver<S,I,O,T>::solver( GridHierarchy<T>& f, //const MeshvarBnd<T>& ubnd, 
 					opt::smtype smoother, unsigned npresmooth, unsigned npostsmooth )
 :	m_scheme(), m_gridop(), m_npresmooth( npresmooth ), m_npostsmooth( npostsmooth ), 
-m_smoother( smoother ), m_ilevelmin( f.levelmin() ), m_pf( &f ), m_is_ini( true )
+m_smoother( smoother ), m_ilevelmin( f.levelmin() ), m_is_ini( true ), m_pf( &f )
 { 
 	m_is_ini = true;
 	

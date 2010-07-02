@@ -113,6 +113,7 @@ protected:
 	{
 		double solve_O2( grid_hierarchy& f, grid_hierarchy& u );
 		double solve_O4( grid_hierarchy& f, grid_hierarchy& u );
+		double solve_O6( grid_hierarchy& f, grid_hierarchy& u );
 		void gradient_O2( int dir, grid_hierarchy& u, grid_hierarchy& Du );
 		void gradient_O4( int dir, grid_hierarchy& u, grid_hierarchy& Du );
 		void gradient_O6( int dir, grid_hierarchy& u, grid_hierarchy& Du );

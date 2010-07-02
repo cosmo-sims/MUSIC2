@@ -264,12 +264,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 #endif
 	
 	convolution::parameters conv_param;
-	//conv_param.boxlength = boxlength;
 	conv_param.ptf = ptf;
 	conv_param.pcf = &cf;
-	//conv_param.cosmo = cosmo;
-	
-	
 	
 	
 	//... compute absolute grid offsets
@@ -314,9 +310,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	//... if random numbers are not given for lower levels, obtain them by averaging
 	if( lmingiven >= (int)levelmin )
 	{
-		//double x0[3] = { 0.0, 0.0, 0.0 };
-		//double lx[3] = { 1.0, 1.0, 1.0 };
-		
 		randc[lmingiven] = new random_numbers<real_t>( (unsigned)pow(2,lmingiven), 32, rngseeds[lmingiven], true );//, x0, lx );
 		
 		for( int ilevel = lmingiven-1; ilevel >= (int)levelmin; --ilevel ){
@@ -332,8 +325,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	if( lmingiven < (int)levelmin )
 	{
 		throw std::runtime_error("You provided a seed for a level below levelmin, this is not supported yet.");
-		//double x0[3] = { 0.0, 0.0, 0.0 };
-		//double lx[3] = { 1.0, 1.0, 1.0 };
 		
 		randc[lmingiven] = new random_numbers<real_t>( (unsigned)pow(2,lmingiven), 32, rngseeds[lmingiven], true );//, x0, lx );
 		
@@ -382,7 +373,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		random_numbers<real_t> *rc;
 		
 		if( randc[levelmin] == NULL )
-			rc = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], true );//, x0, lx );
+			rc = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], true );
 		else
 			rc = randc[levelmin];
 		
@@ -760,7 +751,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	
 	double sum;
 	
-#if 0
+#if 1
 	//... subtract the box mean.... this will otherwise add
 	//... a constant curvature term to the potential
 	sum = 0.0;
@@ -779,7 +770,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		sum /= (nx*ny*nz);
 	}
 	
-	std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
+	//std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
 
 	for( unsigned i=levelmin; i<=levelmax; ++i )
 	{		

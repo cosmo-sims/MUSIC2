@@ -85,7 +85,7 @@ double multigrid_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	ps_presmooth		= cf_.getValueSafe<unsigned>("poisson","pre_smooth",3);
 	ps_postsmooth		= cf_.getValueSafe<unsigned>("poisson","post_smooth",3);
 	ps_smoother_name	= cf_.getValueSafe<std::string>("poisson","smoother","gs");
-	order				= cf_.getValueSafe<unsigned>( "setup", "laplace_order", 4 );
+	order				= cf_.getValueSafe<unsigned>( "poisson", "laplace_order", 4 );
 	
 	multigrid::opt::smtype ps_smtype = multigrid::opt::sm_gauss_seidel;
 	

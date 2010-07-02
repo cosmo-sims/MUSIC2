@@ -48,7 +48,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.2a"
+#define THE_CODE_VERSION "0.3a"
 
 
 namespace music
@@ -86,15 +86,17 @@ void splash(void)
 
 void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarchy& rh_TF, config_file& cf )
 {
-	unsigned lbase, lbaseTF, lmax;
+	unsigned lbase, lbaseTF, lmax, overlap;
 	
 	lbase				= cf.getValue<unsigned>( "setup", "levelmin" );
 	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelminTF", lbase );
 	lmax				= cf.getValue<unsigned>( "setup", "levelmax" );
+	// TODO: add documentation about setup/overlap to manual
+	overlap				= cf.getValueSafe<unsigned>( "setup", "overlap", 4 );
 	
 	rh_TF = rh_full;
 	
-	unsigned pad = 4;
+	unsigned pad = overlap;
 	
 	for( unsigned i=lbase+1; i<=lmax; ++i )
 	{
@@ -287,6 +289,9 @@ int main (int argc, const char * argv[])
 	cosmo.nspect		= cf.getValue<double>( "cosmology", "nspec" );
 	cosmo.WDMg_x		= cf.getValueSafe<double>( "cosmology", "WDMg_x", 1.5 );
 	cosmo.WDMmass		= cf.getValueSafe<double>( "cosmology", "WDMmass", 0.0 );
+	cosmo.dplus			= 0.0;
+	cosmo.pnorm			= 0.0;
+	cosmo.vfact			= 0.0;
 	
 	//cosmo.Gamma			= cf.getValueSafe<double>( "cosmology", "Gamma", -1.0 );
 	
@@ -567,10 +572,11 @@ int main (int argc, const char * argv[])
 
 		}
 		the_output_plugin->finalize();
-	}catch(...)
+	}catch(std::runtime_error& excp)
 	{
+		std::cerr << " - " << excp.what() << std::endl;
 		std::cerr << " - A fatal error occured. We need to exit...\n";
-		bfatal;
+		bfatal = true;
 	}
 	
 	//... clean up

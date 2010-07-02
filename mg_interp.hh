@@ -692,7 +692,7 @@ struct interp_O5_fluxcorr
 											ustar[q+2] = interp4( (*utop)(ixtop+p-1,iytop-2,iztop+q), (*utop)(ixtop+p-1,iytop-1,iztop+q), 
 																(*utop)(ixtop+p-1,iytop,iztop+q),   (*utop)(ixtop+p-1,iytop+1,iztop+q), 
 																(*utop)(ixtop+p-1,iytop+2,iztop+q), fac*((double)j-0.5) );
-										uhat[p] = interp4( ustar, fac*((double)k-0.5)-1.5 );
+										uhat[p] = interp4( ustar, fac*((double)k-0.5) );//-1.5 );
 									}
 									
 									(*u)(ix,iy+j,iz+k)   = interp4left( uhat[0], uhat[1], (*u)(ix+1,iy+j,iz+k), 
@@ -733,7 +733,7 @@ struct interp_O5_fluxcorr
 											ustar[q+2] = interp4( (*utop)(ixtop+p,iytop-2,iztop+q), (*utop)(ixtop+p,iytop-1,iztop+q), 
 																 (*utop)(ixtop+p,iytop,iztop+q),   (*utop)(ixtop+p,iytop+1,iztop+q), 
 																 (*utop)(ixtop+p,iytop+2,iztop+q), fac*((double)j-0.5) );
-										uhat[p] = interp4( ustar, fac*((double)k-0.5)-1.5 );
+										uhat[p] = interp4( ustar, fac*((double)k-0.5));//-1.5 );
 									}
 									
 									(*u)(ix,iy+j,iz+k)   = interp4right( (*u)(ix-3,iy+j,iz+k), (*u)(ix-2,iy+j,iz+k), 
@@ -773,7 +773,7 @@ struct interp_O5_fluxcorr
 											ustar[q+2] = interp4( (*utop)(ixtop-2,iytop+p-1,iztop+q), (*utop)(ixtop-1,iytop+p-1,iztop+q), 
 																 (*utop)(ixtop,iytop+p-1,iztop+q),   (*utop)(ixtop+1,iytop+p-1,iztop+q), 
 																 (*utop)(ixtop+2,iytop+p-1,iztop+q), fac*((double)j-0.5) );
-										uhat[p] = interp4( ustar, fac*((double)k-0.5)-1.5 );
+										uhat[p] = interp4( ustar, fac*((double)k-0.5));//-1.5 );
 									}
 									
 									(*u)(ix+j,iy,iz+k)   = interp4left( uhat[0], uhat[1], (*u)(ix+j,iy+1,iz+k), 
@@ -813,7 +813,7 @@ struct interp_O5_fluxcorr
 											ustar[q+2] = interp4( (*utop)(ixtop-2,iytop+p,iztop+q), (*utop)(ixtop-1,iytop+p,iztop+q), 
 																 (*utop)(ixtop,iytop+p,iztop+q),   (*utop)(ixtop+1,iytop+p,iztop+q), 
 																 (*utop)(ixtop+2,iytop+p,iztop+q), fac*((double)j-0.5) );
-										uhat[p] = interp4( ustar, fac*((double)k-0.5)+1.5 );
+										uhat[p] = interp4( ustar, fac*((double)k-0.5));//+1.5 );
 									}
 									
 									(*u)(ix+j,iy,iz+k)   = interp4right( (*u)(ix+j,iy-3,iz+k), (*u)(ix+j,iy-2,iz+k), 
@@ -854,7 +854,7 @@ struct interp_O5_fluxcorr
 											ustar[q+2] = interp4( (*utop)(ixtop-2,iytop+q,iztop+p-1), (*utop)(ixtop-1,iytop+q,iztop+p-1), 
 																 (*utop)(ixtop,iytop+q,iztop+p-1),   (*utop)(ixtop+1,iytop+q,iztop+p-1), 
 																 (*utop)(ixtop+2,iytop+q,iztop+p-1), fac*((double)j-0.5) );
-										uhat[p] = interp4( ustar, fac*((double)k-0.5)-1.5 );
+										uhat[p] = interp4( ustar, fac*((double)k-0.5));//-1.5 );
 									}
 									
 									(*u)(ix+j,iy+k,iz)   = interp4left( uhat[0], uhat[1], (*u)(ix+j,iy+k,iz+1), 
@@ -895,7 +895,7 @@ struct interp_O5_fluxcorr
 											ustar[q+2] = interp4( (*utop)(ixtop-2,iytop+q,iztop+p), (*utop)(ixtop-1,iytop+q,iztop+p), 
 																 (*utop)(ixtop,iytop+q,iztop+p),   (*utop)(ixtop+1,iytop+q,iztop+p), 
 																 (*utop)(ixtop+2,iytop+q,iztop+p), fac*((double)j-0.5) );
-										uhat[p] = interp4( ustar, fac*((double)k-0.5)+1.5 );
+										uhat[p] = interp4( ustar, fac*((double)k-0.5));//+1.5 );
 									}
 									
 									(*u)(ix+j,iy+k,iz)   = interp4right( (*u)(ix+j,iy+k,iz-3), (*u)(ix+j,iy+k,iz-2), 
@@ -1000,7 +1000,7 @@ struct interp_O7_fluxcorr
 																 (*utop)(ixtop+p-2,iytop-1,iztop+q), (*utop)(ixtop+p-2,iytop,iztop+q),   
 																 (*utop)(ixtop+p-2,iytop+1,iztop+q), (*utop)(ixtop+p-2,iytop+2,iztop+q), 
 																 (*utop)(ixtop+p-2,iytop+3,iztop+q), fac*((double)j-0.5) );
-										uhat[p] = interp6( ustar, fac*((double)k-0.5)-1.5 );
+										uhat[p] = interp6( ustar, fac*((double)k-0.5));//-1.5 );
 									}
 									
 									(*u)(ix,iy+j,iz+k)   = interp6left( uhat[0], uhat[1], uhat[2], (*u)(ix+1,iy+j,iz+k), 
@@ -1045,7 +1045,7 @@ struct interp_O7_fluxcorr
 																 (*utop)(ixtop+p,iytop-1,iztop+q), (*utop)(ixtop+p,iytop,iztop+q),
 																 (*utop)(ixtop+p,iytop+1,iztop+q), (*utop)(ixtop+p,iytop+2,iztop+q),
 																 (*utop)(ixtop+p,iytop+3,iztop+q), fac*((double)j-0.5) );
-										uhat[p] = interp6( ustar, fac*((double)k-0.5)-1.5 );
+										uhat[p] = interp6( ustar, fac*((double)k-0.5) );//-1.5 );
 									}
 									
 									(*u)(ix,iy+j,iz+k)   = interp6right( (*u)(ix-4,iy+j,iz+k), (*u)(ix-3,iy+j,iz+k), (*u)(ix-2,iy+j,iz+k), 
@@ -1091,7 +1091,7 @@ struct interp_O7_fluxcorr
 																 (*utop)(ixtop-1,iytop+p-2,iztop+q), (*utop)(ixtop,iytop+p-2,iztop+q),   
 																 (*utop)(ixtop+1,iytop+p-2,iztop+q), (*utop)(ixtop+2,iytop+p-2,iztop+q),
 																 (*utop)(ixtop+3,iytop+p-2,iztop+q), fac*((double)j-0.5) );
-										uhat[p] = interp6( ustar, fac*((double)k-0.5)-1.5 );
+										uhat[p] = interp6( ustar, fac*((double)k-0.5));//-1.5 );
 									}
 									
 									(*u)(ix+j,iy,iz+k)   = interp6left( uhat[0], uhat[1], uhat[2], (*u)(ix+j,iy+1,iz+k), 
@@ -1136,7 +1136,7 @@ struct interp_O7_fluxcorr
 																 (*utop)(ixtop-1,iytop+p,iztop+q), (*utop)(ixtop,iytop+p,iztop+q), 
 																 (*utop)(ixtop+1,iytop+p,iztop+q), (*utop)(ixtop+2,iytop+p,iztop+q),
 																  (*utop)(ixtop+3,iytop+p,iztop+q), fac*((double)j-0.5) );
-										uhat[p] = interp6( ustar, fac*((double)k-0.5)+1.5 );
+										uhat[p] = interp6( ustar, fac*((double)k-0.5));//+1.5 );
 									}
 									
 									(*u)(ix+j,iy,iz+k)   = interp6right( (*u)(ix+j,iy-4,iz+k), (*u)(ix+j,iy-3,iz+k), (*u)(ix+j,iy-2,iz+k), 
@@ -1182,7 +1182,7 @@ struct interp_O7_fluxcorr
 																 (*utop)(ixtop-1,iytop+q,iztop+p-2), (*utop)(ixtop,iytop+q,iztop+p-2), 
 																 (*utop)(ixtop+1,iytop+q,iztop+p-2), (*utop)(ixtop+2,iytop+q,iztop+p-2),
 																 (*utop)(ixtop+3,iytop+q,iztop+p-2), fac*((double)j-0.5) );
-										uhat[p] = interp6( ustar, fac*((double)k-0.5)-1.5 );
+										uhat[p] = interp6( ustar, fac*((double)k-0.5));//-1.5 );
 									}
 									
 									(*u)(ix+j,iy+k,iz)   = interp6left( uhat[0], uhat[1], uhat[2], (*u)(ix+j,iy+k,iz+1), 
@@ -1227,7 +1227,7 @@ struct interp_O7_fluxcorr
 																 (*utop)(ixtop-1,iytop+q,iztop+p), (*utop)(ixtop,iytop+q,iztop+p),   
 																 (*utop)(ixtop+1,iytop+q,iztop+p), (*utop)(ixtop+2,iytop+q,iztop+p), 
 																 (*utop)(ixtop+3,iytop+q,iztop+p), fac*((double)j-0.5) );
-										uhat[p] = interp6( ustar, fac*((double)k-0.5)+1.5 );
+										uhat[p] = interp6( ustar, fac*((double)k-0.5));//+1.5 );
 									}
 									
 									(*u)(ix+j,iy+k,iz)   = interp6right( (*u)(ix+j,iy+k,iz-4), (*u)(ix+j,iy+k,iz-3), (*u)(ix+j,iy+k,iz-2), 

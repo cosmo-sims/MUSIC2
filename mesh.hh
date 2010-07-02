@@ -1,0 +1,1181 @@
+/*
+ 
+ mesh.hh - This file is part of MUSIC -
+ a code to generate multi-scale initial conditions 
+ for cosmological simulations 
+ 
+ Copyright (C) 2010  Oliver Hahn
+ 
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
+*/
+
+#ifndef __MESH_HH
+#define __MESH_HH
+
+#include <iostream>
+#include <iomanip>
+#include <vector>
+#include <stdexcept>
+
+#include <math.h>
+
+#include "config_file.hh"
+
+
+//! base class for all things that have rectangular mesh structure
+template<typename T>
+class Meshvar{
+public:
+	typedef T real_t;
+	
+	unsigned 
+		m_nx,	//!< x-extent of the rectangular mesh
+		m_ny,	//!< y-extent of the rectangular mesh
+		m_nz;	//!< z-extent of the rectangular mesh
+	
+	unsigned 
+		m_offx, //!< x-offset of the grid (just as a helper, not used inside the class)
+		m_offy, //!< y-offset of the grid (just as a helper, not used inside the class)
+		m_offz;	//!< z-offset of the grid (just as a helper, not used inside the class)
+	
+	real_t * m_pdata; //!< pointer to the dynamic data array
+	
+	//! constructor for cubic mesh
+	explicit Meshvar( unsigned n, unsigned offx, unsigned offy, unsigned offz )
+	: m_nx( n ), m_ny( n ), m_nz( n ), m_offx( offx ), m_offy( offy ), m_offz( offz )
+	{
+		m_pdata = new real_t[m_nx*m_ny*m_nz];
+	}
+	
+	//! constructor for rectangular mesh
+	Meshvar( unsigned nx, unsigned ny, unsigned nz, unsigned offx, unsigned offy, unsigned offz )
+	: m_nx( nx ), m_ny( ny ), m_nz( nz ), m_offx( offx ), m_offy( offy ), m_offz( offz )
+	{
+		m_pdata = new real_t[m_nx*m_ny*m_nz];
+	}
+	
+	//! variant copy constructor with optional copying of the actual data
+	Meshvar( const Meshvar<real_t>& m, bool copy_over=true )
+	{
+		m_nx = m.m_nx;
+		m_ny = m.m_ny;
+		m_nz = m.m_nz;
+		
+		m_offx = m.m_offx;
+		m_offy = m.m_offy;
+		m_offz = m.m_offz;
+		
+		m_pdata = new real_t[m_nx*m_ny*m_nz];
+		
+		if( copy_over )
+			for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+				m_pdata[i] = m.m_pdata[i];
+	}
+	
+	//! standard copy constructor
+	explicit Meshvar( const Meshvar<real_t>& m )
+	{
+		m_nx = m.m_nx;
+		m_ny = m.m_ny;
+		m_nz = m.m_nz;
+		
+		m_offx = m.m_offx;
+		m_offy = m.m_offy;
+		m_offz = m.m_offz;
+		
+		m_pdata = new real_t[m_nx*m_ny*m_nz];
+		
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] = m.m_pdata[i];
+	}
+	
+	//! destructor
+	~Meshvar()
+	{
+		if( m_pdata != NULL )
+			delete[] m_pdata;
+	}
+	
+	//! deallocate the data, but keep the structure
+	inline void deallocate( void )
+	{
+		if( m_pdata != NULL )
+			delete[] m_pdata;
+		m_pdata = NULL;
+	}
+	
+	//! get extent of the mesh along a specified dimension (const)
+	inline unsigned size( unsigned dim ) const
+	{
+		if( dim == 0 ) return m_nx;
+		if( dim == 1 ) return m_ny;
+		return m_nz;
+	}
+	
+	//! get extent of the mesh along a specified dimension
+	inline unsigned& size( unsigned dim )
+	{
+		if( dim == 0 ) return m_nx;
+		if( dim == 1 ) return m_ny;
+		return m_nz;
+	}
+	
+	//! get offset of the mesh along a specified dimension  (const)
+	inline unsigned offset( unsigned dim ) const
+	{
+		if( dim == 0 ) return m_offx;
+		if( dim == 1 ) return m_offy;
+		return m_offz;
+	}
+	
+	//! get extent of the mesh along a specified dimension
+	inline unsigned& offset( unsigned dim )
+	{
+		if( dim == 0 ) return m_offx;
+		if( dim == 1 ) return m_offy;
+		return m_offz;
+	}
+	
+	//! set all the data to zero values
+	void zero( void )
+	{
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] = 0.0;
+	}
+	
+	//! direct array random acces to the data block
+	inline real_t * operator[]( const int i )
+	{	return &m_pdata[i];	}
+
+	//! direct array random acces to the data block (const)
+	inline const real_t * operator[]( const int i ) const
+	{	return &m_pdata[i];	}
+	
+	//! 3D random access to the data block via index 3-tuples
+	inline real_t& operator()(const int ix, const int iy, const int iz )
+	{	return m_pdata[ (ix*m_ny+iy)*m_nz + iz ];	}
+	
+	//! 3D random access to the data block via index 3-tuples (const)
+	inline const real_t& operator()(const int ix, const int iy, const int iz ) const
+	{	return m_pdata[ (ix*m_ny+iy)*m_nz + iz ];	}
+	
+	//! direct multiplication of the whole data block with a number
+	Meshvar<real_t>& operator*=( real_t x )
+	{
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] *= x;
+		return *this;
+	}
+	
+	//! direct addition of a number to the whole data block
+	Meshvar<real_t>& operator+=( real_t x )
+	{
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] += x;
+		return *this;
+	}
+
+	//! direct element-wise division of the whole data block by a number
+	Meshvar<real_t>& operator/=( real_t x )
+	{
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] /= x;
+		return *this;
+	}
+	
+	
+	//! direct subtraction of a number from the whole data block
+	Meshvar<real_t>& operator-=( real_t x )
+	{
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] -= x;
+		return *this;
+	}
+	
+	//! direct element-wise multiplication with another compatible mesh
+	Meshvar<real_t>& operator*=( const Meshvar<real_t>& v )
+	{
+		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
+			throw std::runtime_error("Meshvar::operator*= : attempt to operate on incompatible data");
+		
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] *= v.m_pdata[i];
+		
+		return *this;
+	}
+	
+	//! direct element-wise division with another compatible mesh
+	Meshvar<real_t>& operator/=( const Meshvar<real_t>& v )
+	{
+		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
+			throw std::runtime_error("Meshvar::operator/= : attempt to operate on incompatible data");
+		
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] /= v.m_pdata[i];
+		
+		return *this;
+	}
+	
+	//! direct element-wise addition of another compatible mesh
+	Meshvar<real_t>& operator+=( const Meshvar<real_t>& v )
+	{
+		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
+			throw std::runtime_error("Meshvar::operator+= : attempt to operate on incompatible data");
+		
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] += v.m_pdata[i];
+		
+		return *this;
+	}
+	
+	//! direct element-wise subtraction of another compatible mesh
+	Meshvar<real_t>& operator-=( const Meshvar<real_t>& v )
+	{
+		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
+			throw std::runtime_error("Meshvar::operator-= : attempt to operate on incompatible data");
+		
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] -= v.m_pdata[i];
+		
+		return *this;
+	}
+	
+	//! assignment operator for rectangular meshes
+	Meshvar<real_t>& operator=( const Meshvar<real_t>& m )
+	{
+		m_nx = m.m_nx;
+		m_ny = m.m_ny;
+		m_nz = m.m_nz;
+		
+		m_offx = m.m_offx;
+		m_offy = m.m_offy;
+		m_offz = m.m_offz;
+		
+		if( m_pdata != NULL )
+			delete m_pdata;
+		
+		m_pdata = new real_t[m_nx*m_ny*m_nz];
+		
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			m_pdata[i] = m.m_pdata[i];
+		
+		return *this;
+	}
+};
+
+//! MeshvarBnd derived class adding boundary ghost cell functionality
+template< typename T >
+class MeshvarBnd : public Meshvar< T >{
+	using Meshvar<T>::m_nx;
+	using Meshvar<T>::m_ny;
+	using Meshvar<T>::m_nz;
+	using Meshvar<T>::m_pdata;
+	
+	
+	
+public:
+	typedef T real_t;
+	unsigned m_nbnd;
+	
+	//! most general constructor
+	MeshvarBnd( unsigned nbnd, unsigned nx, unsigned ny, unsigned nz, unsigned xoff, unsigned yoff, unsigned zoff )
+	: Meshvar<real_t>( nx+2*nbnd, ny+2*nbnd, nz+2*nbnd, xoff, yoff, zoff ), m_nbnd( nbnd )
+	{ 	}
+
+	//! zero-offset constructor
+	MeshvarBnd( unsigned nbnd, unsigned nx, unsigned ny, unsigned nz )
+	: Meshvar<real_t>( nx+2*nbnd, ny+2*nbnd, nz+2*nbnd, 0, 0, 0 ), m_nbnd( nbnd )
+	{ 	}
+	
+	//! constructor for cubic meshes
+	MeshvarBnd( unsigned nbnd, unsigned n, unsigned xoff, unsigned yoff, unsigned zoff )
+	: Meshvar<real_t>( n+2*nbnd, xoff, yoff, zoff ), m_nbnd( nbnd )
+	{ 	}
+	
+	//! constructor for cubic meshes with zero offset
+	MeshvarBnd( unsigned nbnd, unsigned n )
+	: Meshvar<real_t>( n+2*nbnd, 0, 0, 0 ), m_nbnd( nbnd )
+	{ 	}
+	
+	//! modified copy constructor, allows to avoid copying actual data
+	MeshvarBnd( const MeshvarBnd<real_t>& v, bool copyover )
+	: Meshvar<real_t>( v, copyover ), m_nbnd( v.m_nbnd )
+	{   }
+	
+	//! copy constructor
+	explicit MeshvarBnd( const MeshvarBnd<real_t>& v )
+	: Meshvar<real_t>( v, true ), m_nbnd( v.m_nbnd )
+	{   }
+	
+	//! get extent of the mesh along a specified dimension
+	inline unsigned size( unsigned dim=0 ) const
+	{
+		if( dim == 0 ) return m_nx-2*m_nbnd;
+		if( dim == 1 ) return m_ny-2*m_nbnd;
+		return m_nz-2*m_nbnd;
+	}
+
+	//! 3D random access to the data block via index 3-tuples
+	inline real_t& operator()(const int ix, const int iy, const int iz )
+	{
+		int iix(ix+m_nbnd), iiy(iy+m_nbnd), iiz(iz+m_nbnd);
+		return m_pdata[ (iix*m_ny+iiy)*m_nz + iiz ];
+	}
+	
+	//! 3D random access to the data block via index 3-tuples (const)
+	inline const real_t& operator()(const int ix, const int iy, const int iz ) const
+	{
+		int iix(ix+m_nbnd), iiy(iy+m_nbnd), iiz(iz+m_nbnd);
+		return m_pdata[ (iix*m_ny+iiy)*m_nz + iiz ];
+	}
+	
+	//! assignment operator for rectangular meshes with ghost zones
+	MeshvarBnd<real_t>& operator=( const MeshvarBnd<real_t>& m )
+	{
+		this->m_nx = m.m_nx;
+		this->m_ny = m.m_ny;
+		this->m_nz = m.m_nz;
+		
+		if( m_pdata != NULL )
+			delete[] m_pdata;
+			
+		m_pdata = new real_t[m_nx*m_ny*m_nz];
+		
+		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			this->m_pdata[i] = m.m_pdata[i];
+		
+		return *this;
+	}
+
+	//! sets the value of all ghost zones to zero
+	void zero_bnd( void )
+	{
+		
+		int nx,ny,nz;
+		nx = this->size(0);
+		ny = this->size(1);
+		nz = this->size(2);
+		
+		
+		for( int j=-m_nbnd; j<ny+m_nbnd; ++j )
+			for( int k=-m_nbnd; k<nz+m_nbnd; ++k ){
+				for( int i=-m_nbnd;i<0;++i )
+				{
+					(*this)(i,j,k)  = 0.0;
+					(*this)(nx-1-i,j,k) = 0.0;	
+				}
+				
+			}
+		
+		for( int i=-m_nbnd; i<nx+m_nbnd; ++i )
+			for( int k=-m_nbnd; k<nz+m_nbnd; ++k ){
+				for( int j=-m_nbnd;j<0;++j )
+				{
+					(*this)(i,j,k) = 0.0;
+					(*this)(i,ny-j-1,k) = 0.0;
+				}
+				
+			}
+		
+		for( int i=-m_nbnd; i<nx+m_nbnd; ++i )
+			for( int j=-m_nbnd; j<ny+m_nbnd; ++j ){
+				for( int k=-m_nbnd;k<0;++k )
+				{
+					(*this)(i,j,k) = 0.0;
+					(*this)(i,j,nz-k-1) = 0.0;	
+				}
+				
+			}
+	}
+	
+	//! outputs the data, for debugging only, not practical for large datasets
+	void print( void ) const
+	{
+		int nbnd = m_nbnd;
+		
+		std::cout << "size is [" << this->size(0) << ", " << this->size(1) << ", " << this->size(2) << "]\n";
+		std::cout << "ghost region has length of " << nbnd << std::endl;
+		
+		std::cout.precision(3);
+		for(int i=-nbnd; i<(int)this->size(0)+nbnd; ++i )
+		{
+			std::cout << "ix = " << i << ": \n";
+			
+			for (int j=-nbnd; j<(int)this->size(1)+nbnd; ++j) {
+				for (int k=-nbnd; k<(int)this->size(2)+nbnd; ++k) {
+					if( i<0||i>=this->size(0)||j<0||j>=this->size(1)||k<0||k>=this->size(2))
+						std::cout << "[" << std::setw(6) << (*this)(i,j,k) << "] ";
+					else
+						std::cout << std::setw(8) <<  (*this)(i,j,k) << " ";
+				}
+				std::cout << std::endl;
+			}
+			
+			std::cout << std::endl;
+			
+		}
+	}
+};
+
+
+
+//! class that subsumes a nested grid collection
+template< typename T >
+class GridHierarchy
+{
+public:
+	
+	//! number of ghost cells on boundary
+	unsigned m_nbnd;
+	
+	//! highest level without adaptive refinement
+	unsigned m_levelmin;
+	
+	//! vector of pointers to the underlying rectangular mesh data for each level
+	std::vector< MeshvarBnd<T>* > m_pgrids;
+	
+	std::vector<int> 
+		m_xoffabs,		//!< vector of x-offsets of a level mesh relative to the coarser level
+		m_yoffabs,		//!< vector of x-offsets of a level mesh relative to the coarser level
+		m_zoffabs;		//!< vector of x-offsets of a level mesh relative to the coarser level
+	
+protected:
+	
+	//! check whether a given grid has identical hierarchy, dimensions to this 
+	bool is_consistent( const GridHierarchy<T>& gh )
+	{
+		if( gh.levelmax()!=levelmax() )
+			return false;
+		
+		if( gh.levelmin()!=levelmin() )
+			return false;
+		
+		for( unsigned i=levelmin(); i<=levelmax(); ++i )
+			for( int j=0; j<3; ++j )
+			{
+				if( size(i,j) != gh.size(i,j) )
+					return false;
+				if( offset(i,j) != gh.offset(i,j) )
+					return false;
+			}
+		
+		return true;
+	}
+	
+public:
+	
+	
+	//! return a pointer to the MeshvarBnd object representing data for one level
+	MeshvarBnd<T> *get_grid( unsigned ilevel )
+	{	
+
+		if( ilevel >= m_pgrids.size() )
+		{
+			std::cerr << "Attempt to access level " << ilevel << " but maxlevel = " << m_pgrids.size()-1 << std::endl;
+			throw std::runtime_error("Fatal: attempt to access non-existent grid");
+		}
+		return m_pgrids[ilevel];  
+	}
+
+	//! return a pointer to the MeshvarBnd object representing data for one level (const)	
+	const MeshvarBnd<T> *get_grid( unsigned ilevel ) const
+	{	
+		if( ilevel >= m_pgrids.size() )
+		{
+			std::cerr << "Attempt to access level " << ilevel << " but maxlevel = " << m_pgrids.size()-1 << std::endl;
+			throw std::runtime_error("Fatal: attempt to access non-existent grid");
+		}
+
+		return m_pgrids[ilevel];  
+	}
+	
+	
+	//! constructor for a collection of rectangular grids representing a multi-level hierarchy
+	/*! creates an empty hierarchy, levelmin is initially zero, no grids are stored
+	 * @param nbnd number of ghost zones added at the boundary
+	 */
+	explicit GridHierarchy( unsigned nbnd )
+	: m_nbnd( nbnd ), m_levelmin( 0 )
+	{
+		m_pgrids.clear();
+	}
+	
+	//! copy constructor
+	explicit GridHierarchy( const GridHierarchy<T> & gh )
+	{
+		for( unsigned i=0; i<=gh.levelmax(); ++i )
+			m_pgrids.push_back( new MeshvarBnd<T>( *gh.get_grid(i) ) );
+		
+		m_nbnd = gh.m_nbnd;
+		m_levelmin = gh.m_levelmin;
+		
+		m_xoffabs = gh.m_xoffabs;
+		m_yoffabs = gh.m_yoffabs;
+		m_zoffabs = gh.m_zoffabs;
+	}
+	
+	//! destructor
+	~GridHierarchy()
+	{
+		this->deallocate();
+		
+	}
+	
+	//! free all memory occupied by the grid hierarchy
+	void deallocate()
+	{
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			delete m_pgrids[i];
+		m_pgrids.clear();
+		
+		m_xoffabs.clear();
+		m_yoffabs.clear();
+		m_zoffabs.clear();
+		m_levelmin = 0;
+	}
+	
+	
+	//! get offset of a grid at specified refinement level
+	/*! the offset describes the shift of a refinement grid with respect to its coarser parent grid
+	 *  @param ilevel the level for which the offset is to be determined
+	 *  @param idim the dimension along which the offset is to be determined
+	 *  @return integer value denoting the offset in units of coarse grid cells
+	 *  @sa offset_abs
+	 */
+	int offset( int ilevel, int idim ) const
+	{
+		return m_pgrids[ilevel]->offset(idim);
+	}
+	
+	//! get size of a grid at specified refinement level
+	/*! the size describes the number of cells along one dimension of a grid
+	 *  @param ilevel the level for which the size is to be determined
+	 *  @param idim the dimension along which the size is to be determined
+	 *  @return integer value denoting the size of refinement grid at level ilevel along dimension idim
+	 */
+	int size( int ilevel, int idim ) const
+	{
+		return m_pgrids[ilevel]->size(idim);
+	}
+	
+	
+	//! get the absolute offset of a grid at specified refinement level
+	/*! the absolute offset describes the shift of a refinement grid with respect to the simulation volume
+	 *  @param ilevel the level for which the offset is to be determined
+	 *  @param idim the dimension along which the offset is to be determined
+	 *  @return integer value denoting the absolute offset in units of fine grid cells
+	 *  @sa offset
+	 */
+	int offset_abs( int ilevel, int idim ) const
+	{
+		if( idim == 0 ) return m_xoffabs[ilevel];
+		if( idim == 1 ) return m_yoffabs[ilevel];
+		return m_zoffabs[ilevel];
+	}
+	
+	
+	//! get the coordinate posisition of a grid cell 
+	/*! returns the position of a grid cell at specified level relative to the simulation volume
+	 *  @param ilevel the refinement level of the grid cell
+	 *  @param i the x-index of the cell in the level grid
+	 *  @param j the y-index of the cell in the level grid
+	 *  @param k the z-index of the cell in the level grid
+	 *  @param ppos pointer to a double[3] array to which the coordinates are written
+	 *  @return none
+	 */
+	void cell_pos( unsigned ilevel, int i, int j, int k, double* ppos ) const
+	{
+		double h = 1.0/pow(2,ilevel);//, htop = h*2.0;
+		ppos[0] = h*((double)offset_abs(ilevel,0)+(double)i+0.5);
+		ppos[1] = h*((double)offset_abs(ilevel,1)+(double)j+0.5);
+		ppos[2] = h*((double)offset_abs(ilevel,2)+(double)k+0.5);
+		
+		if( ppos[0] >= 1.0 || ppos[1] >= 1.0 || ppos[2] >= 1.0 )
+			std::cerr << " - Cell seems outside domain! : (" << ppos[0] << ", " << ppos[1] << ", " << ppos[2] << "\n";
+	}
+	
+	//! checks whether a given grid cell is refined
+	/*! a grid cell counts as refined if it is divided into 8 cells at the next higher level
+	 *  @param ilevel the refinement level of the grid cell
+	 *  @param i the x-index of the cell in the level grid
+	 *  @param j the y-index of the cell in the level grid
+	 *  @param k the z-index of the cell in the level grid
+	 *  @return true if cell is refined, false otherwise
+	 */
+	bool is_refined( unsigned ilevel, int i, int j, int k ) const
+	{
+		if( ilevel == levelmax() ) return false;
+		
+		if( i < offset(ilevel+1,0) || i >= offset(ilevel+1, 0)+size(ilevel+1,0)/2 ||
+		    j < offset(ilevel+1,1) || j >= offset(ilevel+1, 1)+size(ilevel+1,1)/2 ||
+		    k < offset(ilevel+1,2) || k >= offset(ilevel+1, 2)+size(ilevel+1,2)/2 )
+			return false;
+		
+		return true;
+	}
+	
+	//! sets the values of all grids on all levels to zero
+	void zero( void )
+	{
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			m_pgrids[i]->zero();
+	}
+	
+	
+	//! count the number of cells that are not further refined (=leafs)
+	/*! for allocation purposes it is useful to query the number of cells to be expected
+	 *  @param lmin the minimum refinement level to consider
+	 *  @param lmax the maximum refinement level to consider
+	 *  @return the integer number of cells between lmin and lmax that are not further refined
+	 */
+	unsigned count_leaf_cells( unsigned lmin, unsigned lmax ) const
+	{
+		unsigned npcount = 0;
+		
+		for( int ilevel=lmax; ilevel>=(int)lmin; --ilevel )
+			for( unsigned i=0; i<get_grid(ilevel)->size(0); ++i )
+				for( unsigned j=0; j<get_grid(ilevel)->size(1); ++j )
+					for( unsigned k=0; k<get_grid(ilevel)->size(2); ++k )
+						if( ! is_refined(ilevel,i,j,k) )
+							++npcount;
+		
+		return npcount;
+	}
+	
+	//! count the number of cells that are not further refined (=leafs)
+	/*! for allocation purposes it is useful to query the number of cells to be expected
+	 *  @return the integer number of cells in the hierarchy that are not further refined
+	 */
+	unsigned count_leaf_cells( void ) const
+	{
+		return count_leaf_cells( levelmin(), levelmax() );
+	}
+	
+	//! creates a hierarchy of coextensive grids, refined by factors of 2
+	/*! creates a hierarchy of lmax grids, each extending over the whole simulation volume with
+	 *  grid length 2^n for level 0<=n<=lmax
+	 *  @param lmax the maximum refinement level to be added (sets the resolution to 2^lmax for each dim)
+	 *  @return none
+	 */
+	void create_base_hierarchy( unsigned lmax )
+	{
+		unsigned n=1;
+		m_pgrids.clear();
+		for( unsigned i=0; i<= lmax; ++i )
+		{
+			//std::cout << "....adding level " << i << " (" << n << ", " << n << ", " << n << ")" << std::endl;
+			m_pgrids.push_back( new MeshvarBnd<T>( m_nbnd, n, n, n, 0, 0, 0 ) );
+			m_pgrids[i]->zero();
+     		n *= 2;
+			
+			m_xoffabs.push_back( 0 );
+			m_yoffabs.push_back( 0 );
+			m_zoffabs.push_back( 0 );
+		}
+		
+		m_levelmin = lmax;
+	}
+	
+	GridHierarchy<T>& operator*=( T x )
+	{
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			(*m_pgrids[i]) *= x;
+		return *this;
+	}
+	
+	GridHierarchy<T>& operator/=( T x )
+	{
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			(*m_pgrids[i]) /= x;
+		return *this;
+	}
+	
+	GridHierarchy<T>& operator+=( T x )
+	{
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			(*m_pgrids[i]) += x;
+		return *this;
+	}
+	
+	GridHierarchy<T>& operator-=( T x )
+	{
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			(*m_pgrids[i]) -= x;
+		return *this;
+	}
+	
+	GridHierarchy<T>& operator*=( const GridHierarchy& gh )
+	{
+		if( !is_consistent(gh) )
+			throw std::runtime_error("GridHierarchy::operator*= : attempt to operate on incompatible data");
+		
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			(*m_pgrids[i]) *= *gh.get_grid(i);
+		return *this;
+	}
+	
+	GridHierarchy<T>& operator/=( const GridHierarchy& gh )
+	{
+		if( !is_consistent(gh) )
+			throw std::runtime_error("GridHierarchy::operator/= : attempt to operate on incompatible data");
+		
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			(*m_pgrids[i]) /= *gh.get_grid(i);
+		return *this;
+	}
+	
+	GridHierarchy<T>& operator+=( const GridHierarchy& gh )
+	{
+		if( !is_consistent(gh) )
+			throw std::runtime_error("GridHierarchy::operator+= : attempt to operate on incompatible data");
+		
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			(*m_pgrids[i]) += *gh.get_grid(i);
+		return *this;
+	}
+	
+	GridHierarchy<T>& operator-=( const GridHierarchy& gh )
+	{
+		if( !is_consistent(gh) )
+			throw std::runtime_error("GridHierarchy::operator-= : attempt to operate on incompatible data");
+		
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			(*m_pgrids[i]) -= *gh.get_grid(i);
+		return *this;
+	}
+	
+	
+	
+	//... Xoff is in units of the coarser grid,
+	//... nX is the extent in fine grid cells
+	void add_patch( unsigned xoff, unsigned yoff, unsigned zoff, unsigned nx, unsigned ny, unsigned nz )
+	{
+		m_pgrids.push_back( new MeshvarBnd<T>( m_nbnd, nx, ny, nz, xoff, yoff, zoff ) );
+		m_pgrids.back()->zero();
+		
+		//.. add absolute offsets (in units of current level grid cells)
+		m_xoffabs.push_back( 2*(m_xoffabs.back() + xoff) );
+		m_yoffabs.push_back( 2*(m_yoffabs.back() + yoff) );
+		m_zoffabs.push_back( 2*(m_zoffabs.back() + zoff) );
+	}
+	
+	void cut_patch( unsigned ilevel, unsigned xoff, unsigned yoff, unsigned zoff, unsigned nx, unsigned ny, unsigned nz)
+	{
+		
+		unsigned dx,dy,dz,dxtop,dytop,dztop;
+		dx = xoff-m_xoffabs[ilevel];
+		dy = yoff-m_yoffabs[ilevel];
+		dz = zoff-m_zoffabs[ilevel];
+		
+		dxtop = m_pgrids[ilevel]->offset(0)+dx/2;
+		dytop = m_pgrids[ilevel]->offset(1)+dy/2;
+		dztop = m_pgrids[ilevel]->offset(2)+dz/2;
+		
+		
+		MeshvarBnd<T> *mnew = new MeshvarBnd<T>( m_nbnd, nx, ny, nz, dxtop, dytop, dztop );
+		
+		
+		//... copy data
+		for( unsigned i=0; i<nx; ++i )
+			for( unsigned j=0; j<ny; ++j )
+				for( unsigned k=0; k<nz; ++k )
+					//(*mnew)(i,j,k) = (*m_pgrids[ilevel])(i+xoff,j+yoff,k+zoff);
+					(*mnew)(i,j,k) = (*m_pgrids[ilevel])(i+dx,j+dy,k+dz);
+
+		//... replace in hierarchy
+		delete m_pgrids[ilevel];
+		m_pgrids[ilevel] = mnew;
+		
+		//... update offsets
+
+		m_xoffabs[ilevel] += dx;//xoff;
+		m_yoffabs[ilevel] += dy;//yoff;
+		m_zoffabs[ilevel] += dz;//zoff;
+		
+		
+		if( ilevel < levelmax() )
+		{
+			m_pgrids[ilevel+1]->offset(0) -= dx;//xoff;
+			m_pgrids[ilevel+1]->offset(1) -= dy;//yoff;
+			m_pgrids[ilevel+1]->offset(2) -= dz;//zoff;
+		}
+		
+		find_new_levelmin();
+	}
+	
+	void find_new_levelmin( void )
+	{
+		for( unsigned i=0; i<=levelmax(); ++i )
+		{
+			unsigned n = (unsigned)pow(2,i);
+			if(	m_pgrids[i]->size(0) == n &&
+			   	m_pgrids[i]->size(1) == n &&
+			   	m_pgrids[i]->size(2) == n )
+			{
+				m_levelmin=i;
+			}
+		}
+	}
+	
+	unsigned levelmax( void ) const
+	{
+		return m_pgrids.size()-1;
+	}
+	
+	unsigned levelmin( void ) const
+	{
+		return m_levelmin;
+	}
+	
+	GridHierarchy& operator=( const GridHierarchy<T>& gh )
+	{
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			delete m_pgrids[i];
+		m_pgrids.clear();
+		
+		for( unsigned i=0; i<=gh.levelmax(); ++i )
+			m_pgrids.push_back( new MeshvarBnd<T>( *gh.get_grid(i) ) );
+		m_levelmin = gh.levelmin();
+		m_nbnd = gh.m_nbnd;
+		
+		m_xoffabs = gh.m_xoffabs;
+		m_yoffabs = gh.m_yoffabs;
+		m_zoffabs = gh.m_zoffabs;
+		
+		
+		return *this;
+	}
+};
+
+//! class that computes the refinement structure given parameters
+class refinement_hierarchy
+{
+	std::vector<double> x0_,y0_,z0_,xl_,yl_,zl_;
+	std::vector<unsigned> ox_,oy_,oz_,oax_,oay_,oaz_;
+	std::vector<unsigned> nx_,ny_,nz_;
+	unsigned levelmin_, levelmax_, padding_;
+	config_file& cf_;
+	bool align_top_;
+	float x0ref_[3], lxref_[3];
+	int xshift_[3];
+	
+public:
+	
+	refinement_hierarchy( const refinement_hierarchy& rh )
+	: cf_( rh.cf_ )
+	{
+		*this = rh;
+	}
+	
+	explicit refinement_hierarchy( config_file& cf )
+	: cf_( cf )
+	{
+		//... query the parameter data we need
+		levelmin_	= cf_.getValue<unsigned>("setup","levelmin");
+		levelmax_	= cf_.getValue<unsigned>("setup","levelmax");
+		padding_	= cf_.getValue<unsigned>("setup","padding");
+		align_top_	= cf_.getValue<bool>("setup","align_top");
+		
+		std::string temp;
+		
+		temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
+		sscanf( temp.c_str(), "%g,%g,%g", &x0ref_[0], &x0ref_[1], &x0ref_[2] ); 
+		
+		temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
+		sscanf( temp.c_str(), "%g,%g,%g", &lxref_[0],&lxref_[1],&lxref_[2] );
+		
+		unsigned ncoarse = (unsigned)pow(2,levelmin_);
+		
+		//... determine shift
+
+		double xc[3];
+		xc[0] = fmod(x0ref_[0]+0.5*lxref_[0],1.0);
+		xc[1] = fmod(x0ref_[1]+0.5*lxref_[1],1.0);
+		xc[2] = fmod(x0ref_[2]+0.5*lxref_[2],1.0);
+		xshift_[0] = (int)((0.5-xc[0])*ncoarse);
+		xshift_[1] = (int)((0.5-xc[1])*ncoarse);
+		xshift_[2] = (int)((0.5-xc[2])*ncoarse);
+		
+		char strtmp[32];
+		sprintf( strtmp, "%d", xshift_[0] );	cf_.insertValue( "setup", "shift_x", strtmp );
+		sprintf( strtmp, "%d", xshift_[1] );	cf_.insertValue( "setup", "shift_y", strtmp );
+		sprintf( strtmp, "%d", xshift_[2] );	cf_.insertValue( "setup", "shift_z", strtmp );
+		
+		
+		x0ref_[0] += (double)xshift_[0]/ncoarse;
+		x0ref_[1] += (double)xshift_[1]/ncoarse;
+		x0ref_[2] += (double)xshift_[2]/ncoarse;
+		
+		
+		//... initialize arrays 
+		x0_.assign(levelmax_+1,0.0);	xl_.assign(levelmax_+1,1.0);
+		y0_.assign(levelmax_+1,0.0);	yl_.assign(levelmax_+1,1.0);
+		z0_.assign(levelmax_+1,0.0);	zl_.assign(levelmax_+1,1.0);
+		ox_.assign(levelmax_+1,0);		nx_.assign(levelmax_+1,0);
+		oy_.assign(levelmax_+1,0);		ny_.assign(levelmax_+1,0);
+		oz_.assign(levelmax_+1,0);		nz_.assign(levelmax_+1,0);
+		
+		oax_.assign(levelmax_+1,0);
+		oay_.assign(levelmax_+1,0);
+		oaz_.assign(levelmax_+1,0);
+		
+		
+		nx_[levelmin_] = ncoarse;
+		ny_[levelmin_] = ncoarse;
+		nz_[levelmin_] = ncoarse;
+		
+		
+		//... determine the position of the refinement region on the finest grid
+		int il,jl,kl,ir,jr,kr;
+		int nresmax = (int)pow(2,levelmax_);
+		il = (int)(x0ref_[0] * nresmax);
+		jl = (int)(x0ref_[1] * nresmax);
+		kl = (int)(x0ref_[2] * nresmax);
+		ir = (int)((x0ref_[0]+lxref_[0]) * nresmax + 1.0);
+		jr = (int)((x0ref_[0]+lxref_[0]) * nresmax + 1.0);
+		kr = (int)((x0ref_[0]+lxref_[0]) * nresmax + 1.0);
+		
+		//... align with coarser grids ...
+		if( align_top_ )
+		{
+			//... require alignment with top grid
+			unsigned nref = (unsigned)pow(2,levelmax_-levelmin_)*2;
+			
+			il = (int)((double)il/nref)*nref;
+			jl = (int)((double)jl/nref)*nref;
+			kl = (int)((double)kl/nref)*nref;
+			
+			ir = (int)((double)ir/nref+1.0)*nref;
+			jr = (int)((double)jr/nref+1.0)*nref;
+			kr = (int)((double)kr/nref+1.0)*nref;
+			
+		}else{
+			//... require alignment with coarser grid
+			il -= il%2; jl -= jl%2; kl -= kl%2;
+			ir += ir%2; jr += jr%2; kr += kr%2; 
+		}
+		
+		if( levelmin_ != levelmax_ )
+		{
+			oax_[levelmax_] = (il+nresmax)%nresmax;
+			oay_[levelmax_] = (jl+nresmax)%nresmax;
+			oaz_[levelmax_] = (kl+nresmax)%nresmax;
+			nx_[levelmax_]  = ir-il;	
+			ny_[levelmax_]  = jr-jl;	
+			nz_[levelmax_]  = kr-kl;
+		}
+		
+		//... determine position of coarser grids
+		for( unsigned ilevel=levelmax_-1; ilevel> levelmin_; --ilevel )
+		{
+			il = (int)((double)il * 0.5 - padding_);
+			jl = (int)((double)jl * 0.5 - padding_);
+			kl = (int)((double)kl * 0.5 - padding_);
+			
+			ir = (int)((double)ir * 0.5 + padding_);
+			jr = (int)((double)jr * 0.5 + padding_);
+			kr = (int)((double)kr * 0.5 + padding_);
+			
+			//... align with coarser grids ...
+			if( align_top_ )
+			{
+				//... require alignment with top grid
+				unsigned nref = (unsigned)pow(2,ilevel-levelmin_);
+				
+				il = (int)((double)il/nref)*nref;
+				jl = (int)((double)jl/nref)*nref;
+				kl = (int)((double)kl/nref)*nref;
+				
+				ir = (int)((double)ir/nref+1.0)*nref;
+				jr = (int)((double)jr/nref+1.0)*nref;
+				kr = (int)((double)kr/nref+1.0)*nref;
+				
+			}else{
+				//... require alignment with coarser grid
+				il -= il%2; jl -= jl%2; kl -= kl%2;
+				ir += ir%2; jr += jr%2; kr += kr%2; 
+			}
+			
+			oax_[ilevel] = il;		oay_[ilevel] = jl;		oaz_[ilevel] = kl;
+			nx_[ilevel]  = ir-il;	ny_[ilevel]  = jr-jl;	nz_[ilevel]  = kr-kl;
+			
+		}
+		
+		//... determine relative offsets between grids
+		for( unsigned ilevel=levelmax_; ilevel>levelmin_; --ilevel )
+		{
+			ox_[ilevel] = (oax_[ilevel]/2 - oax_[ilevel-1]);
+			oy_[ilevel] = (oay_[ilevel]/2 - oay_[ilevel-1]);
+			oz_[ilevel] = (oaz_[ilevel]/2 - oaz_[ilevel-1]);
+		}
+		
+		for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
+		{
+			double h = 1.0/pow(2,ilevel);
+			
+			x0_[ilevel] = h*(double)oax_[ilevel];
+			y0_[ilevel] = h*(double)oay_[ilevel];
+			z0_[ilevel] = h*(double)oaz_[ilevel];
+			
+			xl_[ilevel] = h*(double)nx_[ilevel];
+			yl_[ilevel] = h*(double)ny_[ilevel];
+			zl_[ilevel] = h*(double)nz_[ilevel];
+		}
+		
+		for( unsigned ilevel=0; ilevel <=levelmin_; ++ilevel )
+		{
+			unsigned n = (unsigned)pow(2,ilevel);
+			
+			xl_[ilevel] = yl_[ilevel] = zl_[ilevel] = 1.0;
+			nx_[ilevel] = ny_[ilevel] = nz_[ilevel] = n;
+		}
+	}
+	
+	refinement_hierarchy& operator=( const refinement_hierarchy& o )
+	{
+		levelmin_ = o.levelmin_;
+		levelmax_ = o.levelmax_;
+		padding_  = o.padding_;
+		cf_ = o.cf_;
+		align_top_ = o.align_top_;
+		for( int i=0; i<3; ++i )
+		{
+			x0ref_[i] = o.x0ref_[i];
+			lxref_[i] = o.lxref_[i];
+			xshift_[i] = o.xshift_[i];
+		}
+		
+		x0_ = o.x0_; y0_ = o.y0_; z0_ = o.z0_;
+		xl_ = o.xl_; yl_ = o.yl_; zl_ = o.zl_;
+		ox_ = o.ox_; oy_ = o.oy_; oz_ = o.oz_;
+		oax_= o.oax_; oay_ = o.oay_; oaz_ = o.oaz_;
+		nx_ = o.nx_; ny_=o.ny_; nz_=o.nz_;
+		
+		return *this;
+	}
+	
+	void adjust_level( unsigned ilevel, int nx, int ny, int nz, int oax, int oay, int oaz )
+	{
+		double h = 1.0/pow(2,ilevel);
+		
+		int dx,dy,dz;
+		
+		dx = oax_[ilevel] - oax;
+		dy = oay_[ilevel] - oay;
+		dz = oaz_[ilevel] - oaz;
+		
+		ox_[ilevel] -= dx/2;
+		oy_[ilevel] -= dy/2;
+		oz_[ilevel] -= dz/2;
+		
+		oax_[ilevel] = oax; 
+		oay_[ilevel] = oay; 
+		oaz_[ilevel] = oaz;
+		
+		nx_[ilevel] = nx;
+		ny_[ilevel] = ny;
+		nz_[ilevel] = nz;
+		
+		x0_[ilevel] = h*oax;
+		y0_[ilevel] = h*oay;
+		z0_[ilevel] = h*oaz;
+		
+		xl_[ilevel] = h*nx;
+		yl_[ilevel] = h*ny;
+		zl_[ilevel] = h*nz;
+		
+		if( ilevel < levelmax_ )
+		{
+			ox_[ilevel+1] += dx;
+			oy_[ilevel+1] += dy;
+			oz_[ilevel+1] += dz;
+		}
+		
+		find_new_levelmin();
+		
+	}
+	
+	void find_new_levelmin( void )
+	{
+		for( unsigned i=0; i<=levelmax(); ++i )
+		{
+			unsigned n = (unsigned)pow(2,i);
+			if(	oax_[i]==0 && oay_[i]==0 && oaz_[i]==0
+			   && nx_[i]==n && ny_[i]==n && nz_[i]==n )
+			{
+				levelmin_=i;
+			}
+		}
+		
+		std::cerr << " - refinement_hierarchy: set new levelmin to " << levelmin_ << std::endl;
+	}
+	
+	unsigned offset_abs( unsigned ilevel, int dim ) const
+	{
+		if( dim==0 )
+			return oax_.at(ilevel);
+		if( dim==1 )
+			return oay_.at(ilevel);
+		return oaz_.at(ilevel);
+	}
+	
+	unsigned offset( unsigned ilevel, int dim ) const
+	{
+		if( dim==0 )
+			return ox_.at(ilevel);
+		if( dim==1 )
+			return oy_.at(ilevel);
+		return oz_.at(ilevel);
+	}
+	
+	unsigned size( unsigned ilevel, int dim ) const
+	{
+		if( dim==0 )
+			return nx_.at(ilevel);
+		if( dim==1 )
+			return ny_.at(ilevel);
+		return nz_.at(ilevel);
+	}
+	
+	unsigned levelmin( void ) const
+	{	return levelmin_;	}
+	
+	unsigned levelmax( void ) const
+	{	return levelmax_;	}
+	
+	
+	
+	void output( void )
+	{
+		std::cout << "-------------------------------------------------------------\n";
+		
+		if( xshift_[0]!=0||xshift_[1]!=0||xshift_[2]!=0 )
+			std::cout 
+				<< " - Domain will be shifted by (" << xshift_[0] << ", " << xshift_[1] << ", " << xshift_[2] << ")\n" << std::endl
+				<< " - Grid structure:\n";
+		
+		for( unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
+		{
+			std::cout 
+			<< "     Level " << std::setw(3) << ilevel << " :   offset = (" << std::setw(5) << ox_[ilevel] << ", " << std::setw(5) << oy_[ilevel] << ", " << std::setw(5) << oz_[ilevel] << ")\n"
+			<< "                   size   = (" << std::setw(5) << nx_[ilevel] << ", " << std::setw(5) << ny_[ilevel] << ", " << std::setw(5) << nz_[ilevel] << ")\n";
+		}
+		std::cout << "-------------------------------------------------------------\n";
+		
+	}
+};
+
+#endif
+

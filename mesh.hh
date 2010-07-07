@@ -888,6 +888,8 @@ public:
 		padding_	= cf_.getValue<unsigned>("setup","padding");
 		align_top_	= cf_.getValue<bool>("setup","align_top");
 		
+		bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
+		
 		std::string temp;
 		
 		temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
@@ -904,9 +906,18 @@ public:
 		xc[0] = fmod(x0ref_[0]+0.5*lxref_[0],1.0);
 		xc[1] = fmod(x0ref_[1]+0.5*lxref_[1],1.0);
 		xc[2] = fmod(x0ref_[2]+0.5*lxref_[2],1.0);
-		xshift_[0] = (int)((0.5-xc[0])*ncoarse);
-		xshift_[1] = (int)((0.5-xc[1])*ncoarse);
-		xshift_[2] = (int)((0.5-xc[2])*ncoarse);
+		
+		
+		if( levelmin_ != levelmax_ && !bnoshift)
+		{
+			xshift_[0] = (int)((0.5-xc[0])*ncoarse);
+			xshift_[1] = (int)((0.5-xc[1])*ncoarse);
+			xshift_[2] = (int)((0.5-xc[2])*ncoarse);
+		}else{
+			xshift_[0] = 0;
+			xshift_[1] = 0;
+			xshift_[2] = 0;
+		}
 		
 		char strtmp[32];
 		sprintf( strtmp, "%d", xshift_[0] );	cf_.insertValue( "setup", "shift_x", strtmp );
@@ -1162,9 +1173,9 @@ public:
 		std::cout << "-------------------------------------------------------------\n";
 		
 		if( xshift_[0]!=0||xshift_[1]!=0||xshift_[2]!=0 )
-			std::cout 
-				<< " - Domain will be shifted by (" << xshift_[0] << ", " << xshift_[1] << ", " << xshift_[2] << ")\n" << std::endl
-				<< " - Grid structure:\n";
+			std::cout << " - Domain will be shifted by (" << xshift_[0] << ", " << xshift_[1] << ", " << xshift_[2] << ")\n" << std::endl;
+
+		std::cout << " - Grid structure:\n";
 		
 		for( unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
 		{

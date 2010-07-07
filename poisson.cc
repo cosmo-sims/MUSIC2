@@ -138,7 +138,7 @@ double multigrid_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hier
 {
 	Du = u;
 	
-	unsigned order = cf_.getValueSafe<unsigned>( "setup", "grad_order", 4 );
+	unsigned order = cf_.getValueSafe<unsigned>( "poisson", "grad_order", 4 );
 	
 	switch( order )
 	{

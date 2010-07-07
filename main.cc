@@ -48,7 +48,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.3a"
+#define THE_CODE_VERSION "0.3.1a"
 
 
 namespace music
@@ -260,6 +260,17 @@ int main (int argc, const char * argv[])
 	lbase				= cf.getValue<unsigned>( "setup", "levelmin" );
 	lmax				= cf.getValue<unsigned>( "setup", "levelmax" );
 	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelminTF", lbase );
+	
+	if( lbase == lmax )
+		cf.insertValue("setup","no_shift","yes");
+	
+	if( lbaseTF < lbase )
+	{
+		std::cout << " - WARNING: levelminTF < levelmin. This is not good!\n"
+				  << "            I will set levelminTF = levelmin.\n";
+		lbaseTF = lbase;
+		cf.insertValue("setup","levelminTF",cf.getValue<std::string>("setup","levelmin"));
+	}
 	
 	temp				= cf.getValue<std::string>( "setup", "ref_offset" );
 	sscanf( temp.c_str(), "%g,%g,%g", &tf0, &tf1, &tf2 ); x0[0] = tf0; x0[1] = tf1; x0[2] = tf2;

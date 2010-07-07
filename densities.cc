@@ -47,6 +47,8 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	levelmax	= cf.getValue<unsigned>("setup","levelmax");
 	boxlength   = cf.getValue<real_t>( "setup", "boxlength" );
 	
+	std::cerr << " RUNNING UNIGRID VERSION\n";
+	
 	//... parse random number options
 	for( int i=0; i<=100; ++i )
 	{
@@ -210,11 +212,11 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	boxlength   = cf.getValue<real_t>( "setup", "boxlength" );
 	
 	// TODO: need to make sure unigrid gets called whenever possible
-	if( levelmin == levelmax && levelmin==levelminPoisson )
+	/*if( levelmin == levelmax && levelmin==levelminPoisson )
 	{	
 		GenerateDensityUnigrid(cf,ptf,type,refh,delta);
 		return;
-	}
+	}*/
 	
 	
 	//... parse random number options
@@ -241,6 +243,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		}
 			
 	}
+	
+	
 	
 	//... parse grid setup parameters
 	unsigned	nbase	= (unsigned)pow(2,levelmin);

@@ -89,7 +89,7 @@ void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarc
 	unsigned lbase, lbaseTF, lmax, overlap;
 	
 	lbase				= cf.getValue<unsigned>( "setup", "levelmin" );
-	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelminTF", lbase );
+	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelmin_TF", lbase );
 	lmax				= cf.getValue<unsigned>( "setup", "levelmax" );
 	// TODO: add documentation about setup/overlap to manual
 	overlap				= cf.getValueSafe<unsigned>( "setup", "overlap", 4 );
@@ -283,7 +283,7 @@ int main (int argc, const char * argv[])
 	align_top			= cf.getValueSafe<bool>( "setup", "align_top", false );
 	
 	
-	kspace				= cf.getValueSafe<bool>( "setup", "kspace", false );
+	kspace				= cf.getValueSafe<bool>( "poisson", "kspace", false );
 	if( kspace )
 		poisson_solver_name = std::string("fft_poisson");
 	else
@@ -314,6 +314,7 @@ int main (int argc, const char * argv[])
 	outfname			= cf.getValue<std::string>( "output", "filename" );
 	
 	
+	unsigned grad_order = cf.getValueSafe<unsigned> ( "poisson" , "grad_order", 4 );
 	
 	/******************************************************************************************************/
 	/******************************************************************************************************/
@@ -407,7 +408,7 @@ int main (int argc, const char * argv[])
 				if( do_baryons )
 				{
 					if( do_LLA )
-						compute_LLA_density( u, f );
+						compute_LLA_density( u, f, grad_order );
 					
 					the_output_plugin->write_gas_density(f);
 				}
@@ -527,7 +528,7 @@ int main (int argc, const char * argv[])
 				//... compute 2LPT term
 				u2 = f; u2.zero();
 				
-				compute_2LPT_source(u1, f);
+				compute_2LPT_source(u1, f, grad_order );
 				err = the_poisson_solver->solve(f, u2);
 				u2 *= 3.0/7.0;
 					

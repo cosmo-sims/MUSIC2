@@ -512,7 +512,7 @@ public:
 	inline double interp_lin( int x, int y, int z, M& V, double s=1.0 ) const
 	{
 		double           u[2], v[2], w[2];
-		double			 r[2], q[2];
+		//double			 r[2], q[2];
 		double           vox = 0;
 		int				 i,j,k;
 		

@@ -1118,8 +1118,10 @@ public:
 		
 	}
 	
-	void find_new_levelmin( void )
+	void find_new_levelmin( bool print=false )
 	{
+		unsigned old_levelmin( levelmin_ );
+		
 		for( unsigned i=0; i<=levelmax(); ++i )
 		{
 			unsigned n = (unsigned)pow(2,i);
@@ -1130,7 +1132,8 @@ public:
 			}
 		}
 		
-		std::cerr << " - refinement_hierarchy: set new levelmin to " << levelmin_ << std::endl;
+		if( old_levelmin != levelmin_ )
+			std::cerr << " - refinement_hierarchy: set new levelmin to " << levelmin_ << std::endl;
 	}
 	
 	unsigned offset_abs( unsigned ilevel, int dim ) const

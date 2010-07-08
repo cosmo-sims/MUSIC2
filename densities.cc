@@ -207,7 +207,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	
 	
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
-	levelmin	= cf.getValueSafe<unsigned>("setup","levelminTF",levelminPoisson);
+	levelmin	= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
 	levelmax	= cf.getValue<unsigned>("setup","levelmax");
 	boxlength   = cf.getValue<real_t>( "setup", "boxlength" );
 	
@@ -252,7 +252,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	std::string temp	= cf.getValue<std::string>( "setup", "ref_extent" );
 	sscanf( temp.c_str(), "%g,%g,%g", &lxref[0],&lxref[1],&lxref[2] );
 	//double      lextmin = std::min(lxref[0],std::min(lxref[1],lxref[2]));
-	real_t		alpha	= 0.1*(real_t)nbase/boxlength;//0.45*lextmin*(double)nbase;///boxlength;
+	// alpha = 0.1*..., cutoff = 0.25 /// maybe 0.08, 0.3
+	real_t		alpha	= 0.05*(real_t)nbase/boxlength;//0.45*lextmin*(double)nbase;///boxlength;
 	real_t		cutoff	= 0.25;//lextmin*0.9;
 	
 	
@@ -544,6 +545,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			//mg_linear().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
 			mg_cubic().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
+			//mg_lin().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
 			
 			
 		}
@@ -668,6 +670,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		lz = dx * coarse->nz_; 
 		real_t lmin = std::min( lx, std::min(ly,lz) );
 		
+		
 		conv_param.lx = lx;
 		conv_param.ly = ly;
 		conv_param.lz = lz;
@@ -694,7 +697,10 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		
 		
 #if 1
+		//... boundary correction
 		convolution::truncate( the_tf_kernel, cutoff*lmin, alpha );
+		//convolution::truncate_sharp( the_tf_kernel, cutoff*lmin );
+		
 		
 		*coarse = coarse_save;
 		coarse->zero_subgrid(0,0,0,coarse->nx_/2,coarse->ny_/2,coarse->nz_/2);
@@ -704,13 +710,12 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		coarse->copy_add_unpad( *delta.get_grid(levelmax) );
 
 #endif
-#if 0
+#if 1
 		// coarse correction
 		*coarse = coarse_save;
 		coarse->zero_boundary();
 		coarse->subtract_oct_mean();
 		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-		//coarse->zero_subgrid(0,0,0,coarse->nx_/2,coarse->ny_/2,coarse->nz_/2);
 		
 		coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );
 		
@@ -745,9 +750,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	}
 	
 	//... enforce mean condition
-	for( int i=levelmin; i<(int)levelmax; ++i )
+	/*for( int i=levelmin; i<(int)levelmax; ++i )
 			enforce_mean( (*delta.get_grid(i+1)), (*delta.get_grid(i)) );
-	
+	*/
 	
 	
 	
@@ -774,6 +779,10 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		sum /= (nx*ny*nz);
 	}
 	
+	
+	
+	 	
+	
 	//std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
 
 	for( unsigned i=levelmin; i<=levelmax; ++i )
@@ -788,12 +797,19 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 				for( int iz=0; iz<nz; ++iz )
 					(*delta.get_grid(i))(ix,iy,iz) -= sum;
 	}
+	
+	//... enforce mean condition
+	/*for( int i=levelmin; i<(int)levelmax; ++i )
+		enforce_mean( (*delta.get_grid(i+1)), (*delta.get_grid(i)) );
+	*/
 #endif
 	
 	//... fill coarser levels with data from finer ones...
 	//	for( int i=levelmax; i>(int)levelmin; --i )
 	for( int i=levelmax; i>0; --i )
 		mg_straight().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
+		//mg_lin().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
+		
 	
 #if 1
 	sum = 0.0;

@@ -527,7 +527,8 @@ public:
 					{
 						top(ixu,iyu,izu) += 0.125* ((*this)(ix,iy,iz)+(*this)(ix+1,iy,iz)+(*this)(ix,iy+1,iz)+(*this)(ix,iy,iz+1)
 											+(*this)(ix+1,iy+1,iz)+(*this)(ix+1,iy,iz+1)+(*this)(ix,iy+1,iz+1)+(*this)(ix+1,iy+1,iz+1) );
-												 //						std::cerr << "*";
+
+						
 					}
 				}
 	}

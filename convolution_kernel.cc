@@ -450,7 +450,7 @@ namespace convolution{
 		
 		//... determine normalization
 		double sum = 0.0;
-		#pragma omp parallel for
+		#pragma omp parallel for reduction(+:sum)
 		for( int i=0; i<cparam_.nx; ++i )
 			for( int j=0; j<cparam_.ny; ++j )
 				for( int k=0; k<cparam_.nz; ++k )
@@ -468,14 +468,15 @@ namespace convolution{
 		if( cparam_.normalize )
 		{
 			
-			/*for( int i=0; i<cparam_.nx; ++i )
+			#pragma omp parallel for
+			for( int i=0; i<cparam_.nx; ++i )
 				for( int j=0; j<cparam_.ny; ++j )
 					for( int k=0; k<cparam_.nz; ++k )
 					{
 						unsigned idx = (i*cparam_.ny + j) * 2*(cparam_.nz/2+1) + k;
 						//if( idx > 0 )
 							kdata_[idx] -= sum;
-					}*/
+					}
 		}
 		
 		

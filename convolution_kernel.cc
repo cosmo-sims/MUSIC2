@@ -465,7 +465,7 @@ namespace convolution{
 		
 		sum /= cparam_.nx*cparam_.ny*cparam_.nz;//-1;
 		
-		if( cparam_.normalize )
+		if( false )//cparam_.normalize )
 		{
 			
 			#pragma omp parallel for

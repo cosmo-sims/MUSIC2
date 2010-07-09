@@ -37,15 +37,15 @@ protected:
 	template< typename Tt >
 	void write2HDF5( std::string fname, std::string dname, const MeshvarBnd<Tt>& data )
 	{
-		int nres = data.size(0), nb = data.m_nbnd;
+		int n0 = data.size(0), n1 = data.size(1), n2 = data.size(2), nb = data.m_nbnd;
 		std::vector<Tt> vdata;
-		vdata.reserve((unsigned)pow(nres+2*nb,3));
-		for(int i=-nb; i<nres+nb; ++i )
-			for(int j=-nb; j<nres+nb; ++j )
-				for(int k=-nb; k<nres+nb; ++k )
+		vdata.reserve((unsigned)(n0+2*nb)*(n1+2*nb)*(n2+2*nb));
+		for(int i=-nb; i<n0+nb; ++i )
+			for(int j=-nb; j<n1+nb; ++j )
+				for(int k=-nb; k<n2+nb; ++k )
 					vdata.push_back( data(i,j,k) );
 		
-		unsigned nd[3] = { nres+2*nb,nres+2*nb,nres+2*nb	};
+		unsigned nd[3] = { n0+2*nb,n1+2*nb,n2+2*nb	};
 		HDFWriteDataset3D( fname, dname, nd, vdata);
 		
 	}

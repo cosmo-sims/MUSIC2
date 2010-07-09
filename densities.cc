@@ -204,12 +204,14 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	real_t		boxlength;
 	std::vector<long> rngseeds;
 	std::vector<std::string> rngfnames;
+	bool force_shift(false);
 	
 	
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
 	levelmin	= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
 	levelmax	= cf.getValue<unsigned>("setup","levelmax");
 	boxlength   = cf.getValue<real_t>( "setup", "boxlength" );
+	force_shift	= cf.getValueSafe<bool>("setup", "force_shift", force_shift );
 	
 	// TODO: need to make sure unigrid gets called whenever possible
 	/*if( levelmin == levelmax && levelmin==levelminPoisson )
@@ -346,8 +348,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		randc[lmingiven] = NULL;
 	}	
 	
-		//... create and initialize density grids with white noise
-		
+	//... create and initialize density grids with white noise	
 	PaddedDensitySubGrid<real_t>* coarse(NULL), *fine(NULL);
 	DensityGrid<real_t>* top(NULL);
 		
@@ -363,34 +364,44 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	}
 		
 		
-		//... perform convolutions ...//
+	//... perform convolutions ...//
 	if( levelmax == levelmin )
 	{
 		std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmax << " ..." << std::endl;
 		
 		top = new DensityGrid<real_t>( nbase, nbase, nbase );
-			
-		real_t x0[3] = { refh.offset(levelmin,0), refh.offset(levelmin,1), refh.offset(levelmin,2) };
-		real_t lx[3] = { refh.size(levelmin,0), refh.size(levelmin,1), refh.size(levelmin,2) };
-		x0[0] /= pow(2,levelmin); x0[1] /= pow(2,levelmin); x0[2] /= pow(2,levelmin);
-		lx[0] /= pow(2,levelmin); lx[1] /= pow(2,levelmin); lx[2] /= pow(2,levelmin);
-		
+	
 		random_numbers<real_t> *rc;
 		
-		if( randc[levelmin] == NULL )
-			rc = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], true );
-		else
-			rc = randc[levelmin];
-		
-#if 1
-		if( shift[0]!=0||shift[1]!=0||shift[2]!=0 )
-			std::cout << " - WARNING: will ignore non-zero shift in unigrid mode!\n";
+		if( levelminPoisson == levelmin && !force_shift)
+		{
+			if( randc[levelmin] == NULL )
+				rc = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], true );
+			else
+				rc = randc[levelmin];
+			
+			if( shift[0]!=0||shift[1]!=0||shift[2]!=0 )
+				std::cout << " - WARNING: will ignore non-zero shift in unigrid mode!\n";
 
-		top->fill_rand( rc, 1.0, 0, 0, 0, true );
-#else		
-		
-		top->fill_rand( rc, 1.0, -shift[0], -shift[1], -shift[2], true );
-#endif
+			top->fill_rand( rc, 1.0, 0, 0, 0, true );
+		}
+		else
+		{	
+			int lfac = (int)pow(2,levelmin-levelminPoisson);
+			int x0[3] = { -shift[0]*lfac, -shift[1]*lfac, -shift[2]*lfac };
+			int lx[3] = { refh.size(levelmin,0), refh.size(levelmin,1), refh.size(levelmin,2) };
+			
+			if( randc[levelmin] == NULL )
+				rc = randc[levelmin] = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], x0, lx );
+			//
+			//if( randc[levelmin] == NULL )
+			//	rc = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], true );
+			else
+				rc = randc[levelmin];
+			
+			top->fill_rand( rc, 1.0, x0[0], x0[1], x0[2], true );
+		}
+
 		delete rc;
 		
 		conv_param.lx = boxlength;
@@ -710,7 +721,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		coarse->copy_add_unpad( *delta.get_grid(levelmax) );
 
 #endif
-#if 1
+#if 0
 		// coarse correction
 		*coarse = coarse_save;
 		coarse->zero_boundary();
@@ -723,15 +734,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		//coarse->copy_unpad( delta_longrange );
 		//mg_straight().restrict_add( delta_longrange, *delta.get_grid(levelmax-1) );
 #endif	
-		
-		
-		
-		/**coarse = coarse_save;
-		coarse->zero_subgrid(0,0,0,coarse->nx_/2,coarse->ny_/2,coarse->nz_/2);
-		coarse->set_to_oct_mean();
-		
-		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-		coarse->copy_subtract_unpad( *delta.get_grid(levelmax) );*/
 		
 		
 		delete the_tf_kernel;		
@@ -750,20 +752,13 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	}
 	
 	//... enforce mean condition
-	/*for( int i=levelmin; i<(int)levelmax; ++i )
-			enforce_mean( (*delta.get_grid(i+1)), (*delta.get_grid(i)) );
-	*/
-	
-	
-	
-	
-	
-	double sum;
-	
+	//for( int i=levelmin; i<(int)levelmax; ++i )
+		//	enforce_mean( (*delta.get_grid(i+1)), (*delta.get_grid(i)) );
+	 
 #if 1
 	//... subtract the box mean.... this will otherwise add
 	//... a constant curvature term to the potential
-	sum = 0.0;
+	double sum = 0.0;
 	{
 		int nx,ny,nz;
 		
@@ -780,11 +775,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	}
 	
 	
-	
-	 	
-	
 	//std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
-
+	
 	for( unsigned i=levelmin; i<=levelmax; ++i )
 	{		
 		int nx,ny,nz;
@@ -797,22 +789,20 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 				for( int iz=0; iz<nz; ++iz )
 					(*delta.get_grid(i))(ix,iy,iz) -= sum;
 	}
-	
-	//... enforce mean condition
-	/*for( int i=levelmin; i<(int)levelmax; ++i )
-		enforce_mean( (*delta.get_grid(i+1)), (*delta.get_grid(i)) );
-	*/
-#endif
+#endif	
 	
 	//... fill coarser levels with data from finer ones...
-	//	for( int i=levelmax; i>(int)levelmin; --i )
 	for( int i=levelmax; i>0; --i )
 		mg_straight().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
-		//mg_lin().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
-		
 	
-#if 1
-	sum = 0.0;
+}
+
+
+void normalize_density( grid_hierarchy& delta )
+{
+	double sum = 0.0;
+	unsigned levelmin = delta.levelmin(), levelmax = delta.levelmax();
+	
 	{
 		int nx,ny,nz;
 		
@@ -842,7 +832,5 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 				for( int iz=0; iz<nz; ++iz )
 					(*delta.get_grid(i))(ix,iy,iz) -= sum;
 	}
-#endif
-	
 }
 

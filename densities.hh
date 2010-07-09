@@ -51,6 +51,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, 
 							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace=false );
 
+void normalize_density( grid_hierarchy& delta );
+
+
 /*!
  * @class DensityGrid
  * @brief provides infrastructure for computing the initial density field

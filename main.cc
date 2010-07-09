@@ -48,7 +48,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.3.1a"
+#define THE_CODE_VERSION "0.3.2a"
 
 
 namespace music
@@ -89,9 +89,8 @@ void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarc
 	unsigned lbase, lbaseTF, lmax, overlap;
 	
 	lbase				= cf.getValue<unsigned>( "setup", "levelmin" );
-	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelmin_TF", lbase );
 	lmax				= cf.getValue<unsigned>( "setup", "levelmax" );
-	// TODO: add documentation about setup/overlap to manual
+	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelmin_TF", lbase );
 	overlap				= cf.getValueSafe<unsigned>( "setup", "overlap", 4 );
 	
 	rh_TF = rh_full;
@@ -100,8 +99,30 @@ void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarc
 	
 	for( unsigned i=lbase+1; i<=lmax; ++i )
 	{
-		rh_TF.adjust_level(i, rh_TF.size(i,0)+2*pad, rh_TF.size(i,1)+2*pad, rh_TF.size(i,2)+2*pad, 
-						   rh_TF.offset_abs(i,0)-pad, rh_TF.offset_abs(i,1)-pad, rh_TF.offset_abs(i,2)-pad);
+		int x0[3], lx[3], lmax = 0;
+		
+		for( int j=0; j<3; ++j )
+		{
+			lx[j] = rh_TF.size(i,j)+2*pad;
+			x0[j] = rh_TF.offset_abs(i,j)-pad;
+			
+			if( lx[j] > lmax )
+				lmax = lx[j];
+		}
+		
+		if( lmax%2 == 1 )
+			lmax+=1;
+		
+		for( int j=0; j<3; ++j )
+		{
+			double dl = 0.5*((double)(lmax-lx[j]));
+			int add_left = ceil(dl);
+			
+			lx[j] = lmax;
+			x0[j] -= add_left;
+		}
+		
+		rh_TF.adjust_level(i, lx[0], lx[1], lx[2], x0[0], x0[1], x0[2] );
 	}
 	
 	if( lbaseTF > lbase )
@@ -252,7 +273,7 @@ int main (int argc, const char * argv[])
 	/******************************************************************************************************/
 	config_file cf(argv[1]);
 	std::string tfname,randfname,temp, outformat, outfname, poisson_solver_name;;
-	bool shift_back(false), align_top(false), kspace(false);
+	bool shift_back(false), align_top(false), kspace(false), force_shift(false);
 	float tf0,tf1,tf2;
 	
 	
@@ -260,8 +281,10 @@ int main (int argc, const char * argv[])
 	lbase				= cf.getValue<unsigned>( "setup", "levelmin" );
 	lmax				= cf.getValue<unsigned>( "setup", "levelmax" );
 	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelminTF", lbase );
+	force_shift			= cf.getValueSafe<bool>("setup", "force_shift", force_shift );
 	
-	if( lbase == lmax )
+	
+	if( lbase == lmax && !force_shift )
 		cf.insertValue("setup","no_shift","yes");
 	
 	if( lbaseTF < lbase )
@@ -390,12 +413,17 @@ int main (int argc, const char * argv[])
 				
 				grid_hierarchy f( nbnd ), u(nbnd);
 
+				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f );
+				
 				coarsen_density(rh_Poisson, f);
+				normalize_density(f);
+				
 				
 				u = f;	u.zero();
 				err = the_poisson_solver->solve(f, u);
-
+				
+				
 	#if 0
 				grid_hierarchy u2( nbnd );
 				compute_Lu( u, u2 );
@@ -450,6 +478,9 @@ int main (int argc, const char * argv[])
 				grid_hierarchy f( nbnd ), u(nbnd);
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f );
+				coarsen_density(rh_Poisson, f);
+				normalize_density(f);
+				
 				u = f;	u.zero();
 				
 				err = the_poisson_solver->solve(f, u);
@@ -474,6 +505,8 @@ int main (int argc, const char * argv[])
 				
 				//... gas density
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f );
+				coarsen_density(rh_Poisson, f);
+				normalize_density(f);
 				
 				if( do_LLA )
 				{
@@ -515,6 +548,9 @@ int main (int argc, const char * argv[])
 				grid_hierarchy f( nbnd ), u1(nbnd), u2(nbnd);
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f );
+				coarsen_density(rh_Poisson, f);
+				normalize_density(f);
+				
 				u1 = f;	u1.zero();
 
 				the_output_plugin->write_dm_density(f);

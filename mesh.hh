@@ -889,6 +889,7 @@ public:
 		align_top_	= cf_.getValue<bool>("setup","align_top");
 		
 		bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
+		bool force_shift = cf_.getValueSafe<bool>("setup","force_shift",false);
 		
 		std::string temp;
 		
@@ -908,7 +909,7 @@ public:
 		xc[2] = fmod(x0ref_[2]+0.5*lxref_[2],1.0);
 		
 		
-		if( levelmin_ != levelmax_ && !bnoshift)
+		if( levelmin_ != levelmax_ && !bnoshift || force_shift )
 		{
 			xshift_[0] = (int)((0.5-xc[0])*ncoarse);
 			xshift_[1] = (int)((0.5-xc[1])*ncoarse);

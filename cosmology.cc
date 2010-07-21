@@ -89,8 +89,40 @@ void compute_LLA_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 		}
 		else if ( order == 6 )
 		{
-			// TODO: add 6th order 
-			throw std::runtime_error("need to add sixth order");
+			h2_4/=36.;
+			h2/=180.;
+			#pragma omp parallel for 
+			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
+					{
+						double D[3][3];
+						
+						D[0][0] = (2.*ACC(ix-3,iy,iz)-27.*ACC(ix-2,iy,iz)+270.*ACC(ix-1,iy,iz)-490.0*ACC(ix,iy,iz)+270.*ACC(ix+1,iy,iz)-27.*ACC(ix+2,iy,iz)+2.*ACC(ix+3,iy,iz)) * h2;
+						D[1][1] = (2.*ACC(ix,iy-3,iz)-27.*ACC(ix,iy-2,iz)+270.*ACC(ix,iy-1,iz)-490.0*ACC(ix,iy,iz)+270.*ACC(ix,iy+1,iz)-27.*ACC(ix,iy+2,iz)+2.*ACC(ix,iy+3,iz)) * h2;
+						D[2][2] = (2.*ACC(ix,iy,iz-3)-27.*ACC(ix,iy,iz-2)+270.*ACC(ix,iy,iz-1)-490.0*ACC(ix,iy,iz)+270.*ACC(ix,iy,iz+1)-27.*ACC(ix,iy,iz+2)+2.*ACC(ix,iy,iz+3)) * h2;
+						
+						//.. this is actually 8th order accurate
+						D[0][1] = D[1][0] = (64.*(ACC(ix-1,iy-1,iz)-ACC(ix-1,iy+1,iz)-ACC(ix+1,iy-1,iz)+ACC(ix+1,iy+1,iz))
+											 -8.*(ACC(ix-2,iy-1,iz)-ACC(ix+2,iy-1,iz)-ACC(ix-2,iy+1,iz)+ACC(ix+2,iy+1,iz)
+												+ ACC(ix-1,iy-2,iz)-ACC(ix-1,iy+2,iz)-ACC(ix+1,iy-2,iz)+ACC(ix+1,iy+2,iz))
+											 +1.*(ACC(ix-2,iy-2,iz)-ACC(ix-2,iy+2,iz)-ACC(ix+2,iy-2,iz)+ACC(ix+2,iy+2,iz)))*h2_4;
+						D[0][2] = D[2][0] = (64.*(ACC(ix-1,iy,iz-1)-ACC(ix-1,iy,iz+1)-ACC(ix+1,iy,iz-1)+ACC(ix+1,iy,iz+1))
+											 -8.*(ACC(ix-2,iy,iz-1)-ACC(ix+2,iy,iz-1)-ACC(ix-2,iy,iz+1)+ACC(ix+2,iy,iz+1)
+												+ ACC(ix-1,iy,iz-2)-ACC(ix-1,iy,iz+2)-ACC(ix+1,iy,iz-2)+ACC(ix+1,iy,iz+2))
+											 +1.*(ACC(ix-2,iy,iz-2)-ACC(ix-2,iy,iz+2)-ACC(ix+2,iy,iz-2)+ACC(ix+2,iy,iz+2)))*h2_4;
+						D[1][2] = D[2][1] = (64.*(ACC(ix,iy-1,iz-1)-ACC(ix,iy-1,iz+1)-ACC(ix,iy+1,iz-1)+ACC(ix,iy+1,iz+1))
+											 -8.*(ACC(ix,iy-2,iz-1)-ACC(ix,iy+2,iz-1)-ACC(ix,iy-2,iz+1)+ACC(ix,iy+2,iz+1)
+												+ ACC(ix,iy-1,iz-2)-ACC(ix,iy-1,iz+2)-ACC(ix,iy+1,iz-2)+ACC(ix,iy+1,iz+2))
+											 +1.*(ACC(ix,iy-2,iz-2)-ACC(ix,iy-2,iz+2)-ACC(ix,iy+2,iz-2)+ACC(ix,iy+2,iz+2)))*h2_4;
+						
+						(*pvar)(ix,iy,iz) = D[0][0]+D[1][1]+D[2][2] +
+						( D[0][0]*D[1][1] + D[0][0]*D[2][2] + D[1][1]*D[2][2] +
+						 D[0][1]*D[1][0] + D[0][2]*D[2][0] + D[1][2]*D[2][1] +
+						 D[0][0]*D[0][0] + D[1][1]*D[1][1] + D[2][2]*D[2][2] );
+						
+					}
+			//TODO: test sixth order
 			
 		}else
 			throw std::runtime_error("compute_LLA_density : invalid operator order specified");
@@ -186,9 +218,40 @@ void compute_2LPT_source( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 		}
 		else if ( order == 6 )
 		{
-			// TODO: add 6th order 
-				throw std::runtime_error("need to add sixth order");
-				
+			h2_4/=36.;
+			h2/=180.;
+#pragma omp parallel for 
+			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
+					{
+						double D[3][3];
+						
+						D[0][0] = (2.*ACC(ix-3,iy,iz)-27.*ACC(ix-2,iy,iz)+270.*ACC(ix-1,iy,iz)-490.0*ACC(ix,iy,iz)+270.*ACC(ix+1,iy,iz)-27.*ACC(ix+2,iy,iz)+2.*ACC(ix+3,iy,iz)) * h2;
+						D[1][1] = (2.*ACC(ix,iy-3,iz)-27.*ACC(ix,iy-2,iz)+270.*ACC(ix,iy-1,iz)-490.0*ACC(ix,iy,iz)+270.*ACC(ix,iy+1,iz)-27.*ACC(ix,iy+2,iz)+2.*ACC(ix,iy+3,iz)) * h2;
+						D[2][2] = (2.*ACC(ix,iy,iz-3)-27.*ACC(ix,iy,iz-2)+270.*ACC(ix,iy,iz-1)-490.0*ACC(ix,iy,iz)+270.*ACC(ix,iy,iz+1)-27.*ACC(ix,iy,iz+2)+2.*ACC(ix,iy,iz+3)) * h2;
+						
+						//.. this is actually 8th order accurate
+						D[0][1] = D[1][0] = (64.*(ACC(ix-1,iy-1,iz)-ACC(ix-1,iy+1,iz)-ACC(ix+1,iy-1,iz)+ACC(ix+1,iy+1,iz))
+											 -8.*(ACC(ix-2,iy-1,iz)-ACC(ix+2,iy-1,iz)-ACC(ix-2,iy+1,iz)+ACC(ix+2,iy+1,iz)
+												  + ACC(ix-1,iy-2,iz)-ACC(ix-1,iy+2,iz)-ACC(ix+1,iy-2,iz)+ACC(ix+1,iy+2,iz))
+											 +1.*(ACC(ix-2,iy-2,iz)-ACC(ix-2,iy+2,iz)-ACC(ix+2,iy-2,iz)+ACC(ix+2,iy+2,iz)))*h2_4;
+						D[0][2] = D[2][0] = (64.*(ACC(ix-1,iy,iz-1)-ACC(ix-1,iy,iz+1)-ACC(ix+1,iy,iz-1)+ACC(ix+1,iy,iz+1))
+											 -8.*(ACC(ix-2,iy,iz-1)-ACC(ix+2,iy,iz-1)-ACC(ix-2,iy,iz+1)+ACC(ix+2,iy,iz+1)
+												  + ACC(ix-1,iy,iz-2)-ACC(ix-1,iy,iz+2)-ACC(ix+1,iy,iz-2)+ACC(ix+1,iy,iz+2))
+											 +1.*(ACC(ix-2,iy,iz-2)-ACC(ix-2,iy,iz+2)-ACC(ix+2,iy,iz-2)+ACC(ix+2,iy,iz+2)))*h2_4;
+						D[1][2] = D[2][1] = (64.*(ACC(ix,iy-1,iz-1)-ACC(ix,iy-1,iz+1)-ACC(ix,iy+1,iz-1)+ACC(ix,iy+1,iz+1))
+											 -8.*(ACC(ix,iy-2,iz-1)-ACC(ix,iy+2,iz-1)-ACC(ix,iy-2,iz+1)+ACC(ix,iy+2,iz+1)
+												  + ACC(ix,iy-1,iz-2)-ACC(ix,iy-1,iz+2)-ACC(ix,iy+1,iz-2)+ACC(ix,iy+1,iz+2))
+											 +1.*(ACC(ix,iy-2,iz-2)-ACC(ix,iy-2,iz+2)-ACC(ix,iy+2,iz-2)+ACC(ix,iy+2,iz+2)))*h2_4;
+						
+						(*pvar)(ix,iy,iz) =   D[0][0]*D[1][1] - SQR( D[0][1] )
+											+ D[0][0]*D[2][2] - SQR( D[0][2] )
+											+ D[1][1]*D[2][2] - SQR( D[1][2] );
+						
+					}
+			//TODO: test sixth order
+			
 		}
 		else
 			throw std::runtime_error("compute_2LPT_source : invalid operator order specified");

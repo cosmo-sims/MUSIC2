@@ -65,6 +65,9 @@ namespace convolution{
 		
 		rfftwnd_plan	iplan, plan;
 		
+		std::cout << "   - Performing FFT convolution...\n";
+		
+		
 		plan  = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
 									FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
 		
@@ -103,226 +106,9 @@ namespace convolution{
 	}
 	
 	
-	template< typename real_t >
-	void perform_filtered( kernel * pk, void *pd )
-	{
-		parameters cparam_ = pk->cparam_;
-		double 
-			kny, kmax,
-			fftnorm = pow(2.0*M_PI,1.5)/sqrt(cparam_.lx*cparam_.ly*cparam_.lz)/sqrt((double)(cparam_.nx*cparam_.ny*cparam_.nz));
-		
-		fftw_complex	*cdata,*ckernel;
-		fftw_real		*data;
-		
-		kny			= cparam_.nx*M_PI/cparam_.lx;
-		kmax        = M_PI/2.0;
-		
-		data		= reinterpret_cast<fftw_real*>(pd);
-		cdata		= reinterpret_cast<fftw_complex*>(data);
-		ckernel		= reinterpret_cast<fftw_complex*>( pk->get_ptr() );
-		
-		rfftwnd_plan	iplan, plan;
-		
-		plan  = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
-									FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
-		
-		iplan = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
-									FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
-		
-		
-		#ifndef SINGLETHREAD_FFTW		
-		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
-		#else
-		rfftwnd_one_real_to_complex( plan, data, NULL );
-		#endif
-		
-		//double kmax2 = kmax*kmax;
-		
-		#pragma omp parallel for
-		for( int i=0; i<cparam_.nx; ++i )
-			for( int j=0; j<cparam_.ny; ++j )
-				for( int k=0; k<cparam_.nz/2+1; ++k )
-				{
-					unsigned ii = (i*cparam_.ny + j) * (cparam_.nz/2+1) + k;
-					
-					complex ccdata(cdata[ii].re,cdata[ii].im), cckernel(ckernel[ii].re,ckernel[ii].im);
-					
-					int ik(i), jk(j);
-					
-					if( ik > cparam_.nx/2 )
-						ik -= cparam_.nx;
-					if( jk > cparam_.ny/2 )
-						jk -= cparam_.ny;
-					
-					double 
-						kx( M_PI*(double)ik/cparam_.nx ),
-						ky( M_PI*(double)jk/cparam_.ny ),
-					kz( M_PI*(double)k/cparam_.nz );//,
-													//						kk( kx*kx+ky*ky+kz*kz );
-					
-					//... cos(k) is the Hanning filter function (cf. Bertschinger 2001)
-					double filter = 0.0;
-					if( true ){//kk <= kmax2 ){
-						//filter = cos( kx )*cos( ky )*cos( kz );
-						filter = cos( 0.5*kx )*cos( 0.5*ky )*cos( 0.5*kz );
-							   //filter = 1.0;
-						//filter *=filter;
-					}
-					//filter = 1.0;
-					
-					ccdata = ccdata * cckernel *fftnorm * filter;
-					
-					cdata[ii].re = ccdata.real();
-					cdata[ii].im = ccdata.imag();
-				}
-		
-		#ifndef SINGLETHREAD_FFTW		
-		rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL);
-		#else		
-		rfftwnd_one_complex_to_real(iplan, cdata, NULL);
-		#endif
-		
-		rfftwnd_destroy_plan(plan);
-		rfftwnd_destroy_plan(iplan);
-	}
-	
-	
 	template void perform<double>( kernel* pk, void *pd );
 	template void perform<float>( kernel* pk, void *pd );
-	template void perform_filtered<double>( kernel* pk, void *pd );
-	template void perform_filtered<float>( kernel* pk, void *pd );
 	
-	
-	void truncate( kernel* pk, double R, double alpha )
-	{
-		parameters cparam_ = pk->cparam_;
-
-		double 
-			dx		= cparam_.lx/cparam_.nx, 
-			dy		= cparam_.ly/cparam_.ny, 
-			dz		= cparam_.lz/cparam_.nz;
-		
-		double fftnorm = 1.0/(cparam_.nx * cparam_.ny * cparam_.nz);
-		
-		rfftwnd_plan	iplan, plan;
-		
-		plan  = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
-									FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
-		
-		iplan = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
-									FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
-		
-		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( pk->get_ptr() );
-		fftw_complex	*ckernel	= reinterpret_cast<fftw_complex*>( pk->get_ptr() );
-		
-		#ifndef SINGLETHREAD_FFTW		
-		rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, ckernel, NULL);
-		#else		
-		rfftwnd_one_complex_to_real(iplan, ckernel, NULL);
-		#endif
-		
-		
-		#pragma omp parallel for
-		for( int i=0; i<cparam_.nx; ++i )
-			for( int j=0; j<cparam_.ny; ++j )
-				for( int k=0; k<cparam_.nz; ++k )
-				{
-					int iix(i), iiy(j), iiz(k);
-					double rr[3], rr2;
-					
-					if( iix > (int)cparam_.nx/2 ) iix -= cparam_.nx;
-					if( iiy > (int)cparam_.ny/2 ) iiy -= cparam_.ny;
-					if( iiz > (int)cparam_.nz/2 ) iiz -= cparam_.nz;
-					
-					rr[0] = (double)iix * dx;
-					rr[1] = (double)iiy * dy;
-					rr[2] = (double)iiz * dz;
-					
-					rr2 = rr[0]*rr[0] + rr[1]*rr[1] + rr[2]*rr[2];
-					
-					unsigned idx = (i*cparam_.ny + j) * 2*(cparam_.nz/2+1) + k;
-					rkernel[idx] *= 0.5*(erfc((sqrt(rr2)-R)*alpha))*fftnorm;
-				}
-		
-		
-		
-		#ifndef SINGLETHREAD_FFTW		
-		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
-		#else
-		rfftwnd_one_real_to_complex( plan, rkernel, NULL );
-		#endif
-		
-	}
-	
-	void truncate_sharp( kernel* pk, double R )
-	{
-		parameters cparam_ = pk->cparam_;
-		
-		double 
-		dx		= cparam_.lx/cparam_.nx, 
-		dy		= cparam_.ly/cparam_.ny, 
-		dz		= cparam_.lz/cparam_.nz,
-		R2		= R*R;
-		
-		double fftnorm = 1.0/(cparam_.nx * cparam_.ny * cparam_.nz);
-		
-		rfftwnd_plan	iplan, plan;
-		
-		plan  = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
-									FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
-		
-		iplan = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
-									FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
-		
-		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( pk->get_ptr() );
-		fftw_complex	*ckernel	= reinterpret_cast<fftw_complex*>( pk->get_ptr() );
-		
-#ifndef SINGLETHREAD_FFTW		
-		rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, ckernel, NULL);
-#else		
-		rfftwnd_one_complex_to_real(iplan, ckernel, NULL);
-#endif
-		
-		
-#pragma omp parallel for
-		for( int i=0; i<cparam_.nx; ++i )
-			for( int j=0; j<cparam_.ny; ++j )
-				for( int k=0; k<cparam_.nz; ++k )
-				{
-					int iix(i), iiy(j), iiz(k);
-					double rr[3], rr2;
-					
-					if( iix > (int)cparam_.nx/2 ) iix -= cparam_.nx;
-					if( iiy > (int)cparam_.ny/2 ) iiy -= cparam_.ny;
-					if( iiz > (int)cparam_.nz/2 ) iiz -= cparam_.nz;
-					
-					rr[0] = (double)iix * dx;
-					rr[1] = (double)iiy * dy;
-					rr[2] = (double)iiz * dz;
-					
-					rr2 = rr[0]*rr[0] + rr[1]*rr[1] + rr[2]*rr[2];
-					unsigned idx = (i*cparam_.ny + j) * 2*(cparam_.nz/2+1) + k;
-					if( rr2 > R2 )
-					{
-						
-						rkernel[idx] = 0.0;
-					}else {
-						rkernel[idx] *= fftnorm;
-					}
-
-				}
-		
-		
-		
-#ifndef SINGLETHREAD_FFTW		
-		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
-#else
-		rfftwnd_one_real_to_complex( plan, rkernel, NULL );
-#endif
-		
-	}
-
-
 	/*****************************************************************************************\
 	 ***    SPECIFIC KERNEL IMPLEMENTATIONS      *********************************************
 	\*****************************************************************************************/	
@@ -350,9 +136,6 @@ namespace convolution{
 		{	std::vector<real_t>().swap( kdata_ );	}
 		
 	};
-
-
-	
 	
 	
 	template< typename real_t >
@@ -365,25 +148,41 @@ namespace convolution{
 			dy			= cparam_.ly/cparam_.ny, 
 			dz			= cparam_.lz/cparam_.nz,
 			boxlength	= cparam_.pcf->getValue<double>("setup","boxlength"),
-			nspec		= cparam_.pcf->getValue<double>("cosmology","nspec"),//cosmo.nspect,
-			pnorm		= cparam_.pcf->getValue<double>("cosmology","pnorm"),//cosmo.pnorm,
-		dplus		= cparam_.pcf->getValue<double>("cosmology","dplus");//,//cosmo.dplus;
-																		 //			t00f        = cparam_.t0scale;
+			nspec		= cparam_.pcf->getValue<double>("cosmology","nspec"),
+			pnorm		= cparam_.pcf->getValue<double>("cosmology","pnorm"),
+			dplus		= cparam_.pcf->getValue<double>("cosmology","dplus");
+
 		unsigned 
-		levelmax	= cparam_.pcf->getValue<unsigned>("setup","levelmax");
+			levelmax	= cparam_.pcf->getValue<unsigned>("setup","levelmax");
 		
 		bool
-		bperiodic	= cparam_.pcf->getValueSafe<bool>("setup","periodic_TF",true);
+			bperiodic	= cparam_.pcf->getValueSafe<bool>("setup","periodic_TF",true);
 		
-		//if( cparam_.normalize )
-		//	kny *= 2.0;
 		
-		TransferFunction_real *tfr = new TransferFunction_real(cparam_.ptf,nspec,pnorm,dplus,0.25*cparam_.lx/(double)cparam_.nx,2.0*boxlength,kny, (int)pow(2,levelmax+2));
+		std::cout << "   - Computing transfer function kernel...\n";
 		
-		if( bperiodic )
+		
+		
+		if(! cparam_.is_finest )
+			kny *= pow(2,cparam_.coarse_fact);
+		
+		TransferFunction_real *tfr = 
+				new TransferFunction_real(cparam_.ptf,nspec,pnorm,dplus,
+							0.25*cparam_.lx/(double)cparam_.nx,2.0*boxlength,kny, (int)pow(2,levelmax+2));
+		
+		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kdata_[0] );
+		fftw_complex	*kkernel	= reinterpret_cast<fftw_complex*>( &kdata_[0] );
+		
+		rfftwnd_plan	plan		= rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
+												FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
+						
+		int nzp = cparam_.nz/2+1;
+		double kmax = 0.5*M_PI/std::max(cparam_.nx,std::max(cparam_.ny,cparam_.nz));
+		
+		if( bperiodic  )
 		{
 			
-			#pragma omp parallel for
+			#pragma omp parallel for 
 			for( int i=0; i<cparam_.nx; ++i )
 				for( int j=0; j<cparam_.ny; ++j )
 					for( int k=0; k<cparam_.nz; ++k )
@@ -416,6 +215,22 @@ namespace convolution{
 						
 						kdata_[idx] *= fac;
 						
+						if( cparam_.deconvolve )
+						{
+							double rx((double)iix*dx/boxlength),ry((double)iiy*dy/boxlength),rz((double)iiz*dz/boxlength), ico;
+							ico = 1.0;
+							if( i>0 )
+								ico *= sin(M_PI*rx)/(M_PI*rx);
+							if( j>0 )
+								ico *= sin(M_PI*ry)/(M_PI*ry);
+							if( k>0 )
+								ico *= sin(M_PI*rz)/(M_PI*rz);
+							kdata_[idx] /= ico;
+							
+						}
+						
+						
+						
 					}
 		}else{
 			#pragma omp parallel for
@@ -439,63 +254,103 @@ namespace convolution{
 						rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
 						kdata_[idx] = tfr->compute_real(rr2)*fac;
 						
+						if( cparam_.deconvolve )
+						{
+							double rx((double)iix*dx/boxlength),ry((double)iiy*dy/boxlength),rz((double)iiz*dz/boxlength), ico;
+							ico = 1.0;
+							if( i>0 )
+								ico *= sin(M_PI*rx)/(M_PI*rx);
+							if( j>0 )
+								ico *= sin(M_PI*ry)/(M_PI*ry);
+							if( k>0 )
+								ico *= sin(M_PI*rz)/(M_PI*rz);
+							kdata_[idx] /= ico;
+						}
 						
-					}
-		}		
-		//kdata_[0] = tfr->compute_real(dx*dx*0.25)*fac;
-		
-		//std::cerr << "T(r=0) = " << kdata_[0]/fac << std::endl;
-		//if( cparam_.normalize )
-		//	kdata_[0] *= 0.125;//= 0.0;//*= 0.125;
-		
-		//... determine normalization
-		double sum = 0.0;
-		#pragma omp parallel for reduction(+:sum)
-		for( int i=0; i<cparam_.nx; ++i )
-			for( int j=0; j<cparam_.ny; ++j )
-				for( int k=0; k<cparam_.nz; ++k )
-				{	
-					unsigned idx = (i*cparam_.ny + j) * 2*(cparam_.nz/2+1) + k;
-					//if( idx > 0 )
-						sum += kdata_[idx];
-				}
-		
-		
-		//std::cerr << " - The convolution kernel has avg of " << (sum+kdata_[0])/(cparam_.nx*cparam_.ny*cparam_.nz) << std::endl;
-		
-		sum /= cparam_.nx*cparam_.ny*cparam_.nz;//-1;
-		
-		if( false )//cparam_.normalize )
-		{
-			
-			#pragma omp parallel for
-			for( int i=0; i<cparam_.nx; ++i )
-				for( int j=0; j<cparam_.ny; ++j )
-					for( int k=0; k<cparam_.nz; ++k )
-					{
-						unsigned idx = (i*cparam_.ny + j) * 2*(cparam_.nz/2+1) + k;
-						//if( idx > 0 )
-							kdata_[idx] -= sum;
 					}
 		}
 		
+		if(!cparam_.is_finest)
+			kdata_[0] /= pow(2.0,1.5*cparam_.coarse_fact);
+				
+		delete tfr;
 		
-		//if( t00f < 0.0 )
-		//	kdata_[0] += (tfr->compute_real(0.125*dx*dx) - tfr->compute_real(0.0))*fac;
-		
-		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kdata_[0] );
-		rfftwnd_plan	plan		= rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
-												FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
+		double k0 = kdata_[0];
+			
+		if( cparam_.deconvolve )
+			kdata_[0] = 0.0;
+				
+		//kdata_[0] = tfr->compute_real(dx*dx*0.25)*fac;
+		//std::cerr << "T(r=0) = " << kdata_[0]/fac << std::endl;
 		
 		#ifndef SINGLETHREAD_FFTW		
 		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
 		#else
 		rfftwnd_one_real_to_complex( plan, rkernel, NULL );
 		#endif
-	
-		rfftwnd_destroy_plan(plan);
 		
-		delete tfr;
+		if( cparam_.deconvolve )
+		{
+			
+			double ksum = 0.0;
+			unsigned kcount = 0;
+			
+			#pragma omp parallel for reduction(+:ksum,kcount)
+			for( int i=0; i<cparam_.nx; ++i )
+				for( int j=0; j<cparam_.ny; ++j )
+					for( int k=0; k<nzp; ++k )
+					{
+						double kx,ky,kz;
+						
+						kx = (double)i;
+						ky = (double)j;
+						kz = (double)k;
+						
+						if( kx > cparam_.nx/2 ) kx -= cparam_.nx;
+						if( ky > cparam_.ny/2 ) ky -= cparam_.ny;
+						
+
+						double ipix = 1.0;
+						
+						if( !cparam_.is_finest )
+							ipix *= (cos(kx*kmax)*cos(ky*kmax)*cos(kz*kmax));
+
+						if( i > 0 )
+							ipix /= sin(kx*2.0*kmax)/(kx*2.0*kmax);
+						if( j > 0 )
+							ipix /= sin(ky*2.0*kmax)/(ky*2.0*kmax);
+						if( k > 0 )
+							ipix /= sin(kz*2.0*kmax)/(kz*2.0*kmax);
+						
+						unsigned q  = (i*cparam_.ny+j)*nzp+k;
+						kkernel[q].re *= ipix;
+						kkernel[q].im *= ipix;
+						
+						if( k==0 || k==cparam_.nz/2 )
+						{
+							ksum  += kkernel[q].re;
+							kcount++;
+						}else{
+							ksum  += 2.0*(kkernel[q].re);
+							kcount+=2;
+						}
+					}
+			
+			double dk = k0-ksum/kcount;
+			
+			//... enforce the r=0 component by adjusting the k-space mean
+			#pragma omp parallel for reduction(+:ksum,kcount)
+			for( int i=0; i<cparam_.nx; ++i )
+				for( int j=0; j<cparam_.ny; ++j )
+					for( int k=0; k<nzp; ++k )
+					{
+						unsigned q  = (i*cparam_.ny+j)*nzp+k;
+						kkernel[q].re += dk;
+						
+					}
+		}		
+		
+		rfftwnd_destroy_plan(plan);
 	}
 	
 
@@ -529,11 +384,7 @@ namespace convolution{
 	void kernel_k<real_t>::compute_kernel( void )
 	{
 		double 
-		//kny			= cparam_.nx*M_PI/cparam_.lx,
-		fac			= cparam_.lx*cparam_.ly*cparam_.lz/pow(2.0*M_PI,3),// /(cparam_.nx*cparam_.ny*cparam_.nz),
-																	   //	dx			= cparam_.lx/cparam_.nx, 
-																	   //			dy			= cparam_.ly/cparam_.ny, 
-																	   //			dz			= cparam_.lz/cparam_.nz,
+			fac			= cparam_.lx*cparam_.ly*cparam_.lz/pow(2.0*M_PI,3),
 			boxlength	= cparam_.pcf->getValue<double>("setup","boxlength"),
 			nspec		= cparam_.pcf->getValue<double>("cosmology","nspec"),
 			pnorm		= cparam_.pcf->getValue<double>("cosmology","pnorm"),

@@ -24,6 +24,12 @@
 #include "densities.hh"
 #include "convolution_kernel.hh"
 
+//... uncomment this to have a single peak in the centre and otherwise zeros
+//#define SINGLE_PEAK
+
+//TODO: this should be a larger number by default, just to maintain consistency with old default
+#define DEF_RAN_CUBE_SIZE	32
+
 bool is_number(const std::string& s)
 {
 	for (unsigned i = 0; i < s.length(); i++)
@@ -34,10 +40,13 @@ bool is_number(const std::string& s)
 }
 
 // TODO: use optimized convolution routine when in unigrid mode 
-void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace )
+void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, 
+							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace, bool bdeconvolve )
 {
 	unsigned    levelmin,levelmax,levelminPoisson;
 	real_t		boxlength;
+	unsigned	ran_cube_size;
+	
 	std::vector<long> rngseeds;
 	std::vector<std::string> rngfnames;
 	
@@ -47,7 +56,9 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	levelmax	= cf.getValue<unsigned>("setup","levelmax");
 	boxlength   = cf.getValue<real_t>( "setup", "boxlength" );
 	
-	std::cerr << " RUNNING UNIGRID VERSION\n";
+	ran_cube_size = cf.getValueSafe<unsigned>("random","cubesize",DEF_RAN_CUBE_SIZE);
+	
+	std::cerr << " - Running unigrid version\n";
 	
 	//... parse random number options
 	for( int i=0; i<=100; ++i )
@@ -89,6 +100,8 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	
 	if( kspace )
 	{
+		std::cout << " - Using k-space transfer function kernel.\n";
+		
 		#ifdef SINGLE_PRECISION	
 		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_float" ];
 		#else
@@ -97,6 +110,8 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	}
 	else
 	{
+		std::cout << " - Using real-space transfer function kernel.\n";
+		
 		#ifdef SINGLE_PRECISION	
 		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_float" ];
 		#else
@@ -136,7 +151,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	x0[0] /= pow(2,levelmin); x0[1] /= pow(2,levelmin); x0[2] /= pow(2,levelmin);
 	lx[0] /= pow(2,levelmin); lx[1] /= pow(2,levelmin); lx[2] /= pow(2,levelmin);
 	
-	random_numbers<real_t> *rc = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], true );//, x0, lx );
+	random_numbers<real_t> *rc = new random_numbers<real_t>( nbase, ran_cube_size, rngseeds[levelmin], true );//, x0, lx );
 
 
 	if( shift[0]!=0||shift[1]!=0||shift[2]!=0 )
@@ -146,13 +161,20 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	rc->fill_all(*top);
 	delete rc;
 	
+#ifdef SINGLE_PEAK
+	top->zero();
+	(*top)(top->size(0)/2, top->size(1)/2, top->size(2)/2) = 1.0;
+#endif
+	
 	conv_param.lx = boxlength;
 	conv_param.ly = boxlength;
 	conv_param.lz = boxlength;
 	conv_param.nx = top->nx_;
 	conv_param.ny = top->ny_;
 	conv_param.nz = top->nz_;
-	conv_param.normalize = false;
+	conv_param.coarse_fact = 0;
+	conv_param.deconvolve = bdeconvolve;
+	conv_param.is_finest = true;	
 	
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
 	convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
@@ -198,27 +220,32 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	}
 }
 
-void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, refinement_hierarchy& refh, grid_hierarchy& delta )
+void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
+							  refinement_hierarchy& refh, grid_hierarchy& delta, bool bdeconvolve=true )
 {
 	unsigned    levelmin,levelmax,levelminPoisson;
 	real_t		boxlength;
 	std::vector<long> rngseeds;
 	std::vector<std::string> rngfnames;
-	bool force_shift(false);
-	
+	bool force_shift(false), kspaceTF;
+	unsigned	ran_cube_size;
 	
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
-	levelmin	= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
-	levelmax	= cf.getValue<unsigned>("setup","levelmax");
-	boxlength   = cf.getValue<real_t>( "setup", "boxlength" );
-	force_shift	= cf.getValueSafe<bool>("setup", "force_shift", force_shift );
+	levelmin		= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
+	levelmax		= cf.getValue<unsigned>("setup","levelmax");
+	boxlength		= cf.getValue<real_t>( "setup", "boxlength" );
+	force_shift		= cf.getValueSafe<bool>("setup", "force_shift", force_shift );
+	kspaceTF		= cf.getValueSafe<bool>("setup", "kspace_TF", false);
+	ran_cube_size	= cf.getValueSafe<unsigned>("random","cubesize",DEF_RAN_CUBE_SIZE);
+	
 	
 	// TODO: need to make sure unigrid gets called whenever possible
-	/*if( levelmin == levelmax && levelmin==levelminPoisson )
+	// FIXME: temporarily disabled
+	if( false )//levelmin == levelmax && levelmin==levelminPoisson )
 	{	
-		GenerateDensityUnigrid(cf,ptf,type,refh,delta);
+		GenerateDensityUnigrid(cf,ptf,type,refh,delta,kspaceTF,bdeconvolve);
 		return;
-	}*/
+	}
 	
 	
 	//... parse random number options
@@ -253,10 +280,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	float lxref[3];
 	std::string temp	= cf.getValue<std::string>( "setup", "ref_extent" );
 	sscanf( temp.c_str(), "%g,%g,%g", &lxref[0],&lxref[1],&lxref[2] );
-	//double      lextmin = std::min(lxref[0],std::min(lxref[1],lxref[2]));
-	// alpha = 0.1*..., cutoff = 0.25 /// maybe 0.08, 0.3
-	real_t		alpha	= 0.05*(real_t)nbase/boxlength;//0.45*lextmin*(double)nbase;///boxlength;
-	real_t		cutoff	= 0.25;//lextmin*0.9;
 	
 	
 	int shift[3];
@@ -317,7 +340,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	//... if random numbers are not given for lower levels, obtain them by averaging
 	if( lmingiven >= (int)levelmin )
 	{
-		randc[lmingiven] = new random_numbers<real_t>( (unsigned)pow(2,lmingiven), 32, rngseeds[lmingiven], true );//, x0, lx );
+		randc[lmingiven] = new random_numbers<real_t>( (unsigned)pow(2,lmingiven), ran_cube_size, rngseeds[lmingiven], true );//, x0, lx );
 		
 		for( int ilevel = lmingiven-1; ilevel >= (int)levelmin; --ilevel ){
 			if( rngseeds[ilevel-levelmin] > 0 )
@@ -333,7 +356,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	{
 		throw std::runtime_error("You provided a seed for a level below levelmin, this is not supported yet.");
 		
-		randc[lmingiven] = new random_numbers<real_t>( (unsigned)pow(2,lmingiven), 32, rngseeds[lmingiven], true );//, x0, lx );
+		randc[lmingiven] = new random_numbers<real_t>( (unsigned)pow(2,lmingiven), ran_cube_size, rngseeds[lmingiven], true );//, x0, lx );
 		
 		for( int ilevel = lmingiven+1; ilevel <= (int)levelmin; ++ilevel )
 		{
@@ -376,7 +399,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		if( levelminPoisson == levelmin && !force_shift)
 		{
 			if( randc[levelmin] == NULL )
-				rc = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], true );
+				rc = new random_numbers<real_t>( nbase, ran_cube_size, rngseeds[levelmin], true );
 			else
 				rc = randc[levelmin];
 			
@@ -392,10 +415,10 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			int lx[3] = { refh.size(levelmin,0), refh.size(levelmin,1), refh.size(levelmin,2) };
 			
 			if( randc[levelmin] == NULL )
-				rc = randc[levelmin] = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], x0, lx );
+				rc = randc[levelmin] = new random_numbers<real_t>( nbase, ran_cube_size, rngseeds[levelmin], x0, lx );
 			//
 			//if( randc[levelmin] == NULL )
-			//	rc = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], true );
+			//	rc = new random_numbers<real_t>( nbase, ran_cube_size, rngseeds[levelmin], true );
 			else
 				rc = randc[levelmin];
 			
@@ -404,13 +427,20 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 
 		delete rc;
 		
+#ifdef SINGLE_PEAK
+		top->zero();
+		(*top)(top->size(0)/2, top->size(1)/2, top->size(2)/2) = 1.0;
+#endif
+		
 		conv_param.lx = boxlength;
 		conv_param.ly = boxlength;
 		conv_param.lz = boxlength;
 		conv_param.nx = top->nx_;
 		conv_param.ny = top->ny_;
 		conv_param.nz = top->nz_;
-		conv_param.normalize = false;
+		conv_param.coarse_fact = 0;
+		conv_param.deconvolve = bdeconvolve;
+		conv_param.is_finest = true;	
 		
 		convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
 		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
@@ -420,7 +450,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		top->copy( *delta.get_grid(levelmin) );
 		delete top;
 	}
-	//}		
 		
 	
 	for( int i=0; i< (int)levelmax-(int)levelmin; ++i )
@@ -444,7 +473,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 				refh.size(levelmin,2) };
 			
 			if( randc[levelmin] == NULL )
-				rc = randc[levelmin] = new random_numbers<real_t>( nbase, 32, rngseeds[levelmin], x0, lx );
+				rc = randc[levelmin] = new random_numbers<real_t>( nbase, ran_cube_size, rngseeds[levelmin], x0, lx );
 			else
 				rc = randc[levelmin];
 			
@@ -465,39 +494,28 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			random_numbers<real_t> *rc;
 			int x0[3],lx[3];
 			int lfac = (int)pow(2.0,i+1);
-			x0[0] = refh.offset_abs(levelmin+i+1,0)-lfac*shift[0]; //((real_t)(offtotx[levelmin+i+1]+lfac*shift[0]))/pow(2.0,levelmin+i+1);
-			x0[1] = refh.offset_abs(levelmin+i+1,1)-lfac*shift[1]; //((real_t)(offtoty[levelmin+i+1]+lfac*shift[1]))/pow(2.0,levelmin+i+1);
-			x0[2] = refh.offset_abs(levelmin+i+1,2)-lfac*shift[2]; //((real_t)(offtotz[levelmin+i+1]+lfac*shift[2]))/pow(2.0,levelmin+i+1);
-			lx[0] = refh.size(levelmin+i+1,0); // /pow(2.0,levelmin+i+1);
-			lx[1] = refh.size(levelmin+i+1,1); // /pow(2.0,levelmin+i+1);
-			lx[2] = refh.size(levelmin+i+1,2); // /pow(2.0,levelmin+i+1);
-			
-			//x0[0] -= 0.5*lx[0];  lx[0] *= 2.0;
-			//x0[1] -= 0.5*lx[1];  lx[1] *= 2.0;
-			//x0[2] -= 0.5*lx[2];  lx[2] *= 2.0;
+			x0[0] = refh.offset_abs(levelmin+i+1,0)-lfac*shift[0]; 
+			x0[1] = refh.offset_abs(levelmin+i+1,1)-lfac*shift[1]; 
+			x0[2] = refh.offset_abs(levelmin+i+1,2)-lfac*shift[2]; 
+			lx[0] = refh.size(levelmin+i+1,0); 
+			lx[1] = refh.size(levelmin+i+1,1); 
+			lx[2] = refh.size(levelmin+i+1,2); 
 			
 			if( randc[levelmin+i+1] == NULL )
-				rc = randc[levelmin+i+1] = new random_numbers<real_t>((unsigned)pow(2,levelmin+i+1), 32, rngseeds[levelmin+i+1], x0, lx);
+				rc = randc[levelmin+i+1] = new random_numbers<real_t>((unsigned)pow(2,levelmin+i+1), ran_cube_size, rngseeds[levelmin+i+1], x0, lx);
 			else
 				rc = randc[levelmin+i+1];
 			
+			fine->fill_rand( rc, 1.0, x0[0]-fine->nx_/4, x0[1]-fine->ny_/4, x0[2]-fine->nz_/4 );
+				
+			if( i+levelmin+1 > (unsigned)lmingiven )
+			{	
+				if(i==0)
+					fine->constrain( *top );
+				else
+					fine->constrain( *coarse );
+			}				
 			
-			{
-				/*int llfac = (int)pow(2.0,i+1);
-				fine->fill_rand( rc, 1.0,	offtotx[levelmin+i+1]-llfac*shift[0], 
-								offtoty[levelmin+i+1]-llfac*shift[1], 
-								offtotz[levelmin+i+1]-llfac*shift[2] );*/
-				
-				fine->fill_rand( rc, 1.0, x0[0]-fine->nx_/4, x0[1]-fine->ny_/4, x0[2]-fine->nz_/4 );
-				
-				if( i+levelmin+1 > (unsigned)lmingiven )
-				{	
-					if(i==0)
-						fine->constrain( *top );
-					else
-						fine->constrain( *coarse );
-				}				
-			}
 			delete rc;
 			rc = NULL;
 		}
@@ -515,24 +533,32 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			delta.create_base_hierarchy(levelmin);
 			
+#ifdef SINGLE_PEAK
+			{
+				top->zero();
+				(*top)(top->size(0)/2, top->size(1)/2, top->size(2)/2) = 1.0/pow(2,1.5*(levelmax-levelmin));
+			}
+
+#endif	
+			
 			DensityGrid<real_t> top_save( *top );
-			
-			
+
 			conv_param.lx = boxlength;
 			conv_param.ly = boxlength;
 			conv_param.lz = boxlength;
 			conv_param.nx = top->nx_;
 			conv_param.ny = top->ny_;
 			conv_param.nz = top->nz_;
-			conv_param.normalize = true;
-			
+			conv_param.coarse_fact = levelmax-levelmin;
+			conv_param.deconvolve = bdeconvolve;
+			conv_param.is_finest = false;
 			convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
 			
 			
 			//... 1) compute standard convolution for levelmin
 			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
-			//convolution::perform_filtered<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
 			top->copy( *delta.get_grid(levelmin) );
+			
 			
 			//... 2) compute contribution to finer grids from non-refined region
 			*top = top_save;
@@ -541,24 +567,20 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 							  refh.size(levelmin+i+1,0)/2, refh.size(levelmin+i+1,1)/2, refh.size(levelmin+i+1,2)/2 );
 
 			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
-			//convolution::perform_filtered<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
 			
-			
+			delete the_tf_kernel;
+
 			
 			meshvar_bnd delta_longrange( *delta.get_grid(levelmin) );
 			top->copy( delta_longrange );
-			delete the_tf_kernel;
-			delete top;
+			delete top;			
 			
 			//... restrict these contributions to the next level
 			delta.add_patch( refh.offset(levelmin+1,0), refh.offset(levelmin+1,1), refh.offset(levelmin+1,2), 
 							refh.size(levelmin+1,0), refh.size(levelmin+1,1), refh.size(levelmin+1,2) );
 			
-			//mg_linear().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
 			mg_cubic().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
-			//mg_lin().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
-			
-			
+					
 		}
 		else
 		{
@@ -571,7 +593,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			delta.add_patch( refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
 							refh.size(levelmin+i+1,0), refh.size(levelmin+i+1,1), refh.size(levelmin+i+1,2) );
 			
-			//mg_linear().prolong( *delta.get_grid(levelmin+i), *delta.get_grid(levelmin+i+1) );
 			mg_cubic().prolong( *delta.get_grid(levelmin+i), *delta.get_grid(levelmin+i+1) );
 			
 			real_t dx,lx,ly,lz;
@@ -581,81 +602,46 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			ly = dx * coarse->ny_; 
 			lz = dx * coarse->nz_; 
 			
-			real_t lmin = std::min( lx, std::min(ly,lz) );
-			
-			
+			//.. set convolution parameters
+			//TODO: this needs to be changed, forgetting to set a parameter will not be warned!
 			conv_param.lx = lx;
 			conv_param.ly = ly;
 			conv_param.lz = lz;
 			conv_param.nx = coarse->nx_;
 			conv_param.ny = coarse->ny_;
 			conv_param.nz = coarse->nz_;
-			conv_param.normalize = false;
+			conv_param.coarse_fact = levelmax-levelmin-i;
+			conv_param.deconvolve = bdeconvolve;
+			conv_param.is_finest = false;	
 			
 			convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
 			
 			PaddedDensitySubGrid<real_t> coarse_save( *coarse );
 					
-			//... 2) the inner region
-			
-			coarse->zero_boundary();
+			//... 1) the inner region
+			coarse->subtract_boundary_oct_mean();
 			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-			//convolution::perform_filtered<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-			
-			
 			coarse->copy_add_unpad( *delta.get_grid(levelmin+i) );
 			
 			
-			//... 3) the 'BC' for the next finer grid
+			//... 2) the 'BC' for the next finer grid
 			*coarse = coarse_save;
-
+			coarse->subtract_boundary_oct_mean();
 			coarse->zero_subgrid(refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
 								 refh.size(levelmin+i+1,0)/2, refh.size(levelmin+i+1,1)/2, refh.size(levelmin+i+1,2)/2 );
-			coarse->zero_boundary();
 			
 			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-			//convolution::perform_filtered<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-			
-			
 			
 			meshvar_bnd delta_longrange( *delta.get_grid(levelmin+i) );
 			coarse->copy_unpad( delta_longrange );
-			//mg_linear().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
 			mg_cubic().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
 			
-			
-#if 1
-			//... FFT (isolated) boundary noise contribution
-			//convolution::truncate( the_tf_kernel, cutoff*lmin, 1e-8*alpha );
-			convolution::truncate_sharp( the_tf_kernel, cutoff*lmin );
+
+			//... 3) the coarse-grid correction
 			*coarse = coarse_save;
-			//coarse_save.clear();
-			coarse->zero_subgrid(0,0,0,coarse->nx_/2,coarse->ny_/2,coarse->nz_/2);
-			coarse->subtract_oct_mean();
-			
-			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-			//convolution::perform_filtered<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-			
-			coarse->copy_add_unpad( *delta.get_grid(levelmin+i) );
-#endif
-			
-#if 0
-			*coarse = coarse_save;
-			coarse->zero_boundary();
 			coarse->subtract_oct_mean();
 			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-			//coarse->zero_subgrid(0,0,0,coarse->nx_/2,coarse->ny_/2,coarse->nz_/2);
-			
 			coarse->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
-#endif
-			
-			/**coarse = coarse_save;
-			coarse->zero_subgrid(0,0,0,coarse->nx_/2,coarse->ny_/2,coarse->nz_/2);
-			coarse->set_to_oct_mean();
-			
-			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-			coarse->copy_subtract_unpad( *delta.get_grid(levelmin+i) );*/
-			
 			
 			delete the_tf_kernel;
 			delete coarse;
@@ -679,62 +665,60 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		lx = dx * coarse->nx_; 
 		ly = dx * coarse->ny_; 
 		lz = dx * coarse->nz_; 
-		real_t lmin = std::min( lx, std::min(ly,lz) );
 		
-		
+		//... set convolution parameters
 		conv_param.lx = lx;
 		conv_param.ly = ly;
 		conv_param.lz = lz;
 		conv_param.nx = coarse->nx_;
 		conv_param.ny = coarse->ny_;
 		conv_param.nz = coarse->nz_;
-		conv_param.normalize = false;
+		conv_param.coarse_fact = 0;
+		conv_param.deconvolve = bdeconvolve;
+		conv_param.is_finest = true;	
 		
-		//... with LR/SR splitting and full subgrid		
+#ifdef SINGLE_PEAK
+		{
+			coarse->zero();
+			
+			int 
+				i0 = pow(2,levelmax)/2 - refh.offset_abs(levelmax,0) + coarse->nx_/4,
+				i1 = pow(2,levelmax)/2 - refh.offset_abs(levelmax,1) + coarse->nx_/4,
+				i2 = pow(2,levelmax)/2 - refh.offset_abs(levelmax,2) + coarse->nx_/4;
+		
+				(*coarse)(i0,i1,i2) = 1.0;
+		}
+#endif
+		
+		//... 1) grid self-contributio
+		
 		PaddedDensitySubGrid<real_t> coarse_save( *coarse );
 		
+		//... create convolution kernel
 		convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
-		//... 2) the inner region
 		
-		coarse->zero_boundary();
-		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-		coarse->copy_add_unpad( *delta.get_grid(levelmax) );
-		
-		
-		//... compute convolution for isolated grid
-		//... 1) the padded boundary region
-	
-	
-		
-		
-#if 1
-		//... boundary correction
-		convolution::truncate( the_tf_kernel, cutoff*lmin, alpha );
-		//convolution::truncate_sharp( the_tf_kernel, cutoff*lmin );
-		
-		
-		*coarse = coarse_save;
-		coarse->zero_subgrid(0,0,0,coarse->nx_/2,coarse->ny_/2,coarse->nz_/2);
-		coarse->subtract_oct_mean();
-		
-		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
-		coarse->copy_add_unpad( *delta.get_grid(levelmax) );
+		//... subtract oct mean on boundary but not in interior
+		coarse->subtract_boundary_oct_mean();
 
-#endif
-#if 0
-		// coarse correction
-		*coarse = coarse_save;
-		coarse->zero_boundary();
-		coarse->subtract_oct_mean();
+		//... perform convolution
 		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
 		
+		//... copy to grid hierarchy
+		coarse->copy_add_unpad( *delta.get_grid(levelmax) );
+		
+				
+		//... 2) boundary correction to top grid
+		*coarse = coarse_save;
+		
+		//... subtract oct mean
+		coarse->subtract_oct_mean();
+		
+		
+		//... perform convolution
+		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
+		
+		//... upload data to coarser grid
 		coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );
-		
-		//	meshvar_bnd delta_longrange( *delta.get_grid(levelmax) );
-		//coarse->copy_unpad( delta_longrange );
-		//mg_straight().restrict_add( delta_longrange, *delta.get_grid(levelmax-1) );
-#endif	
-		
 		
 		delete the_tf_kernel;		
 		delete coarse;
@@ -751,11 +735,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			}
 	}
 	
-	//... enforce mean condition
-	//for( int i=levelmin; i<(int)levelmax; ++i )
-		//	enforce_mean( (*delta.get_grid(i+1)), (*delta.get_grid(i)) );
-	 
-#if 1
+	
 	//... subtract the box mean.... this will otherwise add
 	//... a constant curvature term to the potential
 	double sum = 0.0;
@@ -788,9 +768,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			for( int iy=0; iy<ny; ++iy )
 				for( int iz=0; iz<nz; ++iz )
 					(*delta.get_grid(i))(ix,iy,iz) -= sum;
+		
 	}
-#endif	
-	
+
 	//... fill coarser levels with data from finer ones...
 	for( int i=levelmax; i>0; --i )
 		mg_straight().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
@@ -800,6 +780,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 
 void normalize_density( grid_hierarchy& delta )
 {
+	
 	double sum = 0.0;
 	unsigned levelmin = delta.levelmin(), levelmax = delta.levelmax();
 	

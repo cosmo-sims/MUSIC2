@@ -39,6 +39,8 @@
 	#endif
 #endif
 
+#include <assert.h>
+
 #include "config_file.hh"
 #include "random.hh"
 #include "cosmology.hh"
@@ -46,10 +48,10 @@
 
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
-							  refinement_hierarchy& refh, grid_hierarchy& delta );
+							  refinement_hierarchy& refh, grid_hierarchy& delta, bool bdeconvolve );
 
 void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, 
-							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace=false );
+							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace, bool deconvolve );
 
 void normalize_density( grid_hierarchy& delta );
 
@@ -109,6 +111,26 @@ public:
 		std::vector<real_t>().swap(data_);
 	}
 	
+	//! query the 3D array sizes of the density object
+	/*! returns the size of the 3D density object along a specified dimension
+	 * @params i the dimension for which size is to be returned
+	 * @returns array size along dimension i
+	 */
+	int size( int i )
+	{
+		if(i==0) return nx_;
+		if(i==1) return ny_;
+		return ny_;
+	}
+	
+	//! zeroes the density object
+	/*! sets all values to 0.0
+	 */
+	void zero( void )
+	{
+		data_.assign(data_.size(),0.0);
+	}
+	
 	//! assigns the contents of another DensityGrid to this
 	DensityGrid& operator=( const DensityGrid<real_t>& g )
 	{
@@ -141,9 +163,9 @@ public:
 	 *  @params i0 x-offset (shift) in cells of the density field with respect to the random number field
 	 *  @params j0 y-offset (shift) in cells of the density field with respect to the random number field
 	 *  @params k0 z-offset (shift) in cells of the density field with respect to the random number field
-	 *  @params zero boolean, if true, the global mean will be subtracted
+	 *  @params setzero boolean, if true, the global mean will be subtracted
 	 */
-	void fill_rand( /*const*/ random_numbers<real_t>* prc, real_t variance, int i0, int j0, int k0, bool zero=false )
+	void fill_rand( /*const*/ random_numbers<real_t>* prc, real_t variance, int i0, int j0, int k0, bool setzero=false )
 	{
 		double sum = 0.0;
 		
@@ -158,7 +180,7 @@ public:
 		
 		sum /= nx_*ny_*nz_;
 		
-		if( zero )
+		if( setzero )
 		{
 			#pragma omp parallel for
 			for( int i=0; i<nx_; ++i )
@@ -189,6 +211,32 @@ public:
 			for( int iy=0; iy<(int)ny_; ++iy )	
 				for( int iz=0; iz<(int)nz_; ++iz )
 					v(ix,iy,iz) += (*this)(ix,iy,iz);
+	}
+	
+	//! subtract the mean of the field 
+	/*! subtracting the total mean implies that a restriction does not change the mass
+	 */
+	void subtract_mean( void )
+	{
+		double sum = 0.0;
+		unsigned count;
+		
+		for( int i=0; i<nx_; i++ )
+			for( int j=0; j<ny_; j++ )
+				for( int k=0; k<nz_; k++ )
+				{
+					sum += (*this)(i,j,k);
+					count++;
+				}
+		sum /= count;
+		
+					
+					
+		for( int i=0; i<nx_; i++ )
+			for( int j=0; j<ny_; j++ )
+				for( int k=0; k<nz_; k++ )
+					(*this)(i,j,k)			-= sum;
+		
 	}
 	
 	//! subtract the mean of each oct of the field 
@@ -691,6 +739,72 @@ public:
 					v(ixu,iyu,izu) -= (*this)(ix,iy,iz);
 	}
 	
+	
+	double oct_mean( int i, int j, int k )
+	{
+		
+		return 0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)
+					  +(*this)(i+1,j+1,k)+(*this)(i+1,j,k+1)+(*this)(i,j+1,k+1)+(*this)(i+1,j+1,k+1));
+	}
+	
+	void set_oct_mean( int i, int j, int k, double val )
+	{
+		(*this)(i,j,k)			= val;
+		(*this)(i+1,j,k)		= val;
+		(*this)(i,j+1,k)		= val;
+		(*this)(i,j,k+1)		= val;
+		(*this)(i+1,j+1,k)		= val;
+		(*this)(i+1,j,k+1)		= val;
+		(*this)(i,j+1,k+1)		= val;
+		(*this)(i+1,j+1,k+1)	= val;
+	}
+	
+	void add_oct_val( int i, int j, int k, double val )
+	{
+		(*this)(i,j,k)		+= val;
+		(*this)(i+1,j,k)		+= val;
+		(*this)(i,j+1,k)		+= val;
+		(*this)(i,j,k+1)		+= val;
+		(*this)(i+1,j+1,k)	+= val;
+		(*this)(i+1,j,k+1)	+= val;
+		(*this)(i,j+1,k+1)	+= val;
+		(*this)(i+1,j+1,k+1)	+= val;
+	}
+	
+	void subtract_boundary_oct_mean( void )
+	{
+		#pragma omp parallel for
+		for( int ix=0; ix<nx_/4-1; ix+=2 )
+		{	
+			for( int iy=0; iy<ny_; iy+=2 )
+				for( int iz=0; iz<nz_; iz+=2 )
+				{
+					add_oct_val( ix,iy,iz, -oct_mean(ix,iy,iz) );
+					add_oct_val( ix+3*nx_/4,iy,iz, -oct_mean(ix+3*nx_/4,iy,iz) );
+				}
+		}
+		
+		#pragma omp parallel for
+		for( int ix=0; ix<nx_; ix+=2 )
+			for( int iy=0; iy<ny_/4-1; iy+=2 )
+			{
+				for( int iz=0; iz<nz_; iz+=2 )
+				{
+					add_oct_val( ix,iy,iz, -oct_mean(ix,iy,iz) );
+					add_oct_val( ix,iy+3*ny_/4,iz, -oct_mean(ix,iy+3*ny_/4,iz) );
+				}
+			}
+		
+		#pragma omp parallel for
+		for( int ix=0; ix<nx_; ix+=2 )
+			for( int iy=0; iy<ny_; iy+=2 )
+				for( int iz=0; iz<nz_/4-1; iz+=2 )
+				{
+					add_oct_val( ix,iy,iz, -oct_mean(ix,iy,iz) );
+					add_oct_val( ix,iy,iz+3*nz_/4, -oct_mean(ix,iy,iz+3*nz_/4) );
+				}
+	}
+	
 	void zero_boundary( void )
 	{
 		for( int ix=0; ix<nx_/4; ++ix )
@@ -806,6 +920,9 @@ inline void enforce_mean( M& v, M& V )
 	finemean /= count;
 	
 	double dmean = coarsemean-finemean;
+	dmean = dmean/sqrt(2.0);
+	
+	std::cerr << " - enforce_mean correction : fine = " << finemean << ", coarse = " << coarsemean << ", diff = " << dmean << std::endl;
 	
 #pragma omp parallel for reduction(+:coarsemean,finemean)
 	for( int i=0; i<nx; ++i )

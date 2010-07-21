@@ -64,7 +64,7 @@ protected:
 	bool m_is_ini;
 
 	GridHierarchy<T>	*m_pu, *m_pf, *m_pfsave;	
-	//GridHierarchy<bool> *m_pmask;
+	
 	const MeshvarBnd<T> *m_pubnd;
 	
 	double compute_error( const MeshvarBnd<T>& u, const MeshvarBnd<T>& unew );
@@ -83,20 +83,17 @@ protected:
 	
 	void twoGrid( unsigned ilevel );
 	
-	//void interp_coarse_fine( unsigned ilevel, MeshvarBnd<T>& coarse, MeshvarBnd<T>& fine, bool bcf=true );
-	
 	void setBC( unsigned ilevel );
 	
 	void make_periodic( MeshvarBnd<T> *u );
 	
-	void interp_coarse_fine_cubic( unsigned ilevel, MeshvarBnd<T>& coarse, MeshvarBnd<T>& fine );
+	//void interp_coarse_fine_cubic( unsigned ilevel, MeshvarBnd<T>& coarse, MeshvarBnd<T>& fine );
 		
 public:
-	solver( GridHierarchy<T>& f, //const MeshvarBnd<T>& uBC_top, 
-				   opt::smtype smoother, unsigned npresmooth, unsigned npostsmooth );
+	solver( GridHierarchy<T>& f, opt::smtype smoother, unsigned npresmooth, unsigned npostsmooth );
 	
 	~solver()
-	{ /*delete m_pmask;*/ }
+	{  }
 	
 	double solve( GridHierarchy<T>& u, double accuracy, double h=-1.0, bool verbose=false );
 	
@@ -111,14 +108,13 @@ public:
 
 
 template< class S, class I, class O, typename T >
-solver<S,I,O,T>::solver( GridHierarchy<T>& f, //const MeshvarBnd<T>& ubnd, 
-					opt::smtype smoother, unsigned npresmooth, unsigned npostsmooth )
+solver<S,I,O,T>::solver( GridHierarchy<T>& f, opt::smtype smoother, unsigned npresmooth, unsigned npostsmooth )
 :	m_scheme(), m_gridop(), m_npresmooth( npresmooth ), m_npostsmooth( npostsmooth ), 
 m_smoother( smoother ), m_ilevelmin( f.levelmin() ), m_is_ini( true ), m_pf( &f )
 { 
 	m_is_ini = true;
 	
-	// TODO: maybe later : add more than one refinement region
+	// TODO: maybe later : add more than one refinement region, then we need the mask
 	//... initialize the refinement mask
 	//m_pmask = new GridHierarchy<bool>( f.m_nbnd );
 	//m_pmask->create_base_hierarchy(f.levelmin());
@@ -193,7 +189,7 @@ void solver<S,I,O,T>::SOR( T h, MeshvarBnd<T> *u, const MeshvarBnd<T>* f )
 	
 	double 
 		alpha = 1.2, 
-	//alpha = 2 / (1 + 4 * atan(1.0) / double(u->size(0)))-1.0,
+	//alpha = 2 / (1 + 4 * atan(1.0) / double(u->size(0)))-1.0, //.. ideal alpha
 		ialpha = 1.0-alpha;
 	
 	#pragma omp parallel for
@@ -309,12 +305,10 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 	
 	//... restrict Lu
 	m_gridop.restrict( Lu, tLu );
-	//mg_straight().restrict( Lu, tLu );
 	Lu.deallocate();
 	
 	//... restrict source term
 	m_gridop.restrict( *ff, *fc );
-	//mg_straight().restrict( *ff, *fc );
 	
 	int oi, oj, ok;
 	oi = ff->offset(0);
@@ -483,11 +477,11 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 {
 
 	double err;
+	unsigned niter = 0;
 	
-	//GridHierarchy<T> uhnew(uh);//, fsave(*m_pf);
+	bool fullverbose = false;
+	
 	m_pu = &uh;
-	
-    unsigned niter = 0;
 	
 	//... iterate ...//
 	while (true)
@@ -495,20 +489,17 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 		
 		
 		twoGrid( uh.levelmax() );
-		//err = compute_error( *m_pu, uhnew, verbose );
-		err = compute_RMS_resid( *m_pu, *m_pf, verbose );
+		err = compute_RMS_resid( *m_pu, *m_pf, fullverbose );
 		++niter;
 		
 		if( verbose ){
-			std::cout << "  --> Step No. " << std::setw(3) << niter << ", Max Err = " << err << std::endl;
-			std::cout << "      ---------------------------------------------------\n";
+			std::cout << "   - Step No. " << std::setw(3) << niter << ", Max Err = " << err << std::endl;
+			if(fullverbose)
+				std::cout << "     ---------------------------------------------------\n";
 		}
 			
-		if( (niter > 1) && ((err < acc) || (niter > 8)) )
+		if( (niter > 1) && ((err < acc) || (niter > 20)) )
 			break;
-		
-		//uhnew = *m_pu;
-		//*m_pf = fsave;
 	}		
 	
 	if( err > acc )
@@ -517,109 +508,29 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 		std::cout << " - Converged in " << niter << " steps to req. acc. of " << acc << std::endl;
 
 	
-	//uh = uhnew;
-	//*m_pf = fsave;
-	
 	//.. make sure that the RHS does not contain the FAS corrections any more
-	for( int i=m_pf->levelmax(); i>0; --i )//(int)m_pf->levelmin(); --i )
+	for( int i=m_pf->levelmax(); i>0; --i )
 		m_gridop.restrict( *m_pf->get_grid(i), *m_pf->get_grid(i-1) );
 	
 	
 	return err;
 }
 
-template< class S, class I, class O, typename T >
-void solver<S,I,O,T>::interp_coarse_fine_cubic( unsigned ilevel, MeshvarBnd<T>& coarse, MeshvarBnd<T>& fine )
-{
-	MeshvarBnd<T> *u    = &fine;
-	MeshvarBnd<T> *utop = &coarse;
-	
-	int
-	xoff = u->offset(0),
-	yoff = u->offset(1),
-	zoff = u->offset(2);
-	
-	//... don't do anything if we are not an additional refinement region
-	if( xoff == 0 && yoff == 0 && zoff == 0 )
-		return;
-	
-	int
-	nx = u->size(0), 
-	ny = u->size(1), 
-	nz = u->size(2);
-	
-	//.. perform cubic interpolation
-	mg_cubic().prolong_bnd( *utop, *u );
-	
-	//.. match fluxes
-	#pragma omp parallel for schedule(dynamic)
-	for( int ix=-1; ix<=nx; ++ix )
-		for( int iy=-1; iy<=ny; ++iy )
-			for( int iz=-1; iz<=nz; ++iz )
-			{
-				bool xbnd=(ix==-1||ix==nx),ybnd=(iy==-1||iy==ny),zbnd=(iz==-1||iz==nz);
-				
-				if( xbnd || ybnd || zbnd )
-				{
-					
-					//... only deal with proper ghostzones
-					if( (xbnd&&ybnd) || (xbnd&&zbnd) || (ybnd&&zbnd) || (xbnd&&ybnd&&zbnd))
-						continue;
-					
-					int ixtop = (int)(0.5*(double)(ix))+xoff;
-					int iytop = (int)(0.5*(double)(iy))+yoff;
-					int iztop = (int)(0.5*(double)(iz))+zoff;
-					
-					if( ix==-1 ) ixtop=xoff-1;
-					if( iy==-1 ) iytop=yoff-1;
-					if( iz==-1 ) iztop=zoff-1;
-					
-					double flux;;
-				    if( ix == -1 && iy%2==0 && iz%2==0 )
-					{					
-						flux = 0.0;
-						for( int j=0;j<=1;j++)
-							for( int k=0;k<=1;k++)
-							{		
-								flux += ((*u)(ix+1,iy+j,iz+k)-(*u)(ix,iy+j,iz+k));
-							}
-						
-						
-						
-						flux /= 4.0;
-						
-						double dflux = ((*utop)(ixtop+1,iytop,iztop)-(*utop)(ixtop,iytop,iztop))/2.0 - flux;
-					}
-				}
-			}
-	
-}
 
 
-
-
-
+//TODO: this only works for 2nd order! (but actually not needed)
 template< class S, class I, class O, typename T >
 void solver<S,I,O,T>::setBC( unsigned ilevel )
 {
 	//... set only on level before additional refinement starts
-	//if( ilevel == m_ilevelmin )
 	if( ilevel == m_ilevelmin )
 	{
 		MeshvarBnd<T> *u = m_pu->get_grid(ilevel);
-		//int nbnd = u->m_nbnd,
 		int
-		nx = u->size(0), 
-		ny = u->size(1), 
-		nz = u->size(2);
-		
-		/*for( int ix=-nbnd; ix<nx+nbnd; ++ix )
-			for( int iy=-nbnd; iy<ny+nbnd; ++iy )
-				for( int iz=-nbnd; iz<nz+nbnd; ++iz )
-					if( ix<0||ix>=nx||iy<0||iy>=ny||iz<0||iz>=nz )
-						(*u)(ix,iy,iz) = (*m_pubnd)(ix,iy,iz);*/
-		
-		
+			nx = u->size(0), 
+			ny = u->size(1), 
+			nz = u->size(2);
+			
 		for( int iy=0; iy<ny; ++iy )
 			for( int iz=0; iz<nz; ++iz )
 			{
@@ -643,21 +554,7 @@ void solver<S,I,O,T>::setBC( unsigned ilevel )
 		
 		
 		
-	}/*else if( ilevel < m_ilevelmin ) {
-		MeshvarBnd<T> *u = m_pu->get_grid(ilevel);
-		int nbnd = u->m_nbnd,
-		nx = u->size(0), 
-		ny = u->size(1), 
-		nz = u->size(2);
-		
-		for( int ix=-nbnd; ix<nx+nbnd; ++ix )
-			for( int iy=-nbnd; iy<ny+nbnd; ++iy )
-				for( int iz=-nbnd; iz<nz+nbnd; ++iz )
-					if( ix<0||ix>=nx||iy<0||iy>=ny||iz<0||iz>=nz )
-						(*u)(ix,iy,iz) = 0.0;
-	}*/
-
-
+	}
 }
 
 
@@ -715,336 +612,8 @@ void solver<S,I,O,T>::make_periodic( MeshvarBnd<T> *u )
 				}
 			}
 	
-#if 0
-	if( u->m_nbnd == 1 )
-	{
-			
-		#pragma omp parallel
-		{
-			
-			if( u->offset(0) == 0 )
-				for( int iy=-1; iy<=ny; ++iy )
-					for( int iz=-1; iz<=nz; ++iz )
-					{
-						int iiy( (iy+ny)%ny ), iiz( (iz+nz)%nz );
-
-						(*u)(-1,iy,iz) = (*u)(nx-1,iiy,iiz);
-						(*u)(nx,iy,iz) = (*u)(0,iiy,iiz);
-					}
-			
-			if( u->offset(1) == 0 )
-				for( int ix=-1; ix<=nx; ++ix )
-					for( int iz=-1; iz<=nz; ++iz )
-					{
-						int iix( (ix+nx)%nx ), iiz( (iz+nz)%nz );
-
-						(*u)(ix,-1,iz) = (*u)(iix,ny-1,iiz);
-						(*u)(ix,ny,iz) = (*u)(iix,0,iiz);
-					}
-			
-			if( u->offset(2) == 0 )
-				for( int ix=-1; ix<=nx; ++ix )
-					for( int iy=-1; iy<=ny; ++iy )
-					{
-						int iix( (ix+nx)%nx ), iiy( (iy+ny)%ny );
-
-						(*u)(ix,iy,-1) = (*u)(iix,iiy,nz-1);
-						(*u)(ix,iy,nz) = (*u)(iix,iiy,0);
-					}									  
-			
-			
-		}
-	}else if( u->m_nbnd == 2 ){
-		if( u->offset(0) == 0 )
-			for( int iy=-2; iy<=ny+1; ++iy )
-				for( int iz=-2; iz<=nz+1; ++iz )
-				{
-					int iiy( (iy+ny)%ny ), iiz( (iz+nz)%nz );
-					
-					(*u)(-1,iy,iz) = (*u)(nx-1,iiy,iiz);
-					(*u)(-2,iy,iz) = (*u)(nx-2,iiy,iiz);
-					(*u)(nx,iy,iz) = (*u)(0,iiy,iiz);
-					(*u)(nx+1,iy,iz) = (*u)(1,iiy,iiz);
-				}
-		
-		if( u->offset(1) == 0 )
-			for( int ix=-2; ix<=nx+1; ++ix )
-				for( int iz=-2; iz<=nz+1; ++iz )
-				{
-					int iix( (ix+nx)%nx ), iiz( (iz+nz)%nz );
-					
-					(*u)(ix,-1,iz) = (*u)(iix,ny-1,iiz);
-					(*u)(ix,-2,iz) = (*u)(iix,ny-2,iiz);
-					(*u)(ix,ny,iz) = (*u)(iix,0,iiz);
-					(*u)(ix,ny+1,iz) = (*u)(iix,1,iiz);
-				}
-		
-		if( u->offset(2) == 0 )
-			for( int ix=-2; ix<=nx+1; ++ix )
-				for( int iy=-2; iy<=ny+1; ++iy )
-				{
-					int iix( (ix+nx)%nx ), iiy( (iy+ny)%ny );
-					
-					(*u)(ix,iy,-1) = (*u)(iix,iiy,nz-1);
-					(*u)(ix,iy,-2) = (*u)(iix,iiy,nz-2);
-					(*u)(ix,iy,nz) = (*u)(iix,iiy,0);
-					(*u)(ix,iy,nz+1) = (*u)(iix,iiy,1);
-				}			
-	}else
-		throw std::runtime_error("solver<S,I,O,T>::make_periodic: don't know how to deal with boundary!");
-#endif
 }
 
-#if 0
-template< class S, class I, class O, typename T >
-void solver<S,I,O,T>::interp_coarse_fine( unsigned ilevel, MeshvarBnd<T>& coarse, MeshvarBnd<T>& fine, bool bcf )
-{
-	MeshvarBnd<T> *u    = &fine;
-	MeshvarBnd<T> *utop = &coarse;
-	
-	
-	bcf = true;;
-	//bcf = false;
-	
-	int
-	xoff = u->offset(0),
-	yoff = u->offset(1),
-	zoff = u->offset(2);
-	
-	//... don't do anything if we are not an additional refinement region
-	if( xoff == 0 && yoff == 0 && zoff == 0 )
-		return;
-	
-	int
-	nx = u->size(0), 
-	ny = u->size(1), 
-	nz = u->size(2);
-	
-	//... set boundary condition for fine grid
-	
-#pragma omp parallel for schedule(dynamic)
-	for( int ix=-1; ix<=nx; ++ix )
-		for( int iy=-1; iy<=ny; ++iy )
-			for( int iz=-1; iz<=nz; ++iz )
-			{
-				bool xbnd=(ix==-1||ix==nx),ybnd=(iy==-1||iy==ny),zbnd=(iz==-1||iz==nz);
-				
-				//if(ix==-1||ix==nx||iy==-1||iy==ny||iz==-1||iz==nz)
-				if( xbnd || ybnd || zbnd )
-					//if( xbnd ^ ybnd ^ zbnd )
-				{
-					
-					//... only deal with proper ghostzones
-					if( (xbnd&&ybnd) || (xbnd&&zbnd) || (ybnd&&zbnd) || (xbnd&&ybnd&&zbnd))
-						continue;
-					
-					/*int ixtop = (int)(0.5*(double)(ix+2*xoff)+1e-3);
-					 int iytop = (int)(0.5*(double)(iy+2*yoff)+1e-3);
-					 int iztop = (int)(0.5*(double)(iz+2*zoff)+1e-3);*/
-					
-					int ixtop = (int)(0.5*(double)(ix))+xoff;
-					int iytop = (int)(0.5*(double)(iy))+yoff;
-					int iztop = (int)(0.5*(double)(iz))+zoff;
-					
-					if( ix==-1 ) ixtop=xoff-1;
-					if( iy==-1 ) iytop=yoff-1;
-					if( iz==-1 ) iztop=zoff-1;
-					
-					double ustar1, ustar2, ustar3, uhat;			
-					double fac = 0.5;//0.25;
-					double flux;;
-				    if( ix == -1 && iy%2==0 && iz%2==0 )
-					{
-						flux = 0.0;
-						for( int j=0;j<=1;j++)
-							for( int k=0;k<=1;k++)
-							{		
-								ustar1 = interp2( (*utop)(ixtop,iytop-1,iztop-1),(*utop)(ixtop,iytop,iztop-1),(*utop)(ixtop,iytop+1,iztop-1), fac*((double)j-0.5) );
-								ustar2 = interp2( (*utop)(ixtop,iytop-1,iztop),(*utop)(ixtop,iytop,iztop),(*utop)(ixtop,iytop+1,iztop), fac*((double)j-0.5) );
-								ustar3 = interp2( (*utop)(ixtop,iytop-1,iztop+1),(*utop)(ixtop,iytop,iztop+1),(*utop)(ixtop,iytop+1,iztop+1), fac*((double)j-0.5) );
-								
-								uhat   = interp2( /*-1.0, 0.0, 1.0, */ustar1, ustar2, ustar3, fac*((double)k-0.5) );
-								
-								//(*u)(ix,iy+j,iz+k) = 0.0;//(*utop)(ixtop,iytop,iztop);//interp2( -1.5, 0.0, 1.0, uhat, (*u)(ix+1,iy+j,iz+k), (*u)(ix+2,iy+j,iz+k), -1.0 );
-								
-								(*u)(ix,iy+j,iz+k) = interp2left( uhat, (*u)(ix+1,iy+j,iz+k), (*u)(ix+2,iy+j,iz+k) );
-								
-								flux += ((*u)(ix+1,iy+j,iz+k)-(*u)(ix,iy+j,iz+k));
-							}
-						
-						
-						
-						flux /= 4.0;
-						
-						double dflux = ((*utop)(ixtop+1,iytop,iztop)-(*utop)(ixtop,iytop,iztop))/2.0 - flux;
-						
-						//dflux *= 2.0;
-						
-						if( bcf )
-							for( int j=0;j<=1;j++)
-								for( int k=0;k<=1;k++)
-									(*u)(ix,iy+j,iz+k) -= dflux;
-						else
-							(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop+1,iytop,iztop) - 2.0*flux;
-						
-						
-					}
-					// right boundary
-					if( ix == nx && iy%2==0 && iz%2==0 )
-					{
-						flux = 0.0;
-						for( int j=0;j<=1;j++)
-							for( int k=0;k<=1;k++)
-							{		
-								ustar1 = interp2( (*utop)(ixtop,iytop-1,iztop-1),(*utop)(ixtop,iytop,iztop-1),(*utop)(ixtop,iytop+1,iztop-1), fac*((double)j-0.5) );
-								ustar2 = interp2( (*utop)(ixtop,iytop-1,iztop),(*utop)(ixtop,iytop,iztop),(*utop)(ixtop,iytop+1,iztop), fac*((double)j-0.5) );
-								ustar3 = interp2( (*utop)(ixtop,iytop-1,iztop+1),(*utop)(ixtop,iytop,iztop+1),(*utop)(ixtop,iytop+1,iztop+1), fac*((double)j-0.5) );
-								
-								uhat   = interp2( -1.0, 0.0, 1.0, ustar1, ustar2, ustar3, fac*((double)k-0.5) );
-								
-								//(*u)(ix,iy+j,iz+k) = 0.0;(*utop)(ixtop,iytop,iztop);//interp2( 1.5, 0.0, -1.0, uhat, (*u)(ix-1,iy+j,iz+k), (*u)(ix-2,iy+j,iz+k), 1.0 );
-								(*u)(ix,iy+j,iz+k) = interp2right( (*u)(ix-2,iy+j,iz+k), (*u)(ix-1,iy+j,iz+k), uhat );
-								flux += ((*u)(ix,iy+j,iz+k)-(*u)(ix-1,iy+j,iz+k));
-							}
-						flux /= 4.0;
-						
-						
-						double dflux = ((*utop)(ixtop,iytop,iztop)-(*utop)(ixtop-1,iytop,iztop))/2.0 - flux;
-						//dflux *= 2.0;
-						
-						if( bcf )
-							for( int j=0;j<=1;j++)
-								for( int k=0;k<=1;k++)
-									(*u)(ix,iy+j,iz+k) += dflux;
-						else
-							(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop-1,iytop,iztop) + 2.0*flux;
-						
-					}
-					// bottom boundary
-					if( iy == -1 && ix%2==0 && iz%2==0 )
-					{
-						flux = 0.0;
-						for( int j=0;j<=1;j++)
-							for( int k=0;k<=1;k++)
-							{
-								ustar1 = interp2( (*utop)(ixtop-1,iytop,iztop-1),(*utop)(ixtop,iytop,iztop-1),(*utop)(ixtop+1,iytop,iztop-1), fac*(j-0.5) );
-								ustar2 = interp2( (*utop)(ixtop-1,iytop,iztop),(*utop)(ixtop,iytop,iztop),(*utop)(ixtop+1,iytop,iztop), fac*(j-0.5) );
-								ustar3 = interp2( (*utop)(ixtop-1,iytop,iztop+1),(*utop)(ixtop,iytop,iztop+1),(*utop)(ixtop+1,iytop,iztop+1), fac*(j-0.5) );
-								
-								uhat   = interp2( -1.0, 0.0, 1.0, ustar1, ustar2, ustar3, fac*((double)k-0.5) );
-								
-								//(*u)(ix+j,iy,iz+k) = 0.0;(*utop)(ixtop,iytop,iztop);//interp2( -1.5, 0.0, 1.0, uhat, (*u)(ix+j,iy+1,iz+k), (*u)(ix+j,iy+2,iz+k), -1.0 );
-								(*u)(ix+j,iy,iz+k) = interp2left( uhat, (*u)(ix+j,iy+1,iz+k), (*u)(ix+j,iy+2,iz+k) );
-								
-								flux += ((*u)(ix+j,iy+1,iz+k)-(*u)(ix+j,iy,iz+k));
-							}
-						flux /= 4.0;
-						//(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop,iytop+1,iztop) - flux;
-						double dflux = ((*utop)(ixtop,iytop+1,iztop)-(*utop)(ixtop,iytop,iztop))/2.0 - flux;
-						//dflux *= 2.0;
-						if( bcf )
-							for( int j=0;j<=1;j++)
-								for( int k=0;k<=1;k++)
-									(*u)(ix+j,iy,iz+k) -= dflux;
-						else
-							(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop,iytop+1,iztop) - 2.0*flux;
-						
-					}
-					// top boundary
-					if( iy == ny && ix%2==0 && iz%2==0 )
-					{
-						flux = 0.0;
-						for( int j=0;j<=1;j++)
-							for( int k=0;k<=1;k++)
-							{		
-								ustar1 = interp2( (*utop)(ixtop-1,iytop,iztop-1),(*utop)(ixtop,iytop,iztop-1),(*utop)(ixtop+1,iytop,iztop-1), fac*(j-0.5) );
-								ustar2 = interp2( (*utop)(ixtop-1,iytop,iztop),(*utop)(ixtop,iytop,iztop),(*utop)(ixtop+1,iytop,iztop), fac*(j-0.5) );
-								ustar3 = interp2( (*utop)(ixtop-1,iytop,iztop+1),(*utop)(ixtop,iytop,iztop+1),(*utop)(ixtop+1,iytop,iztop+1), fac*(j-0.5) );
-								
-								uhat   = interp2( -1.0, 0.0, 1.0, ustar1, ustar2, ustar3, fac*((double)k-0.5) );
-								
-								//(*u)(ix+j,iy,iz+k) = 0.0;(*utop)(ixtop,iytop,iztop);//interp2( 1.5, 0.0, -1.0, uhat, (*u)(ix+j,iy-1,iz+k), (*u)(ix+j,iy-2,iz+k), 1.0 );
-								(*u)(ix+j,iy,iz+k) = interp2right( (*u)(ix+j,iy-2,iz+k), (*u)(ix+j,iy-1,iz+k), uhat  );
-								
-								flux += ((*u)(ix+j,iy,iz+k)-(*u)(ix+j,iy-1,iz+k));
-							}
-						flux /= 4.0;
-						//(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop,iytop-1,iztop) + flux;
-						double dflux = ((*utop)(ixtop,iytop,iztop)-(*utop)(ixtop,iytop-1,iztop))/2.0 - flux;
-						//dflux *= 2.0;
-						if( bcf )
-							for( int j=0;j<=1;j++)
-								for( int k=0;k<=1;k++)
-									(*u)(ix+j,iy,iz+k) += dflux;
-						else
-							(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop,iytop-1,iztop) + 2.0*flux;
-						
-					}
-					// front boundary
-					if( iz == -1 && ix%2==0 && iy%2==0 )
-					{
-						flux = 0.0;
-						for( int j=0;j<=1;j++)
-							for( int k=0;k<=1;k++)
-							{		
-								ustar1 = interp2( (*utop)(ixtop-1,iytop-1,iztop),(*utop)(ixtop,iytop-1,iztop),(*utop)(ixtop+1,iytop-1,iztop), fac*(j-0.5) );
-								ustar2 = interp2( (*utop)(ixtop-1,iytop,iztop),(*utop)(ixtop,iytop,iztop),(*utop)(ixtop+1,iytop,iztop), fac*(j-0.5) );
-								ustar3 = interp2( (*utop)(ixtop-1,iytop+1,iztop),(*utop)(ixtop,iytop+1,iztop),(*utop)(ixtop+1,iytop+1,iztop), fac*(j-0.5) );
-								
-								uhat   = interp2( -1.0, 0.0, 1.0, ustar1, ustar2, ustar3, fac*((double)k-0.5) );
-								
-								//(*u)(ix+j,iy+k,iz) = 0.0;(*utop)(ixtop,iytop,iztop);//interp2( -1.5, 0.0, 1.0, uhat, (*u)(ix+j,iy+k,iz+1), (*u)(ix+j,iy+k,iz+2), -1.0 );
-								(*u)(ix+j,iy+k,iz) = interp2left( uhat, (*u)(ix+j,iy+k,iz+1), (*u)(ix+j,iy+k,iz+2) );
-								
-								flux += ((*u)(ix+j,iy+k,iz+1)-(*u)(ix+j,iy+k,iz));
-							}
-						flux /= 4.0;
-						//(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop,iytop,iztop+1) - flux;
-						double dflux = ((*utop)(ixtop,iytop,iztop+1)-(*utop)(ixtop,iytop,iztop))/2.0 - flux;
-						//dflux *= 2.0;
-						if( bcf )
-							for( int j=0;j<=1;j++)
-								for( int k=0;k<=1;k++)
-									(*u)(ix+j,iy+k,iz) -= dflux;
-						else
-							(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop,iytop,iztop+1) - 2.0*flux;
-						
-					}
-					// back boundary
-					if( iz == nz && ix%2==0 && iy%2==0 )
-					{
-						flux = 0.0;
-						for( int j=0;j<=1;j++)
-							for( int k=0;k<=1;k++)
-							{		
-								ustar1 = interp2( (*utop)(ixtop-1,iytop-1,iztop),(*utop)(ixtop,iytop-1,iztop),(*utop)(ixtop+1,iytop-1,iztop), fac*(j-0.5) );
-								ustar2 = interp2( (*utop)(ixtop-1,iytop,iztop),(*utop)(ixtop,iytop,iztop),(*utop)(ixtop+1,iytop,iztop), fac*(j-0.5) );
-								ustar3 = interp2( (*utop)(ixtop-1,iytop+1,iztop),(*utop)(ixtop,iytop+1,iztop),(*utop)(ixtop+1,iytop+1,iztop), fac*(j-0.5) );
-								
-								uhat   = interp2( -1.0, 0.0, 1.0, ustar1, ustar2, ustar3, fac*((double)k-0.5) );
-								
-								//(*u)(ix+j,iy+k,iz) = 0.0;(*utop)(ixtop,iytop,iztop);//interp2( 1.5, 0.0, -1.0, uhat, (*u)(ix+j,iy+k,iz-1), (*u)(ix+j,iy+k,iz-2), 1.0 );
-								(*u)(ix+j,iy+k,iz) = interp2right( (*u)(ix+j,iy+k,iz-2), (*u)(ix+j,iy+k,iz-1), uhat );
-								
-								flux += ((*u)(ix+j,iy+k,iz)-(*u)(ix+j,iy+k,iz-1));
-							}
-						flux /= 4.0;
-						//(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop,iytop,iztop-1) + flux;
-						double dflux = ((*utop)(ixtop,iytop,iztop)-(*utop)(ixtop,iytop,iztop-1))/2.0 - flux;
-						//dflux *= 2.0;
-						if( bcf )
-							for( int j=0;j<=1;j++)
-								for( int k=0;k<=1;k++)
-									(*u)(ix+j,iy+k,iz) += dflux;
-						else
-							(*utop)(ixtop,iytop,iztop) = (*utop)(ixtop,iytop,iztop-1) + 2.0*flux;
-					}
-					
-				}
-			}
-	
-}
-#endif
 
 END_MULTIGRID_NAMESPACE
  

@@ -40,7 +40,9 @@ namespace convolution{
 		double lx,ly,lz;//,boxlength;
 		config_file *pcf;
 		transfer_function* ptf;
-		bool normalize;
+		unsigned coarse_fact;
+		bool deconvolve;
+		bool is_finest;
 	};
 
 	
@@ -97,18 +99,6 @@ namespace convolution{
 	template< typename real_t >
 	void perform( kernel* pk, void *pd );
 
-	//! actual implementation of the FFT convolution (independent of the actual kernel)
-	//! with Hann (cf. Bertschinger 2001) window filter applied
-	template< typename real_t >
-	void perform_filtered( kernel* pk, void *pd );
-	
-	
-	//! truncate the kernel softly at R, used for boundary corrections
-	void truncate( kernel*pk, double R, double alpha );
-	
-	//! truncate the kernel sharply at R, used for boundary corrections
-	void truncate_sharp( kernel*pk, double R );
-	
 }; //namespace convolution
 
 

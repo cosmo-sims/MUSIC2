@@ -49,31 +49,7 @@ public:
 		dx = 0.5*((double)sz - 0.5)*s;
 		dy = 0.5*((double)sy - 0.5)*s;
 		dz = 0.5*((double)sx - 0.5)*s;
-		
-		//int xDim = V.m_nx, yDim = V.m_ny;
-		//int xyDim = xDim * yDim;
-		
-		//double *pv = &V(x-1,y-1,z-1);
-		
-		/* factors for Catmull-Rom interpolation */
-		
-		/*
-		u[0] = -0.5 * CUBE (dx) + SQR (dx) - 0.5 * dx;
-		u[1] = 1.5 * CUBE (dx) - 2.5 * SQR (dx) + 1;
-		u[2] = -1.5 * CUBE (dx) + 2 * SQR (dx) + 0.5 * dx;
-		u[3] = 0.5 * CUBE (dx) - 0.5 * SQR (dx);
-		
-		v[0] = -0.5 * CUBE (dy) + SQR (dy) - 0.5 * dy;
-		v[1] = 1.5 * CUBE (dy) - 2.5 * SQR (dy) + 1;
-		v[2] = -1.5 * CUBE (dy) + 2 * SQR (dy) + 0.5 * dy;
-		v[3] = 0.5 * CUBE (dy) - 0.5 * SQR (dy);
-		
-		w[0] = -0.5 * CUBE (dz) + SQR (dz) - 0.5 * dz;
-		w[1] = 1.5 * CUBE (dz) - 2.5 * SQR (dz) + 1;
-		w[2] = -1.5 * CUBE (dz) + 2 * SQR (dz) + 0.5 * dz;
-		w[3] = 0.5 * CUBE (dz) - 0.5 * SQR (dz);
-		*/
-		
+				
 		if( sz == 1 )
 		{	
 			u[0] = -4.5/64.0;
@@ -114,26 +90,6 @@ public:
 		}
 
 
-		 
-		 
-		/*for (k = 0; k < 4; k++)
-		{
-			q[k] = 0;
-			for (j = 0; j < 4; j++)
-			{
-				r[j] = 0;
-				for (i = 0; i < 4; i++)
-				{
-					r[j] += u[i] * *pv;
-					pv++;
-				}
-				q[k] += v[j] * r[j];
-				pv += xDim - 4;
-			}
-			vox += w[k] * q[k];
-			pv += xyDim - 4 * xDim;
-		}*/
-		
 		for (k = 0; k < 4; k++)
 		{
 			q[k] = 0;
@@ -142,15 +98,11 @@ public:
 				r[j] = 0;
 				for (i = 0; i < 4; i++)
 				{
-					//r[j] += u[i] * V(x+k-1,y+j-1,z+i-1);
 					r[j] += u[i] * V(x+k-2+sx,y+j-2+sy,z+i-2+sz);
-					//pv++;
 				}
 				q[k] += v[j] * r[j];
-				//pv += xDim - 4;
 			}
 			vox += w[k] * q[k];
-			//pv += xyDim - 4 * xDim;
 		}
 		
 		
@@ -173,28 +125,8 @@ public:
 		oy = v.offset(1),
 		oz = v.offset(2);
 		
-		/*for( int i=0,i2=0; i<nx; ++i,i2+=2 )
-			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
-				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
-					V(ox+i,oy+j,oz+k) = 0.125 * ( v(i2+1,j2,k2) + v(i2,j2+1,k2) + v(i2,j2,k2+1) + v(i2+1,j2+1,k2) +
-									    v(i2+1,j2,k2+1) + v(i2+1,j2+1,k2+1) + v(i2,j2+1,k2+1) + v(i2,j2,k2) );*/
-		/*#pragma omp parallel for
-		for( int i=0; i<nx; ++i )
-		{
-			int i2 = 2*i;
-			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
-				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
-					V(ox+i,oy+j,oz+k) = 0.125 * ( interp_cubic<1,0,0>(i2+1,j2,k2,v)
-												 +interp_cubic<0,1,0>(i2,j2+1,k2,v)
-												 +interp_cubic<0,0,1>(i2,j2,k2+1,v)
-												 +interp_cubic<1,1,0>(i2+1,j2+1,k2,v)
-												 +interp_cubic<0,1,1>(i2,j2+1,k2+1,v)
-												 +interp_cubic<1,0,1>(i2+1,j2,k2+1,v)
-												 +interp_cubic<1,1,1>(i2+1,j2+1,k2+1,v)
-												 +interp_cubic<0,0,0>(i2,j2,k2,v));
-		} */
 		
-#pragma omp parallel for
+		#pragma omp parallel for
 		for( int i=0; i<nx; ++i )
 		{
 			int i2 = 2*i;
@@ -225,12 +157,7 @@ public:
 		oy = v.offset(1),
 		oz = v.offset(2);
 		
-		/*for( int i=0,i2=0; i<nx; ++i,i2+=2 )
-		 for( int j=0,j2=0; j<ny; ++j,j2+=2 )
-		 for( int k=0,k2=0; k<nz; ++k,k2+=2 )
-		 V(ox+i,oy+j,oz+k) = 0.125 * ( v(i2+1,j2,k2) + v(i2,j2+1,k2) + v(i2,j2,k2+1) + v(i2+1,j2+1,k2) +
-		 v(i2+1,j2,k2+1) + v(i2+1,j2+1,k2+1) + v(i2,j2+1,k2+1) + v(i2,j2,k2) );*/
-#pragma omp parallel for
+		#pragma omp parallel for
 		for( int i=0; i<nx; ++i )
 		{
 			int i2 = 2*i;
@@ -249,20 +176,8 @@ public:
 		
 	}
 	
-	/*template< typename m1, typename m2 >
-	inline void restrict( m1& v, m2& V )
-	{
-		int 
-		nx = V.size(0), 
-		ny = V.size(1), 
-		nz = V.size(2);
-		
-		for( int i=0,i2=0; i<nx; ++i,i2+=2 )
-			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
-				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
-					V(i,j,k)  = interp_cubic<1,1,1>(i2, j2, k2, v, 2.0);
-	}*/
 	
+	//.. straight restriction on boundary
 	template< typename m1, typename m2 >
 	inline void restrict_bnd( const m1& v, m2& V ) const
 	{	
@@ -411,18 +326,14 @@ public:
 	template< typename m1, typename m2 >
 	inline void prolong_bnd( m1& V, m2& v )
 	{
-		//		int 
-		//		nx = V.size(0), 
-		//		ny = V.size(1), 
-		//		nz = V.size(2);
 		int 
-		nx = v.size(0)/2, 
-		ny = v.size(1)/2, 
-		nz = v.size(2)/2,
-		ox = v.offset(0),
-		oy = v.offset(1),
-		oz = v.offset(2);
-		
+			nx = v.size(0)/2, 
+			ny = v.size(1)/2, 
+			nz = v.size(2)/2,
+			ox = v.offset(0),
+			oy = v.offset(1),
+			oz = v.offset(2);
+			
 		int nbnd = V.m_nbnd;
 		int nbndtop = nbnd/2;
 		
@@ -500,11 +411,7 @@ public:
 		for( i=0; i<4; ++i )
 			for( j=0; j<4; ++j )
 				for( k=0; k<4; ++k )
-				{
 					vox += w[i]*w[j]*w[k] * V(x+i-1,y+j-1,z+k-1);
-					//std::cerr << "[" << i << "," << j << "," << k << "] -- " << u[i]*v[j]*w[k] << std::endl;
-				}
-		//vox = (V(x+1,y,z)+V(x,y+1,z)+V(x,y,z+1)+V(x,y,z)+V(x+1,y+1,z)+V(x+1,y,z+1)+V(x,y+1,z+1)+V(x+1,y+1,z+1));
 		return vox;
 	}
 	
@@ -512,7 +419,6 @@ public:
 	inline double interp_lin( int x, int y, int z, M& V, double s=1.0 ) const
 	{
 		double           u[2], v[2], w[2];
-		//double			 r[2], q[2];
 		double           vox = 0;
 		int				 i,j,k;
 		
@@ -539,51 +445,11 @@ public:
 			w[1] = 1.0/4.0;
 		}
 		
-		/*if( sx==0 ){
-		 u[0] = 1.0/64.0;
-		 u[1] = 3.0/64.0;
-		 }else{
-		 u[0] = 3.0/64.0;
-		 u[1] = 1.0/64.0;
-		 }
-		 if( sy==0 ){
-		 v[0] = 1.0/64.0;
-		 v[1] = 3.0/64.0;
-		 }else{
-		 v[0] = 3.0/64.0;
-		 v[1] = 1.0/64.0;
-		 }
-		 if( sz==0 ){
-		 w[0] = 1.0/64.0;
-		 w[1] = 3.0/64.0;
-		 }else{
-		 w[0] = 3.0/64.0;
-		 w[1] = 1.0/64.0;
-		 }*/
-		
-		//std::cerr << "(" << sx << "," << sy << "," << sz << ") : " << std::endl;
-		/*for (k = 0; k < 2; k++)
-		{
-			q[k] = 0;
-			for (j = 0; j < 2; j++)
-			{
-				r[j] = 0;
-				for (i = 0; i < 2; i++)
-					r[j] += u[i] * V(x+k+sx-1,y+j+sy-1,z+i+sz-1);
-				q[k] += v[j] * r[j];
-			}
-			//std::cerr << "[" << i << "," << j << "," << k << "] -- " << w[k]*q[k] << std::endl;
-			vox += w[k] * q[k];
-		}*/
 		for( i=0; i<2; ++i )
 			for( j=0; j<2; ++j )
 				for( k=0; k<2; ++k )
-				{
 					vox += u[i]*v[j]*w[k] * V(x+i+sx-1,y+j+sy-1,z+k+sz-1);
-					//std::cerr << "[" << i << "," << j << "," << k << "] -- " << u[i]*v[j]*w[k] << std::endl;
-				}
-		//std::cerr << "(" << sx << "," << sy << "," << sz << ") : " << vox <<std::endl;
-		//throw std::runtime_error("break");
+		
 		return vox;
 	}
 	
@@ -667,68 +533,9 @@ public:
 			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
 				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
 					V(i+ox,j+oy,k+oz) = 0.125 * restr_lin(i2, j2, k2, v);
-					/*V(i+ox,j+oy,k+oz) = 0.125*(interp_lin<1,0,0>(i2,j2,k2,v)+interp_lin<0,1,0>(i2,j2,k2,v)+
-												 interp_lin<0,0,1>(i2,j2,k2,v)+interp_lin<1,1,0>(i2,j2,k2,v)+
-												 interp_lin<1,0,1>(i2,j2,k2,v)+interp_lin<0,1,1>(i2,j2,k2,v)+
-												 interp_lin<0,0,0>(i2,j2,k2,v)+interp_lin<1,1,1>(i2,j2,k2,v));*/
-		}
+		}		
 		
-		/*
-		for( int i=0; i<nx; ++i )
-		{
-			int i2 = 2*i;
-			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
-				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
-				{
-					V(i+ox,j+oy,k+oz) = 0.125 * (interp_lin<1,0,0>(i2+2,j2,k2,v)+interp_lin<0,1,0>(i2,j2+2,k2,v)+
-												  interp_lin<0,0,1>(i2,j2,k2+2,v)+interp_lin<1,1,0>(i2+1,j2+2,k2,v)+
-												  interp_lin<1,0,1>(i2+2,j2,k2+2,v)+interp_lin<0,1,1>(i2,j2+2,k2+2,v)+
-												  interp_lin<0,0,0>(i2,j2,k2,v)+interp_lin<1,1,1>(i2+2,j2+2,k2+2,v));
-										
-				}
-		}
-		 */
 	}	
-#if 0	
-	template< typename m1, typename m2 >
-	inline void restrict_add( const m1& v, m2& V ) const
-	{
-		int 
-		nx = v.size(0)/2, 
-		ny = v.size(1)/2, 
-		nz = v.size(2)/2,
-		ox = v.offset(0),
-		oy = v.offset(1),
-		oz = v.offset(2);
-		
-		/*#pragma omp parallel for
-		for( int i=0; i<nx; ++i )
-		{
-			int i2 = 2*i;
-			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
-				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
-					V(i+ox,j+oy,k+oz) += 0.125 * (interp_lin<1,0,0>(i2,j2,k2,v)+interp_lin<0,1,0>(i2,j2,k2,v)+
-												 interp_lin<0,0,1>(i2,j2,k2,v)+interp_lin<1,1,0>(i2,j2,k2,v)+
-												 interp_lin<1,0,1>(i2,j2,k2,v)+interp_lin<0,1,1>(i2,j2,k2,v)+
-												 interp_lin<0,0,0>(i2,j2,k2,v)+interp_lin<1,1,1>(i2,j2,k2,v));
-		}*/
-		
-		for( int i=0; i<nx; ++i )
-		{
-			int i2 = 2*i;
-			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
-				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
-				{
-					V(i+ox,j+oy,k+oz) += 0.125 * (interp_lin<1,0,0>(i2+2,j2,k2,v)+interp_lin<0,1,0>(i2,j2+2,k2,v)+
-												 interp_lin<0,0,1>(i2,j2,k2+2,v)+interp_lin<1,1,0>(i2+1,j2+2,k2,v)+
-												 interp_lin<1,0,1>(i2+2,j2,k2+2,v)+interp_lin<0,1,1>(i2,j2+2,k2+2,v)+
-												 interp_lin<0,0,0>(i2,j2,k2,v)+interp_lin<1,1,1>(i2+2,j2+2,k2+2,v));
-					
-				}
-		}
-	}	
-#endif
-	
 };
 
 
@@ -1039,28 +846,6 @@ public:
 	
 	
 	//... restricts v to V
-	/*	inline void restrict( const MeshvarBnd<real_t>& v, MeshvarBnd<real_t>& V ) const
-	 {
-	 int 
-	 nx = v.size(0)/2, 
-	 ny = v.size(1)/2, 
-	 nz = v.size(2)/2,
-	 ox = v.offset(0),
-	 oy = v.offset(1),
-	 oz = v.offset(2);
-	 
-	 #pragma omp parallel for
-	 for( int i=0; i<nx; ++i )
-	 {
-	 int i2 = 2*i;
-	 for( int j=0,j2=0; j<ny; ++j,j2+=2 )
-	 for( int k=0,k2=0; k<nz; ++k,k2+=2 )
-	 V(i+ox,j+oy,k+oz) = 0.125 * ( v(i2+1,j2,k2) + v(i2,j2+1,k2) + v(i2,j2,k2+1) + v(i2+1,j2+1,k2) +
-	 v(i2+1,j2,k2+1) + v(i2+1,j2+1,k2+1) + v(i2,j2+1,k2+1) + v(i2,j2,k2) );
-	 }
-	 }	
-	 */
-	
 	template< typename m1, typename m2 >
 	inline void restrict( const m1& v, m2& V ) const
 	{
@@ -1327,34 +1112,6 @@ public:
 		}
 	}
 	
-	//... prolongs V to v
-	/*template< typename m1, typename m2 >
-	inline void prolong_add( m1& V, m2& v )
-	{
-		unsigned 
-		nx = v.size(0)/2, 
-		ny = v.size(1)/2, 
-		nz = v.size(2)/2,
-		ox = v.offset(0),
-		oy = v.offset(1),
-		oz = v.offset(2);
-		
-		
-		for( int i=0,i2=0; i<nx; ++i,i2+=2 )
-			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
-				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
-				{
-					v(i2+1,j2,k2)		+= V(i+ox,j+oy,k+oz);
-					v(i2,j2+1,k2)		+= V(i+ox,j+oy,k+oz);
-					v(i2,j2,k2+1)		+= V(i+ox,j+oy,k+oz);
-					v(i2+1,j2+1,k2)		+= V(i+ox,j+oy,k+oz);
-					v(i2+1,j2,k2+1)		+= V(i+ox,j+oy,k+oz);
-					v(i2+1,j2+1,k2+1)	+= V(i+ox,j+oy,k+oz);
-					v(i2,j2+1,k2+1)		+= V(i+ox,j+oy,k+oz);
-					v(i2,j2,k2)			+= V(i+ox,j+oy,k+oz);
-				}
-		
-	}*/
 };
 
 

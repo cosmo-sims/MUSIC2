@@ -152,7 +152,7 @@ public:
 	
 	double Tr0_;
 	real_t Tmin_, Tmax_, Tscale_;
-	real_t rneg_, rneg2_;
+	real_t rneg_, rneg2_, kny_;
 	static transfer_function *ptf_;
 	static real_t nspec_;
 	
@@ -199,7 +199,8 @@ protected:
 		
 #ifdef NZERO_Q
 		//q = 0.4;
-		q = 0.5;
+		//q = 0.5;
+		q = 0.9;
 #endif
 		
 		double kmin = qmin, kmax=qmax;
@@ -227,15 +228,13 @@ protected:
 
 		std::ofstream ofsk("transfer_k.txt");
 		double sum_in = 0.0;
+		
+
+		
 		for( unsigned i=0; i<N; ++i )
 		{
 			
 			double k = k0*exp(((int)i - (int)N/2+1) * dlnk);
-			//double k = k0*exp(((int)i - (int)N/2) * dlnk);
-			//double k = k0*exp(ii * dlnk);
-			
-			//... some constants missing ...//
-			
 			in[i].re = dplus*sqrtpnorm*ptf_->compute( k )*pow(k,0.5*nspec_)*pow(k,1.5-q);
 			in[i].im = 0.0;
 			
@@ -270,7 +269,6 @@ protected:
 			out[i].im = cu.imag()*fftnorm;
 			
 #else		
-			//complex x(dir*q, (double)ii*2.0*M_PI/L);
 			complex x(dir*q, (double)ii*2.0*M_PI/L);
 			gsl_sf_result g_a, g_p;
 			
@@ -333,26 +331,14 @@ protected:
 		{
 			int ii = i;
 			ii -= N/2-1;
-			//ii -= N/2;
-			//if( ii>N/2)
-			//	ii-=N;
-			
-			
-			
 			double r = r0*exp(-ii*dlnr);
 			rr[N-i-1] = r;
 			TT[N-i-1] = 4.0*M_PI* sqrt(M_PI/2.0) *  in[i].re*pow(r,-(1.5+q));
-			
-			//TT[N-i-1] = 4.0*M_PI* sqrt(M_PI/2.0) *  in[i].re*exp( -dir*(q+1.5)*ii*dlnr +q*log(k0r0))/r0;
-			
-			//rr[i] = r;
-			//TT[i] = 4.0*M_PI* sqrt(M_PI/2.0) *  in[i].re*pow(r,-(1.5+q));
-			
 		}
 		
 		
 		{
-			std::ofstream ofs("transfer_real_new.txt");
+			std::ofstream ofs("transfer_real.txt");
 			for( unsigned i=0; i<N; ++i )
 			{
 				int ii = i;
@@ -380,6 +366,8 @@ public:
 	
 		real_t q = 0.8;
 		
+		kny_ = knymax;
+		
 		std::vector<double> r,T;
 		
 		transform( pnorm, dplus, nr, q, r, T );
@@ -396,7 +384,7 @@ public:
 		//.. need a factor sqrt( 2*kny^2_x + 2*kny^2_y + 2*kny^2_z )/2 = sqrt(3/2)kny (in equilateral case)
 		//#warning Need to integrate from Boxsize (see below)?
 		gsl_integration_qag (&F, 0.0, sqrt(1.5)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
-		//gsl_integration_qag (&F, 2.0*M_PI/100.0, sqrt(1.5)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		//gsl_integration_qag (&F, 0.0, knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 		
 		gsl_integration_workspace_free(wp);
 				
@@ -407,19 +395,6 @@ public:
 		
 		for( unsigned i=0; i<r.size(); ++i )
 		{
-			// spline positive and negative part separately
-			/*if( T[i] > 0.0 )
-			{
-				xp.push_back( 2.0*log10(r[i]) );
-				yp.push_back( log10(T[i]) );
-				rneg_ = r[i];
-				rneg2_ = rneg_*rneg_;
-			}else {
-				xn.push_back( 2.0*log10(r[i]) );
-				yn.push_back( log10(-T[i]) );
-			}*/
-			
-			
 			if( r[i] > rmin && r[i] < rmax )
 			{
 				xsp.push_back( log10(r[i]) );
@@ -433,10 +408,8 @@ public:
 		
 		
 		accp = gsl_interp_accel_alloc ();
-		//accn = gsl_interp_accel_alloc ();
-		
+
 		//... spline interpolation is only marginally slower here
-		//splinep = gsl_spline_alloc (gsl_interp_cspline, xsp.size() );
 		splinep = gsl_spline_alloc (gsl_interp_akima, xsp.size() );
 
 		//... set up everything for spline interpolation
@@ -445,11 +418,9 @@ public:
 
 		
 		//.. build lookup table using spline interpolation
-		
-		
-		m_xmin = log10(rmin);//m_xtable[0];
-		m_xmax = log10(rmax);//m_xtable.back();
-		m_dx   = (m_xmax-m_xmin)/nr;//(m_xtable.size()-1);
+		m_xmin = log10(rmin);
+		m_xmax = log10(rmax);
+		m_dx   = (m_xmax-m_xmin)/nr;
 		
 		for(unsigned i=0; i<nr; ++i )
 		{
@@ -457,9 +428,11 @@ public:
 			m_ytable.push_back( gsl_spline_eval(splinep, (m_xtable.back()), accp) );
 		}
 		
+		//... DEBUG: output of spline interpolated real space transfer function
+		if(false)
 		{
 			real_t dlogr = (log10(rmax)-log10(rmin))/1000;
-			std::ofstream ofs("transfer_splinep.txt");			
+			std::ofstream ofs("transfer_real.txt");			
 			
 			for( int i=0; i< 1000; ++i ) 
 			{
@@ -483,7 +456,6 @@ public:
 	~TransferFunction_real()
 	{ }
 	
-#if 1
 	inline real_t compute_real( real_t r2 ) const
 	{
 		const double EPS = 1e-8;
@@ -492,22 +464,9 @@ public:
 		if( r2 <Reps2 )
 			return Tr0_;
 		
-		/*real_t logr = log10(r2);
-		int i = (int)((logr-m_xmin)/m_dx);
-		
-		if( i < 0 ) i = 0;
-		else if( i >= m_xtable.size()-1 ) i = m_xtable.size()-2;
-		
-		real_t y1,y2;
-		y1 = m_ytable[i];
-		y2 = m_ytable[i+1];
-		
-		//std::cerr << y1 << " " << y2 << std::endl;
-		return y1 + (y2-y1)*(logr/m_dx-(real_t)i);*/
-		
-		double r=0.5*log10(r2);//sqrt(r2);
+		double r=0.5*log10(r2);
 		double ii = (r-m_xmin)/m_dx;
-		int i = (int)ii;//((r-m_xmin)/m_dx);
+		int i = (int)ii;
 		
 		if( i < 0 ) i = 0;
 		else if( i >= (int)m_xtable.size()-1 ) i = m_xtable.size()-2;
@@ -516,32 +475,9 @@ public:
 		y1 = m_ytable[i];
 		y2 = m_ytable[i+1];
 		
-		//		return y1 + (y2-y1)*((r-m_xmin)/m_dx-(real_t)i);
 		return (real_t)((y1 + (y2-y1)*(ii-(double)i))/r2);
 	}
-#else	
-	inline real_t compute_real( real_t r2 ) const
-	{
-		const real_t EPS = 1e-8;
-		const real_t Reps2 = EPS*EPS;
-		
-		if( r2 <Reps2 )
-			return Tr0_;
 
-		/*if( r2 < rneg2_ )
-			q = pow(10.0,gsl_spline_eval (splinep, log10(r2), accp));
-		else
-			q = -pow(10.0,gsl_spline_eval(splinen, log10(r2), accn));*/
-		
-		real_t q;		
-		real_t logr2 = log10(r2);
-		q = pow(10.0,gsl_spline_eval(splinep, logr2, accp));
-		real_t sign = 1.0;
-		if( gsl_spline_eval(splinen, logr2, accn) < 0.0 )
-			sign = -1.0;
-		return q*sign;
-	}
-#endif
 };
 
 

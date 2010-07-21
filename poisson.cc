@@ -75,7 +75,10 @@ double multigrid_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	unsigned verbosity = cf_.getValueSafe<unsigned>("setup","verbosity",2);
 	
 	if( verbosity > 0 )
+	{	
+		std::cout << "-------------------------------------------------------------\n";
 		std::cout << " - Invoking multi-grid Poisson solver..." << std::endl;
+	}
 	
 	double acc = 1e-5, err;
 	std::string ps_smoother_name;
@@ -306,7 +309,10 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 		throw std::runtime_error("fft_poisson_plugin::solve : k-space method can only be used in unigrid mode (levelmin=levelmax)");
 	
 	if( verbosity > 0 )
+	{	
+		std::cout << "-------------------------------------------------------------\n";
 		std::cout << " - Invoking unigrid FFT Poisson solver..." << std::endl;
+	}
 	
 	int nx,ny,nz,nzp;
 	nx = f.get_grid(f.levelmax())->size(0);

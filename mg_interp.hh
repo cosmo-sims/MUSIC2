@@ -32,10 +32,6 @@ inline double interp2( double x1, double x2, double x3, double f1, double f2, do
 }
 
 
-
-
-
-
 inline double interp4left( double f0, double f1, double f2, double f3, double f4 )
 {
 	//return -4.0/231.0*f0+4.0/7.0*f1+5.0/7.0*f2-1.0/3.0*f3+5./77.0*f4; 

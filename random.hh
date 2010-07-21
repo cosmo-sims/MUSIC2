@@ -83,6 +83,22 @@ protected:
 		return mean/(cubesize_*cubesize_*cubesize_);
 	}
 	
+	//! subtract a constant from an entire cube
+	void subtract_from_cube( int i, int j, int k, double val )
+	{
+		i = (i+ncubes_)%ncubes_;
+		j = (j+ncubes_)%ncubes_;
+		k = (k+ncubes_)%ncubes_;
+		
+		long icube = (i*ncubes_+j)*ncubes_+k;
+		
+		for( int ii=0; ii<(int)cubesize_; ++ii )
+			for( int jj=0; jj<(int)cubesize_; ++jj )
+				for( int kk=0; kk<(int)cubesize_; ++kk )
+					(*rnums_[icube])(ii,jj,kk) -= val;
+		
+	}
+	
 	//! copy random numbers from a cube to a full grid array
 	template< class C >
 	void copy_cube( int i, int j, int k, C& dat )
@@ -124,6 +140,8 @@ protected:
 	//! initialize member variables and allocate memory
 	void initialize( void )
 	{
+		std::cerr << " - Generating random numbers w/ sample cube size of " << cubesize_ << std::endl;
+		
 		ncubes_ = std::max((int)((double)res_/cubesize_),1);
 		if( res_ < cubesize_ )
 		{	
@@ -182,6 +200,20 @@ protected:
 					kk = (kk+ncubes_)%ncubes_;
 					
 					sum+=fill_cube(ii, jj, kk);
+				}
+		
+		//... subtract mean
+		#pragma omp parallel for reduction(+:sum)
+		for( int i=0; i<(int)ncubes_; ++i )
+			for( int j=0; j<(int)ncubes_; ++j )
+				for( int k=0; k<(int)ncubes_; ++k )
+				{
+					int ii(i),jj(j),kk(k);
+					
+					ii = (ii+ncubes_)%ncubes_;
+					jj = (jj+ncubes_)%ncubes_;
+					kk = (kk+ncubes_)%ncubes_;
+					subtract_from_cube(ii,jj,kk,sum/(ncubes_*ncubes_*ncubes_));
 				}
 		
 		return sum/(ncubes_*ncubes_*ncubes_);
@@ -412,7 +444,8 @@ public:
 		rmean = sum/count;
 		rvar = sum2/count-rmean*rmean;
 		
-		std::cout << " - Restricted random numbers have mean = " << rmean << " and var = " << rvar << std::endl;
+		std::cout << " - Restricted random numbers have\n"
+				  << "       mean = " << rmean << ", var = " << rvar << std::endl;
 	}
 	
 	

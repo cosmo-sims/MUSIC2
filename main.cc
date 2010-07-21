@@ -99,26 +99,26 @@ void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarc
 	
 	for( unsigned i=lbase+1; i<=lmax; ++i )
 	{
-		int x0[3], lx[3], lmax = 0;
+		int x0[3], lx[3], lxmax = 0;
 		
 		for( int j=0; j<3; ++j )
 		{
 			lx[j] = rh_TF.size(i,j)+2*pad;
 			x0[j] = rh_TF.offset_abs(i,j)-pad;
 			
-			if( lx[j] > lmax )
-				lmax = lx[j];
+			if( lx[j] > lxmax )
+				lxmax = lx[j];
 		}
 		
-		if( lmax%2 == 1 )
-			lmax+=1;
+		if( lxmax%2 == 1 )
+			lxmax+=1;
 		
 		for( int j=0; j<3; ++j )
 		{
-			double dl = 0.5*((double)(lmax-lx[j]));
-			int add_left = ceil(dl);
+			double dl = 0.5*((double)(lxmax-lx[j]));
+			int add_left = (int)ceil(dl);
 			
-			lx[j] = lmax;
+			lx[j] = lxmax;
 			x0[j] -= add_left;
 		}
 		
@@ -155,6 +155,10 @@ void coarsen_density( const refinement_hierarchy& rh, grid_hierarchy& u )
 						rh.size(i,0), rh.size(i,1), rh.size(i,2) );
 		}
 	}
+	
+	for( int i=rh.levelmax(); i>0; --i )
+		mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+
 }
 
 void store_grid_structure( config_file& cf, const refinement_hierarchy& rh )
@@ -405,106 +409,48 @@ int main (int argc, const char * argv[])
 	try{
 		if( ! do_2LPT )
 		{
-			//.. don't use 2LPT	...
-		
-			if( !the_transfer_function_plugin->tf_is_distinct() || !do_baryons )
-			{	
-				std::cerr << " - Computing ICs from the total matter power spectrum..." << std::endl;
-				
-				grid_hierarchy f( nbnd ), u(nbnd);
+			//... cdm density and displacements
+			std::cout << "=============================================================\n";
+			std::cout << "   COMPUTING DARK MATTER PARTICLE ICs\n";
+			std::cout << "-------------------------------------------------------------\n";
+			
+			
+			grid_hierarchy f( nbnd ), u(nbnd);
+			
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f, true );
+			coarsen_density(rh_Poisson, f);
+			normalize_density(f);
+			
+			u = f;	u.zero();
+			
+			err = the_poisson_solver->solve(f, u);
 
-				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f );
-				
-				coarsen_density(rh_Poisson, f);
-				normalize_density(f);
-				
-				
-				u = f;	u.zero();
-				err = the_poisson_solver->solve(f, u);
-				
-				
-	#if 0
-				grid_hierarchy u2( nbnd );
-				compute_Lu( u, u2 );
-				u=u2;
-	#endif
-				
-				the_output_plugin->write_dm_density(f);
-				the_output_plugin->write_dm_mass(f);
-				
-				if( do_baryons )
-				{
-					if( do_LLA )
-						compute_LLA_density( u, f, grad_order );
-					
-					the_output_plugin->write_gas_density(f);
-				}
-				f.deallocate();
-				
-				the_output_plugin->write_dm_potential(u);
-				
+			the_output_plugin->write_dm_density(f);
+			the_output_plugin->write_dm_mass(f);
+			f.deallocate();
+			
+			the_output_plugin->write_dm_potential(u);
+			
+			
+			//... DM displacements
+			{
 				grid_hierarchy data_forIO(u);
 				for( int icoord = 0; icoord < 3; ++icoord )
 				{
-					
 					//... displacement
 					the_poisson_solver->gradient(icoord, u, data_forIO );
-
-					if( do_CVM)
-						subtract_finest_mean( data_forIO );
 					the_output_plugin->write_dm_position(icoord, data_forIO );
-					
-					//... velocity
-					if( do_UVA )
-					{
-						//FIXME: this still needs to be added
-						throw std::runtime_error("Updated Velocity Approximation not yet supported!");
-					}
-					else
-					{
-						data_forIO *= cosmo.vfact;
-						the_output_plugin->write_dm_velocity(icoord, data_forIO);					
-					}
-
-					if( do_baryons )
-						the_output_plugin->write_gas_velocity(icoord, data_forIO);				
-
-				}	
-				
-			}else{
-				
-				//... cdm density and displacements
-				grid_hierarchy f( nbnd ), u(nbnd);
-				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f );
-				coarsen_density(rh_Poisson, f);
-				normalize_density(f);
-				
-				u = f;	u.zero();
-				
-				err = the_poisson_solver->solve(f, u);
-
-				the_output_plugin->write_dm_density(f);
-				the_output_plugin->write_dm_mass(f);
-				f.deallocate();
-				
-				the_output_plugin->write_dm_potential(u);
-				
-				
-				//... DM displacements
-				{
-					grid_hierarchy data_forIO(u);
-					for( int icoord = 0; icoord < 3; ++icoord )
-					{
-						//... displacement
-						the_poisson_solver->gradient(icoord, u, data_forIO );
-						the_output_plugin->write_dm_position(icoord, data_forIO );
-					}
 				}
+			}
+			
+			//... gas density
+			if( do_baryons )
+			{
+				std::cout << "=============================================================\n";
+				std::cout << "   COMPUTING BARYON ICs\n";
+				std::cout << "-------------------------------------------------------------\n";
 				
-				//... gas density
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f, false );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
@@ -516,28 +462,31 @@ int main (int argc, const char * argv[])
 				}
 				
 				the_output_plugin->write_gas_density(f);
-				
-				//... velocities
-				if( do_UVA )
+			}
+			
+			//... velocities
+			if( do_UVA )
+			{
+				//... need to co-add potentials...
+				throw std::runtime_error("Updated Velocity Approximation not yet supported!");
+			}
+			else
+			{
+				if( do_baryons )
 				{
-					//... need to co-add potentials...
-					throw std::runtime_error("Updated Velocity Approximation not yet supported!");
-				}
-				else
-				{
-					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f );
+					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true );
 					u = f;	u.zero();
 					err = the_poisson_solver->solve(f, u);
-					
-					grid_hierarchy data_forIO(u);
-					for( int icoord = 0; icoord < 3; ++icoord )
-					{
-						//... displacement
-						the_poisson_solver->gradient(icoord, u, data_forIO );
-						data_forIO *= cosmo.vfact;
-						the_output_plugin->write_dm_velocity(icoord, data_forIO);
+				}
+				grid_hierarchy data_forIO(u);
+				for( int icoord = 0; icoord < 3; ++icoord )
+				{
+					//... displacement
+					the_poisson_solver->gradient(icoord, u, data_forIO );
+					data_forIO *= cosmo.vfact;
+					the_output_plugin->write_dm_velocity(icoord, data_forIO);
+					if( do_baryons )
 						the_output_plugin->write_gas_velocity(icoord, data_forIO);
-					}
 				}
 			}
 			
@@ -547,7 +496,7 @@ int main (int argc, const char * argv[])
 			{	
 				grid_hierarchy f( nbnd ), u1(nbnd), u2(nbnd);
 				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
@@ -630,8 +579,8 @@ int main (int argc, const char * argv[])
 	//... clean up
 	delete the_output_plugin;
 	
-	std::cout << "-------------------------------------------------------------\n";
-
+	std::cout << "=============================================================\n";
+	
 	if( !bfatal )
 		std::cout << " - Wrote output file \'" << outfname << "\'\n     using plugin \'" << outformat << "\'...\n";
 	

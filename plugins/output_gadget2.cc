@@ -231,6 +231,10 @@ protected:
 		npleft = nptot, 
 		n2read = std::min((int)block_buf_size_,npleft);
 		
+		std::cout << " - Writing " << nptot << " particles to Gadget file...\n"
+				  << "      type 1 : " << header_.npart[1] << "\n"
+				  << "      type 5 : " << header_.npart[5] << "\n";
+		
 		
 		//... particle coordinates ..................................................
 		unsigned blk;
@@ -413,7 +417,8 @@ public:
 	gadget2_output_plugin( config_file& cf )//std::string afname, Cosmology cosm, Parameters param, unsigned block_buf_size = 100000 )
 	: output_plugin( cf ), ofs_( fname_.c_str(), std::ios::binary|std::ios::trunc )	
 	{
-		block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",100000);
+		block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",1048576);
+		//block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",100000);
 		//bbndparticles_  = !cf_.getValueSafe<bool>("output","gadget_nobndpart",false);
 		
 		bmorethan2bnd_ = false;

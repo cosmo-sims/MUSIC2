@@ -475,6 +475,10 @@ int main (int argc, const char * argv[])
 				if( do_baryons )
 				{
 					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true );
+					
+					coarsen_density(rh_Poisson, f);
+					normalize_density(f);
+
 					u = f;	u.zero();
 					err = the_poisson_solver->solve(f, u);
 				}

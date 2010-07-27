@@ -39,7 +39,7 @@
 #include "densities.hh"
 #include "convolution_kernel.hh"
 
-
+double T0 = 1.0;
 
 namespace convolution{
 
@@ -53,6 +53,7 @@ namespace convolution{
 	template< typename real_t >
 	void perform( kernel * pk, void *pd )
 	{
+		
 		parameters cparam_ = pk->cparam_;
 		double fftnorm = pow(2.0*M_PI,1.5)/sqrt(cparam_.lx*cparam_.ly*cparam_.lz)/sqrt((double)(cparam_.nx*cparam_.ny*cparam_.nz));
 		
@@ -161,8 +162,6 @@ namespace convolution{
 		
 		std::cout << "   - Computing transfer function kernel...\n";
 		
-		
-		
 		if(! cparam_.is_finest )
 			kny *= pow(2,cparam_.coarse_fact);
 		
@@ -180,8 +179,7 @@ namespace convolution{
 		double kmax = 0.5*M_PI/std::max(cparam_.nx,std::max(cparam_.ny,cparam_.nz));
 		
 		if( bperiodic  )
-		{
-			
+		{			
 			#pragma omp parallel for 
 			for( int i=0; i<cparam_.nx; ++i )
 				for( int j=0; j<cparam_.ny; ++j )
@@ -204,9 +202,9 @@ namespace convolution{
 									rr[1] = ((double)iiy ) * dy + jj*boxlength;
 									rr[2] = ((double)iiz ) * dz + kk*boxlength;
 									
-									if( fabs(rr[0]) < boxlength
-									 && fabs(rr[1]) < boxlength
-									 && fabs(rr[2]) < boxlength )
+									if( rr[0] > -boxlength && rr[0] <= boxlength
+									 && rr[1] > -boxlength && rr[1] <= boxlength
+									 && rr[2] > -boxlength && rr[2] <= boxlength )
 									{
 										rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
 										kdata_[idx] += tfr->compute_real(rr2);
@@ -215,7 +213,7 @@ namespace convolution{
 						
 						kdata_[idx] *= fac;
 						
-						if( cparam_.deconvolve )
+						if( false )//cparam_.deconvolve )
 						{
 							double rx((double)iix*dx/boxlength),ry((double)iiy*dy/boxlength),rz((double)iiz*dz/boxlength), ico;
 							ico = 1.0;
@@ -228,9 +226,6 @@ namespace convolution{
 							kdata_[idx] /= ico;
 							
 						}
-						
-						
-						
 					}
 		}else{
 			#pragma omp parallel for
@@ -254,7 +249,7 @@ namespace convolution{
 						rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
 						kdata_[idx] = tfr->compute_real(rr2)*fac;
 						
-						if( cparam_.deconvolve )
+						if( false )//cparam_.deconvolve )
 						{
 							double rx((double)iix*dx/boxlength),ry((double)iiy*dy/boxlength),rz((double)iiz*dz/boxlength), ico;
 							ico = 1.0;
@@ -267,21 +262,22 @@ namespace convolution{
 							kdata_[idx] /= ico;
 						}
 						
+						
+						
 					}
 		}
 		
 		if(!cparam_.is_finest)
 			kdata_[0] /= pow(2.0,1.5*cparam_.coarse_fact);
-				
+		
+		T0 = kdata_[0];
 		delete tfr;
 		
 		double k0 = kdata_[0];
-			
-		if( cparam_.deconvolve )
+
+		//... subtract white noise component for finest grid
+		if( cparam_.deconvolve && cparam_.is_finest)
 			kdata_[0] = 0.0;
-				
-		//kdata_[0] = tfr->compute_real(dx*dx*0.25)*fac;
-		//std::cerr << "T(r=0) = " << kdata_[0]/fac << std::endl;
 		
 		#ifndef SINGLETHREAD_FFTW		
 		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
@@ -313,14 +309,25 @@ namespace convolution{
 						double ipix = 1.0;
 						
 						if( !cparam_.is_finest )
-							ipix *= (cos(kx*kmax)*cos(ky*kmax)*cos(kz*kmax));
+						{
+							for( unsigned c=1; c<= cparam_.coarse_fact; ++c )
+							{
+								//double kkmax = kmax*pow(2,cparam_.coarse_fact)/pow(2,c);
+								//								double kkmax = 0.5*kmax/pow(2,c-1);
+								double kkmax = 0.5*kmax/pow(2,c-1);
+								ipix *= (cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax));								
+							}
+						}
 
+						double kkmax = kmax / pow(2,cparam_.coarse_fact);
+
+						//... deconvolve with grid-cell kernel
 						if( i > 0 )
-							ipix /= sin(kx*2.0*kmax)/(kx*2.0*kmax);
+							ipix /= sin(kx*2.0*kkmax)/(kx*2.0*kkmax);
 						if( j > 0 )
-							ipix /= sin(ky*2.0*kmax)/(ky*2.0*kmax);
+							ipix /= sin(ky*2.0*kkmax)/(ky*2.0*kkmax);
 						if( k > 0 )
-							ipix /= sin(kz*2.0*kmax)/(kz*2.0*kmax);
+							ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 						
 						unsigned q  = (i*cparam_.ny+j)*nzp+k;
 						kkernel[q].re *= ipix;
@@ -336,7 +343,13 @@ namespace convolution{
 						}
 					}
 			
-			double dk = k0-ksum/kcount;
+			double dk;
+
+			//... readd white noise component for finest grid
+			if( cparam_.is_finest )
+				dk = k0-ksum/kcount;
+			else
+				dk = 0.0;
 			
 			//... enforce the r=0 component by adjusting the k-space mean
 			#pragma omp parallel for reduction(+:ksum,kcount)
@@ -348,6 +361,7 @@ namespace convolution{
 						kkernel[q].re += dk;
 						
 					}
+			
 		}		
 		
 		rfftwnd_destroy_plan(plan);
@@ -397,8 +411,10 @@ namespace convolution{
 		unsigned nx = cparam_.nx, ny = cparam_.ny, nz = cparam_.nz, nzp = (nz/2+1);
 		fac =1.0;//*= 1.0/sqrt(nx*ny*nz);
 		
-		double kfac = 2.0*M_PI/boxlength;
-		unsigned q=0;
+		double kfac = 2.0*M_PI/boxlength, ksum = 0.0;
+		unsigned q=0, kcount = 0;
+		
+		#pragma omp parallel for reduction(+:ksum,kcount)
 		for( int i=0; i<cparam_.nx; ++i )
 			for( int j=0; j<cparam_.ny; ++j )
 				for( int k=0; k<cparam_.nz/2+1; ++k )
@@ -416,7 +432,18 @@ namespace convolution{
 					kdata[q].re = fac*tfk->compute(kfac*sqrt(kx*kx+ky*ky+kz*kz));
 					kdata[q].im = 0.0;
 					
+					if( k==0 || k==cparam_.nz/2 )
+					{
+						ksum  += kdata[q].re;
+						kcount++;
+					}else{
+						ksum  += 2.0*(kdata[q].re);
+						kcount+=2;
+					}
+					
 				}
+		
+		std::cerr << " - k-space kernel norm : " << std::setw(16) << ksum/kcount << std::endl;
 		
 		
 		delete tfk;

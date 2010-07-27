@@ -21,6 +21,8 @@
  
 */
 
+//#define DEGRADE_RAND
+
 #ifndef __RANDOM_HH
 #define __RANDOM_HH
 
@@ -216,6 +218,50 @@ protected:
 					subtract_from_cube(ii,jj,kk,sum/(ncubes_*ncubes_*ncubes_));
 				}
 		
+		/////////////////////////////////////////////////////
+
+#if defined(DEGRADE_RAND)
+		
+		{
+			std::cerr << " - degrading field...(" << res_ << ")\n";
+			unsigned ixoff=51,iyoff=51,izoff=51;
+			unsigned nx=52, ny=52, nz=52;
+			
+			for( unsigned ix=0; ix<res_; ix+=2 )
+				for( unsigned iy=0; iy<res_; iy+=2 )
+					for( unsigned iz=0; iz<res_; iz+=2 )
+					{
+						if( ix>=2*ixoff && ix < 2*ixoff+nx 
+						   && iy>=2*iyoff && iy < 2*iyoff+ny
+						   && iz>=2*izoff && iz < 2*izoff+nz )
+						{
+							continue;
+						}
+						
+						double avg = 0.125*((*this)(ix,iy,iz)+(*this)(ix+1,iy,iz)+(*this)(ix,iy+1,iz)+(*this)(ix,iy,iz+1)+
+											(*this)(ix+1,iy+1,iz)+(*this)(ix+1,iy,iz+1)+(*this)(ix,iy+1,iz+1)+(*this)(ix+1,iy+1,iz+1));
+						
+						
+						
+						(*this)(ix,iy,iz) = avg;
+						(*this)(ix+1,iy,iz) = avg;
+						(*this)(ix,iy+1,iz) = avg;
+						(*this)(ix,iy,iz+1) = avg;
+						(*this)(ix+1,iy+1,iz) = avg;
+						(*this)(ix+1,iy,iz+1) = avg;
+						(*this)(ix,iy+1,iz+1) = avg;
+						(*this)(ix+1,iy+1,iz+1) = avg;
+						
+					}
+			
+			
+		}
+		
+#endif
+		
+		
+		/////////////////////////////////////////////////////
+		
 		return sum/(ncubes_*ncubes_*ncubes_);
 	}
 
@@ -224,6 +270,9 @@ public:
 	double fill_all( C& dat )
 	{
 		double sum = 0.0;
+		
+		std::cerr << "CHECK\n";
+		
 		
 		#pragma omp parallel for reduction(+:sum)
 		for( int i=0; i<(int)ncubes_; ++i )

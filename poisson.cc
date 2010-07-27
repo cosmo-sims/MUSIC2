@@ -348,8 +348,8 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 #endif
 	
 	double boxlength = cf_.getValue<double>("setup","boxlength");
-	double kfac = 2.0*M_PI/boxlength;
-	double fac = -1.0/(nx*ny*nz)/boxlength;
+	double kfac = 2.0*M_PI;///boxlength;
+	double fac = -1.0/(nx*ny*nz);///boxlength;
 	
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	
@@ -439,7 +439,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	
 	double fac = -1.0/(nx*ny*nz);
 	double boxlength = cf_.getValue<double>("setup","boxlength");
-	double kfac = 2.0*M_PI/boxlength;
+	double kfac = 2.0*M_PI;///boxlength;
 	
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	

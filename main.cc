@@ -425,8 +425,11 @@ int main (int argc, const char * argv[])
 			
 			err = the_poisson_solver->solve(f, u);
 
-			the_output_plugin->write_dm_density(f);
 			the_output_plugin->write_dm_mass(f);
+			
+			// TODO: fix the -1
+			f *= -1.0;
+			the_output_plugin->write_dm_density(f);
 			f.deallocate();
 			
 			the_output_plugin->write_dm_potential(u);
@@ -461,7 +464,10 @@ int main (int argc, const char * argv[])
 					compute_LLA_density( u, f );
 				}
 				
+				// TODO: fix the -1
+				f *= -1.0;
 				the_output_plugin->write_gas_density(f);
+				f *= -1.0;
 			}
 			
 			//... velocities
@@ -475,6 +481,9 @@ int main (int argc, const char * argv[])
 				if( do_baryons )
 				{
 					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true );
+					coarsen_density(rh_Poisson, f);
+					normalize_density(f);
+					
 					u = f;	u.zero();
 					err = the_poisson_solver->solve(f, u);
 				}
@@ -502,7 +511,10 @@ int main (int argc, const char * argv[])
 				
 				u1 = f;	u1.zero();
 
+				// TODO: fix the -1
+				f *= -1.0;
 				the_output_plugin->write_dm_density(f);
+				f *= -1.0;
 				the_output_plugin->write_dm_mass(f);
 				
 				//... compute 1LPT term
@@ -513,7 +525,12 @@ int main (int argc, const char * argv[])
 				//... compute 2LPT term
 				u2 = f; u2.zero();
 				
-				compute_2LPT_source(u1, f, grad_order );
+				if( !kspace )
+					compute_2LPT_source(u1, f, grad_order );
+				else
+					compute_2LPT_source_FFT(cf, u1, f);
+
+				
 				err = the_poisson_solver->solve(f, u2);
 				u2 *= 3.0/7.0;
 					
@@ -539,6 +556,10 @@ int main (int argc, const char * argv[])
 					{
 						//... for velocities, the 2LPT term has a factor of 2, so add a second time
 						data_forIO += f;
+						
+						// for testing:
+						//data_forIO = f; data_forIO += f;
+						
 						data_forIO *= cosmo.vfact;
 						
 						the_output_plugin->write_dm_velocity(icoord, data_forIO);					
@@ -558,7 +579,10 @@ int main (int argc, const char * argv[])
 					else
 						compute_Lu_density( u1, f );
 					
+					// TODO: fix the -1
+					f *= -1.0;
 					the_output_plugin->write_gas_density(f);
+					f *= -1.0;
 				}
 				
 			}

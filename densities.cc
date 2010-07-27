@@ -21,11 +21,18 @@
  
  */
 
+#include "constraints.hh"
 #include "densities.hh"
 #include "convolution_kernel.hh"
 
 //... uncomment this to have a single peak in the centre and otherwise zeros
 //#define SINGLE_PEAK
+//#define SINGLE_OCT_PEAK
+//#define OFF_OCT_PEAK
+
+//#define DEGRADE_RAND
+
+
 
 //TODO: this should be a larger number by default, just to maintain consistency with old default
 #define DEF_RAN_CUBE_SIZE	32
@@ -52,7 +59,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	
 	
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
-	levelmin	= cf.getValueSafe<unsigned>("setup","levelminTF",levelminPoisson);
+	levelmin	= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
 	levelmax	= cf.getValue<unsigned>("setup","levelmax");
 	boxlength   = cf.getValue<real_t>( "setup", "boxlength" );
 	
@@ -157,14 +164,49 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	if( shift[0]!=0||shift[1]!=0||shift[2]!=0 )
 		std::cout << " - WARNING: will ignore non-zero shift in unigrid mode!\n";
 	
-	//top->fill_rand( rc, 1.0, 0, 0, 0, true );
-	rc->fill_all(*top);
+	top->fill_rand( rc, 1.0, 0, 0, 0, true );
+	//top->fill_rand( rc, x0[0], x0[1], x0[2], true );
+	
+	//rc->fill_all(*top);
 	delete rc;
 	
-#ifdef SINGLE_PEAK
+#if defined(SINGLE_PEAK)
 	top->zero();
 	(*top)(top->size(0)/2, top->size(1)/2, top->size(2)/2) = 1.0;
+#elif defined(SINGLE_OCT_PEAK)
+	{
+		top->zero();
+		unsigned i0=top->size(0)/2, i1=top->size(1)/2, i2=top->size(2)/2;
+
+		(*top)(i0,i1,i2) = 1.0/8.0;			
+		(*top)(i0+1,i1,i2) = 1.0/8.0;			
+		(*top)(i0,i1+1,i2) = 1.0/8.0;			
+		(*top)(i0,i1,i2+1) = 1.0/8.0;			
+		(*top)(i0+1,i1+1,i2) = 1.0/8.0;			
+		(*top)(i0+1,i1,i2+1) = 1.0/8.0;			
+		(*top)(i0,i1+1,i2+1) = 1.0/8.0;			
+		(*top)(i0+1,i1+1,i2+1) = 1.0/8.0;
+	}
 #endif
+	
+#if defined(OFF_OCT_PEAK)
+	{
+		top->zero();
+		unsigned i0=top->size(0)/8, i1=top->size(1)/2, i2=top->size(2)/2;
+		
+		(*top)(i0,i1,i2) = 1.0/8.0;			
+		(*top)(i0+1,i1,i2) = 1.0/8.0;			
+		(*top)(i0,i1+1,i2) = 1.0/8.0;			
+		(*top)(i0,i1,i2+1) = 1.0/8.0;			
+		(*top)(i0+1,i1+1,i2) = 1.0/8.0;			
+		(*top)(i0+1,i1,i2+1) = 1.0/8.0;			
+		(*top)(i0,i1+1,i2+1) = 1.0/8.0;			
+		(*top)(i0+1,i1+1,i2+1) = 1.0/8.0;
+	}
+#endif
+	
+
+	
 	
 	conv_param.lx = boxlength;
 	conv_param.ly = boxlength;
@@ -185,9 +227,8 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	delete top;
 
 	
-	for( int i=levelmax; i>0; --i )
-		mg_straight().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
 	
+	/*
 	double sum = 0.0;
 	{
 		int nx,ny,nz;
@@ -218,6 +259,9 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 				for( int iz=0; iz<nz; ++iz )
 					(*delta.get_grid(i))(ix,iy,iz) -= sum;
 	}
+	*/
+	for( int i=levelmax; i>0; --i )
+		mg_straight().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
 }
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
@@ -230,6 +274,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	bool force_shift(false), kspaceTF;
 	unsigned	ran_cube_size;
 	
+	constraint_set contraints(cf);
+	
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
 	levelmin		= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
 	levelmax		= cf.getValue<unsigned>("setup","levelmax");
@@ -241,7 +287,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	
 	// TODO: need to make sure unigrid gets called whenever possible
 	// FIXME: temporarily disabled
-	if( false )//levelmin == levelmax && levelmin==levelminPoisson )
+	if( levelmin == levelmax && levelmin==levelminPoisson )
 	{	
 		GenerateDensityUnigrid(cf,ptf,type,refh,delta,kspaceTF,bdeconvolve);
 		return;
@@ -427,9 +473,41 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 
 		delete rc;
 		
-#ifdef SINGLE_PEAK
+#if defined(SINGLE_PEAK)
 		top->zero();
 		(*top)(top->size(0)/2, top->size(1)/2, top->size(2)/2) = 1.0;
+#elif defined(SINGLE_OCT_PEAK)
+		{
+			std::cerr << ">>> setting single oct peak <<<\n";
+			top->zero();
+			unsigned i0=top->size(0)/2, i1=top->size(1)/2, i2=top->size(2)/2;
+			
+			(*top)(i0,i1,i2) = 1.0/8.0;			
+			(*top)(i0+1,i1,i2) = 1.0/8.0;			
+			(*top)(i0,i1+1,i2) = 1.0/8.0;			
+			(*top)(i0,i1,i2+1) = 1.0/8.0;			
+			(*top)(i0+1,i1+1,i2) = 1.0/8.0;			
+			(*top)(i0+1,i1,i2+1) = 1.0/8.0;			
+			(*top)(i0,i1+1,i2+1) = 1.0/8.0;			
+			(*top)(i0+1,i1+1,i2+1) = 1.0/8.0;
+		}
+
+#endif
+		
+#if defined(OFF_OCT_PEAK)
+		{
+			top->zero();
+			unsigned i0=top->size(0)/8, i1=top->size(1)/2, i2=top->size(2)/2;
+			
+			(*top)(i0,i1,i2) = 1.0/8.0;			
+			(*top)(i0+1,i1,i2) = 1.0/8.0;			
+			(*top)(i0,i1+1,i2) = 1.0/8.0;			
+			(*top)(i0,i1,i2+1) = 1.0/8.0;			
+			(*top)(i0+1,i1+1,i2) = 1.0/8.0;			
+			(*top)(i0+1,i1,i2+1) = 1.0/8.0;			
+			(*top)(i0,i1+1,i2+1) = 1.0/8.0;			
+			(*top)(i0+1,i1+1,i2+1) = 1.0/8.0;
+		}
 #endif
 		
 		conv_param.lx = boxlength;
@@ -506,7 +584,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			else
 				rc = randc[levelmin+i+1];
 			
-			fine->fill_rand( rc, 1.0, x0[0]-fine->nx_/4, x0[1]-fine->ny_/4, x0[2]-fine->nz_/4 );
+			fine->fill_rand( rc, 1.0, x0[0]-fine->nx_/4, x0[1]-fine->ny_/4, x0[2]-fine->nz_/4, false );
 				
 			if( i+levelmin+1 > (unsigned)lmingiven )
 			{	
@@ -533,13 +611,22 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			delta.create_base_hierarchy(levelmin);
 			
-#ifdef SINGLE_PEAK
+#if defined(SINGLE_PEAK) || defined(SINGLE_OCT_PEAK)
 			{
 				top->zero();
 				(*top)(top->size(0)/2, top->size(1)/2, top->size(2)/2) = 1.0/pow(2,1.5*(levelmax-levelmin));
 			}
 
 #endif	
+			
+#if defined(OFF_OCT_PEAK)
+			{
+				top->zero();
+				unsigned i0=top->size(0)/8, i1=top->size(1)/2, i2=top->size(2)/2;
+				
+				(*top)(i0,i1,i2) = 1.0/pow(2,1.5*(levelmax-levelmin));
+			}
+#endif
 			
 			DensityGrid<real_t> top_save( *top );
 
@@ -580,6 +667,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 							refh.size(levelmin+1,0), refh.size(levelmin+1,1), refh.size(levelmin+1,2) );
 			
 			mg_cubic().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
+			//mg_lin().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
 					
 		}
 		else
@@ -677,7 +765,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		conv_param.deconvolve = bdeconvolve;
 		conv_param.is_finest = true;	
 		
-#ifdef SINGLE_PEAK
+#if defined(SINGLE_PEAK) || defined(SINGLE_OCT_PEAK)
 		{
 			coarse->zero();
 			
@@ -685,9 +773,24 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 				i0 = pow(2,levelmax)/2 - refh.offset_abs(levelmax,0) + coarse->nx_/4,
 				i1 = pow(2,levelmax)/2 - refh.offset_abs(levelmax,1) + coarse->nx_/4,
 				i2 = pow(2,levelmax)/2 - refh.offset_abs(levelmax,2) + coarse->nx_/4;
-		
+#if defined(SINGLE_PEAK)
 				(*coarse)(i0,i1,i2) = 1.0;
+#elif defined(SINGLE_OCT_PEAK)
+				(*coarse)(i0,i1,i2) = 1.0/8.0;			
+				(*coarse)(i0+1,i1,i2) = 1.0/8.0;			
+				(*coarse)(i0,i1+1,i2) = 1.0/8.0;			
+				(*coarse)(i0,i1,i2+1) = 1.0/8.0;			
+				(*coarse)(i0+1,i1+1,i2) = 1.0/8.0;			
+				(*coarse)(i0+1,i1,i2+1) = 1.0/8.0;			
+				(*coarse)(i0,i1+1,i2+1) = 1.0/8.0;			
+				(*coarse)(i0+1,i1+1,i2+1) = 1.0/8.0;			
+#endif
 		}
+
+#endif
+		
+#if defined(OFF_OCT_PEAK)
+		coarse->zero();
 #endif
 		
 		//... 1) grid self-contributio
@@ -699,14 +802,17 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		
 		//... subtract oct mean on boundary but not in interior
 		coarse->subtract_boundary_oct_mean();
-
+#if defined (DEGRADE_RAND)
+		coarse->zero_boundary();
+#endif
+		
 		//... perform convolution
 		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
 		
 		//... copy to grid hierarchy
 		coarse->copy_add_unpad( *delta.get_grid(levelmax) );
 		
-				
+#if !defined(DEGRADE_RAND)
 		//... 2) boundary correction to top grid
 		*coarse = coarse_save;
 		
@@ -717,9 +823,12 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		//... perform convolution
 		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
 		
+		//coarse->subtract_mean();
+		
 		//... upload data to coarser grid
 		coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );
 		
+#endif	
 		delete the_tf_kernel;		
 		delete coarse;
 	}
@@ -735,7 +844,18 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			}
 	}
 	
+#if 0
+	// NEVER, NEVER ENABLE THE FOLLOWING
 	
+	//... enforce mean condition
+	//for( int i=levelmin; i<(int)levelmax; ++i )
+	//	enforce_mean( (*delta.get_grid(i+1)), (*delta.get_grid(i)) );
+	
+	//	for( unsigned i=levelmax; i>levelmin; --i )
+		//	enforce_coarse_mean( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
+#endif
+
+#if 1
 	//... subtract the box mean.... this will otherwise add
 	//... a constant curvature term to the potential
 	double sum = 0.0;
@@ -770,7 +890,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 					(*delta.get_grid(i))(ix,iy,iz) -= sum;
 		
 	}
-
+#endif
 	//... fill coarser levels with data from finer ones...
 	for( int i=levelmax; i>0; --i )
 		mg_straight().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
@@ -780,7 +900,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 
 void normalize_density( grid_hierarchy& delta )
 {
-	
 	double sum = 0.0;
 	unsigned levelmin = delta.levelmin(), levelmax = delta.levelmax();
 	

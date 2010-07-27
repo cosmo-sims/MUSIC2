@@ -571,7 +571,7 @@ void solver<S,I,O,T>::make_periodic( MeshvarBnd<T> *u )
 		nz = u->size(2);
 	int nb = u->m_nbnd;
 	
-	
+		
 	//if( u->offset(0) == 0 )
 		for( int iy=-nb; iy<ny+nb; ++iy )
 			for( int iz=-nb; iz<nz+nb; ++iz )

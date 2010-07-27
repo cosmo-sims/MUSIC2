@@ -216,7 +216,7 @@ public:
 	//! subtract the mean of the field 
 	/*! subtracting the total mean implies that a restriction does not change the mass
 	 */
-	void subtract_mean( void )
+	double subtract_mean( void )
 	{
 		double sum = 0.0;
 		unsigned count;
@@ -236,6 +236,8 @@ public:
 			for( int j=0; j<ny_; j++ )
 				for( int k=0; k<nz_; k++ )
 					(*this)(i,j,k)			-= sum;
+		
+		return sum;
 		
 	}
 	
@@ -841,22 +843,22 @@ template< typename M >
 inline void enforce_coarse_mean( M& v, M& V )
 {
 	double outersum =0.0, innersum = 0.0;
-	int 
-	nx = v.size(0)/2, 
-	ny = v.size(1)/2, 
-	nz = v.size(2)/2,
-	ox = v.offset(0),
-	oy = v.offset(1),
-	oz = v.offset(2);
+	unsigned 
+		nx = v.size(0)/2, 
+		ny = v.size(1)/2, 
+		nz = v.size(2)/2,
+		ox = v.offset(0),
+		oy = v.offset(1),
+		oz = v.offset(2);
 
 	unsigned innercount = 0, outercount = 0;
-	for( int i=0; i<V.size(0); ++i )
-		for( int j=0; j<V.size(1); ++j )
-			for( int k=0; k<V.size(2); ++k )
+	for( unsigned i=0; i<V.size(0); ++i )
+		for( unsigned j=0; j<V.size(1); ++j )
+			for( unsigned k=0; k<V.size(2); ++k )
 			{
-				if( (i > ox && i < ox+nx) && 
-				    (j > oy && j < oy+ny) &&
-				    (k > oz && k < oz+nz ))
+				if( (i >= ox && i < ox+nx) && 
+				    (j >= oy && j < oy+ny) &&
+				    (k >= oz && k < oz+nz ))
 				{	
 					innersum += V(i,j,k);
 					++innercount;
@@ -871,15 +873,17 @@ inline void enforce_coarse_mean( M& v, M& V )
 	innersum /= innercount;
 	outersum /= outercount;
 	
+	std::cerr << "***\n";
+	
 	double dcorr = innersum * innercount / outercount;
 	
-	for( int i=0; i<V.size(0); ++i )
-		for( int j=0; j<V.size(1); ++j )
-			for( int k=0; k<V.size(2); ++k )
+	for( unsigned i=0; i<V.size(0); ++i )
+		for( unsigned j=0; j<V.size(1); ++j )
+			for( unsigned k=0; k<V.size(2); ++k )
 			{
-				if( !((i > ox && i < ox+nx) && 
-				   (j > oy && j < oy+ny) &&
-				   (k > oz && k < oz+nz )))
+				if( !((i >= ox && i < ox+nx) && 
+				   (j >= oy && j < oy+ny) &&
+				   (k >= oz && k < oz+nz )))
 					V(i,j,k) -= outersum + dcorr;//innersum;
 			}
 	

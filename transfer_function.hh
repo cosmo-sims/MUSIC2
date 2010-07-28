@@ -384,6 +384,8 @@ public:
 		//.. need a factor sqrt( 2*kny^2_x + 2*kny^2_y + 2*kny^2_z )/2 = sqrt(3/2)kny (in equilateral case)
 		//#warning Need to integrate from Boxsize (see below)?
 		gsl_integration_qag (&F, 0.0, sqrt(1.5)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		//gsl_integration_qag (&F, 0.0, 1.116*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		//gsl_integration_qag (&F, 0.0, sqrt(3)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 		//gsl_integration_qag (&F, 0.0, knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 		
 		gsl_integration_workspace_free(wp);

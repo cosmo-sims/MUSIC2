@@ -210,7 +210,7 @@ inline double jeans_sound_speed( double rho, double mass )
 }
 
 //! computes the density from the potential using the Laplacian
-void compute_Lu_density( const grid_hierarchy& u, grid_hierarchy& fnew );
+void compute_Lu_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigned order=4 );
 
 //! computes the 2nd order density perturbations using also off-diagonal terms in the potential Hessian 
 void compute_LLA_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigned order=4 );
@@ -218,6 +218,7 @@ void compute_LLA_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 //! computes the source term for the 2nd order perturbations in the displacements
 void compute_2LPT_source( const grid_hierarchy& u, grid_hierarchy& fnew, unsigned order=4 );
 
+void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hierarchy& fnew );
 
 
 #endif // _COSMOLOGY_HH

@@ -149,6 +149,10 @@ public:
 		}
 		
 		bool bhave_hydro = cf_.getValue<bool>("setup","baryons");
+		bool align_top			= cf.getValueSafe<bool>( "setup", "align_top", true );
+		
+		if( !align_top )
+			throw std::runtime_error("ENZO output plug-in requires that \'align_top=true\'!");
 		
 		the_sim_header.dimensions.push_back( (int)pow(2,levelmin_) );
 		the_sim_header.dimensions.push_back( (int)pow(2,levelmin_) );
@@ -159,7 +163,7 @@ public:
 		the_sim_header.offset.push_back( 0 );
 		
 		the_sim_header.a_start		= 1.0/(1.0+cf.getValue<double>("setup","zstart"));
-		the_sim_header.dx			= cf.getValue<double>("setup","boxlength")/the_sim_header.dimensions[0]/(cf.getValue<double>("cosmology","H0")*0.01); // not sure?!?
+		the_sim_header.dx			= cf.getValue<double>("setup","boxlength")/the_sim_header.dimensions[0];// /(cf.getValue<double>("cosmology","H0")*0.01); // not sure?!?
 		the_sim_header.h0			= cf.getValue<double>("cosmology","H0")*0.01;
 		
 		if( bhave_hydro )
@@ -192,54 +196,55 @@ public:
 		std::ofstream ofs( filename, std::ios::trunc );
 		
 		ofs
-		<< "#\n"
-		<< "ProblemType                = 30      // cosmology simulation\n"
-		<< "TopGridRank                = 3\n"
-		<< "TopGridDimensions          = " << nbase << " " << nbase << " " << nbase << "\n"
-		<< "SelfGravity                = 1       // gravity on\n"
-		<< "TopGridGravityBoundary     = 0       // Periodic BC for gravity\n"
-		<< "LeftFaceBoundaryCondition  = 3 3 3   // same for fluid\n"
-		<< "RightFaceBoundaryCondition = 3 3 3\n"
-		<< "\n"
-		<< "#\n";
+			<< "#\n"
+			<< "ProblemType                              = 30      // cosmology simulation\n"
+			<< "TopGridRank                              = 3\n"
+			<< "TopGridDimensions                        = " << nbase << " " << nbase << " " << nbase << "\n"
+			<< "SelfGravity                              = 1       // gravity on\n"
+			<< "TopGridGravityBoundary                   = 0       // Periodic BC for gravity\n"
+			<< "LeftFaceBoundaryCondition                = 3 3 3   // same for fluid\n"
+			<< "RightFaceBoundaryCondition               = 3 3 3\n"
+			<< "RefineBy                                 = 2\n"
+			<< "\n"
+			<< "#\n";
 		
 		if( bhave_hydro )
 			ofs
-			<< "CosmologySimulationOmegaBaryonNow       = " << the_sim_header.omega_b << "\n"
-			<< "CosmologySimulationOmegaCDMNow          = " << the_sim_header.omega_m-the_sim_header.omega_b << "\n";
+			<< "CosmologySimulationOmegaBaryonNow        = " << the_sim_header.omega_b << "\n"
+			<< "CosmologySimulationOmegaCDMNow           = " << the_sim_header.omega_m-the_sim_header.omega_b << "\n";
 		else
 			ofs
-			<< "CosmologySimulationOmegaBaryonNow       = " << 0.0 << "\n"
-			<< "CosmologySimulationOmegaCDMNow          = " << the_sim_header.omega_m << "\n";
+			<< "CosmologySimulationOmegaBaryonNow        = " << 0.0 << "\n"
+			<< "CosmologySimulationOmegaCDMNow           = " << the_sim_header.omega_m << "\n";
 		
 		if( bhave_hydro )
 			ofs
-			<< "CosmologySimulationDensityName          = GridDensity\n"
-			<< "CosmologySimulationVelocity1Name        = GridVelocities_x\n"
-			<< "CosmologySimulationVelocity2Name        = GridVelocities_y\n"
-			<< "CosmologySimulationVelocity3Name        = GridVelocities_z\n";
+			<< "CosmologySimulationDensityName           = GridDensity\n"
+			<< "CosmologySimulationVelocity1Name         = GridVelocities_x\n"
+			<< "CosmologySimulationVelocity2Name         = GridVelocities_y\n"
+			<< "CosmologySimulationVelocity3Name         = GridVelocities_z\n";
 		
 		ofs
-		<< "CosmologySimulationCalculatePositions    = 1\n"
-		<< "CosmologySimulationParticleVelocity1Name = ParticleVelocities_x\n"
-		<< "CosmologySimulationParticleVelocity2Name = ParticleVelocities_y\n"
-		<< "CosmologySimulationParticleVelocity3Name = ParticleVelocities_z\n"
-		<< "\n"
-		<< "#\n"
-		<< "#  define cosmology parameters\n"
-		<< "#\n"
-		<< "ComovingCoordinates        = 1       // Expansion ON\n"
-		<< "CosmologyOmegaMatterNow    = " << the_sim_header.omega_m << "\n"
-		<< "CosmologyOmegaLambdaNow    = " << the_sim_header.omega_v << "\n"
-		<< "CosmologyHubbleConstantNow = " << the_sim_header.h0 << "     // in 100 km/s/Mpc\n"
-		<< "CosmologyComovingBoxSize   = " << cf_.getValue<double>("setup","boxlength") << "    // in Mpc/h\n"
-		<< "CosmologyMaxExpansionRate  = 0.015   // maximum allowed delta(a)/a\n"
-		<< "CosmologyInitialRedshift   = " << cf_.getValue<double>("setup","zstart") << "      //\n"
-		<< "CosmologyFinalRedshift     = 0       //\n"
-		<< "GravitationalConstant      = 1       // this must be true for cosmology\n"
-		<< "#\n"
-		<< "#\n"
-		<< "CosmologySimulationNumberOfInitialGrids = " << 1+levelmax_-levelmin_ << "\n";
+			<< "CosmologySimulationCalculatePositions    = 1\n"
+			<< "CosmologySimulationParticleVelocity1Name = ParticleVelocities_x\n"
+			<< "CosmologySimulationParticleVelocity2Name = ParticleVelocities_y\n"
+			<< "CosmologySimulationParticleVelocity3Name = ParticleVelocities_z\n"
+			<< "\n"
+			<< "#\n"
+			<< "#  define cosmology parameters\n"
+			<< "#\n"
+			<< "ComovingCoordinates                      = 1       // Expansion ON\n"
+			<< "CosmologyOmegaMatterNow                  = " << the_sim_header.omega_m << "\n"
+			<< "CosmologyOmegaLambdaNow                  = " << the_sim_header.omega_v << "\n"
+			<< "CosmologyHubbleConstantNow               = " << the_sim_header.h0 << "     // in 100 km/s/Mpc\n"
+			<< "CosmologyComovingBoxSize                 = " << cf_.getValue<double>("setup","boxlength") << "    // in Mpc/h\n"
+			<< "CosmologyMaxExpansionRate                = 0.015   // maximum allowed delta(a)/a\n"
+			<< "CosmologyInitialRedshift                 = " << cf_.getValue<double>("setup","zstart") << "      //\n"
+			<< "CosmologyFinalRedshift                   = 0       //\n"
+			<< "GravitationalConstant                    = 1       // this must be true for cosmology\n"
+			<< "#\n"
+			<< "#\n"
+			<< "CosmologySimulationNumberOfInitialGrids  = " << 1+levelmax_-levelmin_ << "\n";
 		
 		
 		//... only for additionally refined grids
@@ -250,21 +255,21 @@ public:
 			ofs
 			
 			<< "CosmologySimulationGridDimension[" << 1+ilevel << "] = " 
-				<< gh.size( levelmin_+ilevel+1, 0 ) << " "
-				<< gh.size( levelmin_+ilevel+1, 1 ) << " "
-				<< gh.size( levelmin_+ilevel+1, 2 ) << "\n"
+				<< std::setw(16) << gh.size( levelmin_+ilevel+1, 0 ) << " "
+				<< std::setw(16) << gh.size( levelmin_+ilevel+1, 1 ) << " "
+				<< std::setw(16) << gh.size( levelmin_+ilevel+1, 2 ) << "\n"
 			
-			<< "CosmologySimulationGridLeftEdge[" << 1+ilevel << "] = "
-				<< h*gh.offset_abs(levelmin_+ilevel+1, 0) << " "
-				<< h*gh.offset_abs(levelmin_+ilevel+1, 1) << " "
-				<< h*gh.offset_abs(levelmin_+ilevel+1, 2) << "\n"
+			<< "CosmologySimulationGridLeftEdge[" << 1+ilevel << "]  = "
+				<< std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmin_+ilevel+1, 0) << " "
+				<< std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmin_+ilevel+1, 1) << " "
+				<< std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmin_+ilevel+1, 2) << "\n"
 			
 			<< "CosmologySimulationGridRightEdge[" << 1+ilevel << "] = "
-				<< h*(gh.offset_abs(levelmin_+ilevel+1, 0)+gh.size( levelmin_+ilevel+1, 0 )) << " "
-				<< h*(gh.offset_abs(levelmin_+ilevel+1, 1)+gh.size( levelmin_+ilevel+1, 1 )) << " "
-				<< h*(gh.offset_abs(levelmin_+ilevel+1, 2)+gh.size( levelmin_+ilevel+1, 2 )) << "\n"
+				<< std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmin_+ilevel+1, 0)+gh.size( levelmin_+ilevel+1, 0 )) << " "
+				<< std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmin_+ilevel+1, 1)+gh.size( levelmin_+ilevel+1, 1 )) << " "
+				<< std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmin_+ilevel+1, 2)+gh.size( levelmin_+ilevel+1, 2 )) << "\n"
 			
-			<< "CosmologySimulationGridLevel[" << 1+ilevel << "] = " << 1+ilevel << "\n";
+			<< "CosmologySimulationGridLevel[" << 1+ilevel << "]     = " << 1+ilevel << "\n";
 		}
 		
 		

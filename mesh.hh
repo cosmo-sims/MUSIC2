@@ -673,6 +673,11 @@ public:
 	{
 		unsigned n=1;
 		m_pgrids.clear();
+		
+		m_xoffabs.clear();
+		m_yoffabs.clear();
+		m_zoffabs.clear();
+		
 		for( unsigned i=0; i<= lmax; ++i )
 		{
 			//std::cout << "....adding level " << i << " (" << n << ", " << n << ", " << n << ")" << std::endl;
@@ -773,8 +778,8 @@ public:
 	
 	void cut_patch( unsigned ilevel, unsigned xoff, unsigned yoff, unsigned zoff, unsigned nx, unsigned ny, unsigned nz)
 	{
-		
 		unsigned dx,dy,dz,dxtop,dytop,dztop;
+		
 		dx = xoff-m_xoffabs[ilevel];
 		dy = yoff-m_yoffabs[ilevel];
 		dz = zoff-m_zoffabs[ilevel];
@@ -783,15 +788,12 @@ public:
 		dytop = m_pgrids[ilevel]->offset(1)+dy/2;
 		dztop = m_pgrids[ilevel]->offset(2)+dz/2;
 		
-		
 		MeshvarBnd<T> *mnew = new MeshvarBnd<T>( m_nbnd, nx, ny, nz, dxtop, dytop, dztop );
-		
 		
 		//... copy data
 		for( unsigned i=0; i<nx; ++i )
 			for( unsigned j=0; j<ny; ++j )
 				for( unsigned k=0; k<nz; ++k )
-					//(*mnew)(i,j,k) = (*m_pgrids[ilevel])(i+xoff,j+yoff,k+zoff);
 					(*mnew)(i,j,k) = (*m_pgrids[ilevel])(i+dx,j+dy,k+dz);
 
 		//... replace in hierarchy
@@ -799,17 +801,15 @@ public:
 		m_pgrids[ilevel] = mnew;
 		
 		//... update offsets
-
-		m_xoffabs[ilevel] += dx;//xoff;
-		m_yoffabs[ilevel] += dy;//yoff;
-		m_zoffabs[ilevel] += dz;//zoff;
-		
+		m_xoffabs[ilevel] += dx;
+		m_yoffabs[ilevel] += dy;
+		m_zoffabs[ilevel] += dz;
 		
 		if( ilevel < levelmax() )
 		{
-			m_pgrids[ilevel+1]->offset(0) -= dx;//xoff;
-			m_pgrids[ilevel+1]->offset(1) -= dy;//yoff;
-			m_pgrids[ilevel+1]->offset(2) -= dz;//zoff;
+			m_pgrids[ilevel+1]->offset(0) -= dx;
+			m_pgrids[ilevel+1]->offset(1) -= dy;
+			m_pgrids[ilevel+1]->offset(2) -= dz;
 		}
 		
 		find_new_levelmin();

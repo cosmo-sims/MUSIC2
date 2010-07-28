@@ -163,7 +163,7 @@ public:
 		the_sim_header.offset.push_back( 0 );
 		
 		the_sim_header.a_start		= 1.0/(1.0+cf.getValue<double>("setup","zstart"));
-		the_sim_header.dx			= cf.getValue<double>("setup","boxlength")/the_sim_header.dimensions[0];// /(cf.getValue<double>("cosmology","H0")*0.01); // not sure?!?
+		the_sim_header.dx			= cf.getValue<double>("setup","boxlength")/the_sim_header.dimensions[0]/(cf.getValue<double>("cosmology","H0")*0.01); // not sure?!?
 		the_sim_header.h0			= cf.getValue<double>("cosmology","H0")*0.01;
 		
 		if( bhave_hydro )
@@ -254,22 +254,22 @@ public:
 			
 			ofs
 			
-			<< "CosmologySimulationGridDimension[" << 1+ilevel << "] = " 
+			<< "CosmologySimulationGridDimension[" << 1+ilevel << "]      = " 
 				<< std::setw(16) << gh.size( levelmin_+ilevel+1, 0 ) << " "
 				<< std::setw(16) << gh.size( levelmin_+ilevel+1, 1 ) << " "
 				<< std::setw(16) << gh.size( levelmin_+ilevel+1, 2 ) << "\n"
 			
-			<< "CosmologySimulationGridLeftEdge[" << 1+ilevel << "]  = "
+			<< "CosmologySimulationGridLeftEdge[" << 1+ilevel << "]       = "
 				<< std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmin_+ilevel+1, 0) << " "
 				<< std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmin_+ilevel+1, 1) << " "
 				<< std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmin_+ilevel+1, 2) << "\n"
 			
-			<< "CosmologySimulationGridRightEdge[" << 1+ilevel << "] = "
+			<< "CosmologySimulationGridRightEdge[" << 1+ilevel << "]      = "
 				<< std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmin_+ilevel+1, 0)+gh.size( levelmin_+ilevel+1, 0 )) << " "
 				<< std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmin_+ilevel+1, 1)+gh.size( levelmin_+ilevel+1, 1 )) << " "
 				<< std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmin_+ilevel+1, 2)+gh.size( levelmin_+ilevel+1, 2 )) << "\n"
 			
-			<< "CosmologySimulationGridLevel[" << 1+ilevel << "]     = " << 1+ilevel << "\n";
+			<< "CosmologySimulationGridLevel[" << 1+ilevel << "]          = " << 1+ilevel << "\n";
 		}
 		
 		

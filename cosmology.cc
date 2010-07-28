@@ -89,7 +89,6 @@ void compute_LLA_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 		}
 		else if ( order == 6 )
 		{
-			std::cerr << "BLURB\n";
 			h2_4/=36.;
 			h2/=180.;
 			#pragma omp parallel for 

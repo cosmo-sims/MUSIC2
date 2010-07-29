@@ -347,9 +347,8 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	rfftwnd_one_real_to_complex( plan, data, NULL );
 #endif
 	
-	double boxlength = cf_.getValue<double>("setup","boxlength");
-	double kfac = 2.0*M_PI;///boxlength;
-	double fac = -1.0/(nx*ny*nz);///boxlength;
+	double kfac = 2.0*M_PI;
+	double fac = -1.0/(nx*ny*nz);
 	
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	
@@ -438,8 +437,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 #endif
 	
 	double fac = -1.0/(nx*ny*nz);
-	double boxlength = cf_.getValue<double>("setup","boxlength");
-	double kfac = 2.0*M_PI;///boxlength;
+	double kfac = 2.0*M_PI;
 	
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	
@@ -456,7 +454,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 					kdir = kfac*ki;
 				else if( dir == 1 )
 					kdir = kfac*kj;
-				else if( dir == 2 )
+				else //if( dir == 2 )
 					kdir = kfac*kk;
 				
 				unsigned idx = (i*ny+j)*nzp/2+k;

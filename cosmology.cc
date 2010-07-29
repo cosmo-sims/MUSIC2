@@ -225,9 +225,8 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 #endif
 	
 	//double fac = -1.0/(nx*ny*nz);
-	double boxlength = cf_.getValue<double>("setup","boxlength");
-	double kfac = 2.0*M_PI;///boxlength;
-	double norm = 1.0/((double)(nx*ny*nz));///sqrt((double)(nx*ny*nz));
+	double kfac = 2.0*M_PI;
+	double norm = 1.0/((double)(nx*ny*nz));
 	
 	
 	for( int i=0; i<nx; ++i )

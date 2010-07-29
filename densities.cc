@@ -226,40 +226,6 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	top->copy( *delta.get_grid(levelmin) );
 	delete top;
 
-	
-	
-	/*
-	double sum = 0.0;
-	{
-		int nx,ny,nz;
-		
-		nx = delta.get_grid(levelmin)->size(0);
-		ny = delta.get_grid(levelmin)->size(1);
-		nz = delta.get_grid(levelmin)->size(2);
-		
-		for( int ix=0; ix<nx; ++ix )
-			for( int iy=0; iy<ny; ++iy )
-				for( int iz=0; iz<nz; ++iz )
-					sum += (*delta.get_grid(levelmin))(ix,iy,iz);
-		
-		sum /= (nx*ny*nz);
-	}
-	
-	std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
-	
-	for( unsigned i=levelmin; i<=levelmax; ++i )
-	{		
-		int nx,ny,nz;
-		nx = delta.get_grid(i)->size(0);
-		ny = delta.get_grid(i)->size(1);
-		nz = delta.get_grid(i)->size(2);
-		
-		for( int ix=0; ix<nx; ++ix )
-			for( int iy=0; iy<ny; ++iy )
-				for( int iz=0; iz<nz; ++iz )
-					(*delta.get_grid(i))(ix,iy,iz) -= sum;
-	}
-	*/
 	for( int i=levelmax; i>0; --i )
 		mg_straight().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
 }
@@ -267,14 +233,15 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
 							  refinement_hierarchy& refh, grid_hierarchy& delta, bool bdeconvolve=true )
 {
-	unsigned    levelmin,levelmax,levelminPoisson;
-	real_t		boxlength;
-	std::vector<long> rngseeds;
-	std::vector<std::string> rngfnames;
-	bool force_shift(false), kspaceTF;
-	unsigned	ran_cube_size;
+	unsigned					levelmin,levelmax,levelminPoisson;
+	real_t						boxlength;
+	std::vector<long>			rngseeds;
+	std::vector<std::string>	rngfnames;
+	bool force_shift(false),	kspaceTF;
+	unsigned					ran_cube_size;
 	
-	constraint_set contraints(cf);
+	constraint_set				contraints(cf);
+	
 	
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
 	levelmin		= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
@@ -283,15 +250,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	force_shift		= cf.getValueSafe<bool>("setup", "force_shift", force_shift );
 	kspaceTF		= cf.getValueSafe<bool>("setup", "kspace_TF", false);
 	ran_cube_size	= cf.getValueSafe<unsigned>("random","cubesize",DEF_RAN_CUBE_SIZE);
-	
-	
-	// TODO: need to make sure unigrid gets called whenever possible
-	// FIXME: temporarily disabled
-	if( levelmin == levelmax && levelmin==levelminPoisson )
-	{	
-		GenerateDensityUnigrid(cf,ptf,type,refh,delta,kspaceTF,bdeconvolve);
-		return;
-	}
 	
 	
 	//... parse random number options
@@ -318,8 +276,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		}
 			
 	}
-	
-	
 	
 	//... parse grid setup parameters
 	unsigned	nbase	= (unsigned)pow(2,levelmin);
@@ -370,6 +326,18 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		if( rngseeds[ilevel] > 0 && lmingiven == -1 )
 			lmingiven = ilevel;
 	}
+	
+	/***** RESORT TO UNIGRID VERSION FOR SIMPLE GRID SETUPS *****/
+	
+	// TODO: need to make sure unigrid gets called whenever possible
+	// FIXME: temporarily disabled
+	if( lmingiven == (int)levelmin && levelmin == levelmax && levelmin==levelminPoisson )
+	{	
+		GenerateDensityUnigrid(cf,ptf,type,refh,delta,kspaceTF,bdeconvolve);
+		return;
+	}
+	
+	/***** GENERATE WHITE NOISE FIELDS FOR MULTI-LEVEL GRID *****/
 	
 	//... if random numbers are to be read from file, do this now
 	std::vector< random_numbers<real_t>* > randc;
@@ -433,7 +401,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	}
 		
 		
-	//... perform convolutions ...//
+	/***** PERFORM CONVOLUTIONS *****/
+	
 	if( levelmax == levelmin )
 	{
 		std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmax << " ..." << std::endl;
@@ -667,7 +636,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 							refh.size(levelmin+1,0), refh.size(levelmin+1,1), refh.size(levelmin+1,2) );
 			
 			mg_cubic().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
-			//mg_lin().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
 					
 		}
 		else
@@ -891,6 +859,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		
 	}
 #endif
+	
 	//... fill coarser levels with data from finer ones...
 	for( int i=levelmax; i>0; --i )
 		mg_straight().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );

@@ -17,9 +17,9 @@ LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
 # if you have FFTW 2.1.5 with multi-thread support, you can enable the option
 ifeq ($(MULTITHREADFFTW), yes)
   ifeq ($(SINGLEPRECISION), yes)
-    LFLAGS  += -lsfftw_threads -lsrfftw_threads
+    LFLAGS  += -lsrfftw_threads -lsfftw_threads
   else
-    LFLAGS  += -ldfftw_threads -ldrfftw_threads
+    LFLAGS  += -ldrfftw_threads -ldfftw_threads
   endif
 else
   CFLAGS  += -DSINGLETHREAD_FFTW

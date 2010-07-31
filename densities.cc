@@ -48,7 +48,7 @@ bool is_number(const std::string& s)
 
 // TODO: use optimized convolution routine when in unigrid mode 
 void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, 
-							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace, bool bdeconvolve )
+							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace, bool bdeconvolve, bool smooth )
 {
 	unsigned    levelmin,levelmax,levelminPoisson;
 	real_t		boxlength;
@@ -216,7 +216,8 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	conv_param.nz = top->nz_;
 	conv_param.coarse_fact = 0;
 	conv_param.deconvolve = bdeconvolve;
-	conv_param.is_finest = true;	
+	conv_param.is_finest = true;
+	conv_param.smooth = smooth;
 	
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
 	convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
@@ -231,7 +232,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 }
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
-							  refinement_hierarchy& refh, grid_hierarchy& delta, bool bdeconvolve=true )
+							  refinement_hierarchy& refh, grid_hierarchy& delta, bool bdeconvolve, bool smooth )
 {
 	unsigned					levelmin,levelmax,levelminPoisson;
 	real_t						boxlength;
@@ -241,6 +242,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	unsigned					ran_cube_size;
 	
 	constraint_set				contraints(cf);
+	
+	double tstart, tend;
+	tstart = omp_get_wtime();
 	
 	
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
@@ -333,7 +337,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	// FIXME: temporarily disabled
 	if( lmingiven == (int)levelmin && levelmin == levelmax && levelmin==levelminPoisson )
 	{	
-		GenerateDensityUnigrid(cf,ptf,type,refh,delta,kspaceTF,bdeconvolve);
+		GenerateDensityUnigrid(cf,ptf,type,refh,delta,kspaceTF,bdeconvolve,smooth);
 		return;
 	}
 	
@@ -487,7 +491,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		conv_param.nz = top->nz_;
 		conv_param.coarse_fact = 0;
 		conv_param.deconvolve = bdeconvolve;
-		conv_param.is_finest = true;	
+		conv_param.is_finest = true;
+		conv_param.smooth = smooth;
 		
 		convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
 		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
@@ -608,6 +613,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			conv_param.coarse_fact = levelmax-levelmin;
 			conv_param.deconvolve = bdeconvolve;
 			conv_param.is_finest = false;
+			conv_param.smooth = smooth;
 			convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
 			
 			
@@ -668,7 +674,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			conv_param.nz = coarse->nz_;
 			conv_param.coarse_fact = levelmax-levelmin-i;
 			conv_param.deconvolve = bdeconvolve;
-			conv_param.is_finest = false;	
+			conv_param.is_finest = false;
+			conv_param.smooth = smooth;
 			
 			convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
 			
@@ -732,6 +739,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		conv_param.coarse_fact = 0;
 		conv_param.deconvolve = bdeconvolve;
 		conv_param.is_finest = true;	
+		conv_param.smooth = smooth;
 		
 #if defined(SINGLE_PEAK) || defined(SINGLE_OCT_PEAK)
 		{
@@ -863,6 +871,11 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	//... fill coarser levels with data from finer ones...
 	for( int i=levelmax; i>0; --i )
 		mg_straight().restrict( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );
+	
+	
+	tend = omp_get_wtime();
+	if( true )//verbosity > 1 )
+		std::cout << " - Density calculation took " << tend-tstart << "s with " << omp_get_max_threads() << " threads." << std::endl;
 	
 }
 

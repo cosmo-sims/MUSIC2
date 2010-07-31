@@ -43,6 +43,7 @@ namespace convolution{
 		unsigned coarse_fact;
 		bool deconvolve;
 		bool is_finest;
+		bool smooth;
 	};
 
 	

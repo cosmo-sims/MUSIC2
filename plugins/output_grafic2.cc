@@ -224,7 +224,6 @@ public:
 	{
 		double 
 		boxlength	= cf_.getValue<double>("setup","boxlength");
-		//			H0			= cf_.getValue<double>("cosmology","H0");
 		
 		for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
 		{

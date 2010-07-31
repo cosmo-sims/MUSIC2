@@ -48,10 +48,10 @@
 
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
-							  refinement_hierarchy& refh, grid_hierarchy& delta, bool bdeconvolve );
+							  refinement_hierarchy& refh, grid_hierarchy& delta, bool bdeconvolve, bool smooth );
 
 void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, 
-							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace, bool deconvolve );
+							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace, bool deconvolve, bool smooth );
 
 void normalize_density( grid_hierarchy& delta );
 

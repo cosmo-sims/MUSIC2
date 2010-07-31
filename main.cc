@@ -48,7 +48,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.3.2a"
+#define THE_CODE_VERSION "0.4.0a"
 
 
 namespace music
@@ -376,8 +376,7 @@ int main (int argc, const char * argv[])
 		do_baryons	= cf.getValue<bool>("setup","baryons"),
 		do_2LPT		= cf.getValue<bool>("setup","use_2LPT"),
 		do_LLA		= cf.getValue<bool>("setup","use_LLA"),
-		do_CVM		= cf.getValueSafe<bool>("setup","center_velocities",false),
-		do_UVA		= false;//FIXME: cf.getValue<bool>("setup","use_UVA");
+		do_CVM		= cf.getValueSafe<bool>("setup","center_velocities",false);
 	
 
 	refinement_hierarchy rh_Poisson( cf );
@@ -411,13 +410,13 @@ int main (int argc, const char * argv[])
 		{
 			//... cdm density and displacements
 			std::cout << "=============================================================\n";
-			std::cout << "   COMPUTING DARK MATTER PARTICLE ICs\n";
+			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
 			std::cout << "-------------------------------------------------------------\n";
 			
 			
 			grid_hierarchy f( nbnd ), u(nbnd);
 			
-			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f, true );
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f, true, false );
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			
@@ -426,9 +425,6 @@ int main (int argc, const char * argv[])
 			err = the_poisson_solver->solve(f, u);
 
 			the_output_plugin->write_dm_mass(f);
-			
-			// TODO: fix the -1
-			f *= -1.0;
 			the_output_plugin->write_dm_density(f);
 			f.deallocate();
 			
@@ -450,10 +446,10 @@ int main (int argc, const char * argv[])
 			if( do_baryons )
 			{
 				std::cout << "=============================================================\n";
-				std::cout << "   COMPUTING BARYON ICs\n";
+				std::cout << "   COMPUTING BARYON DENSITY\n";
 				std::cout << "-------------------------------------------------------------\n";
 				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f, false );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f, false, true );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
@@ -464,146 +460,176 @@ int main (int argc, const char * argv[])
 					compute_LLA_density( u, f,grad_order );
 				}
 				
-				// TODO: fix the -1
-				f *= -1.0;
 				the_output_plugin->write_gas_density(f);
-				f *= -1.0;
 			}
+			
+			std::cout << "=============================================================\n";
+			std::cout << "   COMPUTING VELOCITIES\n";
+			std::cout << "-------------------------------------------------------------\n";
 			
 			//... velocities
-			if( do_UVA )
+			if( do_baryons )
 			{
-				//... need to co-add potentials...
-				throw std::runtime_error("Updated Velocity Approximation not yet supported!");
-			}
-			else
-			{
-				if( do_baryons )
-				{
-					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true );
-					coarsen_density(rh_Poisson, f);
-					normalize_density(f);
-					
-					u = f;	u.zero();
-					err = the_poisson_solver->solve(f, u);
-				}
-				grid_hierarchy data_forIO(u);
-				for( int icoord = 0; icoord < 3; ++icoord )
-				{
-					//... displacement
-					the_poisson_solver->gradient(icoord, u, data_forIO );
-					data_forIO *= cosmo.vfact;
-					the_output_plugin->write_dm_velocity(icoord, data_forIO);
-					if( do_baryons )
-						the_output_plugin->write_gas_velocity(icoord, data_forIO);
-				}
-			}
-			
-		}else {
-			//.. use 2LPT ...
-			if( !the_transfer_function_plugin->tf_is_distinct() || !do_baryons )
-			{	
-				grid_hierarchy f( nbnd ), u1(nbnd), u2(nbnd);
-				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true, false );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
-				u1 = f;	u1.zero();
-
-				// TODO: fix the -1
-				f *= -1.0;
-				the_output_plugin->write_dm_density(f);
-				f *= -1.0;
-				the_output_plugin->write_dm_mass(f);
-				
-				//... compute 1LPT term
-				err = the_poisson_solver->solve(f, u1);
-
-				the_output_plugin->write_dm_potential(u1);
-				
-				//... compute 2LPT term
-				u2 = f; u2.zero();
-				
-				if( !kspace )
-					compute_2LPT_source(u1, f, grad_order );
-				else
-					compute_2LPT_source_FFT(cf, u1, f);
-
-				
-				err = the_poisson_solver->solve(f, u2);
-				u2 *= 3.0/7.0;
-					
-				
-				grid_hierarchy data_forIO(u1);
-				for( int icoord = 0; icoord < 3; ++icoord )
-				{
-					
-					//... displacement
-					the_poisson_solver->gradient(icoord, u1, data_forIO );
-					the_poisson_solver->gradient(icoord, u2, f );
-
-					//... co-add for the displacement
-					data_forIO += f;
-					the_output_plugin->write_dm_position(icoord, data_forIO );
-					
-					//... velocity
-					if( do_UVA )
-					{
-						throw std::runtime_error("Updated Velocity Approximation not yet supported!");
-					}
-					else
-					{
-						//... for velocities, the 2LPT term has a factor of 2, so add a second time
-						data_forIO += f;
-						
-						// for testing:
-						//data_forIO = f; data_forIO += f;
-						
-						data_forIO *= cosmo.vfact;
-						
-						the_output_plugin->write_dm_velocity(icoord, data_forIO);					
-					}
-					
-					if( do_baryons )
-						the_output_plugin->write_gas_velocity(icoord, data_forIO);				
-				}
-				
-				//...
-				u1 += u2;
-
-				if( do_baryons )
-				{	
-					if( do_LLA )
-						compute_LLA_density( u1, f, grad_order );
-					else
-						compute_Lu_density( u1, f, grad_order );
-					
-					// TODO: fix the -1
-					f *= -1.0;
-					the_output_plugin->write_gas_density(f);
-					f *= -1.0;
-				}
-				
+				u = f;	u.zero();
+				err = the_poisson_solver->solve(f, u);
 			}
-			else
+			grid_hierarchy data_forIO(u);
+			for( int icoord = 0; icoord < 3; ++icoord )
 			{
-				throw std::runtime_error("2LPT for distinct baryon/CDM not implemented yet.");			
+				//... displacement
+				the_poisson_solver->gradient(icoord, u, data_forIO );
+				data_forIO *= cosmo.vfact;
+				the_output_plugin->write_dm_velocity(icoord, data_forIO);
+				if( do_baryons )
+					the_output_plugin->write_gas_velocity(icoord, data_forIO);
 			}
+		
+		}else {
+			//.. use 2LPT ...
+			grid_hierarchy f( nbnd ), u1(nbnd), u2(nbnd);
+			
+			std::cout << "=============================================================\n";
+			std::cout << "   COMPUTING VELOCITIES\n";
+			std::cout << "-------------------------------------------------------------\n";	
+			
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true, false );
+			coarsen_density(rh_Poisson, f);
+			normalize_density(f);
+			
+			u1 = f;	u1.zero();
 
+			//... compute 1LPT term
+			err = the_poisson_solver->solve(f, u1);
+			the_output_plugin->write_dm_potential(u1);
+			
+			//... compute 2LPT term
+			u2 = f; u2.zero();
+			
+			if( !kspace )
+				compute_2LPT_source(u1, f, grad_order );
+			else
+				compute_2LPT_source_FFT(cf, u1, f);
+
+			err = the_poisson_solver->solve(f, u2);
+			u2 *= 6.0/7.0;
+			u1 += u2;
+			u2.deallocate();
+			
+			grid_hierarchy data_forIO(u1);
+			for( int icoord = 0; icoord < 3; ++icoord )
+			{
+				
+				//... displacement
+				the_poisson_solver->gradient(icoord, u1, data_forIO );
+					
+				data_forIO *= cosmo.vfact;
+					
+				the_output_plugin->write_dm_velocity(icoord, data_forIO);					
+				
+				if( do_baryons )
+					the_output_plugin->write_gas_velocity(icoord, data_forIO);				
+			}
+			data_forIO.deallocate();
+			
+			
+			std::cout << "=============================================================\n";
+			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
+			std::cout << "-------------------------------------------------------------\n";
+		
+			
+			//...
+			//u1 += u2;
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f, true, false );
+			coarsen_density(rh_Poisson, f);
+			normalize_density(f);
+			the_output_plugin->write_dm_density(f);
+			u1 = f;	u1.zero();
+			
+			
+			//... compute 1LPT term
+			err = the_poisson_solver->solve(f, u1);
+			
+			//... compute 2LPT term
+			u2 = f; u2.zero();
+			
+			if( !kspace )
+				compute_2LPT_source(u1, f, grad_order );
+			else
+				compute_2LPT_source_FFT(cf, u1, f);
+			
+			
+			err = the_poisson_solver->solve(f, u2);
+			u2 *= 3.0/7.0;
+			u1 += u2;
+			u2.deallocate();
+			
+			data_forIO = u1;
+			
+			for( int icoord = 0; icoord < 3; ++icoord )
+			{
+				//... displacement
+				the_poisson_solver->gradient(icoord, u1, data_forIO );
+				the_output_plugin->write_dm_position(icoord, data_forIO );	
+			}
+			
+
+			if( do_baryons )
+			{	
+				std::cout << "=============================================================\n";
+				std::cout << "   COMPUTING BARYON DENSITY\n";
+				std::cout << "-------------------------------------------------------------\n";
+				
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f, false, true );
+				coarsen_density(rh_Poisson, f);
+				normalize_density(f);
+				
+				if( !do_LLA )
+					the_output_plugin->write_gas_density(f);
+				else 
+				{	
+					u1 = f;	u1.zero();
+					
+					//... compute 1LPT term
+					err = the_poisson_solver->solve(f, u1);
+					
+					//... compute 2LPT term
+					u2 = f; u2.zero();
+					
+					if( !kspace )
+						compute_2LPT_source(u1, f, grad_order );
+					else
+						compute_2LPT_source_FFT(cf, u1, f);
+					
+					err = the_poisson_solver->solve(f, u2);
+					u2 *= 3.0/7.0;
+					u1 += u2;
+					u2.deallocate();
+					
+					compute_LLA_density( u1, f, grad_order );
+					the_output_plugin->write_gas_density(f);
+				}
+			}
 		}
-		the_output_plugin->finalize();
-	}catch(std::runtime_error& excp)
-	{
+		
+		
+		
+	}catch(std::runtime_error& excp){
+		
 		std::cerr << " - " << excp.what() << std::endl;
 		std::cerr << " - A fatal error occured. We need to exit...\n";
 		bfatal = true;
 	}
+
+	std::cout << "=============================================================\n";
 	
 	//... clean up
+	the_output_plugin->finalize();
 	delete the_output_plugin;
 	
-	std::cout << "=============================================================\n";
 	
 	if( !bfatal )
 		std::cout << " - Wrote output file \'" << outfname << "\'\n     using plugin \'" << outformat << "\'...\n";

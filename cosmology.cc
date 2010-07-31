@@ -56,10 +56,18 @@ void compute_LLA_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 						D[0][2] = D[2][0] = (ACC(ix-1,iy,iz-1)-ACC(ix-1,iy,iz+1)-ACC(ix+1,iy,iz-1)+ACC(ix+1,iy,iz+1))*h2_4;
 						D[1][2] = D[2][1] = (ACC(ix,iy-1,iz-1)-ACC(ix,iy-1,iz+1)-ACC(ix,iy+1,iz-1)+ACC(ix,iy+1,iz+1))*h2_4;
 						
-						(*pvar)(ix,iy,iz) = -(D[0][0]+D[1][1]+D[2][2] +
-							( D[0][0]*D[1][1] + D[0][0]*D[2][2] + D[1][1]*D[2][2] +
-							  D[0][1]*D[1][0] + D[0][2]*D[2][0] + D[1][2]*D[2][1] +
-							  D[0][0]*D[0][0] + D[1][1]*D[1][1] + D[2][2]*D[2][2] ));
+						D[0][0] += 1.0;
+						D[1][1] += 1.0;
+						D[2][2] += 1.0;
+						
+						double det = D[0][0]*D[1][1]*D[2][2]
+						-	D[0][0]*D[1][2]*D[2][1]
+						-   D[1][0]*D[0][1]*D[2][2]
+						+	D[1][0]*D[0][2]*D[1][2]
+						+	D[2][0]*D[0][1]*D[1][2]
+						-	D[2][0]*D[0][2]*D[1][1];
+						
+						(*pvar)(ix,iy,iz) = 1.0/det-1.0;
 						
 					}
 		}
@@ -80,10 +88,19 @@ void compute_LLA_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 						D[0][2] = D[2][0] = (ACC(ix-1,iy,iz-1)-ACC(ix-1,iy,iz+1)-ACC(ix+1,iy,iz-1)+ACC(ix+1,iy,iz+1))*h2_4;
 						D[1][2] = D[2][1] = (ACC(ix,iy-1,iz-1)-ACC(ix,iy-1,iz+1)-ACC(ix,iy+1,iz-1)+ACC(ix,iy+1,iz+1))*h2_4;
 						
-						(*pvar)(ix,iy,iz) = -(D[0][0]+D[1][1]+D[2][2] +
-						( D[0][0]*D[1][1] + D[0][0]*D[2][2] + D[1][1]*D[2][2] +
-						 D[0][1]*D[1][0] + D[0][2]*D[2][0] + D[1][2]*D[2][1] +
-						 D[0][0]*D[0][0] + D[1][1]*D[1][1] + D[2][2]*D[2][2] ));
+						
+						D[0][0] += 1.0;
+						D[1][1] += 1.0;
+						D[2][2] += 1.0;
+						
+						double det = D[0][0]*D[1][1]*D[2][2]
+						-	D[0][0]*D[1][2]*D[2][1]
+						-   D[1][0]*D[0][1]*D[2][2]
+						+	D[1][0]*D[0][2]*D[1][2]
+						+	D[2][0]*D[0][1]*D[1][2]
+						-	D[2][0]*D[0][2]*D[1][1];
+						
+						(*pvar)(ix,iy,iz) = 1.0/det-1.0;
 						
 					}
 		}
@@ -116,10 +133,18 @@ void compute_LLA_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 												+ ACC(ix,iy-1,iz-2)-ACC(ix,iy-1,iz+2)-ACC(ix,iy+1,iz-2)+ACC(ix,iy+1,iz+2))
 											 +1.*(ACC(ix,iy-2,iz-2)-ACC(ix,iy-2,iz+2)-ACC(ix,iy+2,iz-2)+ACC(ix,iy+2,iz+2)))*h2_4;
 						
-						(*pvar)(ix,iy,iz) = -(D[0][0]+D[1][1]+D[2][2] +
-						( D[0][0]*D[1][1] + D[0][0]*D[2][2] + D[1][1]*D[2][2] +
-						 D[0][1]*D[1][0] + D[0][2]*D[2][0] + D[1][2]*D[2][1] +
-						 D[0][0]*D[0][0] + D[1][1]*D[1][1] + D[2][2]*D[2][2] ));
+						D[0][0] += 1.0;
+						D[1][1] += 1.0;
+						D[2][2] += 1.0;
+						
+						double det = D[0][0]*D[1][1]*D[2][2]
+						-	D[0][0]*D[1][2]*D[2][1]
+						-   D[1][0]*D[0][1]*D[2][2]
+						+	D[1][0]*D[0][2]*D[1][2]
+						+	D[2][0]*D[0][1]*D[1][2]
+						-	D[2][0]*D[0][2]*D[1][1];
+						
+						(*pvar)(ix,iy,iz) = 1.0/det-1.0;
 						
 					}
 			//TODO: test sixth order
@@ -307,7 +332,7 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 			for( int k=0; k<nz; ++k )
 			{
 				unsigned ii = (i*ny+j)*nzp+k;
-				(*fnew.get_grid(u.levelmax()))(i,j,k) = -(( data_11[ii]*data_22[ii]-data_12[ii]*data_12[ii] ) +
+				(*fnew.get_grid(u.levelmax()))(i,j,k) = (( data_11[ii]*data_22[ii]-data_12[ii]*data_12[ii] ) +
 														 ( data_11[ii]*data_33[ii]-data_13[ii]*data_13[ii] ) +
 														 ( data_22[ii]*data_33[ii]-data_23[ii]*data_23[ii] ) );
 			}
@@ -349,7 +374,7 @@ void compute_2LPT_source( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 						D[1][2] = D[2][1] = (ACC(ix,iy-1,iz-1)-ACC(ix,iy-1,iz+1)-ACC(ix,iy+1,iz-1)+ACC(ix,iy+1,iz+1))*h2_4;
 						
 						
-						(*pvar)(ix,iy,iz) =  -( D[0][0]*D[1][1] - SQR( D[0][1] )
+						(*pvar)(ix,iy,iz) =  ( D[0][0]*D[1][1] - SQR( D[0][1] )
 											+ D[0][0]*D[2][2] - SQR( D[0][2] )
 											+ D[1][1]*D[2][2] - SQR( D[1][2] ));
 						
@@ -372,7 +397,7 @@ void compute_2LPT_source( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 						D[1][2] = D[2][1] = (ACC(ix,iy-1,iz-1)-ACC(ix,iy-1,iz+1)-ACC(ix,iy+1,iz-1)+ACC(ix,iy+1,iz+1))*h2_4;
 						
 						
-						(*pvar)(ix,iy,iz) =  -( D[0][0]*D[1][1] - SQR( D[0][1] )
+						(*pvar)(ix,iy,iz) =  ( D[0][0]*D[1][1] - SQR( D[0][1] )
 						+ D[0][0]*D[2][2] - SQR( D[0][2] )
 						+ D[1][1]*D[2][2] - SQR( D[1][2] ));
 						
@@ -407,7 +432,7 @@ void compute_2LPT_source( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 												  + ACC(ix,iy-1,iz-2)-ACC(ix,iy-1,iz+2)-ACC(ix,iy+1,iz-2)+ACC(ix,iy+1,iz+2))
 											 +1.*(ACC(ix,iy-2,iz-2)-ACC(ix,iy-2,iz+2)-ACC(ix,iy+2,iz-2)+ACC(ix,iy+2,iz+2)))*h2_4;
 						
-						(*pvar)(ix,iy,iz) =  -( D[0][0]*D[1][1] - SQR( D[0][1] )
+						(*pvar)(ix,iy,iz) =  ( D[0][0]*D[1][1] - SQR( D[0][1] )
 											+ D[0][0]*D[2][2] - SQR( D[0][2] )
 											+ D[1][1]*D[2][2] - SQR( D[1][2] ) );
 						

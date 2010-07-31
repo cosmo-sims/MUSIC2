@@ -476,7 +476,7 @@ template< class S, class I, class O, typename T >
 double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool verbose )
 {
 
-	double err;
+	double err, maxerr = 1e30;
 	unsigned niter = 0;
 	
 	bool fullverbose = false;
@@ -492,11 +492,13 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 		err = compute_RMS_resid( *m_pu, *m_pf, fullverbose );
 		++niter;
 		
-		if( verbose ){
+		if( fullverbose ){
 			std::cout << "   - Step No. " << std::setw(3) << niter << ", Max Err = " << err << std::endl;
-			if(fullverbose)
-				std::cout << "     ---------------------------------------------------\n";
+			std::cout << "     ---------------------------------------------------\n";
 		}
+		
+		if( err < maxerr )
+			maxerr = err;
 			
 		if( (niter > 1) && ((err < acc) || (niter > 20)) )
 			break;
@@ -505,7 +507,7 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 	if( err > acc )
 		std::cout << "Error : no convergence in Poisson solver" << std::endl;
 	else if( verbose )
-		std::cout << " - Converged in " << niter << " steps to req. acc. of " << acc << std::endl;
+		std::cout << " - Converged in " << niter << " steps to " << maxerr << std::endl;
 
 	
 	//.. make sure that the RHS does not contain the FAS corrections any more

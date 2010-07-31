@@ -66,7 +66,8 @@ namespace convolution{
 		
 		rfftwnd_plan	iplan, plan;
 		
-		std::cout << "   - Performing FFT convolution...\n";
+		std::cout << "   - Performing density convolution... (" 
+			<< cparam_.nx <<  ", " << cparam_.ny << ", " << cparam_.nz << ")\n";
 		
 		
 		plan  = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
@@ -178,6 +179,7 @@ namespace convolution{
 		int nzp = cparam_.nz/2+1;
 		double kmax = 0.5*M_PI/std::max(cparam_.nx,std::max(cparam_.ny,cparam_.nz));
 		
+		//... obtain a grid-version of the real space transfer function
 		if( bperiodic  )
 		{			
 			#pragma omp parallel for 
@@ -211,21 +213,7 @@ namespace convolution{
 									}
 								}
 						
-						kdata_[idx] *= fac;
-						
-						if( false )//cparam_.deconvolve )
-						{
-							double rx((double)iix*dx/boxlength),ry((double)iiy*dy/boxlength),rz((double)iiz*dz/boxlength), ico;
-							ico = 1.0;
-							if( i>0 )
-								ico *= sin(M_PI*rx)/(M_PI*rx);
-							if( j>0 )
-								ico *= sin(M_PI*ry)/(M_PI*ry);
-							if( k>0 )
-								ico *= sin(M_PI*rz)/(M_PI*rz);
-							kdata_[idx] /= ico;
-							
-						}
+						kdata_[idx] *= fac;	
 					}
 		}else{
 			#pragma omp parallel for
@@ -248,22 +236,6 @@ namespace convolution{
 						
 						rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
 						kdata_[idx] = tfr->compute_real(rr2)*fac;
-						
-						if( false )//cparam_.deconvolve )
-						{
-							double rx((double)iix*dx/boxlength),ry((double)iiy*dy/boxlength),rz((double)iiz*dz/boxlength), ico;
-							ico = 1.0;
-							if( i>0 )
-								ico *= sin(M_PI*rx)/(M_PI*rx);
-							if( j>0 )
-								ico *= sin(M_PI*ry)/(M_PI*ry);
-							if( k>0 )
-								ico *= sin(M_PI*rz)/(M_PI*rz);
-							kdata_[idx] /= ico;
-						}
-						
-						
-						
 					}
 		}
 		
@@ -285,7 +257,7 @@ namespace convolution{
 		rfftwnd_one_real_to_complex( plan, rkernel, NULL );
 		#endif
 		
-		if( cparam_.deconvolve )
+		if( cparam_.deconvolve || cparam_.smooth )
 		{
 			
 			double ksum = 0.0;
@@ -308,20 +280,19 @@ namespace convolution{
 
 						double ipix = 1.0;
 						
+						//... perform k-space 'averaging' for coarser grids
 						if( !cparam_.is_finest )
 						{
 							for( unsigned c=1; c<= cparam_.coarse_fact; ++c )
 							{
-								//double kkmax = kmax*pow(2,cparam_.coarse_fact)/pow(2,c);
-								//								double kkmax = 0.5*kmax/pow(2,c-1);
 								double kkmax = 0.5*kmax/pow(2,c-1);
 								ipix *= (cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax));								
 							}
 						}
-
+						
 						double kkmax = kmax / pow(2,cparam_.coarse_fact);
-
-						//... deconvolve with grid-cell kernel
+							
+						//... deconvolve with grid-cell (NGP) kernel
 						if( i > 0 )
 							ipix /= sin(kx*2.0*kkmax)/(kx*2.0*kkmax);
 						if( j > 0 )
@@ -330,9 +301,19 @@ namespace convolution{
 							ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 						
 						unsigned q  = (i*cparam_.ny+j)*nzp+k;
-						kkernel[q].re *= ipix;
-						kkernel[q].im *= ipix;
 						
+						if( !cparam_.smooth )
+						{
+							kkernel[q].re *= ipix;
+							kkernel[q].im *= ipix;	
+						}else{
+							//... if smooth==true, convolve with 
+							//... NGP kernel to get CIC smoothness
+							kkernel[q].re /= ipix;
+							kkernel[q].im /= ipix;	
+						}
+						
+						//... store k-space average
 						if( k==0 || k==cparam_.nz/2 )
 						{
 							ksum  += kkernel[q].re;
@@ -345,10 +326,14 @@ namespace convolution{
 			
 			double dk;
 
-			//... readd white noise component for finest grid
+			//... re-add white noise component for finest grid
 			if( cparam_.is_finest )
 				dk = k0-ksum/kcount;
 			else
+				dk = 0.0;
+			
+			//... set white noise component to zero if smoothing is enabled
+			if( cparam_.smooth )
 				dk = 0.0;
 			
 			//... enforce the r=0 component by adjusting the k-space mean
@@ -409,7 +394,7 @@ namespace convolution{
 		fftw_complex *kdata = reinterpret_cast<fftw_complex*> ( this->get_ptr() );
 		
 		unsigned nx = cparam_.nx, ny = cparam_.ny, nz = cparam_.nz, nzp = (nz/2+1);
-		fac =1.0;//*= 1.0/sqrt(nx*ny*nz);
+		fac =1.0;
 		
 		double kfac = 2.0*M_PI/boxlength, ksum = 0.0;
 		unsigned q=0, kcount = 0;
@@ -442,9 +427,6 @@ namespace convolution{
 					}
 					
 				}
-		
-		std::cerr << " - k-space kernel norm : " << std::setw(16) << ksum/kcount << std::endl;
-		
 		
 		delete tfk;
 	}

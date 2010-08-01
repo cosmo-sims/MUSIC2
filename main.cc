@@ -547,6 +547,7 @@ int main (int argc, const char * argv[])
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			the_output_plugin->write_dm_density(f);
+			the_output_plugin->write_dm_mass(f);
 			u1 = f;	u1.zero();
 			
 			

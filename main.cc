@@ -110,8 +110,8 @@ void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarc
 				lxmax = lx[j];
 		}
 		
-		if( lxmax%2 == 1 )
-			lxmax+=1;
+		//... make sure that grids are divisible by 4 for convolution.
+		lxmax += lxmax%4;
 		
 		for( int j=0; j<3; ++j )
 		{

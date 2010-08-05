@@ -387,7 +387,7 @@ int main (int argc, const char * argv[])
 	
 	refinement_hierarchy rh_TF( rh_Poisson );
 	modify_grid_for_TF( rh_Poisson, rh_TF, cf );
-	rh_TF.output();
+	//rh_TF.output();
 
 	
 	if( !the_transfer_function_plugin->tf_is_distinct() && do_baryons )
@@ -485,6 +485,10 @@ int main (int argc, const char * argv[])
 				//... displacement
 				the_poisson_solver->gradient(icoord, u, data_forIO );
 				data_forIO *= cosmo.vfact;
+				
+				if(do_CVM)
+					subtract_finest_mean(data_forIO);
+				
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);
 				if( do_baryons )
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
@@ -529,6 +533,9 @@ int main (int argc, const char * argv[])
 				the_poisson_solver->gradient(icoord, u1, data_forIO );
 					
 				data_forIO *= cosmo.vfact;
+				
+				if( do_CVM )
+					subtract_finest_mean(data_forIO);
 					
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);					
 				

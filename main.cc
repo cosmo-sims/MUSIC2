@@ -458,6 +458,7 @@ int main (int argc, const char * argv[])
 					u = f;	u.zero();
 					err = the_poisson_solver->solve(f, u);
 					compute_LLA_density( u, f,grad_order );
+					normalize_density(f);
 				}
 				
 				the_output_plugin->write_gas_density(f);
@@ -611,6 +612,7 @@ int main (int argc, const char * argv[])
 					u2.deallocate();
 					
 					compute_LLA_density( u1, f, grad_order );
+					normalize_density(f);
 					the_output_plugin->write_gas_density(f);
 				}
 			}

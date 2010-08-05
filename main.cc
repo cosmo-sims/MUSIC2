@@ -120,6 +120,7 @@ void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarc
 			
 			lx[j] = lxmax;
 			x0[j] -= add_left;
+			x0[j] += x0[j]%2;
 		}
 		
 		rh_TF.adjust_level(i, lx[0], lx[1], lx[2], x0[0], x0[1], x0[2] );
@@ -386,7 +387,7 @@ int main (int argc, const char * argv[])
 	
 	refinement_hierarchy rh_TF( rh_Poisson );
 	modify_grid_for_TF( rh_Poisson, rh_TF, cf );
-	//rh_TF.output();
+	rh_TF.output();
 
 	
 	if( !the_transfer_function_plugin->tf_is_distinct() && do_baryons )

@@ -29,7 +29,6 @@
 //#define SINGLE_PEAK
 //#define SINGLE_OCT_PEAK
 //#define OFF_OCT_PEAK
-
 //#define DEGRADE_RAND
 
 
@@ -525,7 +524,10 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 				refh.size(levelmin,2) };
 			
 			if( randc[levelmin] == NULL )
+			{	
+				std::cout << " - Creating new random numbers for level " << levelmin+1+i << std::endl;
 				rc = randc[levelmin] = new random_numbers<real_t>( nbase, ran_cube_size, rngseeds[levelmin], x0, lx );
+			}
 			else
 				rc = randc[levelmin];
 			
@@ -546,19 +548,24 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			random_numbers<real_t> *rc;
 			int x0[3],lx[3];
 			int lfac = (int)pow(2.0,i+1);
-			x0[0] = refh.offset_abs(levelmin+i+1,0)-lfac*shift[0]; 
-			x0[1] = refh.offset_abs(levelmin+i+1,1)-lfac*shift[1]; 
-			x0[2] = refh.offset_abs(levelmin+i+1,2)-lfac*shift[2]; 
-			lx[0] = refh.size(levelmin+i+1,0); 
-			lx[1] = refh.size(levelmin+i+1,1); 
-			lx[2] = refh.size(levelmin+i+1,2); 
+			lx[0] = 2*refh.size(levelmin+i+1,0); 
+			lx[1] = 2*refh.size(levelmin+i+1,1); 
+			lx[2] = 2*refh.size(levelmin+i+1,2); 
+			x0[0] = refh.offset_abs(levelmin+i+1,0)-lfac*shift[0]-lx[0]/4; 
+			x0[1] = refh.offset_abs(levelmin+i+1,1)-lfac*shift[1]-lx[1]/4; 
+			x0[2] = refh.offset_abs(levelmin+i+1,2)-lfac*shift[2]-lx[2]/4; 
 			
 			if( randc[levelmin+i+1] == NULL )
+			{	
+				std::cout << " - Creating new random numbers for level " << levelmin+1+i << std::endl;
 				rc = randc[levelmin+i+1] = new random_numbers<real_t>((unsigned)pow(2,levelmin+i+1), ran_cube_size, rngseeds[levelmin+i+1], x0, lx);
+				
+			}
 			else
 				rc = randc[levelmin+i+1];
 			
-			fine->fill_rand( rc, 1.0, x0[0]-fine->nx_/4, x0[1]-fine->ny_/4, x0[2]-fine->nz_/4, false );
+			fine->fill_rand( rc, 1.0, x0[0], x0[1], x0[2], false );
+			
 				
 			if( i+levelmin+1 > (unsigned)lmingiven )
 			{	
@@ -778,9 +785,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		
 		//... subtract oct mean on boundary but not in interior
 		coarse->subtract_boundary_oct_mean();
-#if defined (DEGRADE_RAND)
-		coarse->zero_boundary();
-#endif
 		
 		//... perform convolution
 		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
@@ -788,7 +792,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		//... copy to grid hierarchy
 		coarse->copy_add_unpad( *delta.get_grid(levelmax) );
 		
-#if !defined(DEGRADE_RAND)
+
 		//... 2) boundary correction to top grid
 		*coarse = coarse_save;
 		
@@ -804,7 +808,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		//... upload data to coarser grid
 		coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );
 		
-#endif	
 		delete the_tf_kernel;		
 		delete coarse;
 	}

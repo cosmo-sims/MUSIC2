@@ -53,7 +53,7 @@ namespace convolution{
 	template< typename real_t >
 	void perform( kernel * pk, void *pd )
 	{
-		
+
 		parameters cparam_ = pk->cparam_;
 		double fftnorm = pow(2.0*M_PI,1.5)/sqrt(cparam_.lx*cparam_.ly*cparam_.lz)/sqrt((double)(cparam_.nx*cparam_.ny*cparam_.nz));
 		
@@ -160,7 +160,8 @@ namespace convolution{
 		bool
 			bperiodic	= cparam_.pcf->getValueSafe<bool>("setup","periodic_TF",true);
 		
-		
+		const int ref_fac = (int)(pow(2,cparam_.coarse_fact)+0.5), ql = -ref_fac/2+1, qr=ql+ref_fac, rf8=pow(ref_fac,3);
+				
 		std::cout << "   - Computing transfer function kernel...\n";
 		
 		if(! cparam_.is_finest )
@@ -208,8 +209,32 @@ namespace convolution{
 									 && rr[1] > -boxlength && rr[1] <= boxlength
 									 && rr[2] > -boxlength && rr[2] <= boxlength )
 									{
-										rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-										kdata_[idx] += tfr->compute_real(rr2);
+										if( ref_fac > 1 )
+										{
+											double rrr[3];
+											register double rrr2[3];
+											for( int iii=ql; iii<qr; ++iii )
+											{	
+												rrr[0] = rr[0]+(double)iii*0.5*dx - 0.25*dx;
+												rrr2[0]= rrr[0]*rrr[0];
+												for( int jjj=ql; jjj<qr; ++jjj )
+												{
+													rrr[1] = rr[1]+(double)jjj*0.5*dx - 0.25*dx;
+													rrr2[1]= rrr[1]*rrr[1];
+													for( int kkk=ql; kkk<qr; ++kkk )
+													{
+														rrr[2] = rr[2]+(double)kkk*0.5*dx - 0.25*dx;
+														rrr2[2]= rrr[2]*rrr[2];
+														rr2 = rrr2[0]+rrr2[1]+rrr2[2];
+														kdata_[idx] += tfr->compute_real(rr2)/rf8;	
+													}
+												}
+											}
+											
+										}else{
+											rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+											kdata_[idx] += tfr->compute_real(rr2);
+										}
 									}
 								}
 						
@@ -234,21 +259,42 @@ namespace convolution{
 						rr[1] = ((double)iiy ) * dy;
 						rr[2] = ((double)iiz ) * dz;
 						
-						rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-						kdata_[idx] = tfr->compute_real(rr2)*fac;
+						if( ref_fac > 1 )
+						{
+							double rrr[3];
+							register double rrr2[3];
+							for( int iii=ql; iii<qr; ++iii )
+							{	
+								rrr[0] = rr[0]+(double)iii*0.5*dx - 0.25*dx;
+								rrr2[0]= rrr[0]*rrr[0];
+								for( int jjj=ql; jjj<qr; ++jjj )
+								{
+									rrr[1] = rr[1]+(double)jjj*0.5*dx - 0.25*dx;
+									rrr2[1]= rrr[1]*rrr[1];
+									for( int kkk=ql; kkk<qr; ++kkk )
+									{
+										rrr[2] = rr[2]+(double)kkk*0.5*dx - 0.25*dx;
+										rrr2[2]= rrr[2]*rrr[2];
+										rr2 = rrr2[0]+rrr2[1]+rrr2[2];
+										kdata_[idx] += tfr->compute_real(rr2)/rf8;	
+									}
+								}
+							}
+							
+						}else{
+							rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+							kdata_[idx] += tfr->compute_real(rr2);
+						}
 					}
 		}
-		
-		if(!cparam_.is_finest)
-			kdata_[0] /= pow(2.0,1.5*cparam_.coarse_fact);
-		
+				
 		T0 = kdata_[0];
 		delete tfr;
 		
 		double k0 = kdata_[0];
 
-		//... subtract white noise component for finest grid
-		if( cparam_.deconvolve && cparam_.is_finest)
+		//... subtract white noise component before deconvolution
+		if( cparam_.deconvolve )//&& cparam_.is_finest)
 			kdata_[0] = 0.0;
 		
 		#ifndef SINGLETHREAD_FFTW		
@@ -281,24 +327,28 @@ namespace convolution{
 						double ipix = 1.0;
 						
 						//... perform k-space 'averaging' for coarser grids
-						if( !cparam_.is_finest )
+						/*if( !cparam_.is_finest )
 						{
 							for( unsigned c=1; c<= cparam_.coarse_fact; ++c )
 							{
 								double kkmax = 0.5*kmax/pow(2,c-1);
 								ipix *= (cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax));								
 							}
-						}
+						}*/
 						
 						double kkmax = kmax / pow(2,cparam_.coarse_fact);
 							
-						//... deconvolve with grid-cell (NGP) kernel
-						if( i > 0 )
-							ipix /= sin(kx*2.0*kkmax)/(kx*2.0*kkmax);
-						if( j > 0 )
-							ipix /= sin(ky*2.0*kkmax)/(ky*2.0*kkmax);
-						if( k > 0 )
-							ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
+						if( cparam_.is_finest||cparam_.smooth )
+						{
+							
+							//... deconvolve with grid-cell (NGP) kernel
+							if( i > 0 )
+								ipix /= sin(kx*2.0*kkmax)/(kx*2.0*kkmax);
+							if( j > 0 )
+								ipix /= sin(ky*2.0*kkmax)/(ky*2.0*kkmax);
+							if( k > 0 )
+								ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
+						}
 						
 						unsigned q  = (i*cparam_.ny+j)*nzp+k;
 						
@@ -330,7 +380,7 @@ namespace convolution{
 			if( cparam_.is_finest )
 				dk = k0-ksum/kcount;
 			else
-				dk = 0.0;
+				dk = k0-ksum/kcount;
 			
 			//... set white noise component to zero if smoothing is enabled
 			if( cparam_.smooth )
@@ -344,9 +394,7 @@ namespace convolution{
 					{
 						unsigned q  = (i*cparam_.ny+j)*nzp+k;
 						kkernel[q].re += dk;
-						
 					}
-			
 		}		
 		
 		rfftwnd_destroy_plan(plan);

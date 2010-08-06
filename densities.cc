@@ -369,7 +369,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	}
 	
 	//... if random seeds are given for levels coarser than levelmin, use them as constraints
-	if( lmingiven < (int)levelmin )
+	if( lmingiven < (int)levelmin && !(lmaxread>=(int)levelmin) )
 	{
 		throw std::runtime_error("You provided a seed for a level below levelmin, this is not supported yet.");
 		

@@ -21,7 +21,8 @@
  
 */
 
-//#define DEGRADE_RAND
+//#define DEGRADE_RAND1
+//#define DEGRADE_RAND2
 
 #ifndef __RANDOM_HH
 #define __RANDOM_HH
@@ -220,13 +221,16 @@ protected:
 		
 		/////////////////////////////////////////////////////
 
-#if defined(DEGRADE_RAND)
+#if defined(DEGRADE_RAND1)
 		
 		{
-			std::cerr << " - degrading field...(" << res_ << ")\n";
-			unsigned ixoff=51,iyoff=51,izoff=51;
-			unsigned nx=52, ny=52, nz=52;
+			std::cerr << " - degrading field for 1 level...(" << res_ << ")\n";
+			//unsigned ixoff=51,iyoff=51,izoff=51;
+			//unsigned nx=52, ny=52, nz=52;
+			unsigned ixoff=102, iyoff=102, izoff=102;
+			unsigned nx=104, ny=104, nz=104;
 			
+#pragma omp parallel for
 			for( unsigned ix=0; ix<res_; ix+=2 )
 				for( unsigned iy=0; iy<res_; iy+=2 )
 					for( unsigned iz=0; iz<res_; iz+=2 )
@@ -257,6 +261,84 @@ protected:
 			
 		}
 		
+#elif defined(DEGRADE_RAND2)
+		
+		{
+			std::cerr << " - degrading field for 2 level...(" << res_ << ")\n";
+			unsigned ixoff2=51,iyoff2=51,izoff2=51;
+			unsigned nx2=52, ny2=52, nz2=52;
+			
+			unsigned ixoff1=34,iyoff1=34,izoff1=34;
+			unsigned nx1=120,ny1=120,nz1=120;
+			
+			//unsigned ixoff2=84, iyoff2=84, izoff2=84;
+			//unsigned nx2=90, ny2=90, nz2=90;
+			
+			//unsigned ixoff1=100, iyoff1=100, izoff1=100;
+			//unsigned nx1=112, ny1=112, nz1=112;
+			
+			
+			/*unsigned ixoff2=100, iyoff2=100, izoff2=100;
+			 unsigned nx2=112, ny2=112, nz2=112;
+			 
+			 unsigned ixoff1=84, iyoff1=84, izoff1=84;
+			 unsigned nx1=180, ny1=180, nz1=180;*/
+			
+#pragma omp parallel for
+			for( unsigned ix=0; ix<res_; ix+=2 )
+				for( unsigned iy=0; iy<res_; iy+=2 )
+					for( unsigned iz=0; iz<res_; iz+=2 )
+					{
+						if( ix>=2*ixoff2 && ix < 2*ixoff2+nx2 
+						   && iy>=2*iyoff2 && iy < 2*iyoff2+ny2
+						   && iz>=2*izoff2 && iz < 2*izoff2+nz2 )
+						{
+							continue;
+						}
+						
+						double avg = 0.125*((*this)(ix,iy,iz)+(*this)(ix+1,iy,iz)+(*this)(ix,iy+1,iz)+(*this)(ix,iy,iz+1)+
+											(*this)(ix+1,iy+1,iz)+(*this)(ix+1,iy,iz+1)+(*this)(ix,iy+1,iz+1)+(*this)(ix+1,iy+1,iz+1));
+						
+						
+						
+						(*this)(ix,iy,iz) = avg;
+						(*this)(ix+1,iy,iz) = avg;
+						(*this)(ix,iy+1,iz) = avg;
+						(*this)(ix,iy,iz+1) = avg;
+						(*this)(ix+1,iy+1,iz) = avg;
+						(*this)(ix+1,iy,iz+1) = avg;
+						(*this)(ix,iy+1,iz+1) = avg;
+						(*this)(ix+1,iy+1,iz+1) = avg;
+						
+					}
+			
+#pragma omp parallel for
+			for( unsigned ix=0; ix<res_; ix+=4 )
+				for( unsigned iy=0; iy<res_; iy+=4 )
+					for( unsigned iz=0; iz<res_; iz+=4 )
+					{
+						if( ix>=2*ixoff1 && ix < 2*ixoff1+nx1
+						   && iy>=2*iyoff1 && iy < 2*iyoff1+ny1
+						   && iz>=2*izoff1 && iz < 2*izoff1+nz1 )
+						{
+							continue;
+						}
+						double avg = 0.0;//0.125*((*this)(ix,iy,iz)+(*this)(ix+1,iy,iz)+(*this)(ix,iy+1,iz)+(*this)(ix,iy,iz+1)+
+										 //(*this)(ix+1,iy+1,iz)+(*this)(ix+1,iy,iz+1)+(*this)(ix,iy+1,iz+1)+(*this)(ix+1,iy+1,iz+1));
+						for( int i=0; i<4; ++i )
+							for( int j=0; j<4; ++j )
+								for( int k=0; k<4; ++k )
+									avg += (*this)(ix+i,iy+j,iz+k);
+						avg /=4.*4.*4.;
+						
+						for( int i=0; i<4; ++i )
+							for( int j=0; j<4; ++j )
+								for( int k=0; k<4; ++k )
+									(*this)(ix+i,iy+j,iz+k) = avg;
+					}
+			
+			
+		}
 #endif
 		
 		
@@ -349,6 +431,14 @@ public:
 		ifs.read( reinterpret_cast<char*> (&iseed), sizeof(int) );
 		seed = (long)iseed;
 		
+		if( nx!=res_ || ny!=res_ || nz!=res_ )
+		{	
+			char errmsg[128];
+			sprintf(errmsg,"White noise file dimensions do not match level dimensions: %dx%dx%d vs. %d**3",nx,ny,nz,res_);
+			throw std::runtime_error(errmsg);
+			
+		}
+		
 		ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
 		
 		//... read data ...//
@@ -361,6 +451,7 @@ public:
 		else
 			throw std::runtime_error("corrupt random number file");
 		
+		ifs.seekg(-sizeof(int),std::ios::cur);
 			
 		std::vector<float> in_float;
 		std::vector<double> in_double;
@@ -375,6 +466,10 @@ public:
 		{
 			for( int ii=0; ii<(int)nz; ++ii )
 			{
+				ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
+				if( blksz != nx*ny*sizeof(float) )
+					throw std::runtime_error("corrupt random number file");
+				
 				in_float.assign(nx*ny,0.0f);
 				ifs.read( (char*)&in_float[0], nx*ny*sizeof(float) );
 				
@@ -385,12 +480,15 @@ public:
 						++count;
 						
 #ifdef RAND_DEBUG
-						(*rnums_[0])(ii,jj,kk) = 0.0;
+						(*rnums_[0])(kk,jj,ii) = 0.0;
 #else
-						(*rnums_[0])(ii,jj,kk) = in_float[q++];
+						(*rnums_[0])(kk,jj,ii) = in_float[q++];
 #endif
 						
 					}
+				ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
+				if( blksz != nx*ny*sizeof(float) )
+					throw std::runtime_error("corrupt random number file");
 				
 			}
 		}
@@ -398,6 +496,10 @@ public:
 		{
 			for( int ii=0; ii<(int)nz; ++ii )
 			{
+				ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
+				if( blksz != nx*ny*sizeof(double) )
+					throw std::runtime_error("corrupt random number file");
+				
 				in_double.assign(nx*ny,0.0f);				
 				ifs.read( (char*)&in_double[0], nx*ny*sizeof(double) );
 				
@@ -408,12 +510,16 @@ public:
 						sum2 += in_double[q]*in_double[q];
 						++count;
 #ifdef RAND_DEBUG						
-						(*rnums_[0])(ii,jj,kk) = 0.0;
+						(*rnums_[0])(kk,jj,ii) = 0.0;
 #else
-						(*rnums_[0])(ii,jj,kk) = in_double[q++];
+						(*rnums_[0])(kk,jj,ii) = in_double[q++];
 #endif
 						
 					}
+				ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
+				if( blksz != nx*ny*sizeof(double) )
+					throw std::runtime_error("corrupt random number file");
+				
 			}
 		}
 		
@@ -519,6 +625,7 @@ public:
 		kc = (int)((double)k/cubesize_ + ncubes_) % ncubes_;
 		
 		long icube = (ic*ncubes_+jc)*ncubes_+kc;
+		
 		if( rnums_[ icube ] == NULL )
 		{	
 			rnums_[ icube ] = new Meshvar<T>( cubesize_, 0, 0, 0 );

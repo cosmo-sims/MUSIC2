@@ -24,7 +24,209 @@
 #ifndef __MG_OPERATORS_HH
 #define __MG_OPERATORS_HH
 
+//! injection operator based Catmull-Rom splines with arbitrary refinement factor
+class mg_cubic_mult
+{
+protected:
+	template< typename real_t >
+	inline double CUBE( real_t x ) const
+	{ return x*x*x; }
+	
+	template< typename T >
+	inline T SQR( T x ) const
+	{ return x*x; }
+	
+public:
+	template<typename M >
+	inline double interp_cubic( double dx, double dy, double dz, M& V, int ox, int oy, int oz ) const
+	{
+		register int	i, j, k;
+		double           u[4], v[4], w[4];
+		double           r[4], q[4];
+		double           vox = 0;
+		
+		int sx=0,sy=0,sz=0;
+		if( dx > 0.0 ) sx=1;
+		if( dy > 0.0 ) sy=1;
+		if( dz > 0.0 ) sz=1;
+		
+		
+		if( dx > 0 )
+		{	
+			w[0] = -0.5*CUBE(dx)+SQR(dx)-0.5*dx;
+			w[1] = 1.5*CUBE(dx)-2.5*SQR(dx)+1.0;
+			w[2] = -1.5*CUBE(dx)+2.0*SQR(dx)+0.5*dx;
+			w[3] = 0.5*CUBE(dx)-0.5*SQR(dx);
+		} else {
+			w[0] = -0.5*CUBE(dx)-0.5*SQR(dx);
+			w[1] = 1.5*CUBE(dx)+2.0*SQR(dx)-0.5*dx;
+			w[2] = -1.5*CUBE(dx)-2.5*SQR(dx)+1.0;
+			w[3] = 0.5*CUBE(dx)+SQR(dx)+0.5*dx;
+		}
+		
+		if( dy > 0 )
+		{
+			v[0] = -0.5*CUBE(dy)+SQR(dy)-0.5*dy;
+			v[1] = 1.5*CUBE(dy)-2.5*SQR(dy)+1.0;
+			v[2] = -1.5*CUBE(dy)+2.0*SQR(dy)+0.5*dy;
+			v[3] = 0.5*CUBE(dy)-0.5*SQR(dy);
+		} else {
+			v[0] = -0.5*CUBE(dy)-0.5*SQR(dy);
+			v[1] = 1.5*CUBE(dy)+2.0*SQR(dy)-0.5*dy;
+			v[2] = -1.5*CUBE(dy)-2.5*SQR(dy)+1.0;
+			v[3] = 0.5*CUBE(dy)+SQR(dy)+0.5*dy;
+		}
+		
+		if( dz > 0 )
+		{
+			u[0] = -0.5*CUBE(dz)+SQR(dz)-0.5*dz;
+			u[1] = 1.5*CUBE(dz)-2.5*SQR(dz)+1.0;
+			u[2] = -1.5*CUBE(dz)+2.0*SQR(dz)+0.5*dz;
+			u[3] = 0.5*CUBE(dz)-0.5*SQR(dz);
+		} else {
+			u[0] = -0.5*CUBE(dz)-0.5*SQR(dz);
+			u[1] = 1.5*CUBE(dz)+2.0*SQR(dz)-0.5*dz;
+			u[2] = -1.5*CUBE(dz)-2.5*SQR(dz)+1.0;
+			u[3] = 0.5*CUBE(dz)+SQR(dz)+0.5*dz;
+		}
+		
+		for (k = 0; k < 4; k++)
+		{
+			q[k] = 0;
+			for (j = 0; j < 4; j++)
+			{
+				r[j] = 0;
+				for (i = 0; i < 4; i++)
+				{
+					r[j] += u[i] * V(ox+k-2+sx,oy+j-2+sy,oz+i-2+sz);
+				}
+				q[k] += v[j] * r[j];
+			}
+			vox += w[k] * q[k];
+		}
+		
+		return vox;
+		
+	}
+	
+	
+	template< typename m1, typename m2 >
+	inline void prolong( m1& V, m2& v, int oxc, int oyc, int ozc, int oxf, int oyf, int ozf, int R ) const
+	{
+		int N = (int)pow(2,R);
+		int Nl= -N/2+1, Nr=N/2;
+		double dx = 1.0/(double)N;
+		
+		
+		int nx = v.size(0), ny = v.size(1), nz = v.size(2);
+		
+		
+		double finemean = 0.0, coarsemean = 0.0;
+		unsigned finecount = 0, coarsecount = 0;
+		
+		#pragma omp parallel for reduction(+:finemean,finecount,coarsemean,coarsecount)
+		for( int i=0; i<nx; ++i )
+			for( int j=0; j<ny; ++j )
+				for( int k=0; k<nz; ++k )
+				{
+					//determine the coarse cell index
+					int iic,jjc,kkc;
+					
+					iic = (int)(dx*(double)(oxf+i)-oxc);
+					jjc = (int)(dx*(double)(oyf+j)-oyc);
+					kkc = (int)(dx*(double)(ozf+k)-ozc);
+					
+					double xc,yc,zc,xf,yf,zf;
+					
+					xc = iic+0.5;
+					yc = jjc+0.5;
+					zc = kkc+0.5;
+					
+					xf = (dx*(double)(oxf+i+Nl)-oxc)-0.5*dx + 0.5;
+					yf = (dx*(double)(oyf+j+Nl)-oyc)-0.5*dx + 0.5;
+					zf = (dx*(double)(ozf+k+Nl)-ozc)-0.5*dx + 0.5;
+					
+					double val = interp_cubic(xf-xc,yf-yc,zf-zc,V,iic,jjc,kkc);
+					
+					v(i,j,k) = val;
+					
+					finemean += val; finecount++;
+					coarsemean += V(iic,jjc,kkc); coarsecount++;
+				}
+		
+		coarsemean /= coarsecount;
+		finemean /= finecount;
+		
+		
+		//... subtract the mean difference caused by interpolation
+		double dmean = coarsemean-finemean;
+		
+		/*#pragma omp parallel for
+		for( int i=0; i<nx; ++i )
+			for( int j=0; j<ny; ++j )
+				for( int k=0; k<nz; ++k )
+					v(i,j,k) += dmean;*/
+	}
+	
+	template< typename m1, typename m2 >
+	inline void prolong_add( m1& V, m2& v, int oxc, int oyc, int ozc, int oxf, int oyf, int ozf, int R ) const
+	{
+		int N = (int)pow(2,R);
+		int Nl= -N/2+1, Nr=N/2;
+		double dx = 1.0/(double)N;
+		
+		int nx = v.size(0), ny = v.size(1), nz = v.size(2);
+		
+		double finemean = 0.0, coarsemean = 0.0;
+		unsigned finecount = 0, coarsecount = 0;
+		
+		#pragma omp parallel for reduction(+:finemean,finecount,coarsemean,coarsecount)
+		for( int i=0; i<nx; ++i )
+			for( int j=0; j<ny; ++j )
+				for( int k=0; k<nz; ++k )
+				{
+					//determine the coarse cell index
+					int iic,jjc,kkc;
+					
+					iic = (int)(dx*(double)(oxf+i)-oxc);
+					jjc = (int)(dx*(double)(oyf+j)-oyc);
+					kkc = (int)(dx*(double)(ozf+k)-ozc);
+					
+					double xc,yc,zc,xf,yf,zf;
+					
+					xc = iic+0.5;
+					yc = jjc+0.5;
+					zc = kkc+0.5;
+					
+					xf = (dx*(double)(oxf+i+Nl)-oxc)-0.5*dx + 0.5;
+					yf = (dx*(double)(oyf+j+Nl)-oyc)-0.5*dx + 0.5;
+					zf = (dx*(double)(ozf+k+Nl)-ozc)-0.5*dx + 0.5;
+					
+					double val = interp_cubic(xf-xc,yf-yc,zf-zc,V,iic,jjc,kkc); 
+					
+					v(i,j,k) += val;
+					
+					finemean += val; finecount++;
+					coarsemean += V(iic,jjc,kkc); coarsecount++;
+				}
+		
+		coarsemean /= coarsecount;
+		finemean /= finecount;
+		
+		double dmean = coarsemean-finemean;
+		
+		/*//... subtract the mean difference caused by interpolation
+		#pragma omp parallel for
+		for( int i=0; i<nx; ++i )
+			for( int j=0; j<ny; ++j )
+				for( int k=0; k<nz; ++k )
+					v(i,j,k) += dmean;
+		*/		
+	}
+};
 
+
+//! injection operator based on Catmull-Rom splines
 class mg_cubic
 {
 protected:

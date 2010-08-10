@@ -645,10 +645,27 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			delete top;			
 			
 			//... restrict these contributions to the next level
-			delta.add_patch( refh.offset(levelmin+1,0), refh.offset(levelmin+1,1), refh.offset(levelmin+1,2), 
-							refh.size(levelmin+1,0), refh.size(levelmin+1,1), refh.size(levelmin+1,2) );
 			
-			mg_cubic().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
+			for( int j=1; j<=levelmax-levelmin; ++j )
+			{
+				int R = j;
+				delta.add_patch( refh.offset(levelmin+j,0), refh.offset(levelmin+j,1), refh.offset(levelmin+j,2), 
+									refh.size(levelmin+j,0), refh.size(levelmin+j,1), refh.size(levelmin+j,2) );
+			
+				mg_cubic_mult().prolong( delta_longrange, *delta.get_grid(levelmin+j),
+										refh.offset_abs(levelmin,0), refh.offset_abs(levelmin,1), refh.offset_abs(levelmin,2),
+										refh.offset_abs(levelmin+j,0), refh.offset_abs(levelmin+j,1), refh.offset_abs(levelmin+j,2), R);
+										
+																		  
+			}
+			
+			
+			
+			//delta.add_patch( refh.offset(levelmin+1,0), refh.offset(levelmin+1,1), refh.offset(levelmin+1,2), 
+			//				refh.size(levelmin+1,0), refh.size(levelmin+1,1), refh.size(levelmin+1,2) );
+			
+			//mg_cubic().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
+			
 					
 		}
 		else
@@ -659,10 +676,10 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmin+i << " ..." << std::endl;
 			
-			delta.add_patch( refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
-							refh.size(levelmin+i+1,0), refh.size(levelmin+i+1,1), refh.size(levelmin+i+1,2) );
+			//delta.add_patch( refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
+			//				refh.size(levelmin+i+1,0), refh.size(levelmin+i+1,1), refh.size(levelmin+i+1,2) );
 			
-			mg_cubic().prolong( *delta.get_grid(levelmin+i), *delta.get_grid(levelmin+i+1) );
+			//mg_cubic().prolong( *delta.get_grid(levelmin+i), *delta.get_grid(levelmin+i+1) );
 			
 			real_t dx,lx,ly,lz;
 			dx = boxlength/pow(2.0,levelmin+i);
@@ -704,7 +721,21 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			meshvar_bnd delta_longrange( *delta.get_grid(levelmin+i) );
 			coarse->copy_unpad( delta_longrange );
-			mg_cubic().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
+			
+			for( int j=1; j<=levelmax-levelmin-i; ++j )
+			{
+				int R = j;
+				//delta.add_patch( refh.offset(levelmin+i+j,0), refh.offset(levelmin+i+j,1), refh.offset(levelmin+i+j,2), 
+				//				refh.size(levelmin+i+j,0), refh.size(levelmin+i+j,1), refh.size(levelmin+i+j,2) );
+				
+				mg_cubic_mult().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+j),
+										refh.offset_abs(levelmin+i,0), refh.offset_abs(levelmin+i,1), refh.offset_abs(levelmin+i,2),
+										refh.offset_abs(levelmin+i+j,0), refh.offset_abs(levelmin+i+j,1), refh.offset_abs(levelmin+i+j,2), R);
+				
+				
+			}
+			
+			//mg_cubic().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
 			
 
 			//... 3) the coarse-grid correction

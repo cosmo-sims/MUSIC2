@@ -53,7 +53,6 @@ namespace convolution{
 	template< typename real_t >
 	void perform( kernel * pk, void *pd )
 	{
-
 		parameters cparam_ = pk->cparam_;
 		double fftnorm = pow(2.0*M_PI,1.5)/sqrt(cparam_.lx*cparam_.ly*cparam_.lz)/sqrt((double)(cparam_.nx*cparam_.ny*cparam_.nz));
 		
@@ -336,9 +335,9 @@ namespace convolution{
 							}
 						}*/
 						
-						double kkmax = kmax / pow(2,cparam_.coarse_fact);
+						double kkmax = kmax;// / pow(2,cparam_.coarse_fact);
 							
-						if( cparam_.is_finest||cparam_.smooth )
+						if( true )//cparam_.is_finest||cparam_.smooth )
 						{
 							
 							//... deconvolve with grid-cell (NGP) kernel

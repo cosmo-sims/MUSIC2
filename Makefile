@@ -1,6 +1,6 @@
 ##############################################################################
 ### compile time configuration options
-MULTITHREADFFTW	= yes
+MULTITHREADFFTW	= no
 SINGLEPRECISION	= no
 HAVEHDF5        = yes
 
@@ -8,7 +8,7 @@ HAVEHDF5        = yes
 ### compiler and path settings
 CC      = g++
 OPT     = -O3 -msse2
-CFLAGS  = -Wall -fopenmp 
+CFLAGS  = -fopenmp 
 LFLAGS  = -fopenmp -lgsl -lgslcblas 
 CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
 LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib

@@ -433,7 +433,7 @@ public:
 	PaddedDensitySubGrid( int ox, int oy, int oz, unsigned nx, unsigned ny, unsigned nz)
 	: DensityGrid<real_t>(2*nx,2*ny,2*nz), ox_(ox), oy_(oy), oz_(oz)
 	{
-		if( ox-nx/4 < 0 || oy-ny/4 < 0 || oz-nz/4 < 0 )
+		if( ox-(int)nx/4 < 0 || oy-(int)ny/4 < 0 || oz-(int)nz/4 < 0 )
 			throw std::runtime_error("subgrid extends across top grid");
 		
 		//.. the size in top grid cells is nx/2,ny/2,nz/2, so padding starts at ox-nx/4...

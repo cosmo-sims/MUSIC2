@@ -434,7 +434,7 @@ public:
 		if( nx!=res_ || ny!=res_ || nz!=res_ )
 		{	
 			char errmsg[128];
-			sprintf(errmsg,"White noise file dimensions do not match level dimensions: %dx%dx%d vs. %d**3",nx,ny,nz,res_);
+			sprintf(errmsg,"White noise file dimensions do not match level dimensions: %ux%ux%u vs. %u**3",nx,ny,nz,res_);
 			throw std::runtime_error(errmsg);
 			
 		}

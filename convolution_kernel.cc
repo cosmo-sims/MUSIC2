@@ -225,14 +225,14 @@ namespace convolution{
 														rrr[2] = rr[2]+(double)kkk*0.5*dx - 0.25*dx;
 														rrr2[2]= rrr[2]*rrr[2];
 														rr2 = rrr2[0]+rrr2[1]+rrr2[2];
-														kdata_[idx] += tfr->compute_real(rr2)/rf8;	
+														kdata_[idx] += (fftw_real)(tfr->compute_real(rr2)/rf8);	
 													}
 												}
 											}
 											
 										}else{
 											rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-											kdata_[idx] += tfr->compute_real(rr2);
+											kdata_[idx] += (fftw_real)tfr->compute_real(rr2);
 										}
 									}
 								}
@@ -275,14 +275,14 @@ namespace convolution{
 										rrr[2] = rr[2]+(double)kkk*0.5*dx - 0.25*dx;
 										rrr2[2]= rrr[2]*rrr[2];
 										rr2 = rrr2[0]+rrr2[1]+rrr2[2];
-										kdata_[idx] += tfr->compute_real(rr2)/rf8;	
+										kdata_[idx] += (fftw_real)(tfr->compute_real(rr2)/rf8);	
 									}
 								}
 							}
 							
 						}else{
 							rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-							kdata_[idx] += tfr->compute_real(rr2);
+							kdata_[idx] += (fftw_real)tfr->compute_real(rr2);
 						}
 					}
 		}
@@ -477,7 +477,8 @@ namespace convolution{
 		
 		delete tfk;
 	}
-};
+}
+
 	
 namespace{
 	convolution::kernel_creator_concrete< convolution::kernel_real<double> > creator_d("tf_kernel_real_double");

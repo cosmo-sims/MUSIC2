@@ -868,7 +868,7 @@ class refinement_hierarchy
 	unsigned levelmin_, levelmax_, padding_;
 	config_file& cf_;
 	bool align_top_;
-	float x0ref_[3], lxref_[3];
+	double x0ref_[3], lxref_[3];
 	int xshift_[3];
 	
 public:
@@ -894,10 +894,10 @@ public:
 		std::string temp;
 		
 		temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
-		sscanf( temp.c_str(), "%g,%g,%g", &x0ref_[0], &x0ref_[1], &x0ref_[2] ); 
+		sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] ); 
 		
 		temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
-		sscanf( temp.c_str(), "%g,%g,%g", &lxref_[0],&lxref_[1],&lxref_[2] );
+		sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
 		
 		unsigned ncoarse = (unsigned)pow(2,levelmin_);
 		
@@ -1133,7 +1133,7 @@ public:
 			}
 		}
 		
-		if( old_levelmin != levelmin_ )
+		if( old_levelmin != levelmin_ & print)
 			std::cerr << " - refinement_hierarchy: set new levelmin to " << levelmin_ << std::endl;
 	}
 	

@@ -114,7 +114,7 @@ public:
 	inline void prolong( m1& V, m2& v, int oxc, int oyc, int ozc, int oxf, int oyf, int ozf, int R ) const
 	{
 		int N = (int)pow(2,R);
-		int Nl= -N/2+1, Nr=N/2;
+		int Nl= -N/2+1;//, Nr=N/2;
 		double dx = 1.0/(double)N;
 		
 		
@@ -159,7 +159,7 @@ public:
 		
 		
 		//... subtract the mean difference caused by interpolation
-		double dmean = coarsemean-finemean;
+		//double dmean = coarsemean-finemean;
 		
 		/*#pragma omp parallel for
 		for( int i=0; i<nx; ++i )
@@ -172,7 +172,7 @@ public:
 	inline void prolong_add( m1& V, m2& v, int oxc, int oyc, int ozc, int oxf, int oyf, int ozf, int R ) const
 	{
 		int N = (int)pow(2,R);
-		int Nl= -N/2+1, Nr=N/2;
+		int Nl= -N/2+1;//, Nr=N/2;
 		double dx = 1.0/(double)N;
 		
 		int nx = v.size(0), ny = v.size(1), nz = v.size(2);
@@ -213,7 +213,7 @@ public:
 		coarsemean /= coarsecount;
 		finemean /= finecount;
 		
-		double dmean = coarsemean-finemean;
+		//double dmean = coarsemean-finemean;
 		
 		/*//... subtract the mean difference caused by interpolation
 		#pragma omp parallel for
@@ -243,14 +243,14 @@ public:
 	inline double interp_cubic( int x, int y, int z, M& V, double s=1.0 ) const
 	{
 		int				i, j, k;
-		double           dx, dy, dz;
+		//double           dx, dy, dz;
 		double           u[4], v[4], w[4];
 		double           r[4], q[4];
 		double           vox = 0;
 		
-		dx = 0.5*((double)sz - 0.5)*s;
-		dy = 0.5*((double)sy - 0.5)*s;
-		dz = 0.5*((double)sx - 0.5)*s;
+		//dx = 0.5*((double)sz - 0.5)*s;
+		//dy = 0.5*((double)sy - 0.5)*s;
+		//dz = 0.5*((double)sx - 0.5)*s;
 				
 		if( sz == 1 )
 		{	

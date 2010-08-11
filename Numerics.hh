@@ -129,7 +129,7 @@ public:
 		
 		h=xx[khi]-xx[klo]; 
 		
-		if (h == 0.0) throw("Bad input to routine splint"); 
+		if (fabs(h) < 1e-10) throw("Bad input to routine splint"); 
 		
 		a=(xx[khi]-x)/h;
 		b=(x-xx[klo])/h;

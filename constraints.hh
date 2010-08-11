@@ -53,11 +53,11 @@ public:
 		{
 			char temp1[128];
 			std::string temp2;
-			sprintf(temp1,"constraint[%d]",i);
+			sprintf(temp1,"constraint[%u]",i);
 			if( cf.containsKey( "constraints", temp1 ) )
 			{
 				temp2				= cf.getValue<std::string>( "constraints", temp1 );
-				sscanf( temp2.c_str(), "%f,%f,%f,%d,%f", &tf0, &tf1, &tf2, &ti, &tf3 ); 
+				sscanf( temp2.c_str(), "%f,%f,%f,%u,%f", &tf0, &tf1, &tf2, &ti, &tf3 ); 
 				constraint new_c;
 				new_c.x = tf0;
 				new_c.y = tf1;

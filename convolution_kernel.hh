@@ -100,7 +100,7 @@ namespace convolution{
 	template< typename real_t >
 	void perform( kernel* pk, void *pd );
 
-}; //namespace convolution
+} //namespace convolution
 
 
 	

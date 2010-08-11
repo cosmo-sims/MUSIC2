@@ -305,11 +305,11 @@ protected:
 			out[i].re = cu.real();
 			out[i].im = cu.imag();
 			
-			if( (out[i].re != out[i].re)||(out[i].im != out[i].im) )
+			/*if( (out[i].re != out[i].re)||(out[i].im != out[i].im) )
 			{	std::cerr << "NaN @ i=" << i << ", U= " << U << ", phase = " << phase << ", g1 = " << g1 << ", g2 = " << g2 << std::endl;
 				std::cerr << "mu+1+q = " << mu+1.0+q << std::endl;
 				//break;
-			}
+			}*/
 			
 #endif
 

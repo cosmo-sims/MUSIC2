@@ -355,7 +355,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	
 	
 	//... if random numbers are not given for lower levels, obtain them by averaging
-	if( lmingiven >= (int)levelmin )
+	//if( lmingiven >= (int)levelmin )
+	if( lmingiven > (int)levelmin )
 	{
 		randc[lmingiven] = new random_numbers<real_t>( (unsigned)pow(2,lmingiven), ran_cube_size, rngseeds[lmingiven], true );//, x0, lx );
 		
@@ -371,21 +372,19 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	//... if random seeds are given for levels coarser than levelmin, use them as constraints
 	if( lmingiven < (int)levelmin && !(lmaxread>=(int)levelmin) )
 	{
-		throw std::runtime_error("You provided a seed for a level below levelmin, this is not supported yet.");
-		
 		randc[lmingiven] = new random_numbers<real_t>( (unsigned)pow(2,lmingiven), ran_cube_size, rngseeds[lmingiven], true );//, x0, lx );
 		
 		for( int ilevel = lmingiven+1; ilevel <= (int)levelmin; ++ilevel )
 		{
 			long seed = rngseeds[ilevel];
 			if( seed <= 0 )
-				seed = rngseeds[lmingiven+ilevel];
+				seed = rngseeds[lmingiven]+ilevel;
 			
-			randc[ilevel] = new random_numbers<real_t>( *randc[ilevel-1] );
+			randc[ilevel] = new random_numbers<real_t>( *randc[ilevel-1], ran_cube_size, seed, true );
+			
+			delete randc[ilevel-1];
+			randc[ilevel-1]=NULL;
 		}
-		
-		delete randc[lmingiven];
-		randc[lmingiven] = NULL;
 	}	
 	
 	//... create and initialize density grids with white noise	
@@ -512,12 +511,14 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		
 		if( i==0 )
 		{
+			int lfac = (int)pow(2,levelmin-levelminPoisson);
+			
 			top = new DensityGrid<real_t>( nbase, nbase, nbase );
 			
 			random_numbers<real_t> *rc;
-			int x0[3] = {	refh.offset_abs(levelmin,0)-shift[0], 
-				refh.offset_abs(levelmin,1)-shift[1], 
-				refh.offset_abs(levelmin,2)-shift[2] };
+			int x0[3] = {	refh.offset_abs(levelmin,0)-lfac*shift[0], 
+				refh.offset_abs(levelmin,1)-lfac*shift[1], 
+				refh.offset_abs(levelmin,2)-lfac*shift[2] };
 			
 			int lx[3] = {	refh.size(levelmin,0), 
 				refh.size(levelmin,1), 
@@ -525,13 +526,13 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			if( randc[levelmin] == NULL )
 			{	
-				std::cout << " - Creating new random numbers for level " << levelmin+1+i << std::endl;
-				rc = randc[levelmin] = new random_numbers<real_t>( nbase, ran_cube_size, rngseeds[levelmin], x0, lx );
+				std::cout << " - Creating new random numbers for level " << levelmin << std::endl;
+				rc = randc[levelmin] = new random_numbers<real_t>( nbase, ran_cube_size, rngseeds[levelmin], true );//x0, lx );
 			}
 			else
 				rc = randc[levelmin];
 			
-			top->fill_rand( rc, 1.0, -shift[0], -shift[1], -shift[2], true );
+			top->fill_rand( rc, 1.0, -lfac*shift[0], -lfac*shift[1], -lfac*shift[2], true );
 			delete rc;
 			randc[levelmin] = NULL;
 			
@@ -547,7 +548,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		{
 			random_numbers<real_t> *rc;
 			int x0[3],lx[3];
-			int lfac = (int)pow(2.0,i+1);
+			int lfac = (int)pow(2,levelmin+i+1-levelminPoisson);
+			
 			lx[0] = 2*refh.size(levelmin+i+1,0); 
 			lx[1] = 2*refh.size(levelmin+i+1,1); 
 			lx[2] = 2*refh.size(levelmin+i+1,2); 
@@ -559,7 +561,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			{	
 				std::cout << " - Creating new random numbers for level " << levelmin+1+i << std::endl;
 				rc = randc[levelmin+i+1] = new random_numbers<real_t>((unsigned)pow(2,levelmin+i+1), ran_cube_size, rngseeds[levelmin+i+1], x0, lx);
-				
 			}
 			else
 				rc = randc[levelmin+i+1];
@@ -567,7 +568,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			fine->fill_rand( rc, 1.0, x0[0], x0[1], x0[2], false );
 			
 				
-			if( i+levelmin+1 > (unsigned)lmingiven )
+			if( true )//i> 0 )//i+levelmin+1 > (unsigned)lmingiven )
 			{	
 				if(i==0)
 					fine->constrain( *top );

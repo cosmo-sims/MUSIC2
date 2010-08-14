@@ -41,6 +41,36 @@
 
 real_t integrate( double (* func) (double x, void * params), double a, double b, void *params=NULL);
 
+typedef __attribute__((__may_alias__)) int aint;
+
+inline float fast_log2 (float val)
+{
+	//if( sizeof(int) != sizeof(float) )
+	//	throw std::runtime_error("fast_log2 will fail on this system!!");
+	aint * const    exp_ptr = reinterpret_cast <aint *> (&val);
+	aint            x = *exp_ptr;
+	const int      log_2 = ((x >> 23) & 255) - 128;
+	x &= ~(255 << 23);
+	x += 127 << 23;
+	*exp_ptr = x;
+	
+	val = ((-1.0f/3) * val + 2) * val - 2.0f/3;   // (1)
+	
+	return (val + log_2);
+} 
+
+inline float fast_log (const float &val)
+{
+	return (fast_log2 (val) * 0.69314718f);
+} 
+
+inline float fast_log10 (const float &val)
+{
+	return (fast_log2 (val) * 0.3010299956639812f);
+} 
+
+
+
 struct Base_interp
 {
 	int n, mm, jsav, cor, dj; 

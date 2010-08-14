@@ -215,8 +215,8 @@ public:
 		
 		//double dmean = coarsemean-finemean;
 		
-		/*//... subtract the mean difference caused by interpolation
-		#pragma omp parallel for
+		//... subtract the mean difference caused by interpolation
+		/*#pragma omp parallel for
 		for( int i=0; i<nx; ++i )
 			for( int j=0; j<ny; ++j )
 				for( int k=0; k<nz; ++k )

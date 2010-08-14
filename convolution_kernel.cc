@@ -159,7 +159,7 @@ namespace convolution{
 		bool
 			bperiodic	= cparam_.pcf->getValueSafe<bool>("setup","periodic_TF",true);
 		
-		const int ref_fac = (int)(pow(2,cparam_.coarse_fact)+0.5), ql = -ref_fac/2+1, qr=ql+ref_fac, rf8=pow(ref_fac,3);
+		const int ref_fac = (int)(pow(2,cparam_.coarse_fact)+0.5), ql = -ref_fac/2+1, qr=ql+ref_fac, rf8=(int)pow(ref_fac,3);
 				
 		std::cout << "   - Computing transfer function kernel...\n";
 		
@@ -179,13 +179,15 @@ namespace convolution{
 		int nzp = cparam_.nz/2+1;
 		double kmax = 0.5*M_PI/std::max(cparam_.nx,std::max(cparam_.ny,cparam_.nz));
 		
+		T0 = tfr->compute_real(0.0);
+		
 		//... obtain a grid-version of the real space transfer function
 		if( bperiodic  )
-		{			
-			#pragma omp parallel for 
-			for( int i=0; i<cparam_.nx; ++i )
-				for( int j=0; j<cparam_.ny; ++j )
-					for( int k=0; k<cparam_.nz; ++k )
+		{		
+			#pragma omp parallel for //schedule(static,4)
+			for( int i=0; i<=cparam_.nx/2; ++i )
+				for( int j=0; j<=cparam_.ny/2; ++j )
+					for( int k=0; k<=cparam_.nz/2; ++k )
 					{
 						int iix(i), iiy(j), iiz(k);
 						double rr[3], rr2;
@@ -194,7 +196,25 @@ namespace convolution{
 						if( iiy > (int)cparam_.ny/2 ) iiy -= cparam_.ny;
 						if( iiz > (int)cparam_.nz/2 ) iiz -= cparam_.nz;
 						
-						unsigned idx = (i*cparam_.ny + j) * 2*(cparam_.nz/2+1) + k;
+						
+						//... speed up 8x by copying data to other octants
+						int idx[8];
+						int nx=cparam_.nx, ny = cparam_.ny, nz = cparam_.nz;
+						
+						idx[0] = ((i)*cparam_.ny + (j)) * 2*(cparam_.nz/2+1) + (k);
+						idx[1] = ((nx-i)*cparam_.ny + (j)) * 2*(cparam_.nz/2+1) + (k);
+						idx[2] = ((i)*cparam_.ny + (ny-j)) * 2*(cparam_.nz/2+1) + (k);
+						idx[3] = ((nx-i)*cparam_.ny + (ny-j)) * 2*(cparam_.nz/2+1) + (k);
+						idx[4] = ((i)*cparam_.ny + (j)) * 2*(cparam_.nz/2+1) + (nz-k);
+						idx[5] = ((nx-i)*cparam_.ny + (j)) * 2*(cparam_.nz/2+1) + (nz-k);
+						idx[6] = ((i)*cparam_.ny + (ny-j)) * 2*(cparam_.nz/2+1) + (nz-k);
+						idx[7] = ((nx-i)*cparam_.ny + (ny-j)) * 2*(cparam_.nz/2+1) + (nz-k);
+						
+						if(i==0||i==nx/2){ idx[1]=idx[3]=idx[5]=idx[7]=-1;}
+						if(j==0||j==ny/2){ idx[2]=idx[3]=idx[6]=idx[7]=-1;}
+						if(k==0||k==nz/2){ idx[4]=idx[5]=idx[6]=idx[7]=-1;}
+						
+						double val = 0.0;
 						
 						for( int ii=-1; ii<=1; ++ii )
 							for( int jj=-1; jj<=1; ++jj )
@@ -204,11 +224,11 @@ namespace convolution{
 									rr[1] = ((double)iiy ) * dy + jj*boxlength;
 									rr[2] = ((double)iiz ) * dz + kk*boxlength;
 									
-									if( rr[0] > -boxlength && rr[0] <= boxlength
-									 && rr[1] > -boxlength && rr[1] <= boxlength
-									 && rr[2] > -boxlength && rr[2] <= boxlength )
+									if( rr[0] > -boxlength && rr[0] < boxlength
+									 && rr[1] > -boxlength && rr[1] < boxlength
+									 && rr[2] > -boxlength && rr[2] < boxlength )
 									{
-										if( ref_fac > 1 )
+										if( ref_fac > 1 )//&& fabs(tfr->get_grad(rr2)*dx/T0) > 1e-4 )
 										{
 											double rrr[3];
 											register double rrr2[3];
@@ -225,19 +245,25 @@ namespace convolution{
 														rrr[2] = rr[2]+(double)kkk*0.5*dx - 0.25*dx;
 														rrr2[2]= rrr[2]*rrr[2];
 														rr2 = rrr2[0]+rrr2[1]+rrr2[2];
-														kdata_[idx] += (fftw_real)(tfr->compute_real(rr2)/rf8);	
+														val += tfr->compute_real(rr2)/rf8;
 													}
 												}
 											}
 											
 										}else{
 											rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+											val += tfr->compute_real(rr2);	
 											kdata_[idx] += (fftw_real)tfr->compute_real(rr2);
 										}
 									}
 								}
 						
-						kdata_[idx] *= fac;	
+						val *= fac;
+						
+						for(int q=0;q<8;++q)
+							if(idx[q]!=-1)  
+								kdata_[idx[q]] = val;
+						
 					}
 		}else{
 			#pragma omp parallel for

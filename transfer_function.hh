@@ -355,8 +355,8 @@ protected:
 		fftw_destroy_plan(p);
 		fftw_destroy_plan(ip);
 	}
-	std::vector<real_t> m_xtable,m_ytable;
-	double m_xmin, m_xmax, m_dx;
+	std::vector<real_t> m_xtable,m_ytable,m_dytable;
+	double m_xmin, m_xmax, m_dx, m_rdx;
 public:
 	TransferFunction_real( transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
 	{
@@ -399,15 +399,11 @@ public:
 		{
 			if( r[i] > rmin && r[i] < rmax )
 			{
-				xsp.push_back( log10(r[i]) );
+				xsp.push_back( r[i] );//log10(r[i]) );
 				ysp.push_back( T[i]*r[i]*r[i] );
 			}
 			
 		}
-		
-		
-		
-		
 		
 		accp = gsl_interp_accel_alloc ();
 
@@ -417,17 +413,24 @@ public:
 		//... set up everything for spline interpolation
 		gsl_spline_init (splinep, &xsp[0], &ysp[0], xsp.size() );
 		
-
-		
 		//.. build lookup table using spline interpolation
 		m_xmin = log10(rmin);
 		m_xmax = log10(rmax);
 		m_dx   = (m_xmax-m_xmin)/nr;
+		m_rdx  = 1.0/m_dx;
 		
 		for(unsigned i=0; i<nr; ++i )
 		{
 			m_xtable.push_back( m_xmin+i*m_dx );
 			m_ytable.push_back( gsl_spline_eval(splinep, (m_xtable.back()), accp) );
+		}
+		
+		for(unsigned i=0; i<nr-1; ++i )
+		{
+			real_t dy,dr;
+			dy = m_ytable[i+1]/pow(m_xtable[i+1],2)-m_ytable[i]/pow(m_xtable[i],2);
+			dr = pow(10.0,m_xtable[i+1])-pow(10.0,m_xtable[i]);
+			m_dytable.push_back(dy/dr);
 		}
 		
 		//... DEBUG: output of spline interpolated real space transfer function
@@ -457,7 +460,20 @@ public:
 	
 	~TransferFunction_real()
 	{ }
+
+	inline real_t get_grad( real_t r2 ) const
+	{
+		double r = 0.5*fast_log10(r2);
+		double ii = (r-m_xmin)*m_rdx;
+		int i = (int)ii;
+		
+		i=std::max(0,i);
+		i=std::min(i, (int)m_xtable.size()-2);
+		
+		return (real_t)m_dytable[i];
+	}
 	
+	//... fast version
 	inline real_t compute_real( real_t r2 ) const
 	{
 		const double EPS = 1e-8;
@@ -466,20 +482,22 @@ public:
 		if( r2 <Reps2 )
 			return Tr0_;
 		
-		double r=0.5*log10(r2);
-		double ii = (r-m_xmin)/m_dx;
+		double r = 0.5*fast_log10(r2);
+		//float r = 0.5f*log10f(r2);
+		
+		double ii = (r-m_xmin)*m_rdx;
 		int i = (int)ii;
 		
-		if( i < 0 ) i = 0;
-		else if( i >= (int)m_xtable.size()-1 ) i = m_xtable.size()-2;
+		i=std::max(0,i);
+		i=std::min(i, (int)m_xtable.size()-2);
 		
 		double y1,y2;
 		y1 = m_ytable[i];
 		y2 = m_ytable[i+1];
 		
+		//divide by r**2 because r^2 T is tabulated
 		return (real_t)((y1 + (y2-y1)*(ii-(double)i))/r2);
 	}
-
 };
 
 

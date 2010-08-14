@@ -143,7 +143,6 @@ protected:
 	//! initialize member variables and allocate memory
 	void initialize( void )
 	{
-		std::cerr << " - Generating random numbers w/ sample cube size of " << cubesize_ << std::endl;
 		
 		ncubes_ = std::max((int)((double)res_/cubesize_),1);
 		if( res_ < cubesize_ )
@@ -151,6 +150,8 @@ protected:
 			ncubes_ = 1;
 			cubesize_ = res_;
 		}
+		
+		std::cout << " - Generating random numbers w/ sample cube size of " << cubesize_ << std::endl;
 		
 		rnums_.assign( ncubes_*ncubes_*ncubes_, NULL );
 	}
@@ -382,6 +383,7 @@ public:
 	random_numbers( unsigned res, unsigned cubesize, long baseseed, int *x0, int *lx )
 	: res_( res ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
 	{
+		std::cout << " - Generating random numbers (1) with seed " << baseseed << std::endl;
 		initialize();
 		fill_subvolume( x0, lx );
 	}
@@ -390,6 +392,8 @@ public:
 	random_numbers( unsigned res, unsigned cubesize, long baseseed, bool zeromean=true )
 	: res_( res ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
 	{
+		std::cout << " - Generating random numbers (2) with seed " << baseseed << std::endl;
+		
 		double mean = 0.0;
 		initialize();
 		mean = fill_all();
@@ -482,7 +486,7 @@ public:
 #ifdef RAND_DEBUG
 						(*rnums_[0])(kk,jj,ii) = 0.0;
 #else
-						(*rnums_[0])(kk,jj,ii) = in_float[q++];
+						(*rnums_[0])(kk,jj,ii) = -in_float[q++];
 #endif
 						
 					}
@@ -512,7 +516,7 @@ public:
 #ifdef RAND_DEBUG						
 						(*rnums_[0])(kk,jj,ii) = 0.0;
 #else
-						(*rnums_[0])(kk,jj,ii) = in_double[q++];
+						(*rnums_[0])(kk,jj,ii) = -in_double[q++];
 #endif
 						
 					}
@@ -535,6 +539,47 @@ public:
 		
 	}
 	
+	//... create constrained new field
+	random_numbers( random_numbers<T>& rc, unsigned cubesize, long baseseed, bool zeromean=true )
+	: res_( 2*rc.res_ ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
+	{
+		double mean = 0.0;
+		initialize();
+		mean = fill_all();
+		
+		if( zeromean )
+		{
+			for(unsigned i=0; i<res_; ++i )
+				for( unsigned j=0; j<res_; ++j )
+					for( unsigned k=0; k<res_; ++k )
+						(*this)(i,j,k) -= mean;
+		}
+		
+		std::cout << " - Generating a constrained random number set with seed " << baseseed << "...\n";
+		
+		double fac = 1./sqrt(8.0);
+		
+		for( unsigned i=0,ii=0; i<res_; i+=2,++ii )
+			for( unsigned j=0,jj=0; j<res_; j+=2,++jj )
+				for( unsigned k=0,kk=0; k<res_; k+=2,++kk )
+				{
+					double topval = rc(ii,jj,kk);
+					double locmean = 0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)+
+											 (*this)(i+1,j+1,k)+(*this)(i+1,j,k+1)+(*this)(i,j+1,k+1)+(*this)(i+1,j+1,k+1));
+					double dif = fac*topval-locmean;
+					
+					(*this)(i,j,k) += dif;
+					(*this)(i+1,j,k) += dif;
+					(*this)(i,j+1,k) += dif;
+					(*this)(i,j,k+1) += dif;
+					(*this)(i+1,j+1,k) += dif;
+					(*this)(i+1,j,k+1) += dif;
+					(*this)(i,j+1,k+1) += dif;
+					(*this)(i+1,j+1,k+1) += dif;
+					
+				}
+	}
+
 	//... copy construct by averaging down
 	explicit random_numbers( /*const*/ random_numbers <T>& rc )
 	{

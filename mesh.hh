@@ -865,7 +865,7 @@ class refinement_hierarchy
 	std::vector<double> x0_,y0_,z0_,xl_,yl_,zl_;
 	std::vector<unsigned> ox_,oy_,oz_,oax_,oay_,oaz_;
 	std::vector<unsigned> nx_,ny_,nz_;
-	unsigned levelmin_, levelmax_, padding_;
+	unsigned levelmin_, levelmax_, levelmin_tf_, padding_;
 	config_file& cf_;
 	bool align_top_;
 	double x0ref_[3], lxref_[3];
@@ -885,6 +885,7 @@ public:
 		//... query the parameter data we need
 		levelmin_	= cf_.getValue<unsigned>("setup","levelmin");
 		levelmax_	= cf_.getValue<unsigned>("setup","levelmax");
+		levelmin_tf_= cf_.getValueSafe<unsigned>("setup","levelmin_TF",levelmin_);
 		padding_	= cf_.getValue<unsigned>("setup","padding");
 		align_top_	= cf_.getValue<bool>("setup","align_top");
 		
@@ -899,7 +900,9 @@ public:
 		temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
 		sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
 		
-		unsigned ncoarse = (unsigned)pow(2,levelmin_);
+		unsigned 
+			ncoarse = (unsigned)pow(2,levelmin_);
+			//ncoarse_tf = (unsigned)pow(2,levelmin_tf_);
 		
 		//... determine shift
 

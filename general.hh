@@ -24,6 +24,7 @@
 #ifndef __GENERAL_HH
 #define __GENERAL_HH
 
+#include "log.hh"
 
 #include <omp.h>
 

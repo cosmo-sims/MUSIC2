@@ -1191,8 +1191,8 @@ public:
 			<< "                   size   = (" << std::setw(5) << nx_[ilevel] << ", " << std::setw(5) << ny_[ilevel] << ", " << std::setw(5) << nz_[ilevel] << ")\n";
 		}
 		std::cout << "-------------------------------------------------------------\n";
-		
 	}
+	
 };
 
 #endif

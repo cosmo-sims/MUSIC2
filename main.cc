@@ -48,7 +48,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.4.0a"
+#define THE_CODE_VERSION "0.5.0a"
 
 
 namespace music
@@ -272,6 +272,11 @@ int main (int argc, const char * argv[])
 		exit(0);
 	}
 	
+	//... open log file
+	char logfname[128];
+	sprintf(logfname,"%s_log.txt",argv[1]);
+	MUSIC::log::setOutput(logfname);
+	LOGINFO(std::string("Opening log file '")+logfname+"'.")
 	
 	/******************************************************************************************************/
 	/* read and interpret config file *********************************************************************/
@@ -285,7 +290,7 @@ int main (int argc, const char * argv[])
 	boxlength           = cf.getValue<double>( "setup", "boxlength" );
 	lbase				= cf.getValue<unsigned>( "setup", "levelmin" );
 	lmax				= cf.getValue<unsigned>( "setup", "levelmax" );
-	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelminTF", lbase );
+	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelmin_TF", lbase );
 	force_shift			= cf.getValueSafe<bool>("setup", "force_shift", force_shift );
 	
 	
@@ -296,8 +301,11 @@ int main (int argc, const char * argv[])
 	{
 		std::cout << " - WARNING: levelminTF < levelmin. This is not good!\n"
 				  << "            I will set levelminTF = levelmin.\n";
+		
+		LOGUSER("levelminTF < levelmin. set levelminTF = levelmin.");
+		
 		lbaseTF = lbase;
-		cf.insertValue("setup","levelminTF",cf.getValue<std::string>("setup","levelmin"));
+		cf.insertValue("setup","levelmin_TF",cf.getValue<std::string>("setup","levelmin"));
 	}
 	
 	temp				= cf.getValue<std::string>( "setup", "ref_offset" );
@@ -409,11 +417,13 @@ int main (int argc, const char * argv[])
 	try{
 		if( ! do_2LPT )
 		{
+			LOGUSER("Entering 1LPT branch")
+			
 			//... cdm density and displacements
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
 			std::cout << "-------------------------------------------------------------\n";
-			
+			LOGUSER("Computing dark matter displacements...")
 			
 			grid_hierarchy f( nbnd ), u(nbnd);
 			
@@ -449,6 +459,7 @@ int main (int argc, const char * argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON DENSITY\n";
 				std::cout << "-------------------------------------------------------------\n";
+				LOGUSER("Computing baryon density...")
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f, false, true );
 				coarsen_density(rh_Poisson, f);
@@ -468,6 +479,7 @@ int main (int argc, const char * argv[])
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING VELOCITIES\n";
 			std::cout << "-------------------------------------------------------------\n";
+			LOGUSER("Computing velocitites...")
 			
 			//... velocities
 			if( do_baryons )
@@ -496,11 +508,14 @@ int main (int argc, const char * argv[])
 		
 		}else {
 			//.. use 2LPT ...
+			LOGUSER("Entering 2LPT branch")
+			
 			grid_hierarchy f( nbnd ), u1(nbnd), u2(nbnd);
 			
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING VELOCITIES\n";
 			std::cout << "-------------------------------------------------------------\n";	
+			LOGUSER("Computing velocities...")
 			
 			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true, false );
 			coarsen_density(rh_Poisson, f);
@@ -548,7 +563,8 @@ int main (int argc, const char * argv[])
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
 			std::cout << "-------------------------------------------------------------\n";
-		
+			LOGUSER("Computing dark matter displacements...")
+			
 			
 			//...
 			//u1 += u2;
@@ -592,6 +608,7 @@ int main (int argc, const char * argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON DENSITY\n";
 				std::cout << "-------------------------------------------------------------\n";
+				LOGUSER("Computing baryon density...")
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f, false, true );
 				coarsen_density(rh_Poisson, f);
@@ -650,7 +667,7 @@ int main (int argc, const char * argv[])
 	
 	/** we are done ! **/
 	std::cout << " - Done!" << std::endl << std::endl;
-	
+	LOGUSER("Done");
 	
 	///*****************************************///
 	

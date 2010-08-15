@@ -516,13 +516,13 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			top = new DensityGrid<real_t>( nbase, nbase, nbase );
 			
 			random_numbers<real_t> *rc;
-			int x0[3] = {	refh.offset_abs(levelmin,0)-lfac*shift[0], 
+			/*int x0[3] = {	refh.offset_abs(levelmin,0)-lfac*shift[0], 
 				refh.offset_abs(levelmin,1)-lfac*shift[1], 
 				refh.offset_abs(levelmin,2)-lfac*shift[2] };
 			
 			int lx[3] = {	refh.size(levelmin,0), 
 				refh.size(levelmin,1), 
-				refh.size(levelmin,2) };
+				refh.size(levelmin,2) };*/
 			
 			if( randc[levelmin] == NULL )
 			{	
@@ -647,7 +647,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			//... restrict these contributions to the next level
 			
-			for( int j=1; j<=levelmax-levelmin; ++j )
+			for( int j=1; j<=(int)levelmax-(int)levelmin; ++j )
 			{
 				int R = j;
 				delta.add_patch( refh.offset(levelmin+j,0), refh.offset(levelmin+j,1), refh.offset(levelmin+j,2), 
@@ -723,7 +723,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			meshvar_bnd delta_longrange( *delta.get_grid(levelmin+i) );
 			coarse->copy_unpad( delta_longrange );
 			
-			for( int j=1; j<=levelmax-levelmin-i; ++j )
+			for( int j=1; j<=(int)levelmax-(int)levelmin-i; ++j )
 			{
 				int R = j;
 				//delta.add_patch( refh.offset(levelmin+i+j,0), refh.offset(levelmin+i+j,1), refh.offset(levelmin+i+j,2), 

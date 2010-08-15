@@ -253,7 +253,6 @@ namespace convolution{
 										}else{
 											rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
 											val += tfr->compute_real(rr2);	
-											kdata_[idx] += (fftw_real)tfr->compute_real(rr2);
 										}
 									}
 								}

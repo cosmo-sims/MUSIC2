@@ -399,7 +399,8 @@ public:
 		{
 			if( r[i] > rmin && r[i] < rmax )
 			{
-				xsp.push_back( r[i] );//log10(r[i]) );
+				//xsp.push_back( r[i] );//log10(r[i]) );
+				xsp.push_back( log10(r[i]) );
 				ysp.push_back( T[i]*r[i]*r[i] );
 			}
 			
@@ -482,7 +483,8 @@ public:
 		if( r2 <Reps2 )
 			return Tr0_;
 		
-		double r = 0.5*fast_log10(r2);
+		double r = 0.5*log10(r2);
+		//double r = 0.5*fast_log10(r2);
 		//float r = 0.5f*log10f(r2);
 		
 		double ii = (r-m_xmin)*m_rdx;

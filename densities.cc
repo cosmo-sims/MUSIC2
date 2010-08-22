@@ -218,7 +218,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	conv_param.is_finest = true;
 	conv_param.smooth = smooth;
 	
-	convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
+	convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param, type );
 	convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
 	delete the_tf_kernel;
 	
@@ -492,7 +492,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		conv_param.is_finest = true;
 		conv_param.smooth = smooth;
 		
-		convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
+		convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param, type );
 		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
 		delete the_tf_kernel;
 		
@@ -622,7 +622,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			conv_param.deconvolve = bdeconvolve;
 			conv_param.is_finest = false;
 			conv_param.smooth = smooth;
-			convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
+			convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param, type );
 			
 			
 			//... 1) compute standard convolution for levelmin
@@ -702,7 +702,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			conv_param.is_finest = false;
 			conv_param.smooth = smooth;
 			
-			convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
+			convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param, type );
 			
 			PaddedDensitySubGrid<real_t> coarse_save( *coarse );
 					
@@ -813,7 +813,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		PaddedDensitySubGrid<real_t> coarse_save( *coarse );
 		
 		//... create convolution kernel
-		convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param );
+		convolution::kernel *the_tf_kernel = the_kernel_creator->create( conv_param, type );
 		
 		//... subtract oct mean on boundary but not in interior
 		coarse->subtract_boundary_oct_mean();

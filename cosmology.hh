@@ -156,7 +156,7 @@ public:
 		double w = 3.0*(sin(x)-x*cos(x))/(x*x*x);
 		static double nspect = (double)ptf->cosmo_.nspect;
 		
-		double tf = ptf->compute(k);
+		double tf = ptf->compute(k, total);
 		
 		//... no growth factor since we compute at z=0 and normalize so that D+(z=0)=1
 		return k*k * w*w * pow((double)k,(double)nspect) * tf*tf;
@@ -171,7 +171,7 @@ public:
 	 */
 	inline real_t TransferSq( real_t k ){
 		//.. parameter supplied transfer function
-		real_t tf1 = m_pTransferFunction->compute(k);
+		real_t tf1 = m_pTransferFunction->compute(k, total);
 		return tf1*tf1;
 	}
 	

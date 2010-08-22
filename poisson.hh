@@ -49,6 +49,7 @@ public:
 	
 	virtual double solve( grid_hierarchy& f, grid_hierarchy& u ) = 0;
 	virtual double gradient( int dir, grid_hierarchy& u, grid_hierarchy& Du ) = 0;
+	virtual double gradient_add( int dir, grid_hierarchy& u, grid_hierarchy& Du ) = 0;
 	
 };
 
@@ -106,6 +107,7 @@ public:
 	
 	double solve( grid_hierarchy& f, grid_hierarchy& u );
 	double gradient( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+	double gradient_add( int dir, grid_hierarchy& u, grid_hierarchy& Du );
 	
 protected:
 	
@@ -115,8 +117,11 @@ protected:
 		double solve_O4( grid_hierarchy& f, grid_hierarchy& u );
 		double solve_O6( grid_hierarchy& f, grid_hierarchy& u );
 		void gradient_O2( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+		void gradient_add_O2( int dir, grid_hierarchy& u, grid_hierarchy& Du );
 		void gradient_O4( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+		void gradient_add_O4( int dir, grid_hierarchy& u, grid_hierarchy& Du );
 		void gradient_O6( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+		void gradient_add_O6( int dir, grid_hierarchy& u, grid_hierarchy& Du );
 	};
 };
 
@@ -134,8 +139,21 @@ public:
 	
 	double solve( grid_hierarchy& f, grid_hierarchy& u );
 	double gradient( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+	double gradient_add( int dir, grid_hierarchy& u, grid_hierarchy& Du ){ return 0.0; }
+	
 	
 };
+
+
+
+
+
+
+
+
+
+
+
 
 #endif // __POISSON_HH
 

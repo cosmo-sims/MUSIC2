@@ -161,6 +161,30 @@ double multigrid_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hier
 	return 0.0;
 }
 
+double multigrid_poisson_plugin::gradient_add( int dir, grid_hierarchy& u, grid_hierarchy& Du )
+{
+	//Du = u;
+	
+	unsigned order = cf_.getValueSafe<unsigned>( "poisson", "grad_order", 4 );
+	
+	switch( order )
+	{
+		case 2: 
+			implementation().gradient_add_O2( dir, u, Du );
+			break;	
+		case 4: 
+			implementation().gradient_add_O4( dir, u, Du );
+			break;
+		case 6: 
+			implementation().gradient_add_O6( dir, u, Du );
+			break;
+		default:
+			throw std::runtime_error("Invalid order specified for gradient operator!");
+	}
+	
+	return 0.0;
+}
+
 void multigrid_poisson_plugin::implementation::gradient_O2( int dir, grid_hierarchy& u, grid_hierarchy& Du )
 {
 	for( unsigned ilevel=u.levelmin(); ilevel<=u.levelmax(); ++ilevel )
@@ -188,6 +212,36 @@ void multigrid_poisson_plugin::implementation::gradient_O2( int dir, grid_hierar
 				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
 					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
 						(*pvar)(ix,iy,iz) = 0.5*((*u.get_grid(ilevel))(ix,iy,iz+1)-(*u.get_grid(ilevel))(ix,iy,iz-1))*h;	
+	}
+}
+
+void multigrid_poisson_plugin::implementation::gradient_add_O2( int dir, grid_hierarchy& u, grid_hierarchy& Du )
+{
+	for( unsigned ilevel=u.levelmin(); ilevel<=u.levelmax(); ++ilevel )
+	{
+		double h = pow(2.0,ilevel);
+		meshvar_bnd *pvar = Du.get_grid(ilevel);
+		
+		if( dir == 0 )
+			#pragma omp parallel for
+			for( int ix = 0; ix < (int)(*Du.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*Du.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*Du.get_grid(ilevel)).size(2); ++iz )
+						(*pvar)(ix,iy,iz) += 0.5*((*u.get_grid(ilevel))(ix+1,iy,iz)-(*u.get_grid(ilevel))(ix-1,iy,iz))*h;
+		
+		else if( dir == 1 )
+			#pragma omp parallel for
+			for( int ix = 0; ix < (int)(*Du.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*Du.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*Du.get_grid(ilevel)).size(2); ++iz )
+						(*pvar)(ix,iy,iz) += 0.5*((*u.get_grid(ilevel))(ix,iy+1,iz)-(*u.get_grid(ilevel))(ix,iy-1,iz))*h;
+		
+		else if( dir == 2 )
+			#pragma omp parallel for
+			for( int ix = 0; ix < (int)(*Du.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*Du.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*Du.get_grid(ilevel)).size(2); ++iz )
+						(*pvar)(ix,iy,iz) += 0.5*((*u.get_grid(ilevel))(ix,iy,iz+1)-(*u.get_grid(ilevel))(ix,iy,iz-1))*h;	
 	}
 }
 
@@ -232,6 +286,49 @@ void multigrid_poisson_plugin::implementation::gradient_O4( int dir, grid_hierar
 	}		
 	
 }
+
+void multigrid_poisson_plugin::implementation::gradient_add_O4( int dir, grid_hierarchy& u, grid_hierarchy& Du )
+{
+	for( unsigned ilevel=u.levelmin(); ilevel<=u.levelmax(); ++ilevel )
+	{
+		double h = pow(2.0,ilevel);
+		meshvar_bnd *pvar = Du.get_grid(ilevel);
+		
+		h /= 12.0;
+		
+		if( dir == 0 )
+#pragma omp parallel for
+			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
+						(*pvar)(ix,iy,iz) += ((*u.get_grid(ilevel))(ix-2,iy,iz)
+											 -8.0*(*u.get_grid(ilevel))(ix-1,iy,iz)
+											 +8.0*(*u.get_grid(ilevel))(ix+1,iy,iz)
+											 -(*u.get_grid(ilevel))(ix+2,iy,iz))*h;
+		
+		else if( dir == 1 )
+#pragma omp parallel for
+			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
+						(*pvar)(ix,iy,iz) += ((*u.get_grid(ilevel))(ix,iy-2,iz)
+											 -8.0*(*u.get_grid(ilevel))(ix,iy-1,iz)
+											 +8.0*(*u.get_grid(ilevel))(ix,iy+1,iz)
+											 -(*u.get_grid(ilevel))(ix,iy+2,iz))*h;
+		
+		else if( dir == 2 )
+#pragma omp parallel for
+			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
+						(*pvar)(ix,iy,iz) += ((*u.get_grid(ilevel))(ix,iy,iz-2)
+											 -8.0*(*u.get_grid(ilevel))(ix,iy,iz-1)
+											 +8.0*(*u.get_grid(ilevel))(ix,iy,iz+1)
+											 -(*u.get_grid(ilevel))(ix,iy,iz+2))*h;
+	}		
+	
+}
+
 
 void multigrid_poisson_plugin::implementation::gradient_O6( int dir, grid_hierarchy& u, grid_hierarchy& Du )
 {
@@ -283,6 +380,58 @@ void multigrid_poisson_plugin::implementation::gradient_O6( int dir, grid_hierar
 		
 }
 	
+
+void multigrid_poisson_plugin::implementation::gradient_add_O6( int dir, grid_hierarchy& u, grid_hierarchy& Du )
+{
+	for( unsigned ilevel=u.levelmin(); ilevel<=u.levelmax(); ++ilevel )
+	{
+		double h = pow(2.0,ilevel);
+		meshvar_bnd *pvar = Du.get_grid(ilevel);
+		
+		h /= 60.;
+		if( dir == 0 )
+#pragma omp parallel for
+			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
+						(*pvar)(ix,iy,iz) += 
+						(-(*u.get_grid(ilevel))(ix-3,iy,iz)
+						 +9.0*(*u.get_grid(ilevel))(ix-2,iy,iz)
+						 -45.0*(*u.get_grid(ilevel))(ix-1,iy,iz)
+						 +45.0*(*u.get_grid(ilevel))(ix+1,iy,iz)
+						 -9.0*(*u.get_grid(ilevel))(ix+2,iy,iz)
+						 +(*u.get_grid(ilevel))(ix+3,iy,iz))*h;
+		
+		else if( dir == 1 )
+#pragma omp parallel for
+			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
+						(*pvar)(ix,iy,iz) += 
+						(-(*u.get_grid(ilevel))(ix,iy-3,iz)
+						 +9.0*(*u.get_grid(ilevel))(ix,iy-2,iz)
+						 -45.0*(*u.get_grid(ilevel))(ix,iy-1,iz)
+						 +45.0*(*u.get_grid(ilevel))(ix,iy+1,iz)
+						 -9.0*(*u.get_grid(ilevel))(ix,iy+2,iz)
+						 +(*u.get_grid(ilevel))(ix,iy+3,iz))*h;
+		
+		else if( dir == 2 )
+#pragma omp parallel for
+			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
+				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
+					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
+						(*pvar)(ix,iy,iz) += 
+						(-(*u.get_grid(ilevel))(ix,iy,iz-3)
+						 +9.0*(*u.get_grid(ilevel))(ix,iy,iz-2)
+						 -45.0*(*u.get_grid(ilevel))(ix,iy,iz-1)
+						 +45.0*(*u.get_grid(ilevel))(ix,iy,iz+1)
+						 -9.0*(*u.get_grid(ilevel))(ix,iy,iz+2)
+						 +(*u.get_grid(ilevel))(ix,iy,iz+3))*h;
+	}
+	
+}
+
+
 /**************************************************************************************/
 /**************************************************************************************/
 #pragma mark -

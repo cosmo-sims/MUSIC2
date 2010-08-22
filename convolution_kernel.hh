@@ -55,7 +55,7 @@ namespace convolution{
 		parameters cparam_;
 		
 		//! constructor
-		kernel( const parameters& cp )
+		kernel( const parameters& cp, tf_type type )
 		: cparam_( cp )
 		{	}
 		
@@ -71,7 +71,7 @@ namespace convolution{
 	struct kernel_creator
 	{
 		//! creates a convolution kernel object
-		virtual kernel * create( const parameters& cp ) const = 0;
+		virtual kernel * create( const parameters& cp, tf_type type ) const = 0;
 		
 		//! destructor
 		virtual ~kernel_creator() { }
@@ -91,8 +91,8 @@ namespace convolution{
 		{	get_kernel_map()[ kernel_name ] = this; 	}
 		
 		//! creates an instance of the kernel object
-		kernel * create( const parameters& cp ) const
-		{	return new Derived( cp );	}
+		kernel * create( const parameters& cp, tf_type type ) const
+		{	return new Derived( cp, type );	}
 	};
 
 	
@@ -102,6 +102,8 @@ namespace convolution{
 
 } //namespace convolution
 
+
+void deconvolve( MeshvarBnd<double>& f, int idir, int order, bool periodic );
 
 	
 #endif //__CONVOLUTION_KERNELS_HH

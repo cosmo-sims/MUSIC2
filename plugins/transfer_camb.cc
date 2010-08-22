@@ -49,6 +49,9 @@ private:
 			std::string line;
 			std::ifstream ifs( m_filename_Tk.c_str() );
 			
+			if(! ifs.good() )
+				throw std::runtime_error("Could not find transfer function file \'"+m_filename_Tk+"\'");
+			
 			m_tab_k.clear();
 			m_tab_Tk_tot.clear();
 			m_tab_Tk_cdm.clear();
@@ -142,12 +145,21 @@ public:
 	}
 	
 	inline double compute( double k, tf_type type ){
-		if( type == total )
-			return pow(10.0, gsl_spline_eval (spline_tot, log10(k), acc_tot) );
-		if( type == cdm )
-			return pow(10.0, gsl_spline_eval (spline_cdm, log10(k), acc_cdm) );
 		
-		return pow(10.0, gsl_spline_eval (spline_baryon, log10(k), acc_baryon) );
+		double lk = log10(k);
+		
+		//if( lk<m_tab_k[1])
+		//	return 1.0;
+		
+		//if( lk>m_tab_k[m_tab_k.size()-2] );
+		//	return m_tab_Tk_cdm[m_tab_k.size()-2]/k/k;
+		
+		if( type == total )
+			return pow(10.0, gsl_spline_eval (spline_tot, lk, acc_tot) );
+		if( type == cdm )
+			return pow(10.0, gsl_spline_eval (spline_cdm, lk, acc_cdm) );
+		
+		return pow(10.0, gsl_spline_eval (spline_baryon, lk, acc_baryon) );
 	}
 	
 	inline double get_kmin( void ){

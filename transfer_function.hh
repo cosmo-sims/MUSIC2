@@ -76,7 +76,7 @@ public:
 	}
 	virtual ~transfer_function_plugin(){ };
 	
-	virtual double compute( double k, tf_type type=baryon) = 0;
+	virtual double compute( double k, tf_type type) = 0;
 
 	virtual double get_kmax( void ) = 0;
 	virtual double get_kmin( void ) = 0;
@@ -123,18 +123,20 @@ public:
 	static transfer_function *ptf_;
 	static real_t nspec_;
 	double dplus_, pnorm_, sqrtpnorm_;
+	static tf_type type_;
 	
-	TransferFunction_k( transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus )
+	TransferFunction_k( tf_type type, transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus )
 	: dplus_(dplus), pnorm_(pnorm)
 	{
 		ptf_ = tf;
 		nspec_ = nspec;
 		sqrtpnorm_ = sqrt( pnorm_ );
+		type_ = type;
 	}
 	
 	inline real_t compute( real_t k ) const
 	{
-		return dplus_*sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k);
+		return dplus_*sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,type_);
 	}
 };
 
@@ -142,7 +144,7 @@ public:
 /**********************************************************************/
 /**********************************************************************/
 /**********************************************************************/
-
+#if 1
 #define NZERO_Q
 typedef std::complex<double> complex;
 class TransferFunction_real
@@ -198,9 +200,11 @@ protected:
 		N = 16384;
 		
 #ifdef NZERO_Q
-		//q = 0.4;
+		//q = -0.4;
 		//q = 0.5;
-		q = 0.9;
+		//q = 0.9;
+		
+		q=-0.2;
 #endif
 		
 		double kmin = qmin, kmax=qmax;
@@ -233,9 +237,10 @@ protected:
 		
 		for( unsigned i=0; i<N; ++i )
 		{
-			
+			double lambda0=1e-4;
+			//double lambda1=1e4;
 			double k = k0*exp(((int)i - (int)N/2+1) * dlnk);
-			in[i].re = dplus*sqrtpnorm*ptf_->compute( k )*pow(k,0.5*nspec_)*pow(k,1.5-q);
+			in[i].re = dplus*sqrtpnorm*ptf_->compute( k, type_ )*pow(k,0.5*nspec_)*pow(k,1.5-q)*exp(-k*lambda0);//*exp(k*lambda1);
 			in[i].im = 0.0;
 			
 			sum_in += in[i].re;
@@ -337,8 +342,15 @@ protected:
 		}
 		
 		
+		
 		{
-			std::ofstream ofs("transfer_real.txt");
+			std::string fname;
+			if(type_==total) fname = "transfer_real_total.txt";
+			if(type_==cdm) fname = "transfer_real_cdm.txt";
+			if(type_==baryon) fname = "transfer_real_baryon.txt";
+			
+			std::ofstream ofs(fname.c_str());//"transfer_real.txt");
+							  
 			for( unsigned i=0; i<N; ++i )
 			{
 				int ii = i;
@@ -357,12 +369,16 @@ protected:
 	}
 	std::vector<real_t> m_xtable,m_ytable,m_dytable;
 	double m_xmin, m_xmax, m_dx, m_rdx;
+	static tf_type type_;
 public:
-	TransferFunction_real( transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
+	
+#if 1
+	TransferFunction_real( tf_type type, transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
 	{
 				
 		ptf_ = tf;
 		nspec_ = nspec;
+		type_ = type;
 	
 		real_t q = 0.8;
 		
@@ -438,7 +454,13 @@ public:
 		if(false)
 		{
 			real_t dlogr = (log10(rmax)-log10(rmin))/1000;
-			std::ofstream ofs("transfer_real.txt");			
+			
+			std::string fname;
+			if(type_==total) fname = "transfer_real_total.txt";
+			if(type_==cdm) fname = "transfer_real_cdm.txt";
+			if(type_==baryon) fname = "transfer_real_baryon.txt";
+			
+			std::ofstream ofs(fname.c_str());//"transfer_real.txt");			
 			
 			for( int i=0; i< 1000; ++i ) 
 			{
@@ -453,10 +475,19 @@ public:
 		gsl_interp_accel_free (accp);
 	}
 	
+#else
+	TransferFunction_real( transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
+	{
+		
+		
+	}
+	
+#endif
+	
 	static double call_wrapper( double k, void *arg )
 	{
 		double *a = (double*)arg;
-		return 4.0*M_PI*a[0]*ptf_->compute( k )*pow(k,0.5*nspec_)*k*k;
+		return 4.0*M_PI*a[0]*ptf_->compute( k, type_ )*pow(k,0.5*nspec_)*k*k;
 	}
 	
 	~TransferFunction_real()
@@ -483,8 +514,8 @@ public:
 		if( r2 <Reps2 )
 			return Tr0_;
 		
-		double r = 0.5*log10(r2);
-		//double r = 0.5*fast_log10(r2);
+		//double r = 0.5*log10(r2);
+		double r = 0.5*fast_log10(r2);
 		//float r = 0.5f*log10f(r2);
 		
 		double ii = (r-m_xmin)*m_rdx;
@@ -503,8 +534,8 @@ public:
 };
 
 
-#if 0
-class TransferFunction_real_old
+#else
+class TransferFunction_real
 {
 protected:
 	bool m_breal_init;
@@ -517,10 +548,12 @@ protected:
 	gsl_interp_accel *acc;
 	gsl_spline *spline;
 	
-	static TransferFunction *ptf;
+	static transfer_function *ptf;
 	
 public:
-	TransferFunction_real_old( TransferFunction *tf, real_t ns, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, unsigned nr )
+//	TransferFunction_real( transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
+	
+	TransferFunction_real( transfer_function *tf, real_t ns, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
 	: m_breal_init(false)
 	{ 
 		
@@ -558,13 +591,14 @@ public:
 			real_t result1, result2, error;
 			
 			//... integrate from zero to first point ...//
-			real_t k0 = 1e-2;
+			real_t k0 = 0.1;
 
 			F.function = &call_wrapper2;
 			real_t k[1]; k[0] = r;
 			F.params = (void*)k;
 			
-			gsl_integration_qags (&F, 0.0, k0, 0, 1e-7, 20000,  wp, &result1, &error); 
+			//gsl_integration_qags (&F, 0.0, k0, 0, 1e-7, 20000,  wp, &result1, &error); 
+			result1=0.0;
 			
 			//... integrate further ...//
 			F.function = &call_wrapper;
@@ -572,9 +606,12 @@ public:
 
 			//std::cerr << "r = " << r << std::endl; 
 
-			gsl_integration_qawo_table_set(wf,r,100000.0,GSL_INTEG_SINE);
-			gsl_integration_qawf(&F,k0,1e-8,20000,wp,c_wp,wf,&result2,&error);
 			
+			gsl_integration_qawo_table_set(wf,r,100000.0,GSL_INTEG_SINE);
+			//std::cerr << ".\n";
+			//gsl_integration_qawf(&F,k0,r,2000,wp,c_wp,wf,&result2,&error);
+			gsl_integration_qawf(&F,1.0e-6,r,2000,wp,c_wp,wf,&result2,&error);
+			//std::cerr << ".\n";
 			result1 = 4.0*M_PI*fac*(result1+result2)/r;
 			
 			x[i] = log10(r*r);
@@ -592,7 +629,7 @@ public:
 		
 	}
 	
-	~TransferFunction_real_old()
+	~TransferFunction_real()
 	{
 		gsl_spline_free (spline);
 		gsl_interp_accel_free (acc);
@@ -601,7 +638,11 @@ public:
 	static double call_wrapper( double k, void *arg )
 	{
 		//return ptf->compute( k );
-		return ptf->compute( k )*k*pow(k,0.5*nspec);
+		double tfk = ptf->compute( k );
+		double lambda0 = 0.01;
+		//if( k<1e-3)
+		//	tfk = 1.0;
+		return tfk*k*pow(k,0.5*nspec)*exp(-k*lambda0);
 		//return ptf->compute(k);
 	}
 	
@@ -609,7 +650,9 @@ public:
 	{
 		//return ptf->compute( k );
 		double r = ((double*)arg)[0];
-		return ptf->compute( k )*k*pow(k,0.5*nspec) *sin(k*r);
+		double lambda0 = 0.01;
+		double tfk = ptf->compute( k );
+		return tfk*k*pow(k,0.5*nspec) *sin(k*r)*exp(-k*lambda0);
 		//return ptf->compute(k);
 	}
 	
@@ -825,15 +868,18 @@ public:
 	virtual inline real_t compute( real_t k ){
 		//real_t Tkc = linint( k, m_tab_k, m_tab_Tk_cdm );
 		//real_t Tkb = linint( k, m_tab_k, m_tab_Tk_baryon );
+		real_t lk = fast_log10(k);
+		if(lk < m_tab_k[1] )
+			return 1.0;
 		
-		//return pow(10.0, linint( log10(k), m_tab_k, m_tab_Tk ));
+		return pow(10.0, linint( lk, m_tab_k, m_tab_Tk ));
 		
 		//return pow(10.0, m_psinterp->interp(log10(k)) );
 		
 		//if( k<get_kmin() )
 		//	return pow(10.0,m_tab_k[1]);
 		
-		return pow(10.0, gsl_spline_eval (spline, log10(k), acc) );
+		//return pow(10.0, gsl_spline_eval (spline, log10(k), acc) );
 	}
 	
 	inline real_t get_kmin( void ){

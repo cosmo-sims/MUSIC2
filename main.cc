@@ -44,6 +44,7 @@
 #include "random.hh"
 #include "densities.hh"
 
+#include "convolution_kernel.hh"
 #include "cosmology.hh"
 #include "transfer_function.hh"
 
@@ -65,9 +66,15 @@ namespace music
 }
  
 transfer_function *TransferFunction_real::ptf_ = NULL;
+//transfer_function *TransferFunction_real::ptf = NULL;
 transfer_function *TransferFunction_k::ptf_ = NULL;
 
+tf_type TransferFunction_k::type_;
+tf_type TransferFunction_real::type_;
+
+
 real_t TransferFunction_real::nspec_ = -1.0;
+//real_t TransferFunction_real::nspec = -1.0;
 real_t TransferFunction_k::nspec_ = -1.0;
 
 void splash(void)
@@ -351,6 +358,15 @@ int main (int argc, const char * argv[])
 	
 	
 	unsigned grad_order = cf.getValueSafe<unsigned> ( "poisson" , "grad_order", 4 );
+
+	bool bdefd = cf.getValueSafe<bool> ( "poisson" , "fft_fine", false );
+	
+	//... if in unigrid mode, use k-space instead
+	//if(bdefd&lbase==lmax)
+	//kspace=true;
+	
+	//... switch off if using kspace anyway
+	bdefd &= !kspace;
 	
 	/******************************************************************************************************/
 	/******************************************************************************************************/
@@ -437,7 +453,9 @@ int main (int argc, const char * argv[])
 
 			the_output_plugin->write_dm_mass(f);
 			the_output_plugin->write_dm_density(f);
-			f.deallocate();
+			
+			if(!bdefd)
+				f.deallocate();
 			
 			the_output_plugin->write_dm_potential(u);
 			
@@ -447,8 +465,16 @@ int main (int argc, const char * argv[])
 				grid_hierarchy data_forIO(u);
 				for( int icoord = 0; icoord < 3; ++icoord )
 				{
-					//... displacement
-					the_poisson_solver->gradient(icoord, u, data_forIO );
+					if( bdefd )
+					{
+						data_forIO = f;
+						deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
+						the_poisson_solver->gradient_add(icoord, u, data_forIO );
+					}
+					else
+						//... displacement
+						the_poisson_solver->gradient(icoord, u, data_forIO );
+
 					the_output_plugin->write_dm_position(icoord, data_forIO );
 				}
 			}
@@ -489,13 +515,27 @@ int main (int argc, const char * argv[])
 				normalize_density(f);
 				
 				u = f;	u.zero();
+					
 				err = the_poisson_solver->solve(f, u);
+				
+				if(!bdefd)
+					f.deallocate();
 			}
 			grid_hierarchy data_forIO(u);
 			for( int icoord = 0; icoord < 3; ++icoord )
 			{
 				//... displacement
-				the_poisson_solver->gradient(icoord, u, data_forIO );
+				if(bdefd)
+				{
+					data_forIO.zero();
+					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
+					deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					the_poisson_solver->gradient_add(icoord, u, data_forIO );
+				}
+				else 
+					the_poisson_solver->gradient(icoord, u, data_forIO );
+
+				//... multiply to get velocity
 				data_forIO *= cosmo.vfact;
 				
 				if(do_CVM)
@@ -510,7 +550,7 @@ int main (int argc, const char * argv[])
 			//.. use 2LPT ...
 			LOGUSER("Entering 2LPT branch")
 			
-			grid_hierarchy f( nbnd ), u1(nbnd), u2(nbnd);
+			grid_hierarchy f( nbnd ), u1(nbnd), u2(nbnd), fsave( nbnd );
 			
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING VELOCITIES\n";
@@ -522,6 +562,9 @@ int main (int argc, const char * argv[])
 			normalize_density(f);
 			
 			u1 = f;	u1.zero();
+			
+			if(bdefd)
+				fsave=f;
 
 			//... compute 1LPT term
 			err = the_poisson_solver->solve(f, u1);
@@ -534,8 +577,17 @@ int main (int argc, const char * argv[])
 				compute_2LPT_source(u1, f, grad_order );
 			else
 				compute_2LPT_source_FFT(cf, u1, f);
-
+			
+				
 			err = the_poisson_solver->solve(f, u2);
+			
+			if( bdefd )
+			{
+				f*=6.0/7.0;
+				f+=fsave;
+				fsave.deallocate();
+			}
+			
 			u2 *= 6.0/7.0;
 			u1 += u2;
 			u2.deallocate();
@@ -545,8 +597,20 @@ int main (int argc, const char * argv[])
 			{
 				
 				//... displacement
-				the_poisson_solver->gradient(icoord, u1, data_forIO );
-					
+				//the_poisson_solver->gradient(icoord, u1, data_forIO );
+				//if(bdefd)
+				//	deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
+				
+				if(bdefd)
+				{
+					data_forIO.zero();
+					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
+					deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
+				}
+				else 
+					the_poisson_solver->gradient(icoord, u1, data_forIO );
+				
 				data_forIO *= cosmo.vfact;
 				
 				if( do_CVM )
@@ -575,6 +639,8 @@ int main (int argc, const char * argv[])
 			the_output_plugin->write_dm_mass(f);
 			u1 = f;	u1.zero();
 			
+			if(bdefd)
+				fsave=f;
 			
 			//... compute 1LPT term
 			err = the_poisson_solver->solve(f, u1);
@@ -587,8 +653,15 @@ int main (int argc, const char * argv[])
 			else
 				compute_2LPT_source_FFT(cf, u1, f);
 			
-			
 			err = the_poisson_solver->solve(f, u2);
+			
+			if( bdefd )
+			{
+				f*=3.0/7.0;
+				f+=fsave;
+				fsave.deallocate();
+			}
+			
 			u2 *= 3.0/7.0;
 			u1 += u2;
 			u2.deallocate();
@@ -598,7 +671,18 @@ int main (int argc, const char * argv[])
 			for( int icoord = 0; icoord < 3; ++icoord )
 			{
 				//... displacement
-				the_poisson_solver->gradient(icoord, u1, data_forIO );
+				//the_poisson_solver->gradient(icoord, u1, data_forIO );
+				
+				if(bdefd)
+				{
+					data_forIO.zero();
+					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
+					deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
+				}
+				else 
+					the_poisson_solver->gradient(icoord, u1, data_forIO );
+				
 				the_output_plugin->write_dm_position(icoord, data_forIO );	
 			}
 			
@@ -610,7 +694,7 @@ int main (int argc, const char * argv[])
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing baryon density...")
 				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f, false, true );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f, false, true );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				

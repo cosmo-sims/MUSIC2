@@ -29,6 +29,7 @@
 
 #include "general.hh"
 
+//! abstract base class for Poisson solvers and gradient calculations
 class poisson_plugin
 {
 protected:
@@ -47,8 +48,13 @@ public:
 	virtual ~poisson_plugin()
 	{ }
 	
+	//! solve Poisson's equation Du=f
 	virtual double solve( grid_hierarchy& f, grid_hierarchy& u ) = 0;
+	
+	//! compute the gradient of u
 	virtual double gradient( int dir, grid_hierarchy& u, grid_hierarchy& Du ) = 0;
+	
+	//! compute the gradient and add
 	virtual double gradient_add( int dir, grid_hierarchy& u, grid_hierarchy& Du ) = 0;
 	
 };
@@ -97,30 +103,55 @@ struct poisson_plugin_creator_concrete : public poisson_plugin_creator
 /**************************************************************************************/
 #pragma mark -
 
+//! adaptive FAS multigrid implementation of abstract base class poisson_plugin
 class multigrid_poisson_plugin : public poisson_plugin
 {
 public:
 	
+	//! constructor
 	explicit multigrid_poisson_plugin( config_file& cf )
 	: poisson_plugin( cf )
 	{ }
 	
+	//! solve Poisson's equation Du=f
 	double solve( grid_hierarchy& f, grid_hierarchy& u );
+	
+	//! compute the gradient of u
 	double gradient( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+	
+	//! compute the gradient and add
 	double gradient_add( int dir, grid_hierarchy& u, grid_hierarchy& Du );
 	
 protected:
 	
+	//! various FD approximation implementations
 	struct implementation
 	{
+		//! solve 2nd order FD approximation to Poisson's equation
 		double solve_O2( grid_hierarchy& f, grid_hierarchy& u );
+		
+		//! solve 4th order FD approximation to Poisson's equation
 		double solve_O4( grid_hierarchy& f, grid_hierarchy& u );
+		
+		//! solve 6th order FD approximation to Poisson's equation		
 		double solve_O6( grid_hierarchy& f, grid_hierarchy& u );
+		
+		//! compute 2nd order FD gradient
 		void gradient_O2( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+
+		//! compute and add 2nd order FD gradient
 		void gradient_add_O2( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+		
+		//! compute 4th order FD gradient
 		void gradient_O4( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+		
+		//! compute and add 4th order FD gradient
 		void gradient_add_O4( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+		
+		//! compute 6th order FD gradient
 		void gradient_O6( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+		
+		//! compute and add 6th order FD gradient
 		void gradient_add_O6( int dir, grid_hierarchy& u, grid_hierarchy& Du );
 	};
 };
@@ -129,23 +160,33 @@ protected:
 /**************************************************************************************/
 #pragma mark -
 
+//! FFT based implementation of abstract base class poisson_plugin
 class fft_poisson_plugin : public poisson_plugin
 {
 public:
 	
+	//! constructor
 	explicit fft_poisson_plugin( config_file& cf )
 	: poisson_plugin( cf )
 	{ }
 	
+	//! solve Poisson's equation Du=f
 	double solve( grid_hierarchy& f, grid_hierarchy& u );
+	
+	//! compute the gradient of u
 	double gradient( int dir, grid_hierarchy& u, grid_hierarchy& Du );
+	
+	//! compute the gradient and add
 	double gradient_add( int dir, grid_hierarchy& u, grid_hierarchy& Du ){ return 0.0; }
 	
 	
 };
 
+/**************************************************************************************/
+/**************************************************************************************/
+#pragma mark -
 
-
+void poisson_hybrid( MeshvarBnd<double>& f, int idir, int order, bool periodic );
 
 
 

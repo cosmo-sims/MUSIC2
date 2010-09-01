@@ -24,6 +24,8 @@
 /****** ABSTRACT FACTORY PATTERN IMPLEMENTATION *******/
 
 #include "poisson.hh"
+#include "Numerics.hh"
+
 std::map< std::string, poisson_plugin_creator *>& 
 get_poisson_plugin_map()
 {
@@ -512,11 +514,10 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 				double kk2 = kfac*kfac*(ki*ki+kj*kj+kk*kk);
 				
 				unsigned idx = (i*ny+j)*nzp/2+k;
-				double re = cdata[idx].re;
-				double im = cdata[idx].im;
 				
-				cdata[idx].re = -re/kk2*fac;
-				cdata[idx].im = -im/kk2*fac;
+				cdata[idx].re *= -1.0/kk2*fac;
+				cdata[idx].im *= -1.0/kk2*fac;
+				
 			}
 	
 	cdata[0].re = 0.0;
@@ -592,6 +593,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz/2+1; ++k )
 			{
+				unsigned idx = (i*ny+j)*nzp/2+k;
 				int ii = i; if(ii>nx/2) ii-=nx;
 				int jj = j; if(jj>ny/2) jj-=ny;
 				double ki = (double)ii;
@@ -606,12 +608,19 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				else //if( dir == 2 )
 					kdir = kfac*kk;
 				
-				unsigned idx = (i*ny+j)*nzp/2+k;
+				
 				double re = cdata[idx].re;
 				double im = cdata[idx].im;
 				
+				if( i==nx/2||j==ny/2||k==nz/2 )
+				{
+					cdata[idx].re = 0.0;
+					cdata[idx].im = 0.0;
+				}
+
 				cdata[idx].re = fac*im*kdir;
-				cdata[idx].im = -fac*re*kdir;
+				cdata[idx].im = -fac*re*kdir;	
+				
 			}
 	
 	cdata[0].re = 0.0;
@@ -627,24 +636,318 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	rfftwnd_destroy_plan(iplan);
 	
 	//... copy data ..........................................
+	double dmax = 0.0;
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz; ++k )
 			{
 				unsigned idx = (i*ny+j)*nzp+k;
 				(*Du.get_grid(u.levelmax()))(i,j,k) = data[idx];
+				if(fabs(data[idx])>dmax)
+					dmax = fabs(data[idx]);
 			}
+
+	std::cerr << " - component max. is " << dmax*nx << std::endl;
 	
 	delete[] data;
 	return 0.0;
 }
-
 
 /**************************************************************************************/
 /**************************************************************************************/
 #pragma mark -
 
 
+template<int order>
+double poisson_hybrid_kernel( int idir, int i, int j, int k, int n )
+{
+	return 1.0;
+}
+
+template<>
+inline double poisson_hybrid_kernel<2>(int idir, int i, int j, int k, int n )
+{
+	double 
+	ki(M_PI*(double)i/(double)n), 
+	kj(M_PI*(double)j/(double)n), 
+	kk(M_PI*(double)k/(double)n), 
+	kr(sqrt(ki*ki+kj*kj+kk*kk));
+	
+	double grad = 1.0, laplace = 1.0;
+	
+	if( idir==0&&i!=0 )
+		grad = sin(ki);
+	else if( idir==1&&j!=0 )
+		grad = sin(kj);
+	else if( idir==2&&k!=0 )
+		grad = sin(kk);
+	
+	laplace = 2.0*((-cos(ki)+1.0)+(-cos(kj)+1.0)+(-cos(kk)+1.0));
+	
+	double kgrad = 1.0;
+	if( idir==0 )
+		kgrad = ki;
+	else if( idir ==1)
+		kgrad = kj;
+	else if( idir ==2)
+		kgrad = kk;
+	
+	return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;
+	
+}
+
+template<>
+inline double poisson_hybrid_kernel<4>(int idir, int i, int j, int k, int n )
+{
+	
+	if(i==0&&j==0&&k==0)
+	return 0.0;
+
+	double 
+	ki(M_PI*(double)i/(double)n), 
+	kj(M_PI*(double)j/(double)n), 
+	kk(M_PI*(double)k/(double)n), 
+	kr(sqrt(ki*ki+kj*kj+kk*kk));
+
+	double grad = 1.0, laplace = 1.0;
+
+	if( idir==0 )
+	   grad = 0.166666666667*(-sin(2.*ki)+8.*sin(ki));
+	else if( idir==1 )
+	   grad = 0.166666666667*(-sin(2.*kj)+8.*sin(kj));
+	else if( idir==2 )
+	   grad = 0.166666666667*(-sin(2.*kk)+8.*sin(kk));
+
+	laplace = 0.1666666667*((cos(2*ki)-16.*cos(ki)+15.)
+						   +(cos(2*kj)-16.*cos(kj)+15.)
+						   +(cos(2*kk)-16.*cos(kk)+15.));
+
+	double kgrad = 1.0;
+	if( idir==0 )
+	kgrad = ki;
+	else if( idir ==1)
+	kgrad = kj;
+	else if( idir ==2)
+	kgrad = kk;
+
+	return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;
+
+}
+	   
+template<>
+inline double poisson_hybrid_kernel<6>(int idir, int i, int j, int k, int n )
+{
+	double 
+	ki(M_PI*(double)i/(double)n), 
+	kj(M_PI*(double)j/(double)n), 
+	kk(M_PI*(double)k/(double)n), 
+	kr(sqrt(ki*ki+kj*kj+kk*kk));
+
+	if(i==0&&j==0&&k==0)
+		return 0.0;
+
+	double grad = 1.0, laplace = 1.0;
+
+	if( idir==0 )
+		grad = 0.0333333333333*(sin(3.*ki)-9.*sin(2.*ki)+45.*sin(ki));
+	else if( idir==1 )
+		grad = 0.0333333333333*(sin(3.*kj)-9.*sin(2.*kj)+45.*sin(kj));
+	else if( idir==2 )
+		grad = 0.0333333333333*(sin(3.*kk)-9.*sin(2.*kk)+45.*sin(kk));
+
+	laplace = 0.01111111111111*(
+								(-2.*cos(3.0*ki)+27.*cos(2.*ki)-270.*cos(ki)+245.)
+								+(-2.*cos(3.0*kj)+27.*cos(2.*kj)-270.*cos(kj)+245.)
+								+(-2.*cos(3.0*kk)+27.*cos(2.*kk)-270.*cos(kk)+245.));
+
+	double kgrad = 1.0;
+	if( idir==0 )
+		kgrad = ki;
+	else if( idir ==1)
+		kgrad = kj;
+	else if( idir ==2)
+		kgrad = kk;
+
+	return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;//laplace/grad;
+													//return kgrad/kr/kr*M_PI/n*M_PI/n;
+													//return grad/laplace*M_PI/n*M_PI/n;
+													//return (kgrad/kr/kr-grad/laplace);
+}
+	   
+	   
+template<int order>
+void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bool periodic )
+{
+	double fftnorm = 1.0/(nxp*nyp*nzp);
+		
+		
+	if(periodic)
+		fftnorm *= nxp/(4.0*M_PI*M_PI);//sqrt(8.0);
+	
+	
+	/*if(periodic)
+	 fftnorm *= M_PI*M_PI/nxp/nyp/nzp;
+	 else
+	 fftnorm *= M_PI*M_PI/nxp/nyp/nzp;
+	 
+	 if( idir == 0 )
+	 fftnorm *= nxp;
+	 else if( idir == 1 )
+	 fftnorm *= nyp;
+	 else
+	 fftnorm *= nzp;*/
+	
+	fftw_complex	*cdata = reinterpret_cast<fftw_complex*>(data);
+	rfftwnd_plan	iplan, plan;
+	
+	plan  = rfftw3d_create_plan( nxp, nyp, nzp,
+								FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
+	
+	iplan = rfftw3d_create_plan( nxp, nyp, nzp, 
+								FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+	
+#ifndef SINGLETHREAD_FFTW		
+	rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
+#else
+	rfftwnd_one_real_to_complex( plan, data, NULL );
+#endif
+	
+	double ksum = 0.0;
+	unsigned kcount = 0;
+	
+	for( int i=0; i<nxp; ++i )
+		for( int j=0; j<nyp; ++j )
+			for( int k=0; k<nzp/2+1; ++k )
+			{
+				unsigned ii = (i*nyp + j) * (nzp/2+1) + k;
+				
+				if( k==0 || k==nzp/2 )
+				{
+					ksum  += cdata[ii].re;
+					kcount++;
+				}else{
+					ksum  += 2.0*(cdata[ii].re);
+					kcount+=2;
+				}
+			}
+	
+	ksum /= kcount;
+	kcount = 0;
+	
+	cdata[0].re = 0.0;
+	cdata[0].im = 0.0;
+	
+#pragma omp parallel for
+	for( int i=0; i<nxp; ++i )
+		for( int j=0; j<nyp; ++j )
+			for( int k=0; k<nzp/2+1; ++k )
+			{
+				unsigned ii = (i*nyp + j) * (nzp/2+1) + k;
+				
+				int ki(i), kj(j);
+				if( ki > nxp/2 ) ki-=nxp;
+				if( kj > nyp/2 ) kj-=nyp;
+				
+				//... apply hybrid correction
+				double dk = poisson_hybrid_kernel<order>(idir, ki, kj, k, nxp/2 );
+				cdata[ii].re -= ksum;
+				
+				double re = cdata[ii].re, im = cdata[ii].im;
+				
+				cdata[ii].re = -im*dk*fftnorm;
+				cdata[ii].im = re*dk*fftnorm;
+				
+				cdata[ii].re += ksum*fftnorm;
+				
+			}
+	cdata[0].re = 0.0;
+	cdata[0].im = 0.0;
+	
+#ifndef SINGLETHREAD_FFTW		
+	rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL);
+#else		
+	rfftwnd_one_complex_to_real(iplan, cdata, NULL);
+#endif
+	
+	rfftwnd_destroy_plan(plan);
+	rfftwnd_destroy_plan(iplan);
+	
+}
+   
+void poisson_hybrid( MeshvarBnd<double>& f, int idir, int order, bool periodic )
+{
+	int nx=f.size(0), ny=f.size(1), nz=f.size(2), nxp, nyp, nzp;
+	fftw_real		*data;
+	int xo=0,yo=0,zo=0;
+	int nmax = std::max(nx,std::max(ny,nz));
+	
+	if(!periodic)
+	{
+		nxp = 2*nmax;
+		nyp = 2*nmax;
+		nzp = 2*nmax;
+		xo  = nmax/2;
+		yo  = nmax/2;
+		zo  = nmax/2;
+	}
+	else
+	{
+		nxp = nmax;
+		nyp = nmax;
+		nzp = nmax;
+	}
+	
+	
+	
+	data		= new fftw_real[nxp*nyp*2*(nzp/2+1)];
+	
+	if(idir==0)
+		std::cout << "   - Performing hybrid Poisson step... (" << nxp <<  ", " << nyp << ", " << nzp << ")\n";
+	
+	
+	for( int i=0; i<nxp*nyp*2*(nzp/2+1); ++i )
+		data[i]=0.0;
+	
+	for( int i=0; i<nx; ++i )
+		for( int j=0; j<ny; ++j )
+			for( int k=0; k<nz; ++k )
+			{
+				int idx = ((i+xo)*nyp + j+yo) * 2*(nzp/2+1) + k+zo;
+				data[idx] = f(i,j,k);
+			}
+	
+	switch (order) {
+		case 2:
+			do_poisson_hybrid<2>(data, idir, nxp, nyp, nzp, periodic);
+			break;
+		case 4:
+			do_poisson_hybrid<4>(data, idir, nxp, nyp, nzp, periodic);
+			break;
+		case 6:
+			do_poisson_hybrid<6>(data, idir, nxp, nyp, nzp, periodic);
+			break;
+		default:
+			std::cerr << " - ERROR: invalid operator order specified in deconvolution.";
+			break;
+	}
+	
+	
+	for( int i=0; i<nx; ++i )
+		for( int j=0; j<ny; ++j )
+			for( int k=0; k<nz; ++k )
+			{
+				int idx = ((i+xo)*nyp + j+yo) * 2*(nzp/2+1) + k+zo;	
+				f(i,j,k) = data[idx];
+			}
+	
+	delete[] data;
+	
+}
+	   
+	   
+/**************************************************************************************/
+/**************************************************************************************/
+#pragma mark -
 
 namespace{
 	poisson_plugin_creator_concrete<multigrid_poisson_plugin> multigrid_poisson_creator("mg_poisson");

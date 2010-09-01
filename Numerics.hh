@@ -38,7 +38,6 @@
 #include <algorithm>
 #include "general.hh"
 
-
 real_t integrate( double (* func) (double x, void * params), double a, double b, void *params=NULL);
 
 typedef __attribute__((__may_alias__)) int aint;

@@ -102,8 +102,5 @@ namespace convolution{
 
 } //namespace convolution
 
-
-void deconvolve( MeshvarBnd<double>& f, int idir, int order, bool periodic );
-
 	
 #endif //__CONVOLUTION_KERNELS_HH

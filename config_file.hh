@@ -276,7 +276,8 @@ public:
 		{}
 	};
 
-	
+
+	//! runtime error that is thrown if identifier is not found in keys
 	class ErrIllegalIdentifier : public std::runtime_error{
 	public:
 		ErrIllegalIdentifier( std::string errmsg )

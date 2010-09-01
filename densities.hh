@@ -79,9 +79,9 @@ public:
 	
 	//! constructor
 	/*! constructs an instance given the dimensions of the density field
-	 * @params nx the number of cells in x
-	 * @params ny the number of cells in y
-	 * @params nz the number of cells in z
+	 * @param nx the number of cells in x
+	 * @param ny the number of cells in y
+	 * @param nz the number of cells in z
 	 */
 	DensityGrid( unsigned nx, unsigned ny, unsigned nz )
 	: nx_(nx), ny_(ny), nz_(nz)
@@ -113,7 +113,7 @@ public:
 	
 	//! query the 3D array sizes of the density object
 	/*! returns the size of the 3D density object along a specified dimension
-	 * @params i the dimension for which size is to be returned
+	 * @param i the dimension for which size is to be returned
 	 * @returns array size along dimension i
 	 */
 	int size( int i )
@@ -158,12 +158,12 @@ public:
 	
 	//! fills the density field with random number values
 	/*! given a pointer to a random_numbers object, fills the field with random values
-	 *  @params prc pointer to a random_numbers object
-	 *  @params variance the variance of the random numbers (the values returned by prc are multiplied by this)
-	 *  @params i0 x-offset (shift) in cells of the density field with respect to the random number field
-	 *  @params j0 y-offset (shift) in cells of the density field with respect to the random number field
-	 *  @params k0 z-offset (shift) in cells of the density field with respect to the random number field
-	 *  @params setzero boolean, if true, the global mean will be subtracted
+	 *  @param prc pointer to a random_numbers object
+	 *  @param variance the variance of the random numbers (the values returned by prc are multiplied by this)
+	 *  @param i0 x-offset (shift) in cells of the density field with respect to the random number field
+	 *  @param j0 y-offset (shift) in cells of the density field with respect to the random number field
+	 *  @param k0 z-offset (shift) in cells of the density field with respect to the random number field
+	 *  @param setzero boolean, if true, the global mean will be subtracted
 	 */
 	void fill_rand( /*const*/ random_numbers<real_t>* prc, real_t variance, int i0, int j0, int k0, bool setzero=false )
 	{

@@ -65,51 +65,55 @@ typedef MeshvarBnd<real_t> meshvar_bnd;
 typedef Meshvar<real_t> meshvar;
 
 
-/* Convenience from Numerical Recipes in C, 2nd edition */
+//! compute square of argument
 template< typename T >
 inline T SQR( T a ){
   return a*a;
 }
 
+//! compute cube of argument
 template< typename T >
 inline T CUBE( T a ){
   return a*a*a;
 }
 
+//! compute 4th power of argument
 template< typename T >
 inline T POW4( T a ){
-  return a*a*a*a;
+	return SQR(SQR(a));
+  //return a*a*a*a;
 }
 
 
-// --- structure for cosmological parameters --- //
+//! structure for cosmological parameters
 typedef struct cosmology{
   double 
-    Omega_m, // baryon+dark matter density
-    Omega_b, // baryon matter density
-    Omega_L, // dark energy density
-    H0,      // Hubble constant
-    nspect,  // long-wave spectral index (scale free is nspect=1) 
-    sigma8,  // power spectrum normalization
-	//Gamma,   // shape parameter (of historical interest, as a free parameter)
-    //fnl,     // non-gaussian contribution parameter
-	//w0,      // dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
-	//wa,      // dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
-	dplus,
-	pnorm,
-	vfact,
-	WDMmass,
-	WDMg_x,
-	astart;  // expansion factor a for which to generate initial conditions
+    Omega_m,		//!< baryon+dark matter density
+    Omega_b,		//!< baryon matter density
+    Omega_L,		//!< dark energy density
+    H0,				//!< Hubble constant
+    nspect,			//!< long-wave spectral index (scale free is nspect=1) 
+    sigma8,			//!< power spectrum normalization
+	//Gamma,		//!< shape parameter (of historical interest, as a free parameter)
+    //fnl,			//!< non-gaussian contribution parameter
+	//w0,			//!< dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
+	//wa,			//!< dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
+	dplus,			//!< linear perturbation growth factor
+	pnorm,			//!< actual power spectrum normalisation factor
+	vfact,			//!< velocity<->displacement conversion factor in Zel'dovich approx.
+	WDMmass,		//!< Warm DM particle mass
+	WDMg_x,			//!< Warm DM particle degrees of freedom
+	astart;			//!< expansion factor a for which to generate initial conditions
 }Cosmology;
 
+//! basic box/grid/refinement structure parameters
 typedef struct {
 	unsigned levelmin, levelmax;
 	double boxlength;
 	std::vector<unsigned> offx,offy,offz,llx,lly,llz;
 }Parameters;
 
-
+//! measure elapsed wallclock time
 inline double time_seconds( void )
 {
   #ifdef WITH_MPI

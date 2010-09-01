@@ -24,7 +24,7 @@
 #ifndef __MG_OPERATORS_HH
 #define __MG_OPERATORS_HH
 
-//! injection operator based Catmull-Rom splines with arbitrary refinement factor
+//! injection operator based on Catmull-Rom splines with arbitrary refinement factor
 class mg_cubic_mult
 {
 protected:
@@ -598,7 +598,7 @@ public:
 };
 
 
-
+/*
 class mg_lin
 {
 public:
@@ -739,9 +739,9 @@ public:
 		
 	}	
 };
+*/
 
-
-
+//! linear grid injection/restriction operator
 //template< typename T >
 class mg_linear
 {
@@ -1004,13 +1004,10 @@ public:
 	
 };
 
-
-//template< typename T >
+//! zero order grid injection/restriction operator
 class mg_straight
 {
 public:
-	
-	//typedef T real_t;
 	
 	template< typename m1, typename m2 >
 	inline void restrict_bnd( const m1& v, m2& V ) const
@@ -1164,7 +1161,7 @@ public:
 		
 	}
 	
-	//... prolongs V to v
+	//... prolongs V to v on grid boundary cells
 	template< typename m1, typename m2 >
 	inline void prolong_bnd( const m1& V, m2& v ) const
 	{
@@ -1285,6 +1282,7 @@ public:
 		
 	}
 	
+	//! prolongs V and adds it to v
 	template< typename m1, typename m2 >
 	inline void prolong_add( const m1& V, m2& v ) const
 	{

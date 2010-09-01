@@ -291,15 +291,37 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 				cdata_33[idx].re = -k[2]*k[2] * cdata[idx].re * norm;
 				cdata_33[idx].im = -k[2]*k[2] * cdata[idx].im * norm;
 				
+				
+				if( i==nx/2||j==ny/2||l==nz/2)
+				{
+					cdata_11[idx].re = 0.0;
+					cdata_11[idx].im = 0.0;
+					
+					cdata_12[idx].re = 0.0;
+					cdata_12[idx].im = 0.0;
+					
+					cdata_13[idx].re = 0.0;
+					cdata_13[idx].im = 0.0;
+					
+					cdata_22[idx].re = 0.0;
+					cdata_22[idx].im = 0.0;
+					
+					cdata_23[idx].re = 0.0;
+					cdata_23[idx].im = 0.0;
+					
+					cdata_33[idx].re = 0.0;
+					cdata_33[idx].im = 0.0;
+				}
+				
 			}
 	
 	delete[] data;
-	cdata_11[0].re	= 0.0; cdata_11[0].im	= 0.0;
+	/*cdata_11[0].re	= 0.0; cdata_11[0].im	= 0.0;
 	cdata_12[0].re	= 0.0; cdata_12[0].im	= 0.0;
 	cdata_13[0].re	= 0.0; cdata_13[0].im	= 0.0;
 	cdata_22[0].re	= 0.0; cdata_22[0].im	= 0.0;
 	cdata_23[0].re	= 0.0; cdata_23[0].im	= 0.0;
-	cdata_33[0].re	= 0.0; cdata_33[0].im	= 0.0;
+	cdata_33[0].re	= 0.0; cdata_33[0].im	= 0.0;*/
 	
 	
 #ifndef SINGLETHREAD_FFTW		
@@ -335,6 +357,9 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 				(*fnew.get_grid(u.levelmax()))(i,j,k) = (( data_11[ii]*data_22[ii]-data_12[ii]*data_12[ii] ) +
 														 ( data_11[ii]*data_33[ii]-data_13[ii]*data_13[ii] ) +
 														 ( data_22[ii]*data_33[ii]-data_23[ii]*data_23[ii] ) );
+				
+				//(*fnew.get_grid(u.levelmax()))(i,j,k) = 
+				
 			}
 	
 	//delete[] data;

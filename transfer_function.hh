@@ -55,12 +55,13 @@ enum tf_type{
  */ 
 class transfer_function_plugin{
 public:
-	Cosmology cosmo_;
-	config_file *pcf_;
-	bool tf_distinct_;
+	Cosmology cosmo_;		//!< cosmological parameter, read from config_file
+	config_file *pcf_;		//!< pointer to config_file from which to read parameters
+	bool tf_distinct_;		//!< bool if transfer function is distinct for baryons and DM
 	
 public:
 	
+	//! constructor
 	transfer_function_plugin( config_file& cf ) 
 	: pcf_( &cf )
 	{
@@ -74,34 +75,50 @@ public:
 		cosmo_.sigma8		= pcf_->getValue<real_t>( "cosmology", "sigma_8" );
 		cosmo_.nspect		= pcf_->getValue<real_t>( "cosmology", "nspec" );
 	}
+	
+	//! destructor
 	virtual ~transfer_function_plugin(){ };
 	
+	//! compute value of transfer function at waven umber
 	virtual double compute( double k, tf_type type) = 0;
 
+	//! return maximum wave number allowed
 	virtual double get_kmax( void ) = 0;
+	
+	//! return minimum wave number allowed
 	virtual double get_kmin( void ) = 0;
+	
+	//! return if transfer function is distinct for baryons and DM
 	bool tf_is_distinct( void )
 	{	return tf_distinct_;	}
 };
 
 
+//! Implements abstract factory design pattern for transfer function plug-ins
 struct transfer_function_plugin_creator
 {
+	//! create an instance of a transfer function plug-in
 	virtual transfer_function_plugin * create( config_file& cf ) const = 0;
+	
+	//! destroy an instance of a plug-in 
 	virtual ~transfer_function_plugin_creator() { }
 };
 
+//! Write names of registered transfer function plug-ins to stdout
 std::map< std::string, transfer_function_plugin_creator *>& get_transfer_function_plugin_map();
 void print_transfer_function_plugins( void );
 
+//! Concrete factory pattern for transfer function plug-ins
 template< class Derived >
 struct transfer_function_plugin_creator_concrete : public transfer_function_plugin_creator
 {
+	//! register the plug-in by its name 
 	transfer_function_plugin_creator_concrete( const std::string& plugin_name )
 	{
 		get_transfer_function_plugin_map()[ plugin_name ] = this;
 	}
 	
+	//! create an instance of the plug-in 
 	transfer_function_plugin * create( config_file& cf ) const
 	{
 		return new Derived( cf );
@@ -117,6 +134,7 @@ transfer_function_plugin *select_transfer_function_plugin( config_file& cf );
 /**********************************************************************/
 /**********************************************************************/
 
+//! k-space transfer function
 class TransferFunction_k
 {
 public:
@@ -132,6 +150,19 @@ public:
 		nspec_ = nspec;
 		sqrtpnorm_ = sqrt( pnorm_ );
 		type_ = type;
+
+		std::ofstream ofs("input_powerspec.txt");
+		double kmin=-3, kmax=3, dk=(kmax-kmin)/100.;
+
+		for( int i=0; i<100; ++i )
+		{ 
+			double k = pow(10.0,kmin+i*dk);
+			ofs << std::setw(16) << k 
+			    << std::setw(16) << pow(dplus_*sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,type_),2)
+			    << std::endl;
+		}
+
+
 	}
 	
 	inline real_t compute( real_t k ) const
@@ -400,9 +431,12 @@ public:
 		//.. need a factor sqrt( 2*kny^2_x + 2*kny^2_y + 2*kny^2_z )/2 = sqrt(3/2)kny (in equilateral case)
 		//#warning Need to integrate from Boxsize (see below)?
 		gsl_integration_qag (&F, 0.0, sqrt(1.5)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		//gsl_integration_qag (&F, 0.0, 1.24070098*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		//gsl_integration_qag (&F, 0.0, 1.280788*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		//gsl_integration_qag (&F, 0.0, knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 		//gsl_integration_qag (&F, 0.0, 1.116*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 		//gsl_integration_qag (&F, 0.0, sqrt(3)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
-		//gsl_integration_qag (&F, 0.0, knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		//gsl_integration_qag (&F, 0.0, 0.5*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 		
 		gsl_integration_workspace_free(wp);
 				

@@ -287,7 +287,9 @@ class MeshvarBnd : public Meshvar< T >{
 	
 public:
 	typedef T real_t;
-	unsigned m_nbnd;
+	
+	//! number of boundary (ghost) cells
+	unsigned m_nbnd;		
 	
 	//! most general constructor
 	MeshvarBnd( unsigned nbnd, unsigned nx, unsigned ny, unsigned nz, unsigned xoff, unsigned yoff, unsigned zoff )
@@ -693,6 +695,7 @@ public:
 		m_levelmin = lmax;
 	}
 	
+	//! multiply entire grid hierarchy by a constant
 	GridHierarchy<T>& operator*=( T x )
 	{
 		for( unsigned i=0; i<m_pgrids.size(); ++i )
@@ -700,6 +703,7 @@ public:
 		return *this;
 	}
 	
+	//! divide entire grid hierarchy by a constant
 	GridHierarchy<T>& operator/=( T x )
 	{
 		for( unsigned i=0; i<m_pgrids.size(); ++i )
@@ -707,6 +711,7 @@ public:
 		return *this;
 	}
 	
+	//! add a constant to the entire grid hierarchy
 	GridHierarchy<T>& operator+=( T x )
 	{
 		for( unsigned i=0; i<m_pgrids.size(); ++i )
@@ -714,6 +719,7 @@ public:
 		return *this;
 	}
 	
+	//! subtract a constant from the entire grid hierarchy
 	GridHierarchy<T>& operator-=( T x )
 	{
 		for( unsigned i=0; i<m_pgrids.size(); ++i )
@@ -721,6 +727,7 @@ public:
 		return *this;
 	}
 	
+	//! multiply (element-wise) two grid hierarchies
 	GridHierarchy<T>& operator*=( const GridHierarchy& gh )
 	{
 		if( !is_consistent(gh) )
@@ -731,6 +738,7 @@ public:
 		return *this;
 	}
 	
+	//! divide (element-wise) two grid hierarchies
 	GridHierarchy<T>& operator/=( const GridHierarchy& gh )
 	{
 		if( !is_consistent(gh) )
@@ -741,6 +749,7 @@ public:
 		return *this;
 	}
 	
+	//! add (element-wise) two grid hierarchies
 	GridHierarchy<T>& operator+=( const GridHierarchy& gh )
 	{
 		if( !is_consistent(gh) )
@@ -751,6 +760,7 @@ public:
 		return *this;
 	}
 	
+	//! subtract (element-wise) two grid hierarchies
 	GridHierarchy<T>& operator-=( const GridHierarchy& gh )
 	{
 		if( !is_consistent(gh) )
@@ -763,8 +773,14 @@ public:
 	
 	
 	
-	//... Xoff is in units of the coarser grid,
-	//... nX is the extent in fine grid cells
+	/*! add a new refinement patch to the so-far finest level
+	 * @param xoff x-offset in units of the coarser grid (finest grid before adding new patch)
+	 * @param yoff y-offset in units of the coarser grid (finest grid before adding new patch)
+	 * @param zoff z-offset in units of the coarser grid (finest grid before adding new patch)
+	 * @param nx x-extent in fine grid cells
+	 * @param ny y-extent in fine grid cells
+	 * @param nz z-extent in fine grid cells
+	 */
 	void add_patch( unsigned xoff, unsigned yoff, unsigned zoff, unsigned nx, unsigned ny, unsigned nz )
 	{
 		m_pgrids.push_back( new MeshvarBnd<T>( m_nbnd, nx, ny, nz, xoff, yoff, zoff ) );
@@ -776,6 +792,15 @@ public:
 		m_zoffabs.push_back( 2*(m_zoffabs.back() + zoff) );
 	}
 	
+	/*! cut a refinement patch to the specified size
+	 * @param ilevel grid level on which to perform the size adjustment
+	 * @param xoff new x-offset in units of the coarser grid (finest grid before adding new patch)
+	 * @param yoff new y-offset in units of the coarser grid (finest grid before adding new patch)
+	 * @param zoff new z-offset in units of the coarser grid (finest grid before adding new patch)
+	 * @param nx new x-extent in fine grid cells
+	 * @param ny new y-extent in fine grid cells
+	 * @param nz new z-extent in fine grid cells
+	 */
 	void cut_patch( unsigned ilevel, unsigned xoff, unsigned yoff, unsigned zoff, unsigned nx, unsigned ny, unsigned nz)
 	{
 		unsigned dx,dy,dz,dxtop,dytop,dztop;
@@ -815,6 +840,7 @@ public:
 		find_new_levelmin();
 	}
 	
+	/*! determine level for which grid extends over entire domain */
 	void find_new_levelmin( void )
 	{
 		for( unsigned i=0; i<=levelmax(); ++i )
@@ -829,16 +855,19 @@ public:
 		}
 	}
 	
+	//! return maximum level in refinement hierarchy
 	unsigned levelmax( void ) const
 	{
 		return m_pgrids.size()-1;
 	}
 	
+	//! return minimum level in refinement hierarchy (the level which extends over the entire domain)
 	unsigned levelmin( void ) const
 	{
 		return m_levelmin;
 	}
 	
+	//! assignment operator
 	GridHierarchy& operator=( const GridHierarchy<T>& gh )
 	{
 		for( unsigned i=0; i<m_pgrids.size(); ++i )
@@ -862,23 +891,52 @@ public:
 //! class that computes the refinement structure given parameters
 class refinement_hierarchy
 {
-	std::vector<double> x0_,y0_,z0_,xl_,yl_,zl_;
-	std::vector<unsigned> ox_,oy_,oz_,oax_,oay_,oaz_;
-	std::vector<unsigned> nx_,ny_,nz_;
-	unsigned levelmin_, levelmax_, levelmin_tf_, padding_;
-	config_file& cf_;
-	bool align_top_;
-	double x0ref_[3], lxref_[3];
-	int xshift_[3];
+	std::vector<double> 
+		x0_,	//!< x-coordinates of grid origins (in [0..1[)
+		y0_,	//!< y-coordinates of grid origins (in [0..1[)
+		z0_,	//!< z-coordinates of grid origins (in [0..1[)
+		xl_,	//!< x-extent of grids (in [0..1[)
+		yl_,	//!< y-extent of grids (in [0..1[)
+		zl_;	//!< z-extent of grids (in [0..1[)
+	
+	std::vector<unsigned> 
+		ox_,	//!< relative x-coordinates of grid origins (in coarser grid cells)
+		oy_,	//!< relative y-coordinates of grid origins (in coarser grid cells)
+		oz_,	//!< relative z-coordinates of grid origins (in coarser grid cells)
+		oax_,	//!< absolute x-coordinates of grid origins (in fine grid cells)
+		oay_,	//!< absolute y-coordinates of grid origins (in fine grid cells)
+		oaz_,	//!< absolute z-coordinates of grid origins (in fine grid cells)
+		nx_,	//!< x-extent of grids (in fine grid cells)
+		ny_,	//!< y-extent of grids (in fine grid cells)
+		nz_;	//!< z-extent of grids (in fine grid cells)
+	
+	unsigned 
+		levelmin_,		//!< minimum grid level for Poisson solver
+		levelmax_,		//!< maximum grid level for all operations
+		levelmin_tf_,	//!< minimum grid level for density calculation
+		padding_;		//!< padding in number of coarse cells between refinement levels
+	
+	
+	config_file& cf_;	//!< reference to config_file
+	
+	bool align_top_;	//!< bool whether to align all grids with coarsest grid cells
+	
+	double 
+		x0ref_[3],	//!< coordinates of refinement region origin (in [0..1[)
+		lxref_[3];	//!< extent of refinement region (int [0..1[)
+	
+	int xshift_[3];	//!< shift of refinement region in coarse cells (in order to center it in the domain)
 	
 public:
 	
+	//! copy constructor
 	refinement_hierarchy( const refinement_hierarchy& rh )
 	: cf_( rh.cf_ )
 	{
 		*this = rh;
 	}
 	
+	//! constructor from a config_file holding information about the desired refinement geometry
 	explicit refinement_hierarchy( config_file& cf )
 	: cf_( cf )
 	{
@@ -1058,6 +1116,7 @@ public:
 		}
 	}
 	
+	//! asignment operator
 	refinement_hierarchy& operator=( const refinement_hierarchy& o )
 	{
 		levelmin_ = o.levelmin_;
@@ -1081,6 +1140,16 @@ public:
 		return *this;
 	}
 	
+	/*! cut a grid level to the specified size
+	 * @param ilevel grid level on which to perform the size adjustment
+	 * @param nx new x-extent in fine grid cells
+	 * @param ny new y-extent in fine grid cells
+	 * @param nz new z-extent in fine grid cells
+	 * @param oax new x-offset in units fine grid units
+	 * @param oay new y-offset in units fine grid units
+	 * @param oaz new z-offset in units fine grid units
+	
+	 */	
 	void adjust_level( unsigned ilevel, int nx, int ny, int nz, int oax, int oay, int oaz )
 	{
 		double h = 1.0/pow(2,ilevel);
@@ -1122,6 +1191,7 @@ public:
 		
 	}
 	
+	/*! determine level for which grid extends over entire domain */
 	void find_new_levelmin( bool print=false )
 	{
 		unsigned old_levelmin( levelmin_ );
@@ -1140,6 +1210,7 @@ public:
 			std::cerr << " - refinement_hierarchy: set new levelmin to " << levelmin_ << std::endl;
 	}
 	
+	//! get absolute grid offset for a specified level along a specified dimension (in fine grid units)
 	unsigned offset_abs( unsigned ilevel, int dim ) const
 	{
 		if( dim==0 )
@@ -1149,6 +1220,7 @@ public:
 		return oaz_.at(ilevel);
 	}
 	
+	//! get relative grid offset for a specified level along a specified dimension (in coarser grid units)
 	unsigned offset( unsigned ilevel, int dim ) const
 	{
 		if( dim==0 )
@@ -1158,6 +1230,7 @@ public:
 		return oz_.at(ilevel);
 	}
 	
+	//! get grid size for a specified level along a specified dimension
 	unsigned size( unsigned ilevel, int dim ) const
 	{
 		if( dim==0 )
@@ -1167,14 +1240,16 @@ public:
 		return nz_.at(ilevel);
 	}
 	
+	//! get minimum grid level (the level for which the grid covers the entire domain)
 	unsigned levelmin( void ) const
 	{	return levelmin_;	}
 	
+	//! get maximum grid level
 	unsigned levelmax( void ) const
 	{	return levelmax_;	}
 	
 	
-	
+	//! write refinement hierarchy to stdout
 	void output( void )
 	{
 		std::cout << "-------------------------------------------------------------\n";

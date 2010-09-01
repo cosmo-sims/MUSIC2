@@ -237,6 +237,8 @@ void subtract_finest_mean( grid_hierarchy& u )
 			* (*u.get_grid(u.levelmax())).size(1)
 			* (*u.get_grid(u.levelmax())).size(2);
 	
+	std::cout << "     component mean is " << sum << std::endl;
+	
 	for( unsigned ilevel=u.levelmin(); ilevel<=u.levelmax(); ++ilevel )
 		#pragma omp parallel for
 		for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
@@ -411,7 +413,7 @@ int main (int argc, const char * argv[])
 	
 	refinement_hierarchy rh_TF( rh_Poisson );
 	modify_grid_for_TF( rh_Poisson, rh_TF, cf );
-	//rh_TF.output();
+	rh_TF.output();
 
 	
 	if( !the_transfer_function_plugin->tf_is_distinct() && do_baryons )
@@ -468,7 +470,7 @@ int main (int argc, const char * argv[])
 					if( bdefd )
 					{
 						data_forIO = f;
-						deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 					}
 					else
@@ -529,7 +531,7 @@ int main (int argc, const char * argv[])
 				{
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-					deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
 					the_poisson_solver->gradient_add(icoord, u, data_forIO );
 				}
 				else 
@@ -590,6 +592,7 @@ int main (int argc, const char * argv[])
 			
 			u2 *= 6.0/7.0;
 			u1 += u2;
+			//u1 = u2;
 			u2.deallocate();
 			
 			grid_hierarchy data_forIO(u1);
@@ -599,13 +602,13 @@ int main (int argc, const char * argv[])
 				//... displacement
 				//the_poisson_solver->gradient(icoord, u1, data_forIO );
 				//if(bdefd)
-				//	deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
+				//	poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
 				
 				if(bdefd)
 				{
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-					deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
 					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 				}
 				else 
@@ -677,7 +680,7 @@ int main (int argc, const char * argv[])
 				{
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-					deconvolve(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
 					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 				}
 				else 

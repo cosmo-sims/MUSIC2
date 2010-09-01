@@ -21,6 +21,7 @@ struct coarse_fine_interpolation
 };
 
 
+//! general 2nd order polynomial interpolation
 inline double interp2( double x1, double x2, double x3, double f1, double f2, double f3, double x )
 {
 	double a,b,c;	
@@ -32,28 +33,33 @@ inline double interp2( double x1, double x2, double x3, double f1, double f2, do
 }
 
 
+//! optimized 4th order polynomial interpolation across a left boundary for i-1 values
 inline double interp4left( double f0, double f1, double f2, double f3, double f4 )
 {
 	//return -4.0/231.0*f0+4.0/7.0*f1+5.0/7.0*f2-1.0/3.0*f3+5./77.0*f4; 
 	return 1.0/13.0*f0-21./55.*f1+7.0/9.0*f2+8./15.*f3-8./1287*f4;
 }
 
+//! optimized 4th order polynomial interpolation across a right boundary for i+1 values
 inline double interp4right( double f0, double f1, double f2, double f3, double f4 )
 {
 	return interp4left(f4,f3,f2,f1,f0);
 }
 
+//! optimized 4th order polynomial interpolation across a left boundary for i-2 values
 inline double interp4lleft( double f0, double f1, double f2, double f3, double f4 )
 {
 	//return 16./231.*f0+48.0/35.0*f1-6.0/7.0*f2-8.0/15.0*f3-9./77.*f4;
 	return -15./91.*f0+8./11.*f1+-10./9.*f2+32./21.*f3+32./1287.*f4;
 }
 
+//! optimized 4th order polynomial interpolation across a right boundary for i+2 values
 inline double interp4rright( double f0, double f1, double f2, double f3, double f4 )
 {
 	return interp4lleft(f4,f3,f2,f1,f0);
 }
 
+//! general 4th order polynomial interpolation
 inline double interp4( double fm2, double fm1, double f0, double fp1, double fp2, double x )
 {
 	double x2 = x*x, x3=x2*x, x4=x3*x;
@@ -68,6 +74,7 @@ inline double interp4( double fm2, double fm1, double f0, double fp1, double fp2
 	return a*x4+b*x3+c*x2+d*x+e;
 }
 
+//! general 4th order polynomial interpolation
 inline double interp4( double* f, double x )
 {
 	double x2 = x*x, x3=x2*x, x4=x3*x;
@@ -82,7 +89,7 @@ inline double interp4( double* f, double x )
 	return a*x4+b*x3+c*x2+d*x+e;
 }
 
-
+//! general 6th order polynomial interpolation
 inline double interp6( double *f, double x )
 {
 	double x2 = x*x, x3=x2*x, x4=x3*x, x5=x4*x, x6=x5*x;
@@ -100,6 +107,7 @@ inline double interp6( double *f, double x )
 	
 }
 
+//! general 6th order polynomial interpolation
 inline double interp6( double f0, double f1, double f2, double f3, double f4, double f5, double f6, double x )
 {
 	double x2 = x*x, x3=x2*x, x4=x3*x, x5=x4*x, x6=x5*x;
@@ -120,6 +128,7 @@ inline double interp6( double f0, double f1, double f2, double f3, double f4, do
 	
 }
 
+//! general 2nd order polynomial interpolation
 inline double interp2( double fleft, double fcenter, double fright, double x )
 {
 	double a,b,c;
@@ -130,7 +139,7 @@ inline double interp2( double fleft, double fcenter, double fright, double x )
 	return a*x*x+b*x+c;
 }
 
-
+//! optimized 2nd order polynomial interpolation for i-1 values
 inline double interp2left( double fleft, double fcenter, double fright )
 {
 	double a,b,c;
@@ -141,6 +150,7 @@ inline double interp2left( double fleft, double fcenter, double fright )
 	return a-b+c;
 }
 
+//! optimized 2nd order polynomial interpolation for i+1 values
 inline double interp2right( double fleft, double fcenter, double fright )
 {
 	double a,b,c;
@@ -151,6 +161,7 @@ inline double interp2right( double fleft, double fcenter, double fright )
 	return a+b+c;
 }
 
+//! optimized 2nd order polynomial interpolation for i-2 values
 inline double interp2lleft( double fleft, double fcenter, double fright )
 {
 	double a,b,c;
@@ -161,6 +172,7 @@ inline double interp2lleft( double fleft, double fcenter, double fright )
 	return a-b+c;
 }
 
+//! optimized 2nd order polynomial interpolation for i+2 values
 inline double interp2rright( double fleft, double fcenter, double fright )
 {
 	double a,b,c;
@@ -171,33 +183,37 @@ inline double interp2rright( double fleft, double fcenter, double fright )
 	return a-b+c;
 }
 
-
+//! optimized 6th order polynomial interpolation for i-1 values
 inline double interp6left( double f0, double f1, double f2, double f3, double f4, double f5, double f6 )
 {
-	//return -77./2565.*f6+44./221.*f5-14./25.*f4+308./351.*f3+352./675.*f2-16./1755.*f1+112./104975.*f0;
 	return 4./2431.*f0-24./1001.*f1+4./7.*f2+60./77.*f3-6./13.*f4+12./77.*f5-5./221.*f6;
 }
 
+//! optimized 6th order polynomial interpolation for i-2 values
 inline double interp6lleft( double f0, double f1, double f2, double f3, double f4, double f5, double f6 )
 {
-	//return -16./4199.*f0+16./429.*f1+32./21.*f2-675./1547.*f5-50./39.*f3+12./11.*f4+4./57.*f6;
 	return -12./2431.*f0+40./429.*f1+4./3.*f2-10./11.*f3+28./39.*f4-3./11.*f5+28./663.*f6;
 }
 
+//! optimized 6th order polynomial interpolation for i-3 values
 inline double interp6llleft( double f0, double f1, double f2, double f3, double f4, double f5, double f6 )
 {
-	//return -432./20995.*f0+112./429.*f1+32./15.*f2-324./221.*f5-140./39.*f3+189./55.*f4+14./57.*f6;
 	return -36./2431.*f0+600./1001.*f1+20./21.*f2-100./77.*f3+15./13.*f4-36./77.*f5+50./663.*f6;
 }
 
+//! optimized 6th order polynomial interpolation for i+1 values
 inline double interp6right( double f0, double f1, double f2, double f3, double f4, double f5, double f6 )
 {
 	return interp6left(f6,f5,f4,f3,f2,f1,f0);
 }
+
+//! optimized 6th order polynomial interpolation for i+2 values
 inline double interp6rright( double f0, double f1, double f2, double f3, double f4, double f5, double f6 )
 {
 	return interp6lleft(f6,f5,f4,f3,f2,f1,f0);
 }
+
+//! optimized 6th order polynomial interpolation for i+3 values
 inline double interp6rrright( double f0, double f1, double f2, double f3, double f4, double f5, double f6 )
 {
 	return interp6llleft(f6,f5,f4,f3,f2,f1,f0);
@@ -208,6 +224,7 @@ inline double interp6rrright( double f0, double f1, double f2, double f3, double
 
 #include "fd_schemes.hh"
 
+//! tri-cubic interpolation for non-conservative injection
 struct cubic_interp
 : public coarse_fine_interpolation
 {
@@ -413,7 +430,7 @@ struct cubic_interp
 };
 
 
-
+//! 3rd order flux-corrected coarse-fine interpolation 
 struct interp_O3_fluxcorr
 : public coarse_fine_interpolation
 {
@@ -617,6 +634,7 @@ struct interp_O3_fluxcorr
 	}
 };
 
+//! 5th order flux-corrected coarse-fine interpolation
 struct interp_O5_fluxcorr
 : public coarse_fine_interpolation
 {
@@ -923,7 +941,7 @@ struct interp_O5_fluxcorr
 	}
 };
 
-
+//! 7th order flux-corrected coarse-fine interpolation
 struct interp_O7_fluxcorr
 : public coarse_fine_interpolation
 {

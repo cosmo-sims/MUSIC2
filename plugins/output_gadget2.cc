@@ -528,6 +528,22 @@ public:
 			shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
 		}
 		
+		if( !cf_.getValueSafe<bool>("output","stagger_particles",false ) )
+		{
+			double h = 1.0/pow(2,levelmax_);
+			if( shift==NULL )
+			{
+				shift = new double[3];
+				shift[0] = -0.5*h;
+				shift[1] = -0.5*h;
+				shift[2] = -0.5*h;	
+			}else{
+				shift[0] -= 0.5*h;
+				shift[1] -= 0.5*h;
+				shift[2] -= 0.5*h;
+			}
+			
+		}
 		
 		//...
 		header_.npart[1] = npfine;

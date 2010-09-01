@@ -292,11 +292,37 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	shift[1] = cf.getValue<int>("setup","shift_y");
 	shift[2] = cf.getValue<int>("setup","shift_z");
 	
-#ifdef SINGLE_PRECISION	
+/*#ifdef SINGLE_PRECISION	
 	convolution::kernel_creator *the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_float" ];
 #else
 	convolution::kernel_creator *the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_double" ];
+#endif*/
+	
+	convolution::kernel_creator *the_kernel_creator;
+	
+	if( kspaceTF )
+	{
+		if( levelmin!=levelmax )
+			throw std::runtime_error("k-space transfer function can only be used in unigrid density mode");
+		
+		std::cout << " - Using k-space transfer function kernel.\n";
+		
+#ifdef SINGLE_PRECISION	
+		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_float" ];
+#else
+		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_double" ];
 #endif
+	}
+	else
+	{
+		std::cout << " - Using real-space transfer function kernel.\n";
+		
+#ifdef SINGLE_PRECISION	
+		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_float" ];
+#else
+		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_double" ];
+#endif
+	}	
 	
 	convolution::parameters conv_param;
 	conv_param.ptf = ptf;
@@ -886,7 +912,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	}
 	
 	
-	//std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
+	std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
 	
 	for( unsigned i=levelmin; i<=levelmax; ++i )
 	{		

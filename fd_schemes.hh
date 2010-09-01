@@ -28,7 +28,7 @@
 #include <stdexcept>
 
 
-//... abstract implementation of the Poisson/Force scheme
+//! abstract implementation of the Poisson/Force scheme
 template< class L, class G, typename real_t=double >
 class scheme
 {
@@ -39,22 +39,27 @@ public:
 	laplacian m_laplacian;
 	gradient m_gradient;
 	
+	//! gradient along x-direction
 	template< class C >
 	inline real_t grad_x( const C&c, const int i, const int j, const int k )
 	{ return m_gradient.apply_x( c,i,j,k ); }
-	
+
+	//! gradient along y-direction
 	template< class C >
 	inline real_t grad_y( const C&c, const int i, const int j, const int k )
 	{ return m_gradient.apply_y( c,i,j,k ); }
 	
+	//! gradient along z-direction	
 	template< class C >
 	inline real_t grad_z( const C&c, const int i, const int j, const int k )
 	{ return m_gradient.apply_z( c,i,j,k ); }
 	
+	//! apply Laplace operator
 	template< class C >
 	inline real_t L_apply( const C&c, const int i, const int j, const int k ) 
 	{ return m_laplacian.apply( c,i,j,k ); }
 	
+	//! compute an explicit solution for the central component of the discrete Poisson's equation
 	template< class C >
 	inline real_t L_rhs( const C&c, const int i, const int j, const int k ) 
 	{ return m_laplacian.rhs( c,i,j,k ); }
@@ -64,7 +69,7 @@ public:
 	
 };
 
-
+//! base class for finite difference gradients
 template< int nextent, typename T >
 class gradient
 {
@@ -117,6 +122,7 @@ public:
 	}
 };
 
+//! base class for finite difference stencils
 template< int nextent, typename real_t >
 class base_stencil
 {
@@ -200,7 +206,7 @@ public:
 
 //... Implementation of the Laplacian schemes..........................................
 
-
+//! 7-point, 2nd order finite difference Laplacian
 template< typename real_t >
 class stencil_7P : public base_stencil<1,real_t>
 {
@@ -235,7 +241,7 @@ public:
 	}
 };
 
-
+//! 13-point, 4th order finite difference Laplacian
 template< typename real_t >
 class stencil_13P : public base_stencil<2,real_t>
 {
@@ -283,6 +289,8 @@ public:
 	}
 };
 
+
+//! 19-point, 6th order finite difference Laplacian
 template< typename real_t >
 class stencil_19P : public base_stencil<3,real_t>
 {
@@ -342,12 +350,19 @@ public:
 };
 
 
+//! flux operator for the 4th order FD Laplacian
 template< typename real_t >
 class Laplace_flux_O4
 {
 public:
-	
-	//.. idir is -1 for left boundary, +1 for right boundary
+	/*! computes flux across a surface normal to x-direction
+	 * @param idir idir is -1 for left boundary, +1 for right boundary
+	 * @param c array on which to apply the operator
+	 * @param i grid x-index
+	 * @param j grid y-index
+	 * @param k grid z-index
+	 * @returns flux value
+	 */
 	template< class C >
 	inline double apply_x( int idir, const C& c, const int i, const int j, const int k )
 	{
@@ -355,6 +370,14 @@ public:
 		return fac*(-c(i-2,j,k)+15.0*c(i-1,j,k)-15.0*c(i,j,k)+c(i+1,j,k));
 	}
 	
+	/*! computes flux across a surface normal to y-direction
+	 * @param idir idir is -1 for left boundary, +1 for right boundary
+	 * @param c array on which to apply the operator
+	 * @param i grid x-index
+	 * @param j grid y-index
+	 * @param k grid z-index
+	 * @returns flux value
+	 */
 	template< class C >
 	inline double apply_y( int idir, const C& c, const int i, const int j, const int k )
 	{
@@ -362,6 +385,14 @@ public:
 		return fac*(-c(i,j-2,k)+15.0*c(i,j-1,k)-15.0*c(i,j,k)+c(i,j+1,k));
 	}
 	
+	/*! computes flux across a surface normal to z-direction
+	 * @param idir idir is -1 for left boundary, +1 for right boundary
+	 * @param c array on which to apply the operator
+	 * @param i grid x-index
+	 * @param j grid y-index
+	 * @param k grid z-index
+	 * @returns flux value
+	 */
 	template< class C >
 	inline double apply_z( int idir, const C& c, const int i, const int j, const int k )
 	{
@@ -372,12 +403,20 @@ public:
 };
 
 
+//! flux operator for the 6th order FD Laplacian
 template< typename real_t >
 class Laplace_flux_O6
 {
 public:
 	
-	//.. idir is -1 for left boundary, +1 for right boundary
+	/*! computes flux across a surface normal to x-direction
+	 * @param idir idir is -1 for left boundary, +1 for right boundary
+	 * @param c array on which to apply the operator
+	 * @param i grid x-index
+	 * @param j grid y-index
+	 * @param k grid z-index
+	 * @returns flux value
+	 */
 	template< class C >
 	inline double apply_x( int idir, const C& c, const int i, const int j, const int k )
 	{
@@ -385,6 +424,14 @@ public:
 		return fac*(2.*c(i-3,j,k)-25.*c(i-2,j,k)+245.*c(i-1,j,k)-245.0*c(i,j,k)+25.*c(i+1,j,k)-2.*c(i+2,j,k));
 	}
 	
+	/*! computes flux across a surface normal to y-direction
+	 * @param idir idir is -1 for left boundary, +1 for right boundary
+	 * @param c array on which to apply the operator
+	 * @param i grid x-index
+	 * @param j grid y-index
+	 * @param k grid z-index
+	 * @returns flux value
+	 */
 	template< class C >
 	inline double apply_y( int idir, const C& c, const int i, const int j, const int k )
 	{
@@ -392,6 +439,14 @@ public:
 		return fac*(2.*c(i,j-3,k)-25.*c(i,j-2,k)+245.*c(i,j-1,k)-245.0*c(i,j,k)+25.*c(i,j+1,k)-2.*c(i,j+2,k));
 	}
 	
+	/*! computes flux across a surface normal to z-direction
+	 * @param idir idir is -1 for left boundary, +1 for right boundary
+	 * @param c array on which to apply the operator
+	 * @param i grid x-index
+	 * @param j grid y-index
+	 * @param k grid z-index
+	 * @returns flux value
+	 */
 	template< class C >
 	inline double apply_z( int idir, const C& c, const int i, const int j, const int k )
 	{

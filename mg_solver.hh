@@ -37,12 +37,13 @@
 
 BEGIN_MULTIGRID_NAMESPACE
 	
+//! options for multigrid smoothing operation
 namespace opt {
 	enum smtype { sm_jacobi, sm_gauss_seidel, sm_sor };
 }
 
 
-
+//! actual implementation of FAS adaptive multigrid solver
 template< class S, class I, class O, typename T=double >
 class solver
 {
@@ -52,51 +53,68 @@ public:
 	typedef I interp;
 
 protected:
-	scheme				m_scheme;
-	mgop				m_gridop;
-	unsigned			m_npresmooth, m_npostsmooth;
-	opt::smtype			m_smoother;
-	unsigned			m_ilevelmin;
+	scheme				m_scheme;				//!< finite difference scheme
+	mgop				m_gridop;				//!< grid prolongation and restriction operator
+	unsigned			m_npresmooth,			//!< number of pre sweeps
+						m_npostsmooth;			//!< number of post sweeps
+	opt::smtype			m_smoother;				//!< smoothing method to be applied
+	unsigned			m_ilevelmin;			//!< index of the top grid level
 	
-	const static bool	m_bperiodic = true;
+	const static bool	m_bperiodic = true;		//!< flag whether top grid is periodic
 	
-	std::vector<double> m_residu_ini;
-	bool m_is_ini;
+	std::vector<double> m_residu_ini;			//!< vector of initial residuals for each level
+	bool m_is_ini;								//!< bool that is true for first iteration
 
-	GridHierarchy<T>	*m_pu, *m_pf, *m_pfsave;	
+	GridHierarchy<T>	*m_pu,					//!< pointer to GridHierarchy for solution u
+						*m_pf,					//!< pointer to GridHierarchy for right-hand-side
+						*m_pfsave;				//!< pointer to saved state of right-hand-side (unused)
 	
 	const MeshvarBnd<T> *m_pubnd;
 	
+	//! compute residual for a level
 	double compute_error( const MeshvarBnd<T>& u, const MeshvarBnd<T>& unew );
 	
+	//! compute residuals for entire grid hierarchy
 	double compute_error( const GridHierarchy<T>& uh, const GridHierarchy<T>& uhnew, bool verbose );
 	
+	//! compute residuals for entire grid hierarchy
 	double compute_RMS_resid( const GridHierarchy<T>& uh, const GridHierarchy<T>& fh, bool verbose );
 
 protected:
 	
+	//! Jacobi smoothing 
 	void Jacobi( T h, MeshvarBnd<T>* u, const MeshvarBnd<T>* f );
 	
+	//! Gauss-Seidel smoothing
 	void GaussSeidel( T h, MeshvarBnd<T>* u, const MeshvarBnd<T>* f );
 	
+	//! Successive-Overrelaxation smoothing
 	void SOR( T h, MeshvarBnd<T>* u, const MeshvarBnd<T>* f );
 	
+	//! main two-grid (V-cycle) for multi-grid iterations
 	void twoGrid( unsigned ilevel );
 	
+	//! apply boundary conditions
 	void setBC( unsigned ilevel );
 	
+	//! make top grid periodic boundary conditions
 	void make_periodic( MeshvarBnd<T> *u );
 	
 	//void interp_coarse_fine_cubic( unsigned ilevel, MeshvarBnd<T>& coarse, MeshvarBnd<T>& fine );
 		
 public:
+	
+	//! constructor
 	solver( GridHierarchy<T>& f, opt::smtype smoother, unsigned npresmooth, unsigned npostsmooth );
 	
+	//! destructor
 	~solver()
 	{  }
 	
+	//! solve Poisson's equation 
 	double solve( GridHierarchy<T>& u, double accuracy, double h=-1.0, bool verbose=false );
 	
+	//! solve Poisson's equation 
 	double solve( GridHierarchy<T>& u, double accuracy, bool verbose=false )
 	{
 		return this->solve ( u, accuracy, -1.0, verbose );

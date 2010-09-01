@@ -53,6 +53,7 @@ namespace convolution{
 	template< typename real_t >
 	void perform( kernel * pk, void *pd )
 	{
+	//	return;
 		parameters cparam_ = pk->cparam_;
 		double fftnorm = pow(2.0*M_PI,1.5)/sqrt(cparam_.lx*cparam_.ly*cparam_.lz)/sqrt((double)(cparam_.nx*cparam_.ny*cparam_.nz));
 		
@@ -88,10 +89,10 @@ namespace convolution{
 				for( int k=0; k<cparam_.nz/2+1; ++k )
 				{
 					unsigned ii = (i*cparam_.ny + j) * (cparam_.nz/2+1) + k;
-					
+
 					std::complex<double> ccdata(cdata[ii].re,cdata[ii].im), cckernel(ckernel[ii].re,ckernel[ii].im);
 					ccdata = ccdata * cckernel *fftnorm;
-					
+
 					cdata[ii].re = ccdata.real();
 					cdata[ii].im = ccdata.imag();
 				}
@@ -149,28 +150,30 @@ namespace convolution{
 			dy			= cparam_.ly/cparam_.ny, 
 			dz			= cparam_.lz/cparam_.nz,
 			boxlength	= cparam_.pcf->getValue<double>("setup","boxlength"),
+			boxlength2  = 0.5*boxlength,
 			nspec		= cparam_.pcf->getValue<double>("cosmology","nspec"),
 			pnorm		= cparam_.pcf->getValue<double>("cosmology","pnorm"),
 			dplus		= cparam_.pcf->getValue<double>("cosmology","dplus");
 		
 		bool
 			bavgfine	= cparam_.pcf->getValueSafe<bool>("setup","avg_fine",false),
-			bdefd		= cparam_.pcf->getValueSafe<bool> ( "poisson" , "deconvolve", false ),
-			bperiodic	= cparam_.pcf->getValueSafe<bool>("setup","periodic_TF",true);
-		
+			bperiodic	= cparam_.pcf->getValueSafe<bool>("setup","periodic_TF",true),
+			kspacepoisson = (cparam_.pcf->getValueSafe<bool>("poisson","fft_fine",true)|
+							 cparam_.pcf->getValueSafe<bool>("poisson","kspace",false));
 		unsigned 
 			levelmax	= cparam_.pcf->getValue<unsigned>("setup","levelmax");
 		
 			
 		if( bavgfine )
 			cparam_.coarse_fact++;
-		
+
 		const int ref_fac = (int)(pow(2,cparam_.coarse_fact)+0.5), ql = -ref_fac/2+1, qr=ql+ref_fac, rf8=(int)pow(ref_fac,3);
 				
 		std::cout << "   - Computing transfer function kernel...\n";
 		
 		if(! cparam_.is_finest )
-			kny *= pow(2,cparam_.coarse_fact);
+				kny *= pow(2,cparam_.coarse_fact);
+
 		
 		TransferFunction_real *tfr = 
 				new TransferFunction_real(type, cparam_.ptf,nspec,pnorm,dplus,
@@ -186,6 +189,11 @@ namespace convolution{
 		double kmax = 0.5*M_PI/std::max(cparam_.nx,std::max(cparam_.ny,cparam_.nz));
 		
 		T0 = tfr->compute_real(0.0);
+		
+
+		
+		if(bavgfine)
+			cparam_.coarse_fact--;
 		
 		//... obtain a grid-version of the real space transfer function
 		if( bperiodic  )
@@ -306,26 +314,32 @@ namespace convolution{
 										rrr[2] = rr[2]+(double)kkk*0.5*dx - 0.25*dx;
 										rrr2[2]= rrr[2]*rrr[2];
 										rr2 = rrr2[0]+rrr2[1]+rrr2[2];
-										kdata_[idx] += (fftw_real)(tfr->compute_real(rr2)/rf8);	
+										if( fabs(rr[0])<=boxlength2||fabs(rr[1])<=boxlength2||fabs(rr[2])<=boxlength2 )
+											kdata_[idx] += (fftw_real)(tfr->compute_real(rr2)/rf8)*fac;	
 									}
 								}
 							}
 							
 						}else{
 							rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-							kdata_[idx] += (fftw_real)tfr->compute_real(rr2);
+							if( fabs(rr[0])<=boxlength2||fabs(rr[1])<=boxlength2||fabs(rr[2])<=boxlength2 )
+								kdata_[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
 						}
 					}
 		}
 		
 		if( cparam_.is_finest )
+		{	
 			kdata_[0] = tfr->compute_real(0.0)*fac;
-				
+			//std::cerr << "T(0) = " << kdata_[0] << std::endl;
+			//kdata_[0] = sqrt(8.0)*tfr->compute_real(0.5*sqrt(3.0)*dx/4)*fac;
+			//std::cerr << "T(0) = " << kdata_[0] << std::endl;
+		}
 		T0 = kdata_[0];
 		delete tfr;
 		
 		double k0 = kdata_[0];
-
+		
 		//... subtract white noise component before deconvolution
 		if( cparam_.deconvolve )//&& cparam_.is_finest)
 			kdata_[0] = 0.0;
@@ -336,6 +350,7 @@ namespace convolution{
 		rfftwnd_one_real_to_complex( plan, rkernel, NULL );
 		#endif
 		
+		//... do some k-space filter correction stuff
 		if( cparam_.deconvolve || cparam_.smooth )
 		{
 			
@@ -359,15 +374,6 @@ namespace convolution{
 
 						double ipix = 1.0;
 						
-						//... perform k-space 'averaging' for coarser grids
-						/*if( !cparam_.is_finest )
-						{
-							for( unsigned c=1; c<= cparam_.coarse_fact; ++c )
-							{
-								double kkmax = 0.5*kmax/pow(2,c-1);
-								ipix *= (cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax));								
-							}
-						}*/
 						
 						double kkmax = kmax;// / pow(2,cparam_.coarse_fact);
 							
@@ -387,17 +393,30 @@ namespace convolution{
 						
 						if( !cparam_.smooth )
 						{
-							
-							if(!(bdefd&&cparam_.is_finest))
+							if( cparam_.is_finest )
 							{
-								kkernel[q].re *= ipix;
-								kkernel[q].im *= ipix;		
+								if( kspacepoisson )
+								{
+									kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+									kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+									///////kkernel[q].re *= ipix;
+									///////kkernel[q].im *= ipix;	
+								}else{
+									
+									////////kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+									////////kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+									
+									kkernel[q].re *= ipix;
+									kkernel[q].im *= ipix;	
+								}
+								
 							}else{
-								kkmax /= pow(2,cparam_.coarse_fact);
 								kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
 								kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+								////////kkernel[q].re *= ipix;
+								////////kkernel[q].im *= ipix;
 							}
-							
+														
 						}else{
 							//... if smooth==true, convolve with 
 							//... NGP kernel to get CIC smoothness
@@ -427,7 +446,7 @@ namespace convolution{
 			//... set white noise component to zero if smoothing is enabled
 			if( cparam_.smooth )
 				dk = 0.0;
-			
+
 			//... enforce the r=0 component by adjusting the k-space mean
 			#pragma omp parallel for reduction(+:ksum,kcount)
 			for( int i=0; i<cparam_.nx; ++i )
@@ -441,8 +460,7 @@ namespace convolution{
 		
 		rfftwnd_destroy_plan(plan);
 		
-		if(bavgfine)
-			cparam_.coarse_fact--;
+		
 	}
 	
 
@@ -525,305 +543,9 @@ namespace convolution{
 	}
 }
 
-	
 
 /**************************************************************************************/
 /**************************************************************************************/
-#pragma mark -
-
-
-template<int order>
-double deconv_kernel( int idir, int i, int j, int k, int n )
-{
-	return 1.0;
-}
-
-template<>
-inline double deconv_kernel<2>(int idir, int i, int j, int k, int n )
-{
-	double 
-		ki(M_PI*(double)i/(double)n), 
-		kj(M_PI*(double)j/(double)n), 
-		kk(M_PI*(double)k/(double)n), 
-		kr(sqrt(ki*ki+kj*kj+kk*kk));
-	
-	double grad = 1.0, laplace = 1.0;
-
-	if( idir==0&&i!=0 )
-		grad = sin(ki)/ki;
-	else if( idir==1&&j!=0 )
-		grad = sin(kj)/kj;
-	else if( idir==2&&k!=0 )
-		grad = sin(kk)/kk;
-	
-	laplace = 2.0*((-cos(ki)+1.0)+(-cos(kj)+1.0)+(-cos(kk)+1.0));
-	
-	if(i!=0&&j!=0&&k!=0)
-		laplace /= (kr*kr);
-	else
-		laplace=1.0;
-
-	return laplace/grad;
-	
-}
-
-template<>
-inline double deconv_kernel<4>(int idir, int i, int j, int k, int n )
-{
-	double 
-	ki(M_PI*(double)i/(double)n), 
-	kj(M_PI*(double)j/(double)n), 
-	kk(M_PI*(double)k/(double)n), 
-	kr(sqrt(ki*ki+kj*kj+kk*kk));
-	
-	double grad = 1.0, laplace = 1.0;
-	
-	if( idir==0&&i!=0 )
-		grad = 0.166666666667*(-sin(2.*ki)+8.*sin(ki))/ki;
-	else if( idir==1&&j!=0 )
-		grad = 0.166666666667*(-sin(2.*kj)+8.*sin(kj))/kj;
-	else if( idir==2&&k!=0 )
-		grad = 0.166666666667*(-sin(2.*kk)+8.*sin(kk))/kk;
-	
-	laplace = 0.1666666667*((cos(2*ki)-16.*cos(ki)+15.)
-							+(cos(2*kj)-16.*cos(kj)+15.)
-							+(cos(2*kk)-16.*cos(kk)+15.));
-	
-	if(i!=0&&j!=0&&k!=0)
-		laplace /= (kr*kr);
-	else
-		laplace=1.0;
-	
-	return laplace/grad;
-	
-}
-
-template<>
-inline double deconv_kernel<6>(int idir, int i, int j, int k, int n )
-{
-	double 
-	ki(M_PI*(double)i/(double)n), 
-	kj(M_PI*(double)j/(double)n), 
-	kk(M_PI*(double)k/(double)n), 
-	//ki(M_PI*(1.0-(double)(n-i)/(double)n)),
-	//kj(M_PI*(1.0-(double)(n-j)/(double)n)),
-	//kk(M_PI*(1.0-(double)(n-k)/(double)n)),
-	
-	kr(sqrt(ki*ki+kj*kj+kk*kk));
-	
-	if(i==0&&j==0&&k==0)
-		return 0.0;
-		
-	double grad = 1.0, laplace = 1.0;
-	
-	if( idir==0 )//&&i!=0&&i!=n )
-		grad = 0.0333333333333*(sin(3.*ki)-9.*sin(2.*ki)+45.*sin(ki));
-	else if( idir==1 )//&&j!=0&&j!=n )
-		grad = 0.0333333333333*(sin(3.*kj)-9.*sin(2.*kj)+45.*sin(kj));
-	else if( idir==2 ) //&&k!=0&&k!=n )
-		grad = 0.0333333333333*(sin(3.*kk)-9.*sin(2.*kk)+45.*sin(kk));
-	
-	laplace = 0.01111111111111*(
-		(-2.*cos(3.0*ki)+27.*cos(2.*ki)-270.*cos(ki)+245.)
-		+(-2.*cos(3.0*kj)+27.*cos(2.*kj)-270.*cos(kj)+245.)
-		+(-2.*cos(3.0*kk)+27.*cos(2.*kk)-270.*cos(kk)+245.));
-	
-	//if(i!=0&&j!=0&&k!=0)
-/*	if(i==0&&j==0&&k==0)
-		laplace=1.0;
-	else*/
-		//laplace -= (kr*kr);
-	
-		
-	double kgrad = 1.0;
-	if( idir==0 )
-		kgrad = ki;
-	else if( idir ==1)
-		kgrad = kj;
-	else if( idir ==2)
-		kgrad = kk;
-	
-	return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;//laplace/grad;
-	//return kgrad/kr/kr*M_PI/n*M_PI/n;
-	//return grad/laplace*M_PI/n*M_PI/n;
-	//return (kgrad/kr/kr-grad/laplace);
-}
-
-
-template<int order>
-void do_deconvolve( fftw_real* data, int idir, int nxp, int nyp, int nzp, bool periodic )
-{
-	double fftnorm = 1.0/(nxp*nyp*nzp);
-	
-	
-	if(periodic)
-		fftnorm *= nxp/(4.0*M_PI*M_PI);//sqrt(8.0);
-	
-	
-	/*if(periodic)
-		fftnorm *= M_PI*M_PI/nxp/nyp/nzp;
-	else
-		fftnorm *= M_PI*M_PI/nxp/nyp/nzp;
-	
-	if( idir == 0 )
-		fftnorm *= nxp;
-	else if( idir == 1 )
-		fftnorm *= nyp;
-	else
-		fftnorm *= nzp;*/
-		
-	fftw_complex	*cdata = reinterpret_cast<fftw_complex*>(data);
-	rfftwnd_plan	iplan, plan;
-	
-	plan  = rfftw3d_create_plan( nxp, nyp, nzp,
-								FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
-	
-	iplan = rfftw3d_create_plan( nxp, nyp, nzp, 
-								FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
-	
-	#ifndef SINGLETHREAD_FFTW		
-	rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
-#else
-	rfftwnd_one_real_to_complex( plan, data, NULL );
-#endif
-	
-	double ksum = 0.0;
-	unsigned kcount = 0;
-	
-	for( int i=0; i<nxp; ++i )
-		for( int j=0; j<nyp; ++j )
-			for( int k=0; k<nzp/2+1; ++k )
-			{
-				unsigned ii = (i*nyp + j) * (nzp/2+1) + k;
-				
-				if( k==0 || k==nzp/2 )
-				{
-					ksum  += cdata[ii].re;
-					kcount++;
-				}else{
-					ksum  += 2.0*(cdata[ii].re);
-					kcount+=2;
-				}
-			}
-	
-	ksum /= kcount;
-	kcount = 0;
-	
-	cdata[0].re = 0.0;
-	cdata[0].im = 0.0;
-	
-#pragma omp parallel for
-	for( int i=0; i<nxp; ++i )
-		for( int j=0; j<nyp; ++j )
-			for( int k=0; k<nzp/2+1; ++k )
-			{
-				unsigned ii = (i*nyp + j) * (nzp/2+1) + k;
-				
-				int ki(i), kj(j);
-				if( ki > nxp/2 ) ki-=nxp;
-				if( kj > nyp/2 ) kj-=nyp;
-				
-				double dk = deconv_kernel<order>(idir, ki, kj, k, nxp/2 );
-				//cdata[ii].re -= ksum;
-				
-				double re = cdata[ii].re, im = cdata[ii].im;
-				
-				cdata[ii].re = -im*dk*fftnorm;
-				cdata[ii].im = re*dk*fftnorm;
-				
-				//cdata[ii].re += ksum*fftnorm;
-				
-			}
-	cdata[0].re = 0.0;
-	cdata[0].im = 0.0;
-	
-#ifndef SINGLETHREAD_FFTW		
-	rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL);
-#else		
-	rfftwnd_one_complex_to_real(iplan, cdata, NULL);
-#endif
-	
-	rfftwnd_destroy_plan(plan);
-	rfftwnd_destroy_plan(iplan);
-	
-}
-void deconvolve( MeshvarBnd<double>& f, int idir, int order, bool periodic )
-{
-	int nx=f.size(0), ny=f.size(1), nz=f.size(2), nxp, nyp, nzp;
-	fftw_real		*data;
-	int xo=0,yo=0,zo=0;
-	int nmax = std::max(nx,std::max(ny,nz));
-	
-	if(!periodic)
-	{
-		nxp = 2*nmax;
-		nyp = 2*nmax;
-		nzp = 2*nmax;
-		xo  = nmax/2;
-		yo  = nmax/2;
-		zo  = nmax/2;
-	}
-	else
-	{
-		nxp = nmax;
-		nyp = nmax;
-		nzp = nmax;
-	}
-	
-
-	
-	data		= new fftw_real[nxp*nyp*2*(nzp/2+1)];
-	
-	if(idir==0)
-		std::cout << "   - Performing de-convolution... (" << nxp <<  ", " << nyp << ", " << nzp << ")\n";
-	
-	
-	for( int i=0; i<nxp*nyp*2*(nzp/2+1); ++i )
-		data[i]=0.0;
-	
-	for( int i=0; i<nx; ++i )
-		for( int j=0; j<ny; ++j )
-			for( int k=0; k<nz; ++k )
-			{
-				int idx = ((i+xo)*nyp + j+yo) * 2*(nzp/2+1) + k+zo;
-				data[idx] = f(i,j,k);
-			}
-	
-	switch (order) {
-		case 2:
-			do_deconvolve<2>(data, idir, nxp, nyp, nzp, periodic);
-			break;
-		case 4:
-			do_deconvolve<4>(data, idir, nxp, nyp, nzp, periodic);
-			break;
-		case 6:
-			do_deconvolve<6>(data, idir, nxp, nyp, nzp, periodic);
-			break;
-		default:
-			std::cerr << " - ERROR: invalid operator order specified in deconvolution.";
-			break;
-	}
-	
-	
-	for( int i=0; i<nx; ++i )
-		for( int j=0; j<ny; ++j )
-			for( int k=0; k<nz; ++k )
-			{
-				//int idx = (i*nyp + j) * 2*(nzp/2+1) + k;
-				int idx = ((i+xo)*nyp + j+yo) * 2*(nzp/2+1) + k+zo;
-				
-				f(i,j,k) = data[idx];
-			}
-	
-	delete[] data;
-	
-}
-
-
-
-
-
-
 
 
 namespace{

@@ -47,8 +47,8 @@ public:
 	
 	//! constructor for a cosmology calculator object
 	/*!
-	 * @params acosmo a cosmological parameters structure
-	 * @params pTransferFunction pointer to an instance of a transfer function object
+	 * @param acosmo a cosmological parameters structure
+	 * @param pTransferFunction pointer to an instance of a transfer function object
 	 */
 	 
 	CosmoCalc( const Cosmology acosmo, transfer_function_plugin *pTransferFunction )
@@ -59,9 +59,9 @@ public:
 	
 	//! returns the amplitude of amplitude of the power spectrum
 	/*!
-	 * @params k the wave number in h/Mpc
-	 * @params a the expansion factor of the universe
-	 * @return power spectrum amplitude for wave number k at time a
+	 * @param k the wave number in h/Mpc
+	 * @param a the expansion factor of the universe
+	 * @returns power spectrum amplitude for wave number k at time a
 	 */
 	inline real_t Power( real_t k, real_t a ){
 		real_t m_Dplus    = CalcGrowthFactor( a );
@@ -166,8 +166,8 @@ public:
 	
 	//! Computes the square of the transfer function
 	/*! Function evaluates the supplied transfer function m_pTransferFunction
-	 and returns the square of its value at wave number k
-	 \param k wave number at which to evaluate the transfer function
+	 * and returns the square of its value at wave number k
+	 * @param k wave number at which to evaluate the transfer function
 	 */
 	inline real_t TransferSq( real_t k ){
 		//.. parameter supplied transfer function
@@ -199,9 +199,9 @@ public:
 //! compute the jeans sound speed
 /*! given a density in g/cm^-3 and a mass in g it gives back the sound
  *  speed in cm/s for which the input mass is equal to the jeans mass
- *  @params rho density 
- *  @params mass mass scale
- *  @return jeans sound speed
+ *  @param rho density 
+ *  @param mass mass scale
+ *  @returns jeans sound speed
  */
 inline double jeans_sound_speed( double rho, double mass )
 {

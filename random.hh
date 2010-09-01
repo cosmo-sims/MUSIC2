@@ -226,10 +226,10 @@ protected:
 		
 		{
 			std::cerr << " - degrading field for 1 level...(" << res_ << ")\n";
-			//unsigned ixoff=51,iyoff=51,izoff=51;
-			//unsigned nx=52, ny=52, nz=52;
-			unsigned ixoff=102, iyoff=102, izoff=102;
-			unsigned nx=104, ny=104, nz=104;
+			unsigned ixoff=51,iyoff=51,izoff=51;
+			unsigned nx=52, ny=52, nz=52;
+			//unsigned ixoff=102, iyoff=102, izoff=102;
+			//unsigned nx=104, ny=104, nz=104;
 			
 #pragma omp parallel for
 			for( unsigned ix=0; ix<res_; ix+=2 )

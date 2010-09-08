@@ -1,8 +1,8 @@
 ##############################################################################
 ### compile time configuration options
-MULTITHREADFFTW	= no
+MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
-HAVEHDF5        = yes
+HAVEHDF5        = no
 
 ##############################################################################
 ### compiler and path settings
@@ -53,6 +53,7 @@ all: $(OBJS) $(TARGET)
 
 $(TARGET): $(OBJS)
 	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS)
+
 %.o: %.cc *.hh Makefile 
 	$(CC) $(CFLAGS) $(CPATHS) -c $< -o $@
 

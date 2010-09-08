@@ -675,11 +675,11 @@ inline double poisson_hybrid_kernel<2>(int idir, int i, int j, int k, int n )
 	
 	double grad = 1.0, laplace = 1.0;
 	
-	if( idir==0&&i!=0 )
+	if( idir==0 )
 		grad = sin(ki);
-	else if( idir==1&&j!=0 )
+	else if( idir )
 		grad = sin(kj);
-	else if( idir==2&&k!=0 )
+	else //if( idir==2&&k!=0 )
 		grad = sin(kk);
 	
 	laplace = 2.0*((-cos(ki)+1.0)+(-cos(kj)+1.0)+(-cos(kk)+1.0));
@@ -692,7 +692,10 @@ inline double poisson_hybrid_kernel<2>(int idir, int i, int j, int k, int n )
 	else if( idir ==2)
 		kgrad = kk;
 	
-	return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;
+	//return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;
+	//return grad/laplace;
+	return kgrad/kr/kr-grad/laplace;
+	//return kgrad/kr/kr;
 	
 }
 
@@ -730,8 +733,8 @@ inline double poisson_hybrid_kernel<4>(int idir, int i, int j, int k, int n )
 	else if( idir ==2)
 	kgrad = kk;
 
-	return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;
-
+	//return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;
+	return kgrad/kr/kr-grad/laplace;
 }
 	   
 template<>
@@ -768,10 +771,7 @@ inline double poisson_hybrid_kernel<6>(int idir, int i, int j, int k, int n )
 	else if( idir ==2)
 		kgrad = kk;
 
-	return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;//laplace/grad;
-													//return kgrad/kr/kr*M_PI/n*M_PI/n;
-													//return grad/laplace*M_PI/n*M_PI/n;
-													//return (kgrad/kr/kr-grad/laplace);
+	return kgrad/kr/kr-grad/laplace;
 }
 	   
 	   
@@ -780,23 +780,9 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 {
 	double fftnorm = 1.0/(nxp*nyp*nzp);
 		
+	fftnorm = 1.0/pow(2.0*M_PI,3)/(nxp*nyp*nzp);
+	
 		
-	if(periodic)
-		fftnorm *= nxp/(4.0*M_PI*M_PI);//sqrt(8.0);
-	
-	
-	/*if(periodic)
-	 fftnorm *= M_PI*M_PI/nxp/nyp/nzp;
-	 else
-	 fftnorm *= M_PI*M_PI/nxp/nyp/nzp;
-	 
-	 if( idir == 0 )
-	 fftnorm *= nxp;
-	 else if( idir == 1 )
-	 fftnorm *= nyp;
-	 else
-	 fftnorm *= nzp;*/
-	
 	fftw_complex	*cdata = reinterpret_cast<fftw_complex*>(data);
 	rfftwnd_plan	iplan, plan;
 	
@@ -858,6 +844,12 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 				cdata[ii].im = re*dk*fftnorm;
 				
 				cdata[ii].re += ksum*fftnorm;
+				
+				//if( i==nxp/2||j==nyp/2||k==nzp/2 )
+				//{
+				//	cdata[ii].re = 0.0;
+				//	cdata[ii].im = 0.0;
+				//}
 				
 			}
 	cdata[0].re = 0.0;

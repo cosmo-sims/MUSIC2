@@ -53,7 +53,7 @@ namespace convolution{
 	template< typename real_t >
 	void perform( kernel * pk, void *pd )
 	{
-	//	return;
+		//return;
 		parameters cparam_ = pk->cparam_;
 		double fftnorm = pow(2.0*M_PI,1.5)/sqrt(cparam_.lx*cparam_.ly*cparam_.lz)/sqrt((double)(cparam_.nx*cparam_.ny*cparam_.nz));
 		
@@ -156,7 +156,7 @@ namespace convolution{
 			dplus		= cparam_.pcf->getValue<double>("cosmology","dplus");
 		
 		bool
-			bavgfine	= cparam_.pcf->getValueSafe<bool>("setup","avg_fine",false),
+			bavgfine	= cparam_.pcf->getValueSafe<bool>("setup","avg_fine",true),
 			bperiodic	= cparam_.pcf->getValueSafe<bool>("setup","periodic_TF",true),
 			kspacepoisson = (cparam_.pcf->getValueSafe<bool>("poisson","fft_fine",true)|
 							 cparam_.pcf->getValueSafe<bool>("poisson","kspace",false));
@@ -401,6 +401,8 @@ namespace convolution{
 									kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
 									///////kkernel[q].re *= ipix;
 									///////kkernel[q].im *= ipix;	
+									//kkernel[q].re *= ipix;
+									//kkernel[q].im *= ipix;
 								}else{
 									
 									////////kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);

@@ -49,7 +49,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.5.0a"
+#define THE_CODE_VERSION "0.6.0a"
 
 
 namespace music
@@ -413,7 +413,7 @@ int main (int argc, const char * argv[])
 	
 	refinement_hierarchy rh_TF( rh_Poisson );
 	modify_grid_for_TF( rh_Poisson, rh_TF, cf );
-	rh_TF.output();
+	//rh_TF.output();
 
 	
 	if( !the_transfer_function_plugin->tf_is_distinct() && do_baryons )
@@ -469,9 +469,15 @@ int main (int argc, const char * argv[])
 				{
 					if( bdefd )
 					{
-						data_forIO = f;
-						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
+						//data_forIO = f;
+						//poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
+						//the_poisson_solver->gradient_add(icoord, u, data_forIO );
+						////
+						data_forIO.zero();
+						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
+						
 					}
 					else
 						//... displacement
@@ -529,6 +535,8 @@ int main (int argc, const char * argv[])
 				//... displacement
 				if(bdefd)
 				{
+					//the_poisson_solver->gradient(icoord, u, data_forIO );
+					////
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					

@@ -40,7 +40,7 @@
 
 #include <complex>
 
-
+//#define XI_SAMPLE
 
 #include "config_file.hh"
 
@@ -271,7 +271,12 @@ protected:
 			double lambda0=1e-4;
 			//double lambda1=1e4;
 			double k = k0*exp(((int)i - (int)N/2+1) * dlnk);
-			in[i].re = dplus*sqrtpnorm*ptf_->compute( k, type_ )*pow(k,0.5*nspec_)*pow(k,1.5-q)*exp(-k*lambda0);//*exp(k*lambda1);
+			double T = ptf_->compute( k, type_ );
+#ifdef XI_SAMPLE
+			in[i].re = dplus*dplus*sqrtpnorm*sqrtpnorm*T*T*pow(k,nspec_)*pow(k,1.5-q)*exp(-k*lambda0);//*exp(k*lambda1);
+#else
+			in[i].re = dplus*sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q)*exp(-k*lambda0);//*exp(k*lambda1);
+#endif
 			in[i].im = 0.0;
 			
 			sum_in += in[i].re;
@@ -431,12 +436,10 @@ public:
 		//.. need a factor sqrt( 2*kny^2_x + 2*kny^2_y + 2*kny^2_z )/2 = sqrt(3/2)kny (in equilateral case)
 		//#warning Need to integrate from Boxsize (see below)?
 		gsl_integration_qag (&F, 0.0, sqrt(1.5)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
-		//gsl_integration_qag (&F, 0.0, 1.24070098*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
-		//gsl_integration_qag (&F, 0.0, 1.280788*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 		//gsl_integration_qag (&F, 0.0, knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
-		//gsl_integration_qag (&F, 0.0, 1.116*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
-		//gsl_integration_qag (&F, 0.0, sqrt(3)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
-		//gsl_integration_qag (&F, 0.0, 0.5*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		
+		//gsl_integration_qag (&F, 0.0, 1.280788*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		//gsl_integration_qag (&F, 0.0, sqrt(2.0)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 		
 		gsl_integration_workspace_free(wp);
 				
@@ -521,7 +524,12 @@ public:
 	static double call_wrapper( double k, void *arg )
 	{
 		double *a = (double*)arg;
-		return 4.0*M_PI*a[0]*ptf_->compute( k, type_ )*pow(k,0.5*nspec_)*k*k;
+		double T = ptf_->compute( k, type_ );
+#ifdef XI_SAMPLE
+		return 4.0*M_PI*a[0]*a[0]*T*T*pow(k,nspec_)*k*k;
+#else
+		return 4.0*M_PI*a[0]*T*pow(k,0.5*nspec_)*k*k;
+#endif
 	}
 	
 	~TransferFunction_real()

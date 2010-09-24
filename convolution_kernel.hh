@@ -31,6 +31,10 @@
 #include "densities.hh"
 #include "transfer_function.hh"
 
+
+#define ACC_RF(i,j,k) (((((i)+nx)%nx)*ny+(((j)+ny)%ny))*2*(nz/2+1)+(((k)+nz)%nz))
+#define ACC_RC(i,j,k) (((((i)+nxc)%nxc)*nyc+(((j)+nyc)%nyc))*2*(nzc/2+1)+(((k)+nzc)%nzc))
+
 namespace convolution{
 
 	//! encapsulates all parameters required for transfer function convolution
@@ -45,7 +49,10 @@ namespace convolution{
 		bool is_finest;
 		bool smooth;
 	};
-
+	
+	
+	/////////////////////////////////////////////////////////////////
+	
 	
 	//! abstract base class for a transfer function convolution kernel
 	class kernel{
@@ -54,16 +61,31 @@ namespace convolution{
 		//! all parameters (physical/numerical)
 		parameters cparam_;
 		
+		config_file *pcf_;
+		transfer_function* ptf_;
+		refinement_hierarchy* prefh_;
+		tf_type type_;
+		
 		//! constructor
-		kernel( const parameters& cp, tf_type type )
-		: cparam_( cp )
+		kernel( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
+		: pcf_(&cf), ptf_(ptf), prefh_(&refh), type_(type)//cparam_( cp )
 		{	}
+		
+		//! dummy constructor
+		/*kernel( void )
+		{	}*/
+		
+		//! compute/load the kernel
+		virtual kernel* fetch_kernel( int ilevel, bool isolated=false ) = 0;
 		
 		//! virtual destructor
 		virtual ~kernel(){ };
 		
 		//! purely virtual method to obtain a pointer to the underlying data
 		virtual void* get_ptr() = 0;	
+		
+		//! free memory
+		virtual void deallocate() = 0;
 	};
 
 	
@@ -71,7 +93,7 @@ namespace convolution{
 	struct kernel_creator
 	{
 		//! creates a convolution kernel object
-		virtual kernel * create( const parameters& cp, tf_type type ) const = 0;
+		virtual kernel * create( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type ) const = 0;
 		
 		//! destructor
 		virtual ~kernel_creator() { }
@@ -91,15 +113,18 @@ namespace convolution{
 		{	get_kernel_map()[ kernel_name ] = this; 	}
 		
 		//! creates an instance of the kernel object
-		kernel * create( const parameters& cp, tf_type type ) const
-		{	return new Derived( cp, type );	}
+		kernel * create( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type ) const
+		{	return new Derived( cf, ptf, refh, type );	}
 	};
 
 	
 	//! actual implementation of the FFT convolution (independent of the actual kernel)
 	template< typename real_t >
 	void perform( kernel* pk, void *pd );
-
+	
+	
+	
+	
 } //namespace convolution
 
 	

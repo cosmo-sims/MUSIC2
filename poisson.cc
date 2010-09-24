@@ -647,7 +647,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 					dmax = fabs(data[idx]);
 			}
 
-	std::cerr << " - component max. is " << dmax*nx << std::endl;
+	//std::cerr << " - component max. is " << dmax*nx << std::endl;
 	
 	delete[] data;
 	return 0.0;

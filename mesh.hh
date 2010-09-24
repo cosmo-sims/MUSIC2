@@ -273,6 +273,9 @@ public:
 		
 		return *this;
 	}
+	
+	real_t* get_ptr( void )
+	{	return m_pdata;		}
 };
 
 //! MeshvarBnd derived class adding boundary ghost cell functionality
@@ -599,7 +602,7 @@ public:
 	 */
 	void cell_pos( unsigned ilevel, int i, int j, int k, double* ppos ) const
 	{
-		double h = 1.0/pow(2,ilevel);//, htop = h*2.0;
+		double h = 1.0/(1<<ilevel);//, htop = h*2.0;
 		ppos[0] = h*((double)offset_abs(ilevel,0)+(double)i+0.5);
 		ppos[1] = h*((double)offset_abs(ilevel,1)+(double)j+0.5);
 		ppos[2] = h*((double)offset_abs(ilevel,2)+(double)k+0.5);
@@ -845,7 +848,7 @@ public:
 	{
 		for( unsigned i=0; i<=levelmax(); ++i )
 		{
-			unsigned n = (unsigned)pow(2,i);
+			unsigned n = 1<<i;
 			if(	m_pgrids[i]->size(0) == n &&
 			   	m_pgrids[i]->size(1) == n &&
 			   	m_pgrids[i]->size(2) == n )
@@ -959,9 +962,8 @@ public:
 		sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
 		
 		unsigned 
-			ncoarse = (unsigned)pow(2,levelmin_);
-			//ncoarse_tf = (unsigned)pow(2,levelmin_tf_);
-		
+			ncoarse = 1<<levelmin_;
+			
 		//... determine shift
 
 		double xc[3];
@@ -1012,19 +1014,20 @@ public:
 		
 		//... determine the position of the refinement region on the finest grid
 		int il,jl,kl,ir,jr,kr;
-		int nresmax = (int)pow(2,levelmax_);
+		int nresmax = 1<<levelmax_;
+		
 		il = (int)(x0ref_[0] * nresmax);
 		jl = (int)(x0ref_[1] * nresmax);
 		kl = (int)(x0ref_[2] * nresmax);
 		ir = (int)((x0ref_[0]+lxref_[0]) * nresmax + 1.0);
-		jr = (int)((x0ref_[0]+lxref_[0]) * nresmax + 1.0);
-		kr = (int)((x0ref_[0]+lxref_[0]) * nresmax + 1.0);
+		jr = (int)((x0ref_[1]+lxref_[1]) * nresmax + 1.0);
+		kr = (int)((x0ref_[2]+lxref_[2]) * nresmax + 1.0);
 		
 		//... align with coarser grids ...
 		if( align_top_ )
 		{
 			//... require alignment with top grid
-			unsigned nref = (unsigned)pow(2,levelmax_-levelmin_)*2;
+			unsigned nref = 1<<(levelmax_-levelmin_+1);
 			
 			il = (int)((double)il/nref)*nref;
 			jl = (int)((double)jl/nref)*nref;
@@ -1065,7 +1068,7 @@ public:
 			if( align_top_ )
 			{
 				//... require alignment with top grid
-				unsigned nref = (unsigned)pow(2,ilevel-levelmin_);
+				unsigned nref = 1<<(ilevel-levelmin_);
 				
 				il = (int)((double)il/nref)*nref;
 				jl = (int)((double)jl/nref)*nref;
@@ -1096,7 +1099,7 @@ public:
 		
 		for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
 		{
-			double h = 1.0/pow(2,ilevel);
+			double h = 1.0/(1<<ilevel);
 			
 			x0_[ilevel] = h*(double)oax_[ilevel];
 			y0_[ilevel] = h*(double)oay_[ilevel];
@@ -1109,7 +1112,7 @@ public:
 		
 		for( unsigned ilevel=0; ilevel <=levelmin_; ++ilevel )
 		{
-			unsigned n = (unsigned)pow(2,ilevel);
+			unsigned n = 1<<ilevel;
 			
 			xl_[ilevel] = yl_[ilevel] = zl_[ilevel] = 1.0;
 			nx_[ilevel] = ny_[ilevel] = nz_[ilevel] = n;
@@ -1152,7 +1155,7 @@ public:
 	 */	
 	void adjust_level( unsigned ilevel, int nx, int ny, int nz, int oax, int oay, int oaz )
 	{
-		double h = 1.0/pow(2,ilevel);
+		double h = 1.0/(1<<ilevel);
 		
 		int dx,dy,dz;
 		
@@ -1198,7 +1201,8 @@ public:
 		
 		for( unsigned i=0; i<=levelmax(); ++i )
 		{
-			unsigned n = (unsigned)pow(2,i);
+			unsigned n = 1<<i;
+			
 			if(	oax_[i]==0 && oay_[i]==0 && oaz_[i]==0
 			   && nx_[i]==n && ny_[i]==n && nz_[i]==n )
 			{

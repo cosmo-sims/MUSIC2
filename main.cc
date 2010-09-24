@@ -49,7 +49,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.6.0a"
+#define THE_CODE_VERSION "0.7.0a"
 
 
 namespace music
@@ -150,6 +150,9 @@ void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarc
 
 void coarsen_density( const refinement_hierarchy& rh, grid_hierarchy& u )
 {
+	for( int i=rh.levelmax(); i>0; --i )
+		mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+
 	for( unsigned i=1; i<=rh.levelmax(); ++i )
 	{
 		if(	  rh.offset(i,0) != u.get_grid(i)->offset(0)
@@ -164,9 +167,7 @@ void coarsen_density( const refinement_hierarchy& rh, grid_hierarchy& u )
 		}
 	}
 	
-	for( int i=rh.levelmax(); i>0; --i )
-		mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
-
+	
 }
 
 void store_grid_structure( config_file& cf, const refinement_hierarchy& rh )
@@ -326,9 +327,8 @@ int main (int argc, const char * argv[])
 	
 	npad                = cf.getValue<unsigned>( "setup", "padding" );
 	align_top			= cf.getValueSafe<bool>( "setup", "align_top", false );
-	
-	
 	kspace				= cf.getValueSafe<bool>( "poisson", "kspace", false );
+	
 	if( kspace )
 		poisson_solver_name = std::string("fft_poisson");
 	else
@@ -451,10 +451,10 @@ int main (int argc, const char * argv[])
 			
 			u = f;	u.zero();
 			
-			err = the_poisson_solver->solve(f, u);
-
 			the_output_plugin->write_dm_mass(f);
 			the_output_plugin->write_dm_density(f);
+			
+			err = the_poisson_solver->solve(f, u);
 			
 			if(!bdefd)
 				f.deallocate();

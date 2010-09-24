@@ -31,7 +31,23 @@
 #include <algorithm>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
+#include <omp.h>
 
+#ifdef SINGLE_PRECISION
+#ifdef SINGLETHREAD_FFTW
+#include <srfftw.h>
+#else
+#include <srfftw_threads.h>
+#endif
+#else
+#ifdef SINGLETHREAD_FFTW
+#include <drfftw.h>
+#else
+#include <drfftw_threads.h>
+#endif
+#endif
+
+#include "constraints.hh"
 #include "mesh.hh"
 #include "mg_operators.hh"
 
@@ -48,7 +64,7 @@ public:
 		ncubes_;	//!< number of random number cubes to cover the full mesh
 	long baseseed_;	//!< base seed from which cube seeds are computed 
 	
-	//! vector of 3D meshes (the random number cbues) with random numbers
+	//! vector of 3D meshes (the random number cubes) with random numbers
 	std::vector< Meshvar<T>* > rnums_;	
 	
 protected:
@@ -159,7 +175,7 @@ protected:
 	//! fill a cubic subvolume of the full grid with random numbers
 	double fill_subvolume( int *i0, int *n )
 	{
-		unsigned i0cube[3], ncube[3];
+		int i0cube[3], ncube[3];
 		
 		i0cube[0] = (int)((double)i0[0]/cubesize_);
 		i0cube[1] = (int)((double)i0[1]/cubesize_);
@@ -171,10 +187,15 @@ protected:
 		
 		double mean = 0.0;
 		
+		std::cerr << i0[0] << ", " << i0[1] << ", " << i0[2] << "\n";
+		std::cerr << n[0] << ", " << n[1] << ", " << n[2] << "\n";
+		std::cerr << i0cube[0] << ", " << i0cube[1] << ", " << i0cube[2] << "\n";
+		std::cerr << ncube[0] << ", " << ncube[1] << ", " << ncube[2] << "\n";
+		
 		#pragma omp parallel for reduction(+:mean)
-		for( int i=i0cube[0]; i<(int)ncube[0]; ++i )
-			for( int j=i0cube[1]; j<(int)ncube[1]; ++j )
-				for( int k=i0cube[2]; k<(int)ncube[2]; ++k )
+		for( int i=i0cube[0]; i<i0cube[0]+ncube[0]; ++i )
+			for( int j=i0cube[1]; j<i0cube[1]+ncube[1]; ++j )
+				for( int k=i0cube[2]; k<i0cube[2]+ncube[2]; ++k )
 				{
 					int ii(i),jj(j),kk(k);
 					
@@ -226,10 +247,10 @@ protected:
 		
 		{
 			std::cerr << " - degrading field for 1 level...(" << res_ << ")\n";
-			unsigned ixoff=51,iyoff=51,izoff=51;
-			unsigned nx=52, ny=52, nz=52;
-			//unsigned ixoff=102, iyoff=102, izoff=102;
-			//unsigned nx=104, ny=104, nz=104;
+			//unsigned ixoff=51,iyoff=51,izoff=51;
+			//unsigned nx=52, ny=52, nz=52;
+			unsigned ixoff=102, iyoff=102, izoff=102;
+			unsigned nx=104, ny=104, nz=104;
 			
 #pragma omp parallel for
 			for( unsigned ix=0; ix<res_; ix+=2 )
@@ -266,11 +287,19 @@ protected:
 		
 		{
 			std::cerr << " - degrading field for 2 level...(" << res_ << ")\n";
-			unsigned ixoff2=51,iyoff2=51,izoff2=51;
+			
+			unsigned ixoff2=102,iyoff2=102,izoff2=102;
 			unsigned nx2=52, ny2=52, nz2=52;
 			
-			unsigned ixoff1=34,iyoff1=34,izoff1=34;
-			unsigned nx1=120,ny1=120,nz1=120;
+			unsigned ixoff1=86,iyoff1=86,izoff1=86;
+			unsigned nx1=168,ny1=168,nz1=168;
+
+			
+			//unsigned ixoff2=51,iyoff2=51,izoff2=51;
+			//unsigned nx2=52, ny2=52, nz2=52;
+			
+			//unsigned ixoff1=34,iyoff1=34,izoff1=34;
+			//unsigned nx1=120,ny1=120,nz1=120;
 			
 			//unsigned ixoff2=84, iyoff2=84, izoff2=84;
 			//unsigned nx2=90, ny2=90, nz2=90;
@@ -377,6 +406,15 @@ public:
 	}
 	
 	
+	void print_allocated( void )
+	{
+		unsigned ncount = 0, ntot = rnums_.size();
+		for( int i=0; i<rnums_.size(); ++i )
+			if( rnums_[i]!=NULL ) ncount++;
+		
+		std::cerr << " -> " << ncount << " of " << ntot << " random number cubes currently allocated\n";
+	}
+	
 public:
 	
 	//! constructor
@@ -386,6 +424,197 @@ public:
 		std::cout << " - Generating random numbers (1) with seed " << baseseed << std::endl;
 		initialize();
 		fill_subvolume( x0, lx );
+	}
+	
+	
+	//... create constrained new field
+	random_numbers( random_numbers<T>& rc, unsigned cubesize, long baseseed, bool kspace=false, int *x0_=NULL, int *lx_=NULL, bool zeromean=true )
+	: res_( 2*rc.res_ ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
+	{
+		
+
+		//double mean = 0.0;
+		
+		initialize();
+		
+		int x0[3],lx[3];
+		if( x0_==NULL || lx_==NULL )
+		{	
+			for(int i=0;i<3;++i ){
+				x0[i]=0;
+				lx[i]=res_;
+			}
+			fill_all();
+			
+		}
+		else
+		{
+			for(int i=0;i<3;++i ){
+				x0[i]=x0_[i];
+				lx[i]=lx_[i];
+			}
+			fill_subvolume( x0, lx );
+		}
+
+			
+			
+		if( kspace )
+		{
+			
+			std::cout << " - Generating a constrained random number set with seed " << baseseed << "\n"
+					  << "    using coarse mode replacement...\n";
+#if 1
+			int nx=lx[0],ny=lx[1],nz=lx[2],nxc=lx[0]/2,nyc=lx[1]/2,nzc=lx[2]/2;
+			
+			//std::cerr << "nx = " << nx << ", nxc = " << nxc << std::endl;
+			//std::cerr << "off = " << x0[0] << ", " << x0[1] << ", " << x0[2] << std::endl;
+			
+			fftw_real 
+				*rcoarse = new fftw_real[nxc*nyc*(nzc+2)], 
+				*rfine = new fftw_real[nx*ny*(nz+2)];
+			
+			fftw_complex
+				*ccoarse = reinterpret_cast<fftw_complex*> (rcoarse),
+				*cfine = reinterpret_cast<fftw_complex*> (rfine);
+			
+			rfftwnd_plan 
+				pc	= rfftw3d_create_plan( nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+				pf	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+				ipf	= rfftw3d_create_plan( nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+			
+			#pragma omp parallel for
+			for( int i=0; i<nx; i++ )
+				for( int j=0; j<ny; j++ )
+					for( int k=0; k<nz; k++ )
+					{
+						unsigned q = (i*ny+j)*(nz+2)+k;
+						rfine[q] = (*this)(x0[0]+i,x0[1]+j,x0[2]+k);
+					}
+			
+			#pragma omp parallel for
+			for( int i=0; i<nxc; i++ )
+				for( int j=0; j<nyc; j++ )
+					for( int k=0; k<nzc; k++ )
+					{
+						unsigned q = (i*nyc+j)*(nzc+2)+k;
+						rcoarse[q] = rc(x0[0]/2+i,x0[1]/2+j,x0[2]/2+k);
+					}
+			
+		#ifndef SINGLETHREAD_FFTW		
+			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pc, rcoarse, NULL );
+			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
+		#else
+			rfftwnd_one_real_to_complex( pc, rcoarse, NULL );
+			rfftwnd_one_real_to_complex( pf, rfine, NULL );
+		#endif
+			
+			
+			double fftnorm = 1.0/(nx*ny*nz);
+			
+			#pragma omp parallel for
+			for( int i=0; i<nxc; i++ )
+				for( int j=0; j<nyc; j++ )
+					for( int k=0; k<nzc/2+1; k++ )
+					{
+						int ii(i),jj(j),kk(k);
+						
+						if( i > nxc/2 ) ii += nx/2;
+						if( j > nyc/2 ) jj += ny/2;
+						
+						unsigned qc,qf;
+						qc = (i*nyc+j)*(nzc/2+1)+k;
+						qf = (ii*ny+jj)*(nz/2+1)+kk;
+					
+						cfine[qf].re = sqrt(8.0)*ccoarse[qc].re;
+						cfine[qf].im = sqrt(8.0)*ccoarse[qc].im;
+					}
+			
+			delete[] rcoarse;
+			
+			#pragma omp parallel for
+			for( int i=0; i<nx; i++ )
+				for( int j=0; j<ny; j++ )
+					for( int k=0; k<nz/2+1; k++ )
+					{
+						unsigned q = (i*ny+j)*(nz/2+1)+k;
+						cfine[q].re *= fftnorm;
+						cfine[q].im *= fftnorm;
+					}
+			
+		#ifndef SINGLETHREAD_FFTW		
+			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipf, cfine, NULL );
+		#else
+			rfftwnd_one_complex_to_real( ipf, cfine, NULL );
+		#endif
+			
+			for( int i=0; i<nx; i++ )
+				for( int j=0; j<ny; j++ )
+					for( int k=0; k<nz; k++ )
+					{
+						unsigned q = (i*ny+j)*(nz+2)+k;
+						(*this)(x0[0]+i,x0[1]+j,x0[2]+k) = rfine[q];
+					}
+			
+			delete[] rfine;
+			
+			/*for( int i=x0[0],ii=x0[0]/2; ii<lx[0]; i+=2,++ii )
+				for( int j=x0[1],jj=x0[1]/2; jj<lx[1]; j+=2,++jj )
+					for( int k=x0[2],kk=x0[2]/2; kk<lx[2]; k+=2,++kk )
+					{
+						double locmean = 0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)+
+												(*this)(i+1,j+1,k)+(*this)(i+1,j,k+1)+(*this)(i,j+1,k+1)+(*this)(i+1,j+1,k+1));
+						
+						rc(ii,jj,kk) = sqrt(8)*locmean;
+					}
+			 */
+#endif
+		}
+#warning Applying also Hoffman Ribak
+		else
+		{
+			std::cout << " - Generating a constrained random number set with seed " << baseseed << "\n"
+			          << "    using Hoffman-Ribak constraints...\n";
+			
+			double fac = 1./sqrt(8.0);
+			
+			for( int i=x0[0],ii=x0[0]/2; ii<lx[0]; i+=2,++ii )
+				for( int j=x0[1],jj=x0[1]/2; jj<lx[1]; j+=2,++jj )
+					for( int k=x0[2],kk=x0[2]/2; kk<lx[2]; k+=2,++kk )
+					{
+						double topval = rc(ii,jj,kk);
+						double locmean = 0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)+
+												(*this)(i+1,j+1,k)+(*this)(i+1,j,k+1)+(*this)(i,j+1,k+1)+(*this)(i+1,j+1,k+1));
+						double dif = fac*topval-locmean;
+						
+						(*this)(i,j,k) += dif;
+						(*this)(i+1,j,k) += dif;
+						(*this)(i,j+1,k) += dif;
+						(*this)(i,j,k+1) += dif;
+						(*this)(i+1,j+1,k) += dif;
+						(*this)(i+1,j,k+1) += dif;
+						(*this)(i,j+1,k+1) += dif;
+						(*this)(i+1,j+1,k+1) += dif;
+						
+						
+						/*dif = topval;
+						
+						(*this)(i,j,k) = dif;
+						(*this)(i+1,j,k) = dif;
+						(*this)(i,j+1,k) = dif;
+						(*this)(i,j,k+1) = dif;
+						(*this)(i+1,j+1,k) = dif;
+						(*this)(i+1,j,k+1) = dif;
+						(*this)(i,j+1,k+1) = dif;
+						(*this)(i+1,j+1,k+1) = dif;*/
+					}
+			
+			/*for( int i=0; i<res_; ++i )
+				for( int j=0; j<res_; ++j )				
+					for( int k=0; k<res_; ++k )
+					{
+						(*this)(i,j,k) *=10;
+					}*/
+		}
 	}
 	
 	//! constructor
@@ -398,13 +627,21 @@ public:
 		initialize();
 		mean = fill_all();
 		
-		if( zeromean )
+		if( true )//zeromean )
 		{
+			mean = 0.0;
 			for(unsigned i=0; i<res_; ++i )
 				for( unsigned j=0; j<res_; ++j )
 					for( unsigned k=0; k<res_; ++k )
-						(*this)(i,j,k) -= mean;
+						mean += (*this)(i,j,k);
+			mean *= 1.0/(res_*res_*res_);
+			
+			for(unsigned i=0; i<res_; ++i )
+				for( unsigned j=0; j<res_; ++j )
+					for( unsigned k=0; k<res_; ++k )
+						(*this)(i,j,k) = (*this)(i,j,k) - mean;
 		}
+		
 	}
 	
 	//! constructor
@@ -482,13 +719,8 @@ public:
 						sum += in_float[q];
 						sum2 += in_float[q]*in_float[q];
 						++count;
-						
-#ifdef RAND_DEBUG
-						(*rnums_[0])(kk,jj,ii) = 0.0;
-#else
+
 						(*rnums_[0])(kk,jj,ii) = -in_float[q++];
-#endif
-						
 					}
 				ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
 				if( blksz != nx*ny*sizeof(float) )
@@ -513,12 +745,7 @@ public:
 						sum += in_double[q];
 						sum2 += in_double[q]*in_double[q];
 						++count;
-#ifdef RAND_DEBUG						
-						(*rnums_[0])(kk,jj,ii) = 0.0;
-#else
 						(*rnums_[0])(kk,jj,ii) = -in_double[q++];
-#endif
-						
 					}
 				ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
 				if( blksz != nx*ny*sizeof(double) )
@@ -530,9 +757,6 @@ public:
 		double mean, var;
 		mean = sum/count;
 		var = sum2/count-mean*mean;
-#ifdef RAND_DEBUG
-		(*rnums_[0])(cubesize_/2-1,cubesize_/2-1,cubesize_/2-1) = 1.0;
-#endif
 		
 		std::cout << " - Random numbers in file have \n"
 				  << "     mean = " << mean << " and var = " << var << std::endl;
@@ -540,7 +764,7 @@ public:
 	}
 	
 	//... create constrained new field
-	random_numbers( random_numbers<T>& rc, unsigned cubesize, long baseseed, bool zeromean=true )
+	/*random_numbers( random_numbers<T>& rc, unsigned cubesize, long baseseed, bool kspace=false, bool zeromean=true )
 	: res_( 2*rc.res_ ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
 	{
 		double mean = 0.0;
@@ -555,33 +779,40 @@ public:
 						(*this)(i,j,k) -= mean;
 		}
 		
-		std::cout << " - Generating a constrained random number set with seed " << baseseed << "...\n";
-		
-		double fac = 1./sqrt(8.0);
-		
-		for( unsigned i=0,ii=0; i<res_; i+=2,++ii )
-			for( unsigned j=0,jj=0; j<res_; j+=2,++jj )
-				for( unsigned k=0,kk=0; k<res_; k+=2,++kk )
-				{
-					double topval = rc(ii,jj,kk);
-					double locmean = 0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)+
-											 (*this)(i+1,j+1,k)+(*this)(i+1,j,k+1)+(*this)(i,j+1,k+1)+(*this)(i+1,j+1,k+1));
-					double dif = fac*topval-locmean;
-					
-					(*this)(i,j,k) += dif;
-					(*this)(i+1,j,k) += dif;
-					(*this)(i,j+1,k) += dif;
-					(*this)(i,j,k+1) += dif;
-					(*this)(i+1,j+1,k) += dif;
-					(*this)(i+1,j,k+1) += dif;
-					(*this)(i,j+1,k+1) += dif;
-					(*this)(i+1,j+1,k+1) += dif;
-					
-				}
-	}
+		if( kspace )
+		{
+		}
+		else
+		{
+			std::cout << " - Generating a constrained random number set with seed " << baseseed << "...\n";
+			
+			double fac = 1./sqrt(8.0);
+			
+			for( unsigned i=0,ii=0; i<res_; i+=2,++ii )
+				for( unsigned j=0,jj=0; j<res_; j+=2,++jj )
+					for( unsigned k=0,kk=0; k<res_; k+=2,++kk )
+					{
+						double topval = rc(ii,jj,kk);
+						double locmean = 0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)+
+												(*this)(i+1,j+1,k)+(*this)(i+1,j,k+1)+(*this)(i,j+1,k+1)+(*this)(i+1,j+1,k+1));
+						double dif = fac*topval-locmean;
+						
+						(*this)(i,j,k) += dif;
+						(*this)(i+1,j,k) += dif;
+						(*this)(i,j+1,k) += dif;
+						(*this)(i,j,k+1) += dif;
+						(*this)(i+1,j+1,k) += dif;
+						(*this)(i+1,j,k+1) += dif;
+						(*this)(i,j+1,k+1) += dif;
+						(*this)(i+1,j+1,k+1) += dif;
+						
+					}
+			
+		}
+	}*/
 
 	//... copy construct by averaging down
-	explicit random_numbers( /*const*/ random_numbers <T>& rc )
+	explicit random_numbers( /*const*/ random_numbers <T>& rc, bool kdegrade = true )
 	{
 		//if( res > rc.m_res || (res/rc.m_res)%2 != 0 )
 		//			throw std::runtime_error("Invalid restriction in random number container copy constructor.");
@@ -589,56 +820,146 @@ public:
 		double sum = 0.0, sum2 = 0.0;
 		unsigned count = 0;
 		
-		//... initialize properties of container
-		if( rc.rnums_.size() == 1 )
+		if( kdegrade )
 		{
+			std::cout << " - Generating a coarse white noise field by k-space degrading\n";
+			//... initialize properties of container		
 			res_		= rc.res_/2;
 			cubesize_	= res_;
 			ncubes_		= 1;
 			baseseed_	= -2;
 			
-			//... use restriction to get consistent random numbers on coarser grid
-			mg_straight gop;
-			rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );		
-			gop.restrict( *rc.rnums_[0], *rnums_[0] );
+			if( sizeof(fftw_real)!=sizeof(T) )
+				throw std::runtime_error("type mismatch with fftw_real in k-space averaging");
 			
+			fftw_real 
+				*rfine = new fftw_real[rc.res_*rc.res_*2*(rc.res_/2+1)],
+				*rcoarse = new fftw_real[res_*res_*2*(res_/2+1)];
 			
-			for( unsigned i=0; i< rnums_[0]->size(0); ++i )
-				for( unsigned j=0; j< rnums_[0]->size(1); ++j )
-					for( unsigned k=0; k< rnums_[0]->size(2); ++k )
+			fftw_complex
+				*ccoarse = reinterpret_cast<fftw_complex*> (rcoarse),
+				*cfine = reinterpret_cast<fftw_complex*> (rfine);
+			
+			int nx(rc.res_), ny(rc.res_), nz(rc.res_), nxc(res_), nyc(res_), nzc(res_);
+			
+			rfftwnd_plan 
+				pf	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+				ipc	= rfftw3d_create_plan( nxc, nyc, nzc, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+			
+			for( int i=0; i<nx; i++ )
+				for( int j=0; j<ny; j++ )
+					for( int k=0; k<nz; k++ )
 					{
-						(*rnums_[0])(i,j,k) *= sqrt(8); //.. maintain that var(delta)=1
+						unsigned q = (i*ny+j)*(nz+2)+k;
+						rfine[q] = rc(i,j,k);
+					}
+			
+			
+#ifndef SINGLETHREAD_FFTW		
+			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
+#else
+			rfftwnd_one_real_to_complex( pf, rfine, NULL );
+#endif
+			
+			double fftnorm = 1.0/(nxc*nyc*nzc);
+			
+			for( int i=0; i<nxc; i++ )
+				for( int j=0; j<nyc; j++ )
+					for( int k=0; k<nzc/2+1; k++ )
+					{
+						int ii(i),jj(j),kk(k);
+						
+						if( i > nxc/2 ) ii += nx/2;
+						if( j > nyc/2 ) jj += ny/2;
+						
+						unsigned qc,qf;
+						
+						qc = (i*nyc+j)*(nzc/2+1)+k;
+						qf = (ii*ny+jj)*(nz/2+1)+kk;
+						
+						ccoarse[qc].re = 1.0/sqrt(8.0)*cfine[qf].re*fftnorm;
+						ccoarse[qc].im = 1.0/sqrt(8.0)*cfine[qf].im*fftnorm;
+					}
+			
+			delete[] rfine;
+			
+#ifndef SINGLETHREAD_FFTW		
+			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipc, ccoarse, NULL );
+#else
+			rfftwnd_one_complex_to_real( ipf, cfine, NULL );
+#endif
+			rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
+			
+			for( int i=0; i<nxc; i++ )
+				for( int j=0; j<nyc; j++ )
+					for( int k=0; k<nzc; k++ )
+					{
+						unsigned q = (i*nyc+j)*(nzc+2)+k;
+						(*rnums_[0])(i,j,k) = rcoarse[q];
 						sum += (*rnums_[0])(i,j,k);
 						sum2+= (*rnums_[0])(i,j,k) * (*rnums_[0])(i,j,k);
 						++count;
 					}
+
+			delete[] rcoarse;
+			
+			rfftwnd_destroy_plan(pf);
+			rfftwnd_destroy_plan(ipc);
+			
 		}
-		else 
+		else
 		{
-			res_		= rc.res_/2;
-			cubesize_	= res_;
-			ncubes_		= 1;
-			baseseed_	= -2;
-			
-			rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
-			double fac = 1.0/sqrt(8);
-			
-			for( unsigned i=0,ii=0; i<rc.res_; i+=2,++ii )
-				for( unsigned j=0,jj=0; j<rc.res_; j+=2,++jj )
-					for( unsigned k=0,kk=0; k<rc.res_; k+=2,++kk )
-					{
-						(*rnums_[0])(ii,jj,kk) = fac * 
-						( rc(i,j,k)+rc(i+1,j,k)+rc(i,j+1,k)+rc(i,j,k+1)+
-						 rc(i+1,j+1,k)+rc(i+1,j,k+1)+rc(i,j+1,k+1)+rc(i+1,j+1,k+1));
-						
-						sum += (*rnums_[0])(ii,jj,kk);
-						sum2+= (*rnums_[0])(ii,jj,kk) * (*rnums_[0])(ii,jj,kk);
-						++count;
-					}
-			
+			std::cout << " - Generating a coarse white noise field by averaging\n";
+			if( rc.rnums_.size() == 1 )
+			{
+				//... initialize properties of container
+				res_		= rc.res_/2;
+				cubesize_	= res_;
+				ncubes_		= 1;
+				baseseed_	= -2;
+				
+				//... use restriction to get consistent random numbers on coarser grid
+				mg_straight gop;
+				rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );		
+				gop.restrict( *rc.rnums_[0], *rnums_[0] );
+				
+				
+				for( unsigned i=0; i< rnums_[0]->size(0); ++i )
+					for( unsigned j=0; j< rnums_[0]->size(1); ++j )
+						for( unsigned k=0; k< rnums_[0]->size(2); ++k )
+						{
+							(*rnums_[0])(i,j,k) *= sqrt(8); //.. maintain that var(delta)=1
+							sum += (*rnums_[0])(i,j,k);
+							sum2+= (*rnums_[0])(i,j,k) * (*rnums_[0])(i,j,k);
+							++count;
+						}
+			}
+			else 
+			{
+				//... initialize properties of container
+				res_		= rc.res_/2;
+				cubesize_	= res_;
+				ncubes_		= 1;
+				baseseed_	= -2;
+				
+				rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
+				double fac = 1.0/sqrt(8);
+				
+				for( unsigned i=0,ii=0; i<rc.res_; i+=2,++ii )
+					for( unsigned j=0,jj=0; j<rc.res_; j+=2,++jj )
+						for( unsigned k=0,kk=0; k<rc.res_; k+=2,++kk )
+						{
+							(*rnums_[0])(ii,jj,kk) = fac * 
+							( rc(i,j,k)+rc(i+1,j,k)+rc(i,j+1,k)+rc(i,j,k+1)+
+							 rc(i+1,j+1,k)+rc(i+1,j,k+1)+rc(i,j+1,k+1)+rc(i+1,j+1,k+1));
+							
+							sum += (*rnums_[0])(ii,jj,kk);
+							sum2+= (*rnums_[0])(ii,jj,kk) * (*rnums_[0])(ii,jj,kk);
+							++count;
+						}
+				
+			}
 		}
-		
-		
 		
 		double rmean, rvar;
 		rmean = sum/count;
@@ -673,6 +994,8 @@ public:
 		
 		if( rnums_[ icube ] == NULL )
 		{	
+			//... cube has not been precomputed. fill now with random numbers
+			//std::cerr << "*";
 			rnums_[ icube ] = new Meshvar<T>( cubesize_, 0, 0, 0 );
 			fill_cube(ic, jc, kc);
 		}
@@ -686,6 +1009,436 @@ public:
 	}
 	
 	
+};
+
+#define DEF_RAN_CUBE_SIZE	32
+
+template< typename rng, typename T >
+class random_number_generator
+{
+protected:
+	config_file * pcf_;
+	refinement_hierarchy * prefh_;
+	constraint_set	constraints;
+	
+	int levelmin_, levelmax_;
+	int levelmin_seed_;
+	std::vector<long>			rngseeds_;
+	std::vector<std::string>	rngfnames_;
+	
+	unsigned					ran_cube_size_;
+	
+	bool is_number(const std::string& s)
+	{
+		for (unsigned i = 0; i < s.length(); i++)
+			if (!std::isdigit(s[i])&&s[i]!='-' )
+				return false;
+		
+		return true;
+	}
+	
+	void parse_rand_parameters( void )
+	{
+		//... parse random number options
+		for( int i=0; i<=100; ++i )
+		{
+			char seedstr[128];
+			std::string tempstr;
+			sprintf(seedstr,"seed[%d]",i);
+			if( pcf_->containsKey( "random", seedstr ) )
+				tempstr = pcf_->getValue<std::string>( "random", seedstr );
+			else
+				tempstr = std::string("-2");
+			
+			if( is_number( tempstr ) )
+			{	
+				long ltemp;
+				pcf_->convert( tempstr, ltemp );
+				rngfnames_.push_back( "" );
+				rngseeds_.push_back( ltemp );
+			}else{
+				rngfnames_.push_back( tempstr );
+				rngseeds_.push_back(-1);
+				std::cout << " - Random numbers for level " << std::setw(3) << i << " will be read from file.\n";
+			}
+			
+		}
+		
+		//.. determine for which levels random seeds/random number files are given
+		levelmin_seed_ = -1;
+		for( unsigned ilevel = 0; ilevel < rngseeds_.size(); ++ilevel )
+		{	
+			if( levelmin_seed_ < 0 && (rngfnames_[ilevel].size() > 0 || rngseeds_[ilevel] > 0) )
+				levelmin_seed_ = ilevel;
+		}
+		
+	}
+	
+	void correct_avg( int icoarse, int ifine )
+	{
+		int shift[3], levelmin_poisson;
+		shift[0] = pcf_->getValue<int>("setup","shift_x");
+		shift[1] = pcf_->getValue<int>("setup","shift_y");
+		shift[2] = pcf_->getValue<int>("setup","shift_z");
+		
+		levelmin_poisson = pcf_->getValue<unsigned>("setup","levelmin");
+		
+		int lfacc = 1<<(icoarse-levelmin_poisson);
+		
+		char fncoarse[128], fnfine[128];
+		sprintf(fncoarse,"wnoise_%04d.bin",icoarse);
+		sprintf(fnfine,"wnoise_%04d.bin",ifine);
+		
+		std::ifstream 
+			iffine( fnfine, std::ios::binary ), 
+			ifcoarse( fncoarse, std::ios::binary );
+		
+		int nc[3], i0c[3], nf[3], i0f[3];
+		if( icoarse != levelmin_ )
+		{
+			nc[0]  = 2*prefh_->size(icoarse, 0);
+			nc[1]  = 2*prefh_->size(icoarse, 1);
+			nc[2]  = 2*prefh_->size(icoarse, 2);
+			i0c[0] = prefh_->offset_abs(icoarse, 0) - lfacc*shift[0] - nc[0]/4;
+			i0c[1] = prefh_->offset_abs(icoarse, 1) - lfacc*shift[1] - nc[1]/4;
+			i0c[2] = prefh_->offset_abs(icoarse, 2) - lfacc*shift[2] - nc[2]/4;
+			
+		}
+		else
+		{
+			nc[0]  = prefh_->size(icoarse, 0);
+			nc[1]  = prefh_->size(icoarse, 1);
+			nc[2]  = prefh_->size(icoarse, 2);
+			i0c[0] = - lfacc*shift[0];
+			i0c[1] = - lfacc*shift[1];
+			i0c[2] = - lfacc*shift[2];
+		}
+		nf[0]  = 2*prefh_->size(ifine, 0);
+		nf[1]  = 2*prefh_->size(ifine, 1);
+		nf[2]  = 2*prefh_->size(ifine, 2);
+		i0f[0] = prefh_->offset_abs(ifine, 0) - 2*lfacc*shift[0] - nf[0]/4;
+		i0f[1] = prefh_->offset_abs(ifine, 1) - 2*lfacc*shift[1] - nf[1]/4;
+		i0f[2] = prefh_->offset_abs(ifine, 2) - 2*lfacc*shift[2] - nf[2]/4;
+		
+		//.................................
+		
+		int nxc,nyc,nzc,nxf,nyf,nzf;
+		iffine.read( reinterpret_cast<char*> (&nxf), sizeof(unsigned) );
+		iffine.read( reinterpret_cast<char*> (&nyf), sizeof(unsigned) );
+		iffine.read( reinterpret_cast<char*> (&nzf), sizeof(unsigned) );
+		
+		ifcoarse.read( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
+		ifcoarse.read( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
+		ifcoarse.read( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
+		
+		if( nxf!=nf[0] || nyf!=nf[1] || nzf!=nf[2] || nxc!=nc[0] || nyc!=nc[1] || nzc!=nc[2] )
+			throw std::runtime_error("White noise file mismatch. This should not happen. Notify a developer!");
+		
+		int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
+		std::vector<T> deg_rand( nxd*nyd*nzd, 0.0 );
+		double fac = 1.0/sqrt(8.0);
+		for( int i=0; i<nxf; i+=2 )
+		{	
+			std::vector<T> fine_rand( 2*nyf*nzf, 0.0 );
+			iffine.read( reinterpret_cast<char*> (&fine_rand[0]), 2*nyf*nzf*sizeof(T) );
+			
+			for( int j=0; j<nyf; j+=2 )
+				for( int k=0; k<nzf; k+=2 )
+				{
+					unsigned qc = ((i/2)*nyd+(j/2))*nzd+(k/2);
+					unsigned qf[8];
+					qf[0] = (0*nyf+j+0)*nzf+k+0;
+					qf[1] = (0*nyf+j+0)*nzf+k+1;
+					qf[2] = (0*nyf+j+1)*nzf+k+0;
+					qf[3] = (0*nyf+j+1)*nzf+k+1;
+					qf[4] = (1*nyf+j+0)*nzf+k+0;
+					qf[5] = (1*nyf+j+0)*nzf+k+1;
+					qf[6] = (1*nyf+j+1)*nzf+k+0;
+					qf[7] = (1*nyf+j+1)*nzf+k+1;
+					
+					for( int q=0; q<8; ++q )
+						deg_rand[qc] += fac*fine_rand[qf[q]];
+					
+				}
+		}
+		
+		//... now deg_rand holds the oct-averaged fine field, store this in the coarse field
+		std::vector<T> coarse_rand(nxc*nyc*nzc,0.0);
+		ifcoarse.read( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
+		
+		int di,dj,dk;
+		
+		di = i0f[0]/2-i0c[0];
+		dj = i0f[1]/2-i0c[1];
+		dk = i0f[2]/2-i0c[2];
+		
+		for( int i=0; i<nxd; i++ )
+			for( int j=0; j<nyd; j++ )
+				for( int k=0; k<nxd; k++ )
+				{
+					unsigned qc = ((i+di)*nyc+(j+dj))*nzc+(k+dk);
+					unsigned qcd = (i*nyd+j)*nzd+k;
+					
+					coarse_rand[qc] = deg_rand[qcd];
+				}
+		
+		deg_rand.clear();
+		
+		ifcoarse.close();
+		std::ofstream ofcoarse( fncoarse, std::ios::binary|std::ios::trunc );
+		ofcoarse.write( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
+		ofcoarse.write( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
+		ofcoarse.write( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
+		ofcoarse.write( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
+		ofcoarse.close();
+	}
+	
+	void store_rnd( int ilevel, rng* prng )
+	{
+		int shift[3], levelmin_poisson;
+		shift[0] = pcf_->getValue<int>("setup","shift_x");
+		shift[1] = pcf_->getValue<int>("setup","shift_y");
+		shift[2] = pcf_->getValue<int>("setup","shift_z");
+		
+		levelmin_poisson = pcf_->getValue<unsigned>("setup","levelmin");
+		
+		int lfac = 1<<(ilevel-levelmin_poisson);
+		
+		
+		std::vector<T> data;
+		if( ilevel == levelmin_ )
+		{
+			int N = 1<<levelmin_;
+			int i0,j0,k0;
+			
+			i0 = -lfac*shift[0];
+			j0 = -lfac*shift[1];
+			k0 = -lfac*shift[2];
+			
+			char fname[128];
+			sprintf(fname,"wnoise_%04d.bin",ilevel);
+
+			std::ofstream ofs(fname,std::ios::binary|std::ios::trunc);
+			
+			ofs.write( reinterpret_cast<char*> (&N), sizeof(unsigned) );
+			ofs.write( reinterpret_cast<char*> (&N), sizeof(unsigned) );
+			ofs.write( reinterpret_cast<char*> (&N), sizeof(unsigned) );
+			
+			data.assign( N*N, 0.0 );
+			for( int i=0; i<N; ++i )
+			{	
+				for( int j=0; j<N; ++j )
+					for( int k=0; k<N; ++k )
+						data[j*N+k] = (*prng)(i+i0,j+j0,k+k0);
+				
+				ofs.write(reinterpret_cast<char*> (&data[0]), N*N*sizeof(T) );
+			}
+			ofs.close();
+		}
+		else
+		{
+			int nx,ny,nz;
+			int i0,j0,k0;
+			
+			nx = 2*prefh_->size(ilevel, 0);
+			ny = 2*prefh_->size(ilevel, 1);
+			nz = 2*prefh_->size(ilevel, 2);
+			i0 = prefh_->offset_abs(ilevel, 0) - lfac*shift[0] - nx/4;
+			j0 = prefh_->offset_abs(ilevel, 1) - lfac*shift[1] - nx/4;
+			k0 = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - nx/4;
+			
+			char fname[128];
+			sprintf(fname,"wnoise_%04d.bin",ilevel);
+			
+			std::ofstream ofs(fname,std::ios::binary|std::ios::trunc);
+			
+			ofs.write( reinterpret_cast<char*> (&nx), sizeof(unsigned) );
+			ofs.write( reinterpret_cast<char*> (&ny), sizeof(unsigned) );
+			ofs.write( reinterpret_cast<char*> (&nz), sizeof(unsigned) );
+			
+			data.assign( ny*nz, 0.0 );
+			for( int i=0; i<nx; ++i )
+			{	
+				for( int j=0; j<ny; ++j )
+					for( int k=0; k<nz; ++k )
+						data[j*ny+k] = (*prng)(i+i0,j+j0,k+k0);
+				
+				ofs.write(reinterpret_cast<char*> (&data[0]), ny*nz*sizeof(T) );
+			}
+			ofs.close();
+			
+		}
+
+	}
+	
+	void compute_random_numbers( void )
+	{
+		bool kavg = pcf_->getValueSafe<bool>("random","kaveraging",true);
+		
+		std::vector< rng* > randc(std::max(levelmax_+1,levelmin_seed_),(rng*)NULL);
+		
+		//--- FILL ALL WHITE NOISE ARRAYS FOR WHICH WE NEED THE FULL FIELD ---//
+		
+		//... seeds are given for a level coarser than levelmin
+		if( levelmin_seed_ < levelmin_ )
+		{
+			if( rngfnames_[levelmin_seed_].size() > 0 )
+				randc[levelmin_seed_] 
+					= new rng( 1<<levelmin_seed_, rngfnames_[levelmin_seed_] );
+			else
+				randc[levelmin_seed_]
+					= new rng( 1<<levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_], true );
+			
+			for( int i=levelmin_seed_+1; i<=levelmin_; ++i )
+			{
+#warning add possibility to read noise from file also here!
+				randc[i] = new rng( *randc[i-1], ran_cube_size_, rngseeds_[i], kavg );
+				delete randc[i-1];
+				randc[i-1] = NULL;
+			}
+		}
+		
+		//... seeds are given for a level finer than levelmin, obtain by averaging
+		if( levelmin_seed_ > levelmin_ )
+		{
+			randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_], true );//, x0, lx );
+			
+			for( int ilevel = levelmin_seed_-1; ilevel >= (int)levelmin_; --ilevel ){
+				if( rngseeds_[ilevel-levelmin_] > 0 )
+					std::cerr << " - Warning: random seed for level " << ilevel << " will be ignored.\n"
+					<< "            consistency requires that it is obtained by restriction from level " << levelmin_seed_ << std::endl;
+				
+			
+				
+				if( levelmin_ == levelmax_ )
+					randc[ilevel] = new rng( *randc[ilevel+1], kavg );
+				else
+					randc[ilevel] = new rng( *randc[ilevel+1], false );
+					
+				if( ilevel+1 > levelmax_ )
+				{
+					delete randc[ilevel+1];
+					randc[ilevel+1] = NULL;
+				}
+			}
+			
+		}
+		
+		//--- GENERATE AND STORE ALL LEVELS, INCLUDING REFINEMENTS ---//
+		
+		//... levelmin
+		if( randc[levelmin_] == NULL )
+			if( rngfnames_[levelmin_].size() > 0 )
+				randc[levelmin_] = new rng( 1<<levelmin_, rngfnames_[levelmin_] );
+			else
+				randc[levelmin_] = new rng( 1<<levelmin_, ran_cube_size_, rngseeds_[levelmin_], true );
+		
+		store_rnd( levelmin_, randc[levelmin_] );
+		
+		
+		
+		//... refinement levels
+		for( int ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
+		{
+			int lx[3], x0[3];
+			int shift[3], levelmin_poisson;
+			shift[0] = pcf_->getValue<int>("setup","shift_x");
+			shift[1] = pcf_->getValue<int>("setup","shift_y");
+			shift[2] = pcf_->getValue<int>("setup","shift_z");
+			
+			levelmin_poisson = pcf_->getValue<unsigned>("setup","levelmin");
+			
+			int lfac = 1<<(ilevel-levelmin_poisson);
+			
+			lx[0] = 2*prefh_->size(ilevel, 0);
+			lx[1] = 2*prefh_->size(ilevel, 1);
+			lx[2] = 2*prefh_->size(ilevel, 2);
+			x0[0] = prefh_->offset_abs(ilevel, 0) - lfac*shift[0] - lx[0]/4;
+			x0[1] = prefh_->offset_abs(ilevel, 1) - lfac*shift[1] - lx[1]/4;
+			x0[2] = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - lx[2]/4;
+			
+			if( randc[ilevel] == NULL )
+			{
+				randc[ilevel] = new rng( *randc[ilevel-1], ran_cube_size_, rngseeds_[ilevel], kavg, x0, lx );
+				store_rnd( ilevel, randc[ilevel] );
+				delete randc[ilevel-1];
+				randc[ilevel-1] = NULL;
+			}
+			else
+			{
+				store_rnd( ilevel, randc[ilevel] );
+				delete randc[ilevel-1];
+				randc[ilevel-1] = NULL;				
+			}
+		}
+		
+		delete randc[levelmax_];
+		randc[levelmax_] = NULL;
+		
+		
+#if 1
+		//... make sure that the coarse grid contains oct averages where it overlaps with a fine grid
+		for( int ilevel=levelmax_; ilevel>levelmin_; --ilevel )
+			correct_avg( ilevel-1, ilevel );
+#endif
+		
+		//.. we do not have random numbers for a coarse level, generate them
+		/*if( levelmax_rand_ >= (int)levelmin_ )
+		{
+			std::cerr << "lmaxread >= (int)levelmin\n";
+			randc[levelmax_rand_] = new rng( (unsigned)pow(2,levelmax_rand_), rngfnames_[levelmax_rand_] );
+			for( int ilevel = levelmax_rand_-1; ilevel >= (int)levelmin_; --ilevel )
+				randc[ilevel] = new rng( *randc[ilevel+1] );
+		}*/
+	}
+
+public:
+	random_number_generator( config_file& cf, refinement_hierarchy& refh )
+	: pcf_( &cf ), prefh_( &refh ), constraints( cf )
+	{
+		levelmin_ = prefh_->levelmin();
+		levelmax_ = prefh_->levelmax();
+		
+		ran_cube_size_	= pcf_->getValueSafe<unsigned>("random","cubesize",DEF_RAN_CUBE_SIZE);
+		
+		parse_rand_parameters();
+		
+		compute_random_numbers();
+	}
+	
+	~random_number_generator()
+	{  }
+	
+	template< typename array >
+	void load( array& A, int ilevel )
+	{
+		char fname[128];
+		sprintf(fname,"wnoise_%04d.bin",ilevel);
+		
+		std::ifstream ifs( fname, std::ios::binary );
+		if( !ifs.good() )
+			throw std::runtime_error("A white noise file was not found. This is an internal inconsistency. Inform a developer!");
+		
+		int nx,ny,nz;
+		ifs.read( reinterpret_cast<char*> (&nx), sizeof(int) );
+		ifs.read( reinterpret_cast<char*> (&ny), sizeof(int) );
+		ifs.read( reinterpret_cast<char*> (&nz), sizeof(int) );
+		
+		if( nx!=A.size(0) || ny!=A.size(1) || nz!=A.size(2) )
+			throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");
+		
+		for( int i=0; i<nx; ++i )
+		{
+			std::vector<T> slice( ny*nz, 0.0 );
+			ifs.read( reinterpret_cast<char*> ( &slice[0] ), nx*nz*sizeof(T) );
+			
+			for( int j=0; j<ny; ++j )
+				for( int k=0; k<nz; ++k )
+					A(i,j,k) = slice[j*nz+k];
+		}		
+		ifs.close();
+		
+	}
 };
 
 

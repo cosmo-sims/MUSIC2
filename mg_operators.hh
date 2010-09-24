@@ -113,7 +113,7 @@ public:
 	template< typename m1, typename m2 >
 	inline void prolong( m1& V, m2& v, int oxc, int oyc, int ozc, int oxf, int oyf, int ozf, int R ) const
 	{
-		int N = (int)pow(2,R);
+		int N = 1<<R;
 		int Nl= -N/2+1;//, Nr=N/2;
 		double dx = 1.0/(double)N;
 		
@@ -147,7 +147,6 @@ public:
 					zf = (dx*(double)(ozf+k+Nl)-ozc)-0.5*dx + 0.5;
 					
 					double val = interp_cubic(xf-xc,yf-yc,zf-zc,V,iic,jjc,kkc);
-					
 					v(i,j,k) = val;
 					
 					finemean += val; finecount++;
@@ -159,9 +158,9 @@ public:
 		
 		
 		//... subtract the mean difference caused by interpolation
-		//double dmean = coarsemean-finemean;
+		/*double dmean = coarsemean-finemean;
 		
-		/*#pragma omp parallel for
+		#pragma omp parallel for
 		for( int i=0; i<nx; ++i )
 			for( int j=0; j<ny; ++j )
 				for( int k=0; k<nz; ++k )
@@ -171,7 +170,7 @@ public:
 	template< typename m1, typename m2 >
 	inline void prolong_add( m1& V, m2& v, int oxc, int oyc, int ozc, int oxf, int oyf, int ozf, int R ) const
 	{
-		int N = (int)pow(2,R);
+		int N = 1<<R;
 		int Nl= -N/2+1;//, Nr=N/2;
 		double dx = 1.0/(double)N;
 		
@@ -213,15 +212,15 @@ public:
 		coarsemean /= coarsecount;
 		finemean /= finecount;
 		
-		//double dmean = coarsemean-finemean;
+		/*double dmean = coarsemean-finemean;
 		
 		//... subtract the mean difference caused by interpolation
-		/*#pragma omp parallel for
+		#pragma omp parallel for
 		for( int i=0; i<nx; ++i )
 			for( int j=0; j<ny; ++j )
 				for( int k=0; k<nz; ++k )
 					v(i,j,k) += dmean;
-		*/		
+		*/	
 	}
 };
 

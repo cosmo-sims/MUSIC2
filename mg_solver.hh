@@ -258,7 +258,7 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 	MeshvarBnd<T> *uf, *uc, *ff, *fc;
 	
 	T 
-		h = 1.0/(pow(2.0,ilevel)),
+		h = 1.0/(1<<ilevel),
 		c0 = -1.0/m_scheme.ccoeff(),
 		h2 = h*h; 
 	
@@ -456,7 +456,7 @@ double solver<S,I,O,T>::compute_RMS_resid( const GridHierarchy<T>& uh, const Gri
 		ny = uh.get_grid(ilevel)->size(1), 
 		nz = uh.get_grid(ilevel)->size(2);
 		
-		double h = 1.0/pow(2,ilevel), h2=h*h, err;
+		double h = 1.0/(1<<ilevel), h2=h*h, err;
 		double sum = 0.0;
 		unsigned count = 0;
 		

@@ -879,138 +879,141 @@ namespace convolution{
 		/******* perform deconvolution *******************************************************/
 		
 #if 1
-		bool kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
-						 pcf_->getValueSafe<bool>("poisson","kspace",false));
-		//fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kernel[0] );
-		fftw_complex	*kkernel	= reinterpret_cast<fftw_complex*>( &rkernel[0] );
-		
-		
-		
-		rfftwnd_plan	plan		= rfftw3d_create_plan( nx,ny,nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-		iplan		= rfftw3d_create_plan( nx,ny,nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
-		
-		double fftnorm = 1.0/(nx*ny*nz);
-		
-		double k0 = rkernel[0];
-		
-		//... subtract white noise component before deconvolution
-		//		if( cparam_.deconvolve )//&& cparam_.is_finest)
-			rkernel[0] = 0.0;
-		
-#ifndef SINGLETHREAD_FFTW		
-		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
-#else
-		rfftwnd_one_real_to_complex( plan, rkernel, NULL );
-#endif
-		
-		if( true )//cparam_.deconvolve || cparam_.smooth )
+		if( pcf_->getValueSafe<bool>("setup","deconvolve",true) )
 		{
+				
+			bool kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
+							 pcf_->getValueSafe<bool>("poisson","kspace",false));
+			//fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kernel[0] );
+			fftw_complex	*kkernel	= reinterpret_cast<fftw_complex*>( &rkernel[0] );
 			
-			double ksum = 0.0;
-			unsigned kcount = 0;
-			double kmax = 0.5*M_PI/std::max(nx,std::max(ny,nz));
 			
-#pragma omp parallel for reduction(+:ksum,kcount)
-			for( int i=0; i<nx; ++i )
-				for( int j=0; j<ny; ++j )
-					for( int k=0; k<nz/2+1; ++k )
-					{
-						double kx,ky,kz;
-						
-						kx = (double)i;
-						ky = (double)j;
-						kz = (double)k;
-						
-						if( kx > nx/2 ) kx -= nx;
-						if( ky > ny/2 ) ky -= ny;
-						
-						
-						double kkmax = kmax/2.0;// / pow(2,cparam_.coarse_fact);
-						unsigned q  = (i*ny+j)*(nz/2+1)+k;
-						
-						if( true )//!cparam_.smooth )
+			
+			rfftwnd_plan	plan		= rfftw3d_create_plan( nx,ny,nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+			iplan		= rfftw3d_create_plan( nx,ny,nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+			
+			double fftnorm = 1.0/(nx*ny*nz);
+			
+			double k0 = rkernel[0];
+			
+			//... subtract white noise component before deconvolution
+			//		if( cparam_.deconvolve )//&& cparam_.is_finest)
+				rkernel[0] = 0.0;
+			
+	#ifndef SINGLETHREAD_FFTW		
+			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
+	#else
+			rfftwnd_one_real_to_complex( plan, rkernel, NULL );
+	#endif
+			
+			if( true )//cparam_.deconvolve || cparam_.smooth )
+			{
+				
+				double ksum = 0.0;
+				unsigned kcount = 0;
+				double kmax = 0.5*M_PI/std::max(nx,std::max(ny,nz));
+				
+	#pragma omp parallel for reduction(+:ksum,kcount)
+				for( int i=0; i<nx; ++i )
+					for( int j=0; j<ny; ++j )
+						for( int k=0; k<nz/2+1; ++k )
 						{
-							if( kspacepoisson )
+							double kx,ky,kz;
+							
+							kx = (double)i;
+							ky = (double)j;
+							kz = (double)k;
+							
+							if( kx > nx/2 ) kx -= nx;
+							if( ky > ny/2 ) ky -= ny;
+							
+							
+							double kkmax = kmax/2.0;// / pow(2,cparam_.coarse_fact);
+							unsigned q  = (i*ny+j)*(nz/2+1)+k;
+							
+							if( true )//!cparam_.smooth )
 							{
-								//... 'un-average' for k-space methods
-								kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
-								kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+								if( kspacepoisson )
+								{
+									//... 'un-average' for k-space methods
+									kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+									kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+								}else{
+									
+									//... deconvolve with grid-cell (NGP) kernel
+									//... for finite difference methods
+									kkmax = kmax;//*2.0;
+									double ipix = 1.0;
+									if( i > 0 && i!= nx/2)
+										ipix /= sin(kx*2.0*kkmax)/(kx*2.0*kkmax);
+									if( j > 0 && j!= ny/2)
+										ipix /= sin(ky*2.0*kkmax)/(ky*2.0*kkmax);
+									if( k > 0 && k!=nz/2)
+										ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
+									
+									kkernel[q].re *= ipix;
+									kkernel[q].im *= ipix;	
+								}
 							}else{
-								
-								//... deconvolve with grid-cell (NGP) kernel
-								//... for finite difference methods
-								kkmax = kmax;//*2.0;
+								//... if smooth==true, convolve with 
+								//... NGP kernel to get CIC smoothness
 								double ipix = 1.0;
-								if( i > 0 && i!= nx/2)
+								if( i > 0 )
 									ipix /= sin(kx*2.0*kkmax)/(kx*2.0*kkmax);
-								if( j > 0 && j!= ny/2)
+								if( j > 0 )
 									ipix /= sin(ky*2.0*kkmax)/(ky*2.0*kkmax);
-								if( k > 0 && k!=nz/2)
+								if( k > 0 )
 									ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 								
-								kkernel[q].re *= ipix;
-								kkernel[q].im *= ipix;	
+								kkernel[q].re /= ipix;
+								kkernel[q].im /= ipix;	
 							}
-						}else{
-							//... if smooth==true, convolve with 
-							//... NGP kernel to get CIC smoothness
-							double ipix = 1.0;
-							if( i > 0 )
-								ipix /= sin(kx*2.0*kkmax)/(kx*2.0*kkmax);
-							if( j > 0 )
-								ipix /= sin(ky*2.0*kkmax)/(ky*2.0*kkmax);
-							if( k > 0 )
-								ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 							
-							kkernel[q].re /= ipix;
-							kkernel[q].im /= ipix;	
+							//... store k-space average
+							if( k==0 || k==nz/2 )
+							{
+								ksum  += kkernel[q].re;
+								kcount++;
+							}else{
+								ksum  += 2.0*(kkernel[q].re);
+								kcount+=2;
+							}
 						}
-						
-						//... store k-space average
-						if( k==0 || k==nz/2 )
+				
+				double dk;
+				
+				//... re-add white noise component for finest grid
+				dk = k0-ksum/kcount;
+				
+				//... set white noise component to zero if smoothing is enabled
+				if( false )//cparam_.smooth )
+					dk = 0.0;
+				
+				//... enforce the r=0 component by adjusting the k-space mean
+	#pragma omp parallel for reduction(+:ksum,kcount)
+				for( int i=0; i<nx; ++i )
+					for( int j=0; j<ny; ++j )
+						for( int k=0; k<(nz/2+1); ++k )
 						{
-							ksum  += kkernel[q].re;
-							kcount++;
-						}else{
-							ksum  += 2.0*(kkernel[q].re);
-							kcount+=2;
+							unsigned q  = (i*ny+j)*(nz/2+1)+k;
+							kkernel[q].re += dk;
+							
+							kkernel[q].re *= fftnorm;
+							kkernel[q].im *= fftnorm;
 						}
-					}
+			}		
 			
-			double dk;
 			
-			//... re-add white noise component for finest grid
-			dk = k0-ksum/kcount;
 			
-			//... set white noise component to zero if smoothing is enabled
-			if( false )//cparam_.smooth )
-				dk = 0.0;
 			
-			//... enforce the r=0 component by adjusting the k-space mean
-#pragma omp parallel for reduction(+:ksum,kcount)
-			for( int i=0; i<nx; ++i )
-				for( int j=0; j<ny; ++j )
-					for( int k=0; k<(nz/2+1); ++k )
-					{
-						unsigned q  = (i*ny+j)*(nz/2+1)+k;
-						kkernel[q].re += dk;
-						
-						kkernel[q].re *= fftnorm;
-						kkernel[q].im *= fftnorm;
-					}
+	#ifndef SINGLETHREAD_FFTW		
+			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, kkernel, NULL );
+	#else
+			rfftwnd_one_complex_to_real( iplan, kkernel, NULL );
+	#endif
+			rfftwnd_destroy_plan(plan);
+			rfftwnd_destroy_plan(iplan);
 		}		
-		
-		
-		
-		
-#ifndef SINGLETHREAD_FFTW		
-		rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, kkernel, NULL );
-#else
-		rfftwnd_one_complex_to_real( iplan, kkernel, NULL );
-#endif
-		rfftwnd_destroy_plan(plan);
-		rfftwnd_destroy_plan(iplan);
-		
 #endif
 		
 		/*************************************************************************************/

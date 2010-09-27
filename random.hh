@@ -886,7 +886,7 @@ public:
 #ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipc, ccoarse, NULL );
 #else
-			rfftwnd_one_complex_to_real( ipf, cfine, NULL );
+			rfftwnd_one_complex_to_real( ipc, cfine, NULL );
 #endif
 			rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
 			
@@ -1275,7 +1275,7 @@ protected:
 	{
 		bool kavg = pcf_->getValueSafe<bool>("random","kaveraging",true);
 		
-		std::vector< rng* > randc(std::max(levelmax_+1,levelmin_seed_),(rng*)NULL);
+		std::vector< rng* > randc(std::max(levelmax_,levelmin_seed_)+1,(rng*)NULL);
 		
 		//--- FILL ALL WHITE NOISE ARRAYS FOR WHICH WE NEED THE FULL FIELD ---//
 		

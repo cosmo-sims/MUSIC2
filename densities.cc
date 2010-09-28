@@ -545,6 +545,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 
 void normalize_density( grid_hierarchy& delta )
 {	
+	//return;
+	
 	double sum = 0.0;
 	unsigned levelmin = delta.levelmin(), levelmax = delta.levelmax();
 	

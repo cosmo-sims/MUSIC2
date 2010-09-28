@@ -612,11 +612,11 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				double re = cdata[idx].re;
 				double im = cdata[idx].im;
 				
-				if( i==nx/2||j==ny/2||k==nz/2 )
+				/*if( i==nx/2||j==ny/2||k==nz/2 )
 				{
 					cdata[idx].re = 0.0;
 					cdata[idx].im = 0.0;
-				}
+				}*/
 
 				cdata[idx].re = fac*im*kdir;
 				cdata[idx].im = -fac*re*kdir;	
@@ -667,6 +667,9 @@ double poisson_hybrid_kernel( int idir, int i, int j, int k, int n )
 template<>
 inline double poisson_hybrid_kernel<2>(int idir, int i, int j, int k, int n )
 {
+	if(i==0&&j==0&&k==0)
+		return 0.0;
+	
 	double 
 	ki(M_PI*(double)i/(double)n), 
 	kj(M_PI*(double)j/(double)n), 
@@ -677,9 +680,9 @@ inline double poisson_hybrid_kernel<2>(int idir, int i, int j, int k, int n )
 	
 	if( idir==0 )
 		grad = sin(ki);
-	else if( idir )
+	else if( idir==1 )
 		grad = sin(kj);
-	else //if( idir==2&&k!=0 )
+	else 
 		grad = sin(kk);
 	
 	laplace = 2.0*((-cos(ki)+1.0)+(-cos(kj)+1.0)+(-cos(kk)+1.0));
@@ -692,11 +695,7 @@ inline double poisson_hybrid_kernel<2>(int idir, int i, int j, int k, int n )
 	else if( idir ==2)
 		kgrad = kk;
 	
-	//return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;
-	//return grad/laplace;
 	return kgrad/kr/kr-grad/laplace;
-	//return kgrad/kr/kr;
-	
 }
 
 template<>
@@ -780,7 +779,15 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 {
 	double fftnorm = 1.0/(nxp*nyp*nzp);
 		
-	fftnorm = 1.0/pow(2.0*M_PI,3)/(nxp*nyp*nzp);
+	//fftnorm = 1.0/pow(2.0*M_PI,3)/(nxp*nyp*nzp)*1.95;
+	fftnorm = 1.0/(nxp*nyp*nzp);
+	
+	/*if(idir==0)
+		fftnorm /= 256;//nxp;
+	else if(idir==1)
+		fftnorm /= 256;//nyp;
+	else
+		fftnorm /= 256;//nzp;*/
 	
 		
 	fftw_complex	*cdata = reinterpret_cast<fftw_complex*>(data);
@@ -836,14 +843,14 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 				
 				//... apply hybrid correction
 				double dk = poisson_hybrid_kernel<order>(idir, ki, kj, k, nxp/2 );
-				cdata[ii].re -= ksum;
+				//cdata[ii].re -= ksum;
 				
 				double re = cdata[ii].re, im = cdata[ii].im;
 				
 				cdata[ii].re = -im*dk*fftnorm;
 				cdata[ii].im = re*dk*fftnorm;
 				
-				cdata[ii].re += ksum*fftnorm;
+				//cdata[ii].re += ksum*fftnorm;
 				
 				//if( i==nxp/2||j==nyp/2||k==nzp/2 )
 				//{

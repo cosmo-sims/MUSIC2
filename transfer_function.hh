@@ -409,7 +409,7 @@ protected:
 public:
 	
 #if 1
-	TransferFunction_real( tf_type type, transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
+	TransferFunction_real( bool exactr0, double boxlength, int nfull, tf_type type, transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
 	{
 				
 		ptf_ = tf;
@@ -433,13 +433,50 @@ public:
 		F.params = (void*)par;
 		double error;
 		
-		//.. need a factor sqrt( 2*kny^2_x + 2*kny^2_y + 2*kny^2_z )/2 = sqrt(3/2)kny (in equilateral case)
-		//#warning Need to integrate from Boxsize (see below)?
-		gsl_integration_qag (&F, 0.0, sqrt(1.5)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
-		//gsl_integration_qag (&F, 0.0, knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+		if( !exactr0 )
+		{
+			//.. need a factor sqrt( 2*kny^2_x + 2*kny^2_y + 2*kny^2_z )/2 = sqrt(3/2)kny (in equilateral case)
+			gsl_integration_qag (&F, 0.0, sqrt(1.5)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+			
+			//gsl_integration_qag (&F, 0.0, knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 		
+			//gsl_integration_qag (&F, 0.0, 1.280788*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+			
+			
+		}
+		else
+		{
+			double sum = 0.0;
+			unsigned count = 0;
+			
+			int nf2 = nfull/2;
+			double dk = 2.0*M_PI/boxlength;
+			
+			
+			for( int i=0; i<=nf2; ++i )
+				for( int j=0; j<=nf2; ++j )
+					for( int k=0; k<=nf2; ++k )
+					{
+						int ii(i),jj(j),kk(k);
+						double rr = (double)ii*(double)ii+(double)jj*(double)jj+(double)kk*(double)kk;
+						double kp = sqrt(rr)*dk;
+						
+						if( i==0||j==0||k==0||i==nf2||j==nf2||k==nf2 )
+						{
+							sum += pow(kp,0.5*nspec_)*ptf_->compute( kp, type_ );
+							count++;							
+						}
+						else
+						{
+							sum += 2.0*pow(kp,0.5*nspec_)*ptf_->compute( kp, type_ );
+							count+=2;								
+						}
+
+					}
+					
+					
+			Tr0_ = pow(2.0*M_PI/boxlength*nfull,3.0)*par[0]*sum/count;
+		}
 		
-		//gsl_integration_qag (&F, 0.0, 1.280788*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
-		//gsl_integration_qag (&F, 0.0, sqrt(2.0)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 		
 		gsl_integration_workspace_free(wp);
 				
@@ -525,10 +562,12 @@ public:
 	{
 		double *a = (double*)arg;
 		double T = ptf_->compute( k, type_ );
+		
+		//double kmax = M_PI/100.0*64.0;
 #ifdef XI_SAMPLE
 		return 4.0*M_PI*a[0]*a[0]*T*T*pow(k,nspec_)*k*k;
 #else
-		return 4.0*M_PI*a[0]*T*pow(k,0.5*nspec_)*k*k;
+		return 4.0*M_PI*a[0]*T*pow(k,0.5*nspec_)*k*k;// *sin(M_PI*k/kmax)/(M_PI*k/kmax);
 #endif
 	}
 	

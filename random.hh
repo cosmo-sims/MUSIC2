@@ -886,7 +886,7 @@ public:
 #ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipc, ccoarse, NULL );
 #else
-			rfftwnd_one_complex_to_real( ipc, cfine, NULL );
+			rfftwnd_one_complex_to_real( ipc, ccoarse, NULL );
 #endif
 			rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
 			

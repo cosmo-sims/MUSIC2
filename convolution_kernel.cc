@@ -162,21 +162,19 @@ namespace convolution{
 		int
 			levelmax	= prefh_->levelmax(),
 			levelmin	= prefh_->levelmin(),
-			nx = prefh_->size(prefh_->levelmax(),0),
-			ny = prefh_->size(prefh_->levelmax(),1),
-			nz = prefh_->size(prefh_->levelmax(),2);
+			nx = prefh_->size(ilevel,0),
+			ny = prefh_->size(ilevel,1),
+			nz = prefh_->size(ilevel,2);
 		
+		/*if( isolated )
+		{	nx *= 2; ny *= 2; nz *= 2;	}*/
 		if( ilevel != levelmin )
-		{
-			nx*=2;
-			ny*=2;
-			nz*=2;
-		}
+		{	nx*=2;	ny*=2;	nz*=2; }
 		
 		kdata_.assign( nx*ny*2*(nz/2+1), 0.0 );
 				
 		double
-			dx = boxlength / (1<<prefh_->levelmax()),
+			dx = boxlength / (1<<ilevel),
 			lx = dx * nx,
 			ly = dx * ny,
 			lz = dx * nz;
@@ -191,8 +189,9 @@ namespace convolution{
 		bool
 			bavgfine	= pcf_->getValueSafe<bool>("setup","avg_fine",true),
 			bperiodic	= pcf_->getValueSafe<bool>("setup","periodic_TF",true),
-			kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)|pcf_->getValueSafe<bool>("poisson","kspace",false));
-		
+			kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)
+							 |pcf_->getValueSafe<bool>("poisson","kspace",false)),
+			bexactr0	= pcf_->getValueSafe<bool>("setup","exact_shotnoise",true);
 		
 		cparam_.nx = nx;
 		cparam_.ny = ny;
@@ -202,11 +201,17 @@ namespace convolution{
 		cparam_.lz = dx * cparam_.nz;
 		cparam_.pcf = pcf_;
 		
+		if( pcf_->getValueSafe<bool>("setup","deconvolve",true) )
+			cparam_.deconvolve = true;
+		else
+			cparam_.deconvolve = false;
 		
+		cparam_.coarse_fact = (prefh_->levelmax()-ilevel);
+				
 		if( bavgfine )
 			cparam_.coarse_fact++;
 
-		const int ref_fac = (int)(pow(2,cparam_.coarse_fact)+0.5), ql = -ref_fac/2+1, qr=ql+ref_fac, rf8=(int)pow(ref_fac,3);
+		const int ref_fac = 1<<cparam_.coarse_fact, ql = -ref_fac/2+1, qr=ql+ref_fac, rf8=(int)pow(ref_fac,3);
 				
 		std::cout << "   - Computing transfer function kernel...\n";
 		
@@ -215,7 +220,7 @@ namespace convolution{
 
 		
 		TransferFunction_real *tfr = 
-				new TransferFunction_real(type_, ptf_,nspec,pnorm,dplus,
+				new TransferFunction_real( bexactr0, boxlength, 1<<levelmax, type_, ptf_,nspec,pnorm,dplus,
 							0.25*lx/(double)nx,2.0*boxlength,kny, (int)pow(2,levelmax+2));
 		
 		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kdata_[0] );
@@ -384,16 +389,10 @@ namespace convolution{
 					}
 		}
 		
-		//cparam_.deconvolve = false;
 		
 		if( ilevel == levelmax )
-		{	
 			kdata_[0] = tfr->compute_real(0.0)*fac;
-			std::cerr << "T(0) = " << kdata_[0] << std::endl;
-			kdata_[0] = sqrt(8.0)*tfr->compute_real(0.5*sqrt(3.0)*dx/4)*fac;
-			////kdata_[0] = 8.0*tfr->compute_real(0.5*sqrt(3.0)*dx/4)*fac;
-			std::cerr << "T(0) = " << kdata_[0] << std::endl;
-		}
+
 		T0 = kdata_[0];
 		delete tfr;
 		
@@ -684,7 +683,7 @@ namespace convolution{
 		FILE *fp = fopen(cachefname,"r");
 		
 		
-		std::cerr << " - Fetching kernel for level " << ilevel << std::endl;
+		std::cout << " - Fetching kernel for level " << ilevel << std::endl;
 		
 		if( fp == NULL )
 			throw std::runtime_error("Internal error: cached convolution kernel does not exist on disk!");
@@ -738,18 +737,18 @@ namespace convolution{
 		double dx,lx,ly,lz;
 		
 		double
-		boxlength	= pcf_->getValue<double>("setup","boxlength"),
-		boxlength2  = 0.5*boxlength;
+			boxlength	= pcf_->getValue<double>("setup","boxlength"),
+			boxlength2  = 0.5*boxlength;
+		
+		bool bexactr0	= pcf_->getValueSafe<bool>("setup","exact_shotnoise",true);
 		
 		int
-		levelmax	= refh.levelmax(),
-		levelmin	= refh.levelmin();
-		
-		
+			levelmax	= refh.levelmax(),
+			levelmin	= refh.levelmin();
+			
 		nx = refh.size(refh.levelmax(),0);
 		ny = refh.size(refh.levelmax(),1);
 		nz = refh.size(refh.levelmax(),2);
-		
 		
 		if( levelmax != levelmin )
 		{
@@ -757,8 +756,6 @@ namespace convolution{
 			ny *= 2;
 			nz *= 2;
 		}
-		
-		
 		
 		dx = boxlength / (1<<refh.levelmax());
 		lx = dx * nx;
@@ -774,23 +771,29 @@ namespace convolution{
 		dplus		= pcf_->getValue<double>("cosmology","dplus");
 		
 		bool
-		//bavgfine	= pcf_->getValueSafe<bool>("setup","avg_fine",true),
 		bperiodic	= pcf_->getValueSafe<bool>("setup","periodic_TF",true);
-		//kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
-		//				 pcf_->getValueSafe<bool>("poisson","kspace",false));
 		
 		std::cout << "   - Computing transfer function kernel...\n";
 		
 		TransferFunction_real *tfr = 
-		new TransferFunction_real(type, ptf,nspec,pnorm,dplus,
-								  0.25*lx/(double)nx,2.0*boxlength,kny, (int)pow(2,levelmax+2));
-		
+						new TransferFunction_real(bexactr0, boxlength, 1<<levelmax, type, ptf,nspec,pnorm,dplus,
+								  0.25*dx,2.0*boxlength,kny, (int)pow(2,levelmax+2));
 		
 		
 		fftw_real *rkernel = new fftw_real[nx*ny*2*(nz/2+1)], *rkernel_coarse;
+		
+		for( int i=0; i<nx; ++i )
+			for( int j=0; j<ny; ++j )
+				for( int k=0; k<nz; ++k )
+				{
+					int q=((i)*ny + (j)) * 2*(nz/2+1) + (k);
+					rkernel[q] = 0.0;
+					
+				}
+		
 		if( bperiodic  )
 		{		
-#pragma omp parallel for //schedule(static,4)
+			#pragma omp parallel for
 			for( int i=0; i<=nx/2; ++i )
 				for( int j=0; j<=ny/2; ++j )
 					for( int k=0; k<=nz/2; ++k )
@@ -846,7 +849,7 @@ namespace convolution{
 					}
 			
 		}else{
-#pragma omp parallel for
+			#pragma omp parallel for
 			for( int i=0; i<nx; ++i )
 				for( int j=0; j<ny; ++j )
 					for( int k=0; k<nz; ++k )
@@ -874,31 +877,29 @@ namespace convolution{
 					}
 		}
 		
+		rkernel[0] = tfr->compute_real(0.0)*fac;
+		
 		/*************************************************************************************/
 		/*************************************************************************************/
 		/******* perform deconvolution *******************************************************/
 		
-#if 1
 		if( pcf_->getValueSafe<bool>("setup","deconvolve",true) )
 		{
 				
+			
+			std::cout << " - Deconvoling density kernel...\n";
+			
 			bool kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
 							 pcf_->getValueSafe<bool>("poisson","kspace",false));
-			//fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kernel[0] );
 			fftw_complex	*kkernel	= reinterpret_cast<fftw_complex*>( &rkernel[0] );
-			
-			
-			
 			rfftwnd_plan	plan		= rfftw3d_create_plan( nx,ny,nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
 			iplan		= rfftw3d_create_plan( nx,ny,nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 			
 			double fftnorm = 1.0/(nx*ny*nz);
-			
 			double k0 = rkernel[0];
 			
 			//... subtract white noise component before deconvolution
-			//		if( cparam_.deconvolve )//&& cparam_.is_finest)
-				rkernel[0] = 0.0;
+			rkernel[0] = 0.0;
 			
 	#ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
@@ -906,14 +907,13 @@ namespace convolution{
 			rfftwnd_one_real_to_complex( plan, rkernel, NULL );
 	#endif
 			
-			if( true )//cparam_.deconvolve || cparam_.smooth )
 			{
 				
 				double ksum = 0.0;
 				unsigned kcount = 0;
 				double kmax = 0.5*M_PI/std::max(nx,std::max(ny,nz));
 				
-	#pragma omp parallel for reduction(+:ksum,kcount)
+				#pragma omp parallel for reduction(+:ksum,kcount)
 				for( int i=0; i<nx; ++i )
 					for( int j=0; j<ny; ++j )
 						for( int k=0; k<nz/2+1; ++k )
@@ -928,27 +928,28 @@ namespace convolution{
 							if( ky > ny/2 ) ky -= ny;
 							
 							
-							double kkmax = kmax/2.0;// / pow(2,cparam_.coarse_fact);
+							double kkmax = kmax;
 							unsigned q  = (i*ny+j)*(nz/2+1)+k;
 							
 							if( true )//!cparam_.smooth )
 							{
 								if( kspacepoisson )
 								{
-									//... 'un-average' for k-space methods
-									kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
-									kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+									//... Use child average response function to emulate sub-sampling
+									double ipix = cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+									kkernel[q].re /= ipix;
+									kkernel[q].im /= ipix;
 								}else{
 									
-									//... deconvolve with grid-cell (NGP) kernel
+									//... Use piecewise constant response function (NGP-kernel)
 									//... for finite difference methods
 									kkmax = kmax;//*2.0;
 									double ipix = 1.0;
-									if( i > 0 && i!= nx/2)
+									if( i > 0 )
 										ipix /= sin(kx*2.0*kkmax)/(kx*2.0*kkmax);
-									if( j > 0 && j!= ny/2)
+									if( j > 0 )
 										ipix /= sin(ky*2.0*kkmax)/(ky*2.0*kkmax);
-									if( k > 0 && k!=nz/2)
+									if( k > 0 )
 										ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 									
 									kkernel[q].re *= ipix;
@@ -1013,8 +1014,7 @@ namespace convolution{
 	#endif
 			rfftwnd_destroy_plan(plan);
 			rfftwnd_destroy_plan(iplan);
-		}		
-#endif
+		}
 		
 		/*************************************************************************************/
 		/*************************************************************************************/
@@ -1057,15 +1057,11 @@ namespace convolution{
 			lzc = dxc * nzc;
 			
 			rkernel_coarse = new fftw_real[nxc*nyc*2*(nzc/2+1)];
-			
-			
-			
-			
 			fac			= lxc*lyc*lzc/pow(2.0*M_PI,3)/(nxc*nyc*nzc);
 			
 			if( bperiodic  )
 			{		
-#pragma omp parallel for //schedule(static,4)
+				#pragma omp parallel for
 				for( int i=0; i<=nxc/2; ++i )
 					for( int j=0; j<=nyc/2; ++j )
 						for( int k=0; k<=nzc/2; ++k )
@@ -1120,7 +1116,7 @@ namespace convolution{
 						}
 				
 			}else{
-#pragma omp parallel for
+				#pragma omp parallel for
 				for( int i=0; i<nxc; ++i )
 					for( int j=0; j<nyc; ++j )
 						for( int k=0; k<nzc; ++k )
@@ -1146,126 +1142,42 @@ namespace convolution{
 							
 						}
 			}
-			
+
+
 			//... copy averaged and convolved fine kernel to coarse kernel
-			/*for( int ix=0; ix<nx; ix+=2 )
-			 for( int iy=0; iy<ny; iy+=2 )
-			 for( int iz=0; iz<nz; iz+=2 )
-			 {
-			 int iix(ix/2),iiy(iy/2),iiz(iz/2);
-			 if( ix>nx/2 ) iix+=nxc-nx/2;
-			 if( iy>ny/2 ) iiy+=nyc-ny/2;
-			 if( iz>nz/2 ) iiz+=nzc-nz/2;
-			 
-			 kernel_coarse[ ACC_RC(iix,iiy,iiz) ] = 0.0;
-			 }	*/		
-			
-			bool kavg = pcf_->getValueSafe<bool>("random","kaveraging",true);
-			
-#if 0
-			if( kavg )
-			{
-				int nxd = nx/2, nyd = ny/2, nzd = nz/2;
-				fftw_complex	*kfine	= reinterpret_cast<fftw_complex*>( &rkernel[0] ),
-					*kcoarse= new fftw_complex[nxd*nyd*2*(nzd/2+1)];
-				
-				fftw_real		*rdeg = reinterpret_cast<fftw_real*> (kcoarse);
-				
-				
-				
-				rfftwnd_plan pf = rfftw3d_create_plan( nx,ny,nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-							 ipc= rfftw3d_create_plan( nxd,nyd,nzd, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
-				
-				double fftnorm = 1.0/(nxd*nyd*nzd);
-				
-#ifndef SINGLETHREAD_FFTW		
-				rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rkernel, NULL );
-#else
-				rfftwnd_one_real_to_complex( pf, rkernel, NULL );
-#endif
-				
-				for( int i=0; i<nxd; i++ )
-					for( int j=0; j<nyd; j++ )
-						for( int k=0; k<nzd/2+1; k++ )
-						{
-							int ii(i),jj(j),kk(k);
-							
-							/*if( i > nxc/2 ) ii += nx/2;
-							if( j > nyc/2 ) jj += ny/2;*/
-							 
-							if( i > nxd/2 ) ii += nx/2;
-							if( j > nyd/2 ) jj += ny/2;
-							
-							unsigned qc,qf;
-							
-							qc = (i*nyd+j)*(nzd/2+1)+k;
-							qf = (ii*ny+jj)*(nz/2+1)+kk;
-							
-							kcoarse[qc].re = 1.0/sqrt(8.0)*kfine[qf].re*fftnorm;
-							kcoarse[qc].im = 1.0/sqrt(8.0)*kfine[qf].im*fftnorm;
-						}
-								
-#ifndef SINGLETHREAD_FFTW		
-				rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipc, kcoarse, NULL );
-#else
-				rfftwnd_one_complex_to_real( ipc, kcoarse, NULL );
-#endif
-				for( int ix=0; ix<nxd; ix++ )
-					for( int iy=0; iy<nyd; iy++ )
-						for( int iz=0; iz<nzd; iz++ )
-						{
-							int iix(ix),iiy(iy),iiz(iz);
-							if( ix>nxd/2 ) iix+=nxc-nxd;//nxc-nxd/2;
-							if( iy>nyd/2 ) iiy+=nxc-nxd;//nyc-nyd/2;
-							if( iz>nzd/2 ) iiz+=nxc-nxd;//nzc-nzd/2;
-							
-							//if( ix==nx/2||iy==ny/2||iz==nz/2 ) continue;
-							
-							rkernel_coarse[ACC_RC(iix,iiy,iiz)] = rdeg[(ix*nyd+iy)*2*(nzd/2+1)+iz];
-							
-						}
-				
-				rfftwnd_destroy_plan(pf);
-				rfftwnd_destroy_plan(ipc);
-				
-			}
-			else
-#endif
-			{
-				//... copy averaged and convolved fine kernel to coarse kernel
-				for( int ix=0; ix<nx; ix+=2 )
-					for( int iy=0; iy<ny; iy+=2 )
-						for( int iz=0; iz<nz; iz+=2 )
-						{
-							int iix(ix/2),iiy(iy/2),iiz(iz/2);
-							if( ix>nx/2 ) iix+=nxc-nx/2;
-							if( iy>ny/2 ) iiy+=nyc-ny/2;
-							if( iz>nz/2 ) iiz+=nzc-nz/2;
-							
-							if( ix==nx/2||iy==ny/2||iz==nz/2 ) continue;
-							
-							for( int i=0; i<=1; ++i )
-								for( int j=0; j<=1; ++j )
-									for( int k=0; k<=1; ++k )
-										if(i==0&&k==0&&j==0 )
-											rkernel_coarse[ ACC_RC(iix,iiy,iiz) ] =
-											0.125 * ( rkernel[ACC_RF(ix-i,iy-j,iz-k)] + rkernel[ACC_RF(ix-i+1,iy-j,iz-k)] 
-													 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k)] + rkernel[ACC_RF(ix-i,iy-j,iz-k+1)]
-													 +rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k)] + rkernel[ACC_RF(ix-i+1,iy-j,iz-k+1)]
-													 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k+1)] + rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k+1)]);
-							
-										else
-										{	
-											
-											rkernel_coarse[ ACC_RC(iix,iiy,iiz) ] +=
-											0.125 * ( rkernel[ACC_RF(ix-i,iy-j,iz-k)] + rkernel[ACC_RF(ix-i+1,iy-j,iz-k)] 
-													 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k)] + rkernel[ACC_RF(ix-i,iy-j,iz-k+1)]
-													 +rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k)] + rkernel[ACC_RF(ix-i+1,iy-j,iz-k+1)]
-													 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k+1)] + rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k+1)]);
-										}
-						}	
-			}
-			
+			for( int ix=0; ix<nx; ix+=2 )
+				for( int iy=0; iy<ny; iy+=2 )
+					for( int iz=0; iz<nz; iz+=2 )
+					{
+						int iix(ix/2),iiy(iy/2),iiz(iz/2);
+						if( ix>nx/2 ) iix+=nxc-nx/2;
+						if( iy>ny/2 ) iiy+=nyc-ny/2;
+						if( iz>nz/2 ) iiz+=nzc-nz/2;
+						
+						if( ix==nx/2||iy==ny/2||iz==nz/2 ) continue;
+						
+						for( int i=0; i<=1; ++i )
+							for( int j=0; j<=1; ++j )
+								for( int k=0; k<=1; ++k )
+									if(i==0&&k==0&&j==0 )
+										rkernel_coarse[ ACC_RC(iix,iiy,iiz) ] =
+										0.125 * ( rkernel[ACC_RF(ix-i,iy-j,iz-k)] + rkernel[ACC_RF(ix-i+1,iy-j,iz-k)] 
+												 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k)] + rkernel[ACC_RF(ix-i,iy-j,iz-k+1)]
+												 +rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k)] + rkernel[ACC_RF(ix-i+1,iy-j,iz-k+1)]
+												 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k+1)] + rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k+1)]);
+						
+									else
+									{	
+										
+										rkernel_coarse[ ACC_RC(iix,iiy,iiz) ] +=
+										0.125 * ( rkernel[ACC_RF(ix-i,iy-j,iz-k)] + rkernel[ACC_RF(ix-i+1,iy-j,iz-k)] 
+												 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k)] + rkernel[ACC_RF(ix-i,iy-j,iz-k+1)]
+												 +rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k)] + rkernel[ACC_RF(ix-i+1,iy-j,iz-k+1)]
+												 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k+1)] + rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k+1)]);
+									}
+						
+					}
+
 			
 			sprintf(cachefname,"temp_kernel_level%03d.tmp",ilevel);
 			fp = fopen(cachefname,"w+");

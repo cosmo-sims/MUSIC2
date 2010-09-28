@@ -469,13 +469,10 @@ int main (int argc, const char * argv[])
 				{
 					if( bdefd )
 					{
-						//data_forIO = f;
-						//poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
-						//the_poisson_solver->gradient_add(icoord, u, data_forIO );
-						////
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 						
 					}
@@ -535,11 +532,10 @@ int main (int argc, const char * argv[])
 				//... displacement
 				if(bdefd)
 				{
-					//the_poisson_solver->gradient(icoord, u, data_forIO );
-					////
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 					the_poisson_solver->gradient_add(icoord, u, data_forIO );
 				}
 				else 
@@ -606,17 +602,12 @@ int main (int argc, const char * argv[])
 			grid_hierarchy data_forIO(u1);
 			for( int icoord = 0; icoord < 3; ++icoord )
 			{
-				
-				//... displacement
-				//the_poisson_solver->gradient(icoord, u1, data_forIO );
-				//if(bdefd)
-				//	poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());
-				
 				if(bdefd)
 				{
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 				}
 				else 
@@ -682,13 +673,12 @@ int main (int argc, const char * argv[])
 			for( int icoord = 0; icoord < 3; ++icoord )
 			{
 				//... displacement
-				//the_poisson_solver->gradient(icoord, u1, data_forIO );
-				
 				if(bdefd)
 				{
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 				}
 				else 

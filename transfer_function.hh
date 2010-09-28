@@ -451,7 +451,7 @@ public:
 			int nf2 = nfull/2;
 			double dk = 2.0*M_PI/boxlength;
 			
-			
+			#pragma omp parallel for reduction(+:sum,count)
 			for( int i=0; i<=nf2; ++i )
 				for( int j=0; j<=nf2; ++j )
 					for( int k=0; k<=nf2; ++k )

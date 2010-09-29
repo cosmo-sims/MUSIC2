@@ -33,6 +33,8 @@
 #include <stdexcept>
 #include <typeinfo>
 
+#include "log.hh"
+
 /*!
  * @class config_file
  * @brief provides read/write access to configuration options
@@ -254,6 +256,18 @@ public:
 		{
 			if( i->second.length() > 0 )
 				out << std::setw(24) << std::left << i->first << "  =  " << i->second  << std::endl;
+			++i;
+		}
+	}
+	
+	void log_dump( void )
+	{
+		LOGUSER("List of all configuration options:");
+		std::map<std::string,std::string>::const_iterator i = m_Items.begin();
+		while( i!=m_Items.end() )
+		{
+			if( i->second.length() > 0 )
+				LOGUSER("  %24s = %s",(i->first).c_str(),(i->second).c_str());//out << std::setw(24) << std::left << i->first << "  =  " << i->second  << std::endl;
 			++i;
 		}
 	}

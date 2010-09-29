@@ -46,10 +46,10 @@ std::string RemoveMultipleWhiteSpaces( std::string s )
 	return s;
 }
 
-//void MUSIC::log::send(messageType type, const std::string& text)
-void MUSIC::log::send(messageType type, std::stringstream& textstr)
+void MUSIC::log::send(messageType type, const std::string& text_)
+//void MUSIC::log::send(messageType type, std::stringstream& textstr)
 {
-	std::string text = textstr.str();
+	std::string text(text_);// = textstr.str();
 	// Skip logging if minimum level is higher
     if (logLevel_)
 		if (type < logLevel_) return;
@@ -118,7 +118,7 @@ void MUSIC::log::setOutput(const std::string& filename)
 	// create file
 	outputStream_.open(filename.c_str());
 	if(!outputStream_.is_open())
-		LOGERR("Cannot create/open '" + filename + "' for logging");
+		LOGERR("Cannot create/open \'%s\' for logging",filename.c_str());
 		//send(Error, "Cannot create/open '" + filename + "' for logging");
 }
 

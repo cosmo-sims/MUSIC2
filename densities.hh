@@ -554,38 +554,28 @@ public:
 	template< class array3 >
 	void upload_bnd_add( array3& top )
 	{
-		int ox=ox_-nx_/8, oy=oy_-ny_/8, oz=oz_-nz_/8;
-		int lx=ox+nx_/2, ly=oy+ny_/2, lz=oz+nz_/2;
-		ox = std::max(ox,0);
-		oy = std::max(oy,0);
-		oz = std::max(oz,0);
-		lx = std::min(lx,(int)top.size(0));
-		ly = std::min(ly,(int)top.size(1));
-		lz = std::min(lz,(int)top.size(2));
-		
-		
-		if( ox < 0 || oy < 0 || oz < 0 ){
-			
-			std::cerr << "offset = " << ox << ", " << oy << ", " << oz << std::endl;
-			std::cerr << "nx     = " << nx_ << ", " << ny_ << ", " << nz_ << std::endl;
-			
-			throw std::runtime_error("Subgrid extends beyond top grid. Increase levelmin or reduce size of refinement region!");
-		}
-		for( int ix=0,ixu=ox;ix<nx_&&ixu<lx;ix+=2,++ixu )
-			for( int iy=0,iyu=oy;iy<ny_&&iyu<ly;iy+=2,++iyu )
-				for( int iz=0,izu=oz;iz<nz_&&izu<lz;iz+=2,++izu )
+		for( int ix=0; ix<nx_; ix+=2 )
+			for( int iy=0; iy<ny_; iy+=2 )
+				for( int iz=0; iz<nz_; iz+=2 )
 				{
-					if( (ix<nx_/4||ix>=3*nx_/4)
-					   || (iy<ny_/4||iy>=3*ny_/4)
-					   || (iz<nz_/4||iz>=3*nz_/4) )
+					
+					if( (ix<nx_/4||ix>=3*nx_/4) || (iy<ny_/4||iy>=3*ny_/4) || (iz<nz_/4||iz>=3*nz_/4) )
 					{
-						top(ixu,iyu,izu) += 0.125* ((*this)(ix,iy,iz)+(*this)(ix+1,iy,iz)+(*this)(ix,iy+1,iz)+(*this)(ix,iy,iz+1)
-											+(*this)(ix+1,iy+1,iz)+(*this)(ix+1,iy,iz+1)+(*this)(ix,iy+1,iz+1)+(*this)(ix+1,iy+1,iz+1) );
-
+						int ic,jc,kc;
 						
+						ic = ox_+(ix-nx_/4)/2;
+						jc = oy_+(iy-ny_/4)/2;
+						kc = oz_+(iz-nz_/4)/2;
+						
+						if( ic >=0 && ic < (int)top.size(0) && jc >= 0 && jc < (int)top.size(1) && kc >= 0 && kc < (int)top.size(2) )
+						{
+							top(ic,jc,kc) += 0.125* ((*this)(ix,iy,iz)+(*this)(ix+1,iy,iz)+(*this)(ix,iy+1,iz)+(*this)(ix,iy,iz+1)
+											+(*this)(ix+1,iy+1,iz)+(*this)(ix+1,iy,iz+1)+(*this)(ix,iy+1,iz+1)+(*this)(ix+1,iy+1,iz+1) );
+						}
 					}
 				}
 	}
+	
 	
 	void constrain( const DensityGrid<real_t>& top  )
 	{

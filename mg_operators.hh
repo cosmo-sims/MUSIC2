@@ -116,11 +116,7 @@ public:
 		int N = 1<<R;
 		int Nl= -N/2+1;//, Nr=N/2;
 		double dx = 1.0/(double)N;
-		
-		
 		int nx = v.size(0), ny = v.size(1), nz = v.size(2);
-		
-		
 		double finemean = 0.0, coarsemean = 0.0;
 		unsigned finecount = 0, coarsecount = 0;
 		

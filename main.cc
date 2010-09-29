@@ -34,6 +34,7 @@
 
 
 #include "general.hh"
+#include "defaults.hh"
 #include "output.hh"
 
 #include "config_file.hh"
@@ -286,7 +287,24 @@ int main (int argc, const char * argv[])
 	char logfname[128];
 	sprintf(logfname,"%s_log.txt",argv[1]);
 	MUSIC::log::setOutput(logfname);
-	LOGINFO(std::string("Opening log file '")+logfname+"'.")
+	time_t ltime=time(NULL);
+	LOGINFO("Opening log file \'%s\'.",logfname);
+	LOGUSER("Running %s, version %s",THE_CODE_NAME,THE_CODE_VERSION);
+	LOGUSER("Running with a maximum of %d OpenMP threads", omp_get_max_threads() );
+	LOGUSER("Log is for run started %s",asctime( localtime(&ltime) ));
+	
+#ifdef SINGLETHREAD_FFTW
+	LOGUSER("Code was compiled for single-threaded FFTW");
+#else
+	LOGUSER("Code was compiled for multi-threaded FFTW");
+#endif
+	
+#ifdef SINGLE_PRECISION
+	LOGUSER("Code was compiled for single precision.");
+#else
+	LOGUSER("Code was compiled for double precision.");
+#endif
+	
 	
 	/******************************************************************************************************/
 	/* read and interpret config file *********************************************************************/
@@ -410,11 +428,19 @@ int main (int argc, const char * argv[])
 	store_grid_structure(cf, rh_Poisson);
 	rh_Poisson.output();
 	
+
+	
+	
 	
 	refinement_hierarchy rh_TF( rh_Poisson );
 	modify_grid_for_TF( rh_Poisson, rh_TF, cf );
 	//rh_TF.output();
 
+	LOGUSER("Grid structure for Poisson solver:");
+	rh_Poisson.output_log();
+	LOGUSER("Grid structure for density convolution:");
+	rh_TF.output_log();
+	
 	
 	if( !the_transfer_function_plugin->tf_is_distinct() && do_baryons )
 		std::cout	<< " - WARNING: The selected transfer function does not support\n"
@@ -435,13 +461,13 @@ int main (int argc, const char * argv[])
 	try{
 		if( ! do_2LPT )
 		{
-			LOGUSER("Entering 1LPT branch")
+			LOGUSER("Entering 1LPT branch");
 			
 			//... cdm density and displacements
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
 			std::cout << "-------------------------------------------------------------\n";
-			LOGUSER("Computing dark matter displacements...")
+			LOGUSER("Computing dark matter displacements...");
 			
 			grid_hierarchy f( nbnd ), u(nbnd);
 			
@@ -490,7 +516,7 @@ int main (int argc, const char * argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON DENSITY\n";
 				std::cout << "-------------------------------------------------------------\n";
-				LOGUSER("Computing baryon density...")
+				LOGUSER("Computing baryon density...");
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f, false, true );
 				coarsen_density(rh_Poisson, f);
@@ -510,7 +536,7 @@ int main (int argc, const char * argv[])
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING VELOCITIES\n";
 			std::cout << "-------------------------------------------------------------\n";
-			LOGUSER("Computing velocitites...")
+			LOGUSER("Computing velocitites...");
 			
 			//... velocities
 			if( do_baryons )
@@ -554,14 +580,14 @@ int main (int argc, const char * argv[])
 		
 		}else {
 			//.. use 2LPT ...
-			LOGUSER("Entering 2LPT branch")
+			LOGUSER("Entering 2LPT branch");
 			
 			grid_hierarchy f( nbnd ), u1(nbnd), u2(nbnd), fsave( nbnd );
 			
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING VELOCITIES\n";
 			std::cout << "-------------------------------------------------------------\n";	
-			LOGUSER("Computing velocities...")
+			LOGUSER("Computing velocities...");
 			
 			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true, false );
 			coarsen_density(rh_Poisson, f);
@@ -629,7 +655,7 @@ int main (int argc, const char * argv[])
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
 			std::cout << "-------------------------------------------------------------\n";
-			LOGUSER("Computing dark matter displacements...")
+			LOGUSER("Computing dark matter displacements...");
 			
 			
 			//...
@@ -693,7 +719,7 @@ int main (int argc, const char * argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON DENSITY\n";
 				std::cout << "-------------------------------------------------------------\n";
-				LOGUSER("Computing baryon density...")
+				LOGUSER("Computing baryon density...");
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f, false, true );
 				coarsen_density(rh_Poisson, f);
@@ -731,7 +757,7 @@ int main (int argc, const char * argv[])
 		
 		
 	}catch(std::runtime_error& excp){
-		
+		LOGERR("Fatal error occured. Code will exit.");
 		std::cerr << " - " << excp.what() << std::endl;
 		std::cerr << " - A fatal error occured. We need to exit...\n";
 		bfatal = true;
@@ -745,18 +771,22 @@ int main (int argc, const char * argv[])
 	
 	
 	if( !bfatal )
+	{	
 		std::cout << " - Wrote output file \'" << outfname << "\'\n     using plugin \'" << outformat << "\'...\n";
+		LOGUSER("Wrote output file \'%s\'.",outfname.c_str());
+	}
 	
 	delete the_transfer_function_plugin;
 	delete the_poisson_solver;
 	
 	/** we are done ! **/
 	std::cout << " - Done!" << std::endl << std::endl;
-	LOGUSER("Done");
+	ltime=time(NULL);
+	LOGUSER("Run finished succesfully on %s",asctime( localtime(&ltime) ));
 	
 	///*****************************************///
 	
-	std::string save_fname(std::string(argv[1])+std::string("_stats"));
+	/*std::string save_fname(std::string(argv[1])+std::string("_stats"));
 	std::ofstream ofs(save_fname.c_str());
 	time_t ltime=time(NULL);
 	
@@ -764,7 +794,9 @@ int main (int argc, const char * argv[])
 	ofs << "You ran " << THE_CODE_NAME << " version " << THE_CODE_VERSION << std::endl << std::endl;
 	
 	cf.dump( ofs );
-
+*/
+	
+	cf.log_dump();
 	
 	
 	return 0;

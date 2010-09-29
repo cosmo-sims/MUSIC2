@@ -32,6 +32,7 @@
 #include <math.h>
 
 #include "config_file.hh"
+#include "log.hh"
 
 
 //! base class for all things that have rectangular mesh structure
@@ -1270,6 +1271,16 @@ public:
 			<< "                   size   = (" << std::setw(5) << nx_[ilevel] << ", " << std::setw(5) << ny_[ilevel] << ", " << std::setw(5) << nz_[ilevel] << ")\n";
 		}
 		std::cout << "-------------------------------------------------------------\n";
+	}
+	
+	void output_log( void )
+	{
+		LOGUSER("   Domain shifted by      (%5d,%5d,%5d)",xshift_[0],xshift_[1],xshift_[2]);		
+		for( unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
+		{	
+			LOGUSER("   Level %3d :   offset = (%5d,%5d,%5d)",ilevel,ox_[ilevel],oy_[ilevel],oz_[ilevel]);
+			LOGUSER("                   size = (%5d,%5d,%5d)",nx_[ilevel],ny_[ilevel],nz_[ilevel]);
+		}
 	}
 	
 };

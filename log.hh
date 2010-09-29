@@ -85,8 +85,8 @@ public:
 	 *	\param	text	Message.
 	 *	\remarks Message is directly passes to user reciever if one is set.
 	 */
-	//static void send(messageType type, const std::string& text);
-	static void send(messageType type, std::stringstream& text);
+	static void send(messageType type, const std::string& text);
+	//static void send(messageType type, std::string& text);
 	
 	/*!
 	 *	\brief	Get the list of all of the logged messages.
@@ -118,7 +118,71 @@ private:
 };
 
 }
-#ifndef LOGERR
+
+
+inline void LOGERR( const char* str, ... )
+{
+	char out[1024];
+	va_list argptr;
+	va_start(argptr,str);
+	va_end(argptr);
+	vsprintf(out,str,argptr);
+	MUSIC::log::send(MUSIC::log::Error, std::string(out));
+}
+
+inline void LOGWARN( const char* str, ... )
+{
+	char out[1024];
+	va_list argptr;
+	va_start(argptr,str);
+	va_end(argptr);
+	vsprintf(out,str,argptr);
+	MUSIC::log::send(MUSIC::log::Warning, std::string(out));
+}
+
+inline void LOGFATAL( const char* str, ... )
+{
+	char out[1024];
+	va_list argptr;
+	va_start(argptr,str);
+	va_end(argptr);
+	vsprintf(out,str,argptr);
+	MUSIC::log::send(MUSIC::log::FatalError, std::string(out));
+}
+
+inline void LOGDEBUG( const char* str, ... )
+{
+	char out[1024];
+	va_list argptr;
+	va_start(argptr,str);
+	va_end(argptr);
+	vsprintf(out,str,argptr);
+	MUSIC::log::send(MUSIC::log::DebugInfo, std::string(out));
+}
+
+inline void LOGUSER( const char* str, ... )
+{
+	char out[1024];
+	va_list argptr;
+	va_start(argptr,str);
+	va_end(argptr);
+	vsprintf(out,str,argptr);
+	MUSIC::log::send(MUSIC::log::User, std::string(out));
+}
+
+inline void LOGINFO( const char* str, ... )
+{
+	char out[1024];
+	va_list argptr;
+	va_start(argptr,str);
+	va_end(argptr);
+	vsprintf(out,str,argptr);
+	MUSIC::log::send(MUSIC::log::Info, std::string(out));
+}
+
+
+
+/*#ifndef LOGERR
 #define LOGERR(x) { std::stringstream ss; ss<<(x); MUSIC::log::send(MUSIC::log::Error, ss); }
 #endif
 
@@ -140,7 +204,7 @@ private:
 
 #ifndef LOGUSER
 #define LOGUSER(x) { std::stringstream ss; ss<<(x); MUSIC::log::send(MUSIC::log::User, ss); }
-#endif
+#endif*/
 
 /*#define LOGINFO(x) MUSIC::log::send(MUSIC::log::Info, std::stringstream()<<(x));
 #define LOGWARN(x) MUSIC::log::send(MUSIC::log::Warning, std::stringstream()<<(x));

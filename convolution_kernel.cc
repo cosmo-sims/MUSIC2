@@ -71,6 +71,8 @@ namespace convolution{
 			<< cparam_.nx <<  ", " << cparam_.ny << ", " << cparam_.nz << ")\n";
 		
 		
+		LOGUSER("Performing kernel convolution on (%5d,%5d,%5d) grid",cparam_.nx ,cparam_.ny ,cparam_.nz );
+		
 		plan  = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
 									FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
 		
@@ -78,6 +80,7 @@ namespace convolution{
 									FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 		
 		
+		LOGUSER("Performing forward FFT...");
 		#ifndef SINGLETHREAD_FFTW		
 		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
 		#else
@@ -97,7 +100,8 @@ namespace convolution{
 					cdata[ii].re = ccdata.real();
 					cdata[ii].im = ccdata.imag();
 				}
-		
+
+		LOGUSER("Performing backward FFT...");
 		#ifndef SINGLETHREAD_FFTW		
 		rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL);
 		#else		
@@ -685,8 +689,13 @@ namespace convolution{
 		
 		std::cout << " - Fetching kernel for level " << ilevel << std::endl;
 		
+		LOGUSER("Loading kernel for level %3d from file \'%s\'...",ilevel,cachefname);
+		
 		if( fp == NULL )
+		{	
+			LOGERR("Could not open kernel file \'%s\'.",cachefname);
 			throw std::runtime_error("Internal error: cached convolution kernel does not exist on disk!");
+		}
 		
 		unsigned nx,ny,nz;
 		
@@ -745,6 +754,8 @@ namespace convolution{
 		int
 			levelmax	= refh.levelmax(),
 			levelmin	= refh.levelmin();
+		
+		LOGUSER("Precomputing transfer function kernels...");
 			
 		nx = refh.size(refh.levelmax(),0);
 		ny = refh.size(refh.levelmax(),1);
@@ -791,8 +802,12 @@ namespace convolution{
 					
 				}
 		
+		LOGUSER("Computing fine kernel (level %d)...", levelmax);
+		
 		if( bperiodic  )
 		{		
+			
+			
 			#pragma omp parallel for
 			for( int i=0; i<=nx/2; ++i )
 				for( int j=0; j<=ny/2; ++j )
@@ -886,7 +901,7 @@ namespace convolution{
 		if( pcf_->getValueSafe<bool>("setup","deconvolve",true) )
 		{
 				
-			
+			LOGUSER("Deconvolving fine kernel...");
 			std::cout << " - Deconvoling density kernel...\n";
 			
 			bool kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
@@ -1023,6 +1038,8 @@ namespace convolution{
 		
 		char cachefname[128];
 		sprintf(cachefname,"temp_kernel_level%03d.tmp",levelmax);
+		LOGUSER("Storing kernel in temp file \'%s\'.",cachefname);
+
 		FILE *fp = fopen(cachefname,"w+");
 		unsigned q = nx;
 		fwrite(	reinterpret_cast<void*> (&q), sizeof(unsigned), 1, fp );
@@ -1036,6 +1053,8 @@ namespace convolution{
 		//... average and fill for other levels
 		for( int ilevel=levelmax-1; ilevel>=levelmin; ilevel-- )
 		{
+			LOGUSER("Computing coarse kernel (level %d)...",ilevel);
+			
 			int nxc, nyc, nzc;
 			double dxc,lxc,lyc,lzc;
 			
@@ -1143,6 +1162,7 @@ namespace convolution{
 						}
 			}
 
+			LOGUSER("Averaging fine kernel to coarse kernel...");
 
 			//... copy averaged and convolved fine kernel to coarse kernel
 			for( int ix=0; ix<nx; ix+=2 )
@@ -1180,6 +1200,7 @@ namespace convolution{
 
 			
 			sprintf(cachefname,"temp_kernel_level%03d.tmp",ilevel);
+			LOGUSER("Storing kernel in temp file \'%s\'.",cachefname);
 			fp = fopen(cachefname,"w+");
 			q = nxc;
 			fwrite(	reinterpret_cast<void*> (&q), sizeof(unsigned), 1, fp );

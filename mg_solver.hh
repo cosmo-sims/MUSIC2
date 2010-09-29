@@ -478,6 +478,8 @@ double solver<S,I,O,T>::compute_RMS_resid( const GridHierarchy<T>& uh, const Gri
 		if( verbose && !m_is_ini )
 			std::cout << "      Level " << std::setw(6) << ilevel << ",   Error = " << err << std::endl;
 		
+		LOGDEBUG("[mg]      level %3d,  rms residual %g",ilevel,err);
+		
 		if( err > maxerr )
 			maxerr = err;
 		
@@ -505,12 +507,14 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 	while (true)
 	{
 		
-		
+		LOGUSER("Performing multi-grid V-cycle...");
 		twoGrid( uh.levelmax() );
+		
 		err = compute_RMS_resid( *m_pu, *m_pf, fullverbose );
 		++niter;
 		
 		if( fullverbose ){
+			LOGUSER("  multigrid iteration %3d, maximum RMS residual = %g", niter, err );
 			std::cout << "   - Step No. " << std::setw(3) << niter << ", Max Err = " << err << std::endl;
 			std::cout << "     ---------------------------------------------------\n";
 		}
@@ -523,9 +527,15 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 	}		
 	
 	if( err > acc )
+	{	
 		std::cout << "Error : no convergence in Poisson solver" << std::endl;
+		LOGERR("No convergence in Poisson solver, final error: %g.",err);
+	}
 	else if( verbose )
+	{	
 		std::cout << " - Converged in " << niter << " steps to " << maxerr << std::endl;
+		LOGUSER("Poisson solver converged to max. error of %g in %d steps.",err,niter);
+	}
 
 	
 	//.. make sure that the RHS does not contain the FAS corrections any more

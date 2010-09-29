@@ -47,6 +47,7 @@
 #endif
 #endif
 
+#include "general.hh"
 #include "constraints.hh"
 #include "mesh.hh"
 #include "mg_operators.hh"
@@ -1137,6 +1138,7 @@ protected:
 		int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
 		std::vector<T> deg_rand( nxd*nyd*nzd, 0.0 );
 		double fac = 1.0/sqrt(8.0);
+
 		for( int i=0; i<nxf; i+=2 )
 		{	
 			std::vector<T> fine_rand( 2*nyf*nzf, 0.0 );
@@ -1172,10 +1174,16 @@ protected:
 		dj = i0f[1]/2-i0c[1];
 		dk = i0f[2]/2-i0c[2];
 		
+		#pragma omp parallel for
 		for( int i=0; i<nxd; i++ )
 			for( int j=0; j<nyd; j++ )
 				for( int k=0; k<nxd; k++ )
 				{
+					//unsigned qc = (((i+di+nxc)%nxc)*nyc+(((j+dj+nyc)%nyc)))*nzc+((k+dk+nzc)%nzc);
+					
+					if( i+di < 0 || i+di >= nxc || j+dj < 0 || j+dj >= nyc || k+dk < 0 || k+dk >= nzc )
+						continue;
+					
 					unsigned qc = ((i+di)*nyc+(j+dj))*nzc+(k+dk);
 					unsigned qcd = (i*nyd+j)*nzd+k;
 					
@@ -1417,7 +1425,11 @@ public:
 		
 		std::ifstream ifs( fname, std::ios::binary );
 		if( !ifs.good() )
+		{	
+			LOGERR("White noise file \'%s\'was not found.",fname);
 			throw std::runtime_error("A white noise file was not found. This is an internal inconsistency. Inform a developer!");
+			
+		}
 		
 		int nx,ny,nz;
 		ifs.read( reinterpret_cast<char*> (&nx), sizeof(int) );
@@ -1425,7 +1437,10 @@ public:
 		ifs.read( reinterpret_cast<char*> (&nz), sizeof(int) );
 		
 		if( nx!=A.size(0) || ny!=A.size(1) || nz!=A.size(2) )
+		{	
+			LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",nx,ny,nz,A.size(0),A.size(1),A.size(2));
 			throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");
+		}
 		
 		for( int i=0; i<nx; ++i )
 		{

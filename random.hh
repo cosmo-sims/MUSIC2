@@ -250,13 +250,13 @@ protected:
 			std::cerr << " - degrading field for 1 level...(" << res_ << ")\n";
 			//unsigned ixoff=51,iyoff=51,izoff=51;
 			//unsigned nx=52, ny=52, nz=52;
-			unsigned ixoff=102, iyoff=102, izoff=102;
-			unsigned nx=104, ny=104, nz=104;
+			int ixoff=102, iyoff=102, izoff=102;
+			int nx=104, ny=104, nz=104;
 			
 #pragma omp parallel for
-			for( unsigned ix=0; ix<res_; ix+=2 )
-				for( unsigned iy=0; iy<res_; iy+=2 )
-					for( unsigned iz=0; iz<res_; iz+=2 )
+			for( int ix=0; ix<(int)res_; ix+=2 )
+				for( int iy=0; iy<(int)res_; iy+=2 )
+					for( int iz=0; iz<(int)res_; iz+=2 )
 					{
 						if( ix>=2*ixoff && ix < 2*ixoff+nx 
 						   && iy>=2*iyoff && iy < 2*iyoff+ny
@@ -289,11 +289,17 @@ protected:
 		{
 			std::cerr << " - degrading field for 2 level...(" << res_ << ")\n";
 			
-			unsigned ixoff2=102,iyoff2=102,izoff2=102;
+			/*unsigned ixoff2=102,iyoff2=102,izoff2=102;
 			unsigned nx2=52, ny2=52, nz2=52;
 			
 			unsigned ixoff1=86,iyoff1=86,izoff1=86;
-			unsigned nx1=168,ny1=168,nz1=168;
+			unsigned nx1=168,ny1=168,nz1=168;*/
+			
+			int ixoff2=86,iyoff2=86,izoff2=86;
+			int nx2=84,ny2=84,nz2=84;
+			
+			int ixoff1=102,iyoff1=102,izoff1=102;
+			int nx1=104,ny1=104,nz1=104;
 
 			
 			//unsigned ixoff2=51,iyoff2=51,izoff2=51;
@@ -316,9 +322,9 @@ protected:
 			 unsigned nx1=180, ny1=180, nz1=180;*/
 			
 #pragma omp parallel for
-			for( unsigned ix=0; ix<res_; ix+=2 )
-				for( unsigned iy=0; iy<res_; iy+=2 )
-					for( unsigned iz=0; iz<res_; iz+=2 )
+			for( int ix=0; ix<(int)res_; ix+=2 )
+				for( int iy=0; iy<(int)res_; iy+=2 )
+					for( int iz=0; iz<(int)res_; iz+=2 )
 					{
 						if( ix>=2*ixoff2 && ix < 2*ixoff2+nx2 
 						   && iy>=2*iyoff2 && iy < 2*iyoff2+ny2
@@ -344,9 +350,9 @@ protected:
 					}
 			
 #pragma omp parallel for
-			for( unsigned ix=0; ix<res_; ix+=4 )
-				for( unsigned iy=0; iy<res_; iy+=4 )
-					for( unsigned iz=0; iz<res_; iz+=4 )
+			for( int ix=0; ix<(int)res_; ix+=4 )
+				for( int iy=0; iy<(int)res_; iy+=4 )
+					for( int iz=0; iz<(int)res_; iz+=4 )
 					{
 						if( ix>=2*ixoff1 && ix < 2*ixoff1+nx1
 						   && iy>=2*iyoff1 && iy < 2*iyoff1+ny1

@@ -109,6 +109,71 @@ public:
 		
 	}
 	
+	template< typename m1, typename m2 >
+	inline void prolong( m1& V, m2& v ) const
+	{
+		//int N = 1<<R;
+		int Nl= 0;//, Nr=N/2;
+		double dx = 0.5;//1.0/(double)N;
+		int nx = v.size(0), ny = v.size(1), nz = v.size(2);
+		double finemean = 0.0, coarsemean = 0.0;
+		unsigned finecount = 0, coarsecount = 0;
+		
+		int oxc = V.offset(0), oyc = V.offset(1), ozc = V.offset(2);
+		int oxf = v.offset(0), oyf = v.offset(1), ozf = v.offset(2);
+		
+		
+		
+		#pragma omp parallel for reduction(+:finemean,finecount,coarsemean,coarsecount)
+		for( int i=0; i<nx; i+=2 )
+			for( int j=0; j<ny; j+=2 )
+				for( int k=0; k<nz; k+=2 )
+				{
+					//determine the coarse cell index
+					
+					int iic,jjc,kkc;
+					
+					iic = oxf+(int)(dx*(double)i);
+					jjc = oyf+(int)(dx*(double)j);
+					kkc = ozf+(int)(dx*(double)k);
+					
+					double xc,yc,zc,xf,yf,zf;
+					
+					
+					
+					double coarseval = V(iic,jjc,kkc);
+					double finesum   = 0.0;
+					for( int ii=0; ii<2; ++ii )
+						for( int jj=0; jj<2; ++jj )
+							for( int kk=0; kk<2; ++kk )
+							{
+								xf = oxf+(int)(dx*(double)(i+ii))-0.5*dx;
+								yf = oyf+(int)(dx*(double)(j+jj))-0.5*dx;
+								zf = ozf+(int)(dx*(double)(k+kk))-0.5*dx;
+								
+								xc = (double)(iic);
+								yc = (double)(jjc);
+								zc = (double)(kkc);
+								
+								double val = interp_cubic(xf-xc,yf-yc,zf-zc,V,iic,jjc,kkc);
+								
+								finesum += val;
+								v(i+ii,j+jj,k+kk) = val;
+							}
+					
+					finesum /= 8.0;
+					
+					/*double dv = coarseval-finesum;
+					
+					for( int ii=0; ii<2; ++ii )
+						for( int jj=0; jj<2; ++jj )
+							for( int kk=0; kk<2; ++kk )
+								v(i+ii,j+jj,k+kk) += dv;
+					 */
+				}
+		
+		
+	}
 	
 	template< typename m1, typename m2 >
 	inline void prolong( m1& V, m2& v, int oxc, int oyc, int ozc, int oxf, int oyf, int ozf, int R ) const
@@ -142,12 +207,15 @@ public:
 					yf = (dx*(double)(oyf+j+Nl)-oyc)-0.5*dx + 0.5;
 					zf = (dx*(double)(ozf+k+Nl)-ozc)-0.5*dx + 0.5;
 					
+					
+					
 					double val = interp_cubic(xf-xc,yf-yc,zf-zc,V,iic,jjc,kkc);
 					v(i,j,k) = val;
 					
 					finemean += val; finecount++;
 					coarsemean += V(iic,jjc,kkc); coarsecount++;
 				}
+		
 		
 		coarsemean /= coarsecount;
 		finemean /= finecount;
@@ -478,14 +546,26 @@ public:
 			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
 				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
 				{
-					v(i2+1,j2,k2)		= interp_cubic<1,0,0>(i+ox,j+oy,k+oz,V);
-					v(i2,j2+1,k2)		= interp_cubic<0,1,0>(i+ox,j+oy,k+oz,V);
-					v(i2,j2,k2+1)		= interp_cubic<0,0,1>(i+ox,j+oy,k+oz,V);
-					v(i2+1,j2+1,k2)		= interp_cubic<1,1,0>(i+ox,j+oy,k+oz,V);
-					v(i2+1,j2,k2+1)		= interp_cubic<1,0,1>(i+ox,j+oy,k+oz,V);
-					v(i2+1,j2+1,k2+1)	= interp_cubic<1,1,1>(i+ox,j+oy,k+oz,V);
-					v(i2,j2+1,k2+1)		= interp_cubic<0,1,1>(i+ox,j+oy,k+oz,V);
-					v(i2,j2,k2)			= interp_cubic<0,0,0>(i+ox,j+oy,k+oz,V);
+					double sum = 0.0;
+					sum+= (v(i2+1,j2,k2)		= interp_cubic<1,0,0>(i+ox,j+oy,k+oz,V));
+					sum+= (v(i2,j2+1,k2)		= interp_cubic<0,1,0>(i+ox,j+oy,k+oz,V));
+					sum+= (v(i2,j2,k2+1)		= interp_cubic<0,0,1>(i+ox,j+oy,k+oz,V));
+					sum+= (v(i2+1,j2+1,k2)		= interp_cubic<1,1,0>(i+ox,j+oy,k+oz,V));
+					sum+= (v(i2+1,j2,k2+1)		= interp_cubic<1,0,1>(i+ox,j+oy,k+oz,V));
+					sum+= (v(i2+1,j2+1,k2+1)	= interp_cubic<1,1,1>(i+ox,j+oy,k+oz,V));
+					sum+= (v(i2,j2+1,k2+1)		= interp_cubic<0,1,1>(i+ox,j+oy,k+oz,V));
+					sum+= (v(i2,j2,k2)			= interp_cubic<0,0,0>(i+ox,j+oy,k+oz,V));
+					sum *= 0.125;
+					
+					double dd = V(i+ox,j+oy,k+oz)-sum;
+					v(i2+1,j2,k2)		+= dd;
+					v(i2,j2+1,k2)		+= dd;
+					v(i2,j2,k2+1)		+= dd;
+					v(i2+1,j2+1,k2)		+= dd;
+					v(i2+1,j2,k2+1)		+= dd;
+					v(i2+1,j2+1,k2+1)	+= dd;
+					v(i2,j2+1,k2+1)		+= dd;
+					v(i2,j2,k2)			+= dd;
 				}
 		}
 	}
@@ -508,14 +588,27 @@ public:
 			for( int j=0,j2=0; j<ny; ++j,j2+=2 )
 				for( int k=0,k2=0; k<nz; ++k,k2+=2 )
 				{
-					v(i2+1,j2,k2)		+= interp_cubic<1,0,0>(i+ox,j+oy,k+oz,V);
-					v(i2,j2+1,k2)		+= interp_cubic<0,1,0>(i+ox,j+oy,k+oz,V);
-					v(i2,j2,k2+1)		+= interp_cubic<0,0,1>(i+ox,j+oy,k+oz,V);
-					v(i2+1,j2+1,k2)		+= interp_cubic<1,1,0>(i+ox,j+oy,k+oz,V);
-					v(i2+1,j2,k2+1)		+= interp_cubic<1,0,1>(i+ox,j+oy,k+oz,V);
-					v(i2+1,j2+1,k2+1)	+= interp_cubic<1,1,1>(i+ox,j+oy,k+oz,V);
-					v(i2,j2+1,k2+1)		+= interp_cubic<0,1,1>(i+ox,j+oy,k+oz,V);
-					v(i2,j2,k2)			+= interp_cubic<0,0,0>(i+ox,j+oy,k+oz,V);
+					double val, sum = 0.0;
+					v(i2+1,j2,k2)		+= (val=interp_cubic<1,0,0>(i+ox,j+oy,k+oz,V)); sum +=val;
+					v(i2,j2+1,k2)		+= (val=interp_cubic<0,1,0>(i+ox,j+oy,k+oz,V)); sum +=val;
+					v(i2,j2,k2+1)		+= (val=interp_cubic<0,0,1>(i+ox,j+oy,k+oz,V)); sum +=val;
+					v(i2+1,j2+1,k2)		+= (val=interp_cubic<1,1,0>(i+ox,j+oy,k+oz,V)); sum +=val;
+					v(i2+1,j2,k2+1)		+= (val=interp_cubic<1,0,1>(i+ox,j+oy,k+oz,V)); sum +=val;
+					v(i2+1,j2+1,k2+1)	+= (val=interp_cubic<1,1,1>(i+ox,j+oy,k+oz,V)); sum +=val;
+					v(i2,j2+1,k2+1)		+= (val=interp_cubic<0,1,1>(i+ox,j+oy,k+oz,V)); sum +=val;
+					v(i2,j2,k2)			+= (val=interp_cubic<0,0,0>(i+ox,j+oy,k+oz,V)); sum +=val;
+					
+					sum *= 0.125;
+					
+					double dd = V(i+ox,j+oy,k+oz)-sum;
+					v(i2+1,j2,k2)		+= dd;
+					v(i2,j2+1,k2)		+= dd;
+					v(i2,j2,k2+1)		+= dd;
+					v(i2+1,j2+1,k2)		+= dd;
+					v(i2+1,j2,k2+1)		+= dd;
+					v(i2+1,j2+1,k2+1)	+= dd;
+					v(i2,j2+1,k2+1)		+= dd;
+					v(i2,j2,k2)			+= dd;
 				}
 		}
 	}

@@ -369,7 +369,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 							refh.size(levelmin+1,0), refh.size(levelmin+1,1), refh.size(levelmin+1,2) );
 			
 			LOGUSER("Injecting long range component");
-			mg_straight().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
+			//mg_straight().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
+			//mg_cubic_mult().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
+			mg_cubic().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
 		}
 		else
 		{
@@ -391,8 +393,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			//... copy coarse grid long-range component to fine grid
 			LOGUSER("Injecting long range component");
-			mg_straight().prolong( *delta.get_grid(levelmin+i), *delta.get_grid(levelmin+i+1) );
-			
+			//mg_straight().prolong( *delta.get_grid(levelmin+i), *delta.get_grid(levelmin+i+1) );
+			mg_cubic().prolong( *delta.get_grid(levelmin+i), *delta.get_grid(levelmin+i+1) );
 			
 			PaddedDensitySubGrid<real_t> coarse_save( *coarse );
 			the_tf_kernel->fetch_kernel( levelmin+i );
@@ -418,7 +420,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			coarse->copy_unpad( delta_longrange );
 			
 			LOGUSER("Injecting long range component");
-			mg_straight().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
+			//mg_straight().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
+			mg_cubic().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
 
 			//... 3) the coarse-grid correction
 			LOGUSER("Computing coarse grid correction");

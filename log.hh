@@ -28,6 +28,7 @@
 #include <list>
 #include <fstream>
 #include <ctime>
+#include <cstdarg>
 #include <sstream>
 
 /*!

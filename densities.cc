@@ -371,6 +371,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			LOGUSER("Injecting long range component");
 			//mg_straight().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
 			//mg_cubic_mult().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
+			
 			mg_cubic().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
 		}
 		else
@@ -428,6 +429,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			*coarse = coarse_save;
 			coarse->subtract_oct_mean();
 			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
+			coarse->subtract_mean();
 			coarse->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
 			
 			//... clean up
@@ -505,7 +507,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 
 		the_tf_kernel->deallocate();
 		
-		//coarse->subtract_mean();
+		coarse->subtract_mean();
 		
 		//... upload data to coarser grid
 		coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );

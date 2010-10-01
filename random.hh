@@ -1324,7 +1324,8 @@ protected:
 				
 			
 				
-				if( levelmin_ == levelmax_ )
+				//if( levelmin_ == levelmax_ )
+				if( ilevel >= levelmax_ )
 					randc[ilevel] = new rng( *randc[ilevel+1], kavg );
 				else
 					randc[ilevel] = new rng( *randc[ilevel+1], false );

@@ -446,7 +446,7 @@ public:
 		else
 		{
 			double sum = 0.0;
-			unsigned count = 0;
+			unsigned long long count = 0;
 			
 			int nf2 = nfull/2;
 			double dk = 2.0*M_PI/boxlength;
@@ -474,7 +474,7 @@ public:
 					}
 					
 					
-			Tr0_ = pow(2.0*M_PI/boxlength*nfull,3.0)*par[0]*sum/count;
+			Tr0_ = pow(2.0*M_PI/boxlength*nfull,3.0)*par[0]*sum/(double)count;
 		}
 		
 		

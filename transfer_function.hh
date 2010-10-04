@@ -175,7 +175,7 @@ public:
 /**********************************************************************/
 /**********************************************************************/
 /**********************************************************************/
-#if 1
+
 #define NZERO_Q
 typedef std::complex<double> complex;
 class TransferFunction_real
@@ -406,80 +406,66 @@ protected:
 	std::vector<real_t> m_xtable,m_ytable,m_dytable;
 	double m_xmin, m_xmax, m_dx, m_rdx;
 	static tf_type type_;
+	
+	
 public:
 	
-#if 1
-	TransferFunction_real( bool exactr0, double boxlength, int nfull, tf_type type, transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
+	TransferFunction_real( double boxlength, int nfull, tf_type type, transfer_function *tf, 
+						   real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
 	{
-				
-		ptf_ = tf;
-		nspec_ = nspec;
-		type_ = type;
-	
 		real_t q = 0.8;
 		
-		kny_ = knymax;
+		ptf_	= tf;
+		nspec_	= nspec;
+		type_	= type;
+		kny_	= knymax;
 		
+		
+		/*****************************************************************/
+		//... compute the FFTlog transform of the k^n T(k) kernel
+
 		std::vector<double> r,T;
-		
 		transform( pnorm, dplus, nr, q, r, T );
 		
-		//... determine r=0 zero component by integrating up to the Nyquist frequency
-		gsl_integration_workspace * wp; 
-		gsl_function F;
-		wp = gsl_integration_workspace_alloc(20000);
-		F.function = &call_wrapper;
-		double par[2]; par[0] = dplus*sqrt(pnorm); //par[1] = M_PI/kny;
-		F.params = (void*)par;
-		double error;
 		
-		if( !exactr0 )
+		
+		/*****************************************************************/
+		//... compute T(r=0) by 3D k-space integration
 		{
-			//.. need a factor sqrt( 2*kny^2_x + 2*kny^2_y + 2*kny^2_z )/2 = sqrt(3/2)kny (in equilateral case)
-			gsl_integration_qag (&F, 0.0, sqrt(1.5)*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
 			
-			//gsl_integration_qag (&F, 0.0, knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 		
-			//gsl_integration_qag (&F, 0.0, 1.280788*knymax, 0, 1e-8, 20000, GSL_INTEG_GAUSS21, wp, &Tr0_, &error); 
+			gsl_integration_workspace * ws = gsl_integration_workspace_alloc (1000);
+			gsl_function ff;
 			
-			
-		}
-		else
-		{
-			double sum = 0.0;
-			unsigned long long count = 0;
-			
-			int nf2 = nfull/2;
-			double dk = 2.0*M_PI/boxlength;
-			
-			#pragma omp parallel for reduction(+:sum,count)
-			for( int i=0; i<=nf2; ++i )
-				for( int j=0; j<=nf2; ++j )
-					for( int k=0; k<=nf2; ++k )
-					{
-						int ii(i),jj(j),kk(k);
-						double rr = (double)ii*(double)ii+(double)jj*(double)jj+(double)kk*(double)kk;
-						double kp = sqrt(rr)*dk;
-						
-						if( i==0||j==0||k==0||i==nf2||j==nf2||k==nf2 )
-						{
-							sum += pow(kp,0.5*nspec_)*ptf_->compute( kp, type_ );
-							count++;							
-						}
-						else
-						{
-							sum += 2.0*pow(kp,0.5*nspec_)*ptf_->compute( kp, type_ );
-							count+=2;								
-						}
+			double kmin = 2.0*M_PI/boxlength;
+			double kmax = nfull*M_PI/boxlength;
 
-					}
-					
-					
-			Tr0_ = pow(2.0*M_PI/boxlength*nfull,3.0)*par[0]*sum/(double)count;
+			//... integrate 0..kmax
+			double a[6];
+			a[3] = 0.0;
+			a[4] = kmax;
+			  
+			ff.function = &call_x;
+			ff.params = reinterpret_cast<void*> (a);
+			double res, err, res2, err2;
+			gsl_integration_qags( &ff, a[3], a[4], 1e-5, 1e-7, 1000, ws, &res, &err );
+			
+			//... integrate 0..kmin
+			a[3] = 0.0;
+			a[4] = kmin;
+			gsl_integration_qags( &ff, a[3], a[4], 1e-5, 1e-7, 1000, ws, &res2, &err2 );
+
+			gsl_integration_workspace_free ( ws );
+
+			//.. get kmin..kmax
+			res -= res2;
+			res *= 8.0*dplus*sqrt(pnorm);
+			Tr0_ = res;
 		}
 		
 		
-		gsl_integration_workspace_free(wp);
-				
+		/*****************************************************************/
+		//... store as table for spline interpolation
+		
 		gsl_interp_accel *accp;
 		gsl_spline *splinep;
 		
@@ -489,7 +475,6 @@ public:
 		{
 			if( r[i] > rmin && r[i] < rmax )
 			{
-				//xsp.push_back( r[i] );//log10(r[i]) );
 				xsp.push_back( log10(r[i]) );
 				ysp.push_back( T[i]*r[i]*r[i] );
 			}
@@ -549,18 +534,11 @@ public:
 		gsl_interp_accel_free (accp);
 	}
 	
-#else
-	TransferFunction_real( transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
-	{
-		
-		
-	}
-	
-#endif
 	
 	static double call_wrapper( double k, void *arg )
 	{
 		double *a = (double*)arg;
+
 		double T = ptf_->compute( k, type_ );
 		
 		//double kmax = M_PI/100.0*64.0;
@@ -570,6 +548,66 @@ public:
 		return 4.0*M_PI*a[0]*T*pow(k,0.5*nspec_)*k*k;// *sin(M_PI*k/kmax)/(M_PI*k/kmax);
 #endif
 	}
+	
+	
+	
+	static double call_x( double kx, void *arg )
+	{
+		gsl_integration_workspace * wx = gsl_integration_workspace_alloc (1000);
+		
+		double *a = (double*)arg;
+		//double ky = a[1], kz = a[2];
+		double kmin = a[3], kmax = a[4];
+		
+		a[0] = kx;
+		
+		gsl_function FX;
+		FX.function = &call_y;
+		FX.params = reinterpret_cast<void*> (a);
+		
+		double resx, errx;
+		gsl_integration_qags( &FX, kmin, kmax, 1e-5, 1e-7, 1000, wx, &resx, &errx );
+							 
+		gsl_integration_workspace_free (wx);
+		
+		return resx;
+	}
+	
+	static double call_y( double ky, void *arg )
+	{
+		gsl_integration_workspace * wy = gsl_integration_workspace_alloc (1000);
+		
+		double *a = (double*)arg;
+		double kmin = a[3], kmax = a[4];
+		
+		a[1] = ky;
+		
+		gsl_function FY;
+		FY.function = &call_z;
+		FY.params = reinterpret_cast<void*> (a);
+		
+		double resy, erry;
+		gsl_integration_qags( &FY, kmin, kmax, 1e-5, 1e-7, 1000, wy, &resy, &erry );
+		
+		gsl_integration_workspace_free (wy);
+		
+		return resy;
+	}
+	
+	static double call_z( double kz, void *arg )
+	{
+		double *a = (double*)arg;
+		//double kmin = a[3], kmax = a[4];
+		double kx = a[0], ky = a[1];
+		
+		double kk = sqrt(kx*kx+ky*ky+kz*kz);
+		double T = ptf_->compute( kk, type_ );
+		
+		
+		return pow(kk,0.5*nspec_)*T;
+		
+	}
+	
 	
 	~TransferFunction_real()
 	{ }
@@ -615,136 +653,6 @@ public:
 };
 
 
-#else
-class TransferFunction_real
-{
-protected:
-	bool m_breal_init;
-	static real_t nspec;
-	gsl_integration_workspace * wp; 
-	gsl_integration_workspace * c_wp;
-	gsl_integration_qawo_table * wf;
-	gsl_function F;
-	
-	gsl_interp_accel *acc;
-	gsl_spline *spline;
-	
-	static transfer_function *ptf;
-	
-public:
-//	TransferFunction_real( transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
-	
-	TransferFunction_real( transfer_function *tf, real_t ns, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
-	: m_breal_init(false)
-	{ 
-		
-		ptf = tf;
-		nspec = ns;
-		wf = gsl_integration_qawo_table_alloc(0.0, 10000.0, GSL_INTEG_SINE, 10000);            
-		
-		
-		wp = gsl_integration_workspace_alloc(20000);
-		c_wp = gsl_integration_workspace_alloc(20000);
-		
-		acc = gsl_interp_accel_alloc ();
-		spline = gsl_spline_alloc (gsl_interp_cspline, nr+1);
-		
-		real_t dlogr = (log10(rmax)-log10(rmin))/nr;
-		
-		std::vector<real_t> x(nr+1,0.0),y(nr+1,0.0);
-		
-		
-		/*std::ofstream ofs("transfer_fourier.txt");
-		for( int i=0; i<1000; ++i )
-		{
-			real_t k=1.e-3*pow(10.0,i*6.0/1000.0);
-			ofs << k << "\t\t" << call_wrapper(k, NULL) << std::endl;
-		}*/
-		
-
-		real_t fac = sqrt(pnorm)*dplus;
-		
-		std::ofstream ofs("transfer_real_old.txt");
-		
-		for( unsigned i=0; i<nr+1; ++i )
-		{
-			real_t r = rmin*pow(10.0,(real_t)i*dlogr);
-			real_t result1, result2, error;
-			
-			//... integrate from zero to first point ...//
-			real_t k0 = 0.1;
-
-			F.function = &call_wrapper2;
-			real_t k[1]; k[0] = r;
-			F.params = (void*)k;
-			
-			//gsl_integration_qags (&F, 0.0, k0, 0, 1e-7, 20000,  wp, &result1, &error); 
-			result1=0.0;
-			
-			//... integrate further ...//
-			F.function = &call_wrapper;
-			F.params = NULL;
-
-			//std::cerr << "r = " << r << std::endl; 
-
-			
-			gsl_integration_qawo_table_set(wf,r,100000.0,GSL_INTEG_SINE);
-			//std::cerr << ".\n";
-			//gsl_integration_qawf(&F,k0,r,2000,wp,c_wp,wf,&result2,&error);
-			gsl_integration_qawf(&F,1.0e-6,r,2000,wp,c_wp,wf,&result2,&error);
-			//std::cerr << ".\n";
-			result1 = 4.0*M_PI*fac*(result1+result2)/r;
-			
-			x[i] = log10(r*r);
-			y[i] = log10(result1);
-			
-			ofs << std::setw(16) << r << std::setw(16) << result1 << std::endl;
-			
-		}
-		
-		gsl_spline_init (spline, &x[0], &y[0], nr+1);
-		
-		gsl_integration_qawo_table_free(wf);
-		gsl_integration_workspace_free(wp);
-		gsl_integration_workspace_free(c_wp);
-		
-	}
-	
-	~TransferFunction_real()
-	{
-		gsl_spline_free (spline);
-		gsl_interp_accel_free (acc);
-	}
-	
-	static double call_wrapper( double k, void *arg )
-	{
-		//return ptf->compute( k );
-		double tfk = ptf->compute( k );
-		double lambda0 = 0.01;
-		//if( k<1e-3)
-		//	tfk = 1.0;
-		return tfk*k*pow(k,0.5*nspec)*exp(-k*lambda0);
-		//return ptf->compute(k);
-	}
-	
-	static double call_wrapper2( double k, void *arg )
-	{
-		//return ptf->compute( k );
-		double r = ((double*)arg)[0];
-		double lambda0 = 0.01;
-		double tfk = ptf->compute( k );
-		return tfk*k*pow(k,0.5*nspec) *sin(k*r)*exp(-k*lambda0);
-		//return ptf->compute(k);
-	}
-	
-	real_t compute_real( real_t r2 )
-	{
-		if( r2 < 1e-2 )
-			return 0.0;
-		return pow(10.0,gsl_spline_eval (spline, log10(r2), acc));
-	}
-};
-#endif
 
 
 

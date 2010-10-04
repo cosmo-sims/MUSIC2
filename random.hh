@@ -470,11 +470,10 @@ public:
 			
 			std::cout << " - Generating a constrained random number set with seed " << baseseed << "\n"
 					  << "    using coarse mode replacement...\n";
-#if 1
-			int nx=lx[0],ny=lx[1],nz=lx[2],nxc=lx[0]/2,nyc=lx[1]/2,nzc=lx[2]/2;
+
+			int nx=lx[0], ny=lx[1], nz=lx[2],
+				nxc=lx[0]/2, nyc=lx[1]/2, nzc=lx[2]/2;
 			
-			//std::cerr << "nx = " << nx << ", nxc = " << nxc << std::endl;
-			//std::cerr << "off = " << x0[0] << ", " << x0[1] << ", " << x0[2] << std::endl;
 			
 			fftw_real 
 				*rcoarse = new fftw_real[nxc*nyc*(nzc+2)], 
@@ -564,19 +563,7 @@ public:
 			
 			delete[] rfine;
 			
-			/*for( int i=x0[0],ii=x0[0]/2; ii<lx[0]; i+=2,++ii )
-				for( int j=x0[1],jj=x0[1]/2; jj<lx[1]; j+=2,++jj )
-					for( int k=x0[2],kk=x0[2]/2; kk<lx[2]; k+=2,++kk )
-					{
-						double locmean = 0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)+
-												(*this)(i+1,j+1,k)+(*this)(i+1,j,k+1)+(*this)(i,j+1,k+1)+(*this)(i+1,j+1,k+1));
-						
-						rc(ii,jj,kk) = sqrt(8)*locmean;
-					}
-			 */
-#endif
 		}
-#warning Applying also Hoffman Ribak
 		else
 		{
 			std::cout << " - Generating a constrained random number set with seed " << baseseed << "\n"
@@ -602,27 +589,10 @@ public:
 						(*this)(i,j+1,k+1) += dif;
 						(*this)(i+1,j+1,k+1) += dif;
 						
-						
-						/*dif = topval;
-						
-						(*this)(i,j,k) = dif;
-						(*this)(i+1,j,k) = dif;
-						(*this)(i,j+1,k) = dif;
-						(*this)(i,j,k+1) = dif;
-						(*this)(i+1,j+1,k) = dif;
-						(*this)(i+1,j,k+1) = dif;
-						(*this)(i,j+1,k+1) = dif;
-						(*this)(i+1,j+1,k+1) = dif;*/
-					}
-			
-			/*for( int i=0; i<res_; ++i )
-				for( int j=0; j<res_; ++j )				
-					for( int k=0; k<res_; ++k )
-					{
-						(*this)(i,j,k) *=10;
-					}*/
+					}			
 		}
 	}
+	
 	
 	//! constructor
 	random_numbers( unsigned res, unsigned cubesize, long baseseed, bool zeromean=true )
@@ -634,7 +604,7 @@ public:
 		initialize();
 		mean = fill_all();
 		
-		if( true )//zeromean )
+		if( zeromean )
 		{
 			mean = 0.0;
 			for(unsigned i=0; i<res_; ++i )
@@ -1390,12 +1360,13 @@ protected:
 		delete randc[levelmax_];
 		randc[levelmax_] = NULL;
 		
-		
-#if 1
 		//... make sure that the coarse grid contains oct averages where it overlaps with a fine grid
 		for( int ilevel=levelmax_; ilevel>levelmin_; --ilevel )
 			correct_avg( ilevel-1, ilevel );
-#endif
+		
+
+		
+		
 		
 		//.. we do not have random numbers for a coarse level, generate them
 		/*if( levelmax_rand_ >= (int)levelmin_ )

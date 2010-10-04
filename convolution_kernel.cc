@@ -194,8 +194,7 @@ namespace convolution{
 			bavgfine	= pcf_->getValueSafe<bool>("setup","avg_fine",true),
 			bperiodic	= pcf_->getValueSafe<bool>("setup","periodic_TF",true),
 			kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)
-							 |pcf_->getValueSafe<bool>("poisson","kspace",false)),
-			bexactr0	= pcf_->getValueSafe<bool>("setup","exact_shotnoise",true);
+							 |pcf_->getValueSafe<bool>("poisson","kspace",false));
 		
 		cparam_.nx = nx;
 		cparam_.ny = ny;
@@ -224,7 +223,7 @@ namespace convolution{
 
 		
 		TransferFunction_real *tfr = 
-				new TransferFunction_real( bexactr0, boxlength, 1<<levelmax, type_, ptf_,nspec,pnorm,dplus,
+				new TransferFunction_real( boxlength, 1<<levelmax, type_, ptf_,nspec,pnorm,dplus,
 							0.25*lx/(double)nx,2.0*boxlength,kny, (int)pow(2,levelmax+2));
 		
 		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kdata_[0] );
@@ -749,8 +748,6 @@ namespace convolution{
 			boxlength	= pcf_->getValue<double>("setup","boxlength"),
 			boxlength2  = 0.5*boxlength;
 		
-		bool bexactr0	= pcf_->getValueSafe<bool>("setup","exact_shotnoise",true);
-		
 		int
 			levelmax	= refh.levelmax(),
 			levelmin	= refh.levelmin();
@@ -787,7 +784,7 @@ namespace convolution{
 		std::cout << "   - Computing transfer function kernel...\n";
 		
 		TransferFunction_real *tfr = 
-						new TransferFunction_real(bexactr0, boxlength, 1<<levelmax, type, ptf,nspec,pnorm,dplus,
+						new TransferFunction_real( boxlength, 1<<levelmax, type, ptf,nspec,pnorm,dplus,
 								  0.25*dx,2.0*boxlength,kny, (int)pow(2,levelmax+2));
 		
 		

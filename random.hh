@@ -47,7 +47,6 @@
 #endif
 #endif
 
-#include "general.hh"
 #include "constraints.hh"
 #include "mesh.hh"
 #include "mg_operators.hh"
@@ -188,10 +187,10 @@ protected:
 		
 		double mean = 0.0;
 		
-		std::cerr << i0[0] << ", " << i0[1] << ", " << i0[2] << "\n";
+		/*std::cerr << i0[0] << ", " << i0[1] << ", " << i0[2] << "\n";
 		std::cerr << n[0] << ", " << n[1] << ", " << n[2] << "\n";
 		std::cerr << i0cube[0] << ", " << i0cube[1] << ", " << i0cube[2] << "\n";
-		std::cerr << ncube[0] << ", " << ncube[1] << ", " << ncube[2] << "\n";
+		std::cerr << ncube[0] << ", " << ncube[1] << ", " << ncube[2] << "\n";*/
 		
 		#pragma omp parallel for reduction(+:mean)
 		for( int i=i0cube[0]; i<i0cube[0]+ncube[0]; ++i )
@@ -990,6 +989,7 @@ public:
 
 #define DEF_RAN_CUBE_SIZE	32
 
+
 template< typename rng, typename T >
 class random_number_generator
 {
@@ -1002,6 +1002,10 @@ protected:
 	int levelmin_seed_;
 	std::vector<long>			rngseeds_;
 	std::vector<std::string>	rngfnames_;
+	
+	bool disk_cached_;
+	std::vector< std::vector<T>* > mem_cache_;
+	
 	
 	unsigned					ran_cube_size_;
 	
@@ -1062,13 +1066,8 @@ protected:
 		
 		int lfacc = 1<<(icoarse-levelmin_poisson);
 		
-		char fncoarse[128], fnfine[128];
-		sprintf(fncoarse,"wnoise_%04d.bin",icoarse);
-		sprintf(fnfine,"wnoise_%04d.bin",ifine);
 		
-		std::ifstream 
-			iffine( fnfine, std::ios::binary ), 
-			ifcoarse( fncoarse, std::ios::binary );
+		
 		
 		int nc[3], i0c[3], nf[3], i0f[3];
 		if( icoarse != levelmin_ )
@@ -1098,162 +1097,139 @@ protected:
 		i0f[2] = prefh_->offset_abs(ifine, 2) - 2*lfacc*shift[2] - nf[2]/4;
 		
 		//.................................
-		
-		int nxc,nyc,nzc,nxf,nyf,nzf;
-		iffine.read( reinterpret_cast<char*> (&nxf), sizeof(unsigned) );
-		iffine.read( reinterpret_cast<char*> (&nyf), sizeof(unsigned) );
-		iffine.read( reinterpret_cast<char*> (&nzf), sizeof(unsigned) );
-		
-		ifcoarse.read( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
-		ifcoarse.read( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
-		ifcoarse.read( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
-		
-		if( nxf!=nf[0] || nyf!=nf[1] || nzf!=nf[2] || nxc!=nc[0] || nyc!=nc[1] || nzc!=nc[2] )
-			throw std::runtime_error("White noise file mismatch. This should not happen. Notify a developer!");
-		
-		int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
-		std::vector<T> deg_rand( nxd*nyd*nzd, 0.0 );
-		double fac = 1.0/sqrt(8.0);
-
-		for( int i=0; i<nxf; i+=2 )
-		{	
-			std::vector<T> fine_rand( 2*nyf*nzf, 0.0 );
-			iffine.read( reinterpret_cast<char*> (&fine_rand[0]), 2*nyf*nzf*sizeof(T) );
-			
-			for( int j=0; j<nyf; j+=2 )
-				for( int k=0; k<nzf; k+=2 )
-				{
-					unsigned qc = ((i/2)*nyd+(j/2))*nzd+(k/2);
-					unsigned qf[8];
-					qf[0] = (0*nyf+j+0)*nzf+k+0;
-					qf[1] = (0*nyf+j+0)*nzf+k+1;
-					qf[2] = (0*nyf+j+1)*nzf+k+0;
-					qf[3] = (0*nyf+j+1)*nzf+k+1;
-					qf[4] = (1*nyf+j+0)*nzf+k+0;
-					qf[5] = (1*nyf+j+0)*nzf+k+1;
-					qf[6] = (1*nyf+j+1)*nzf+k+0;
-					qf[7] = (1*nyf+j+1)*nzf+k+1;
-					
-					for( int q=0; q<8; ++q )
-						deg_rand[qc] += fac*fine_rand[qf[q]];
-					
-				}
-		}
-		
-		//... now deg_rand holds the oct-averaged fine field, store this in the coarse field
-		std::vector<T> coarse_rand(nxc*nyc*nzc,0.0);
-		ifcoarse.read( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
-		
-		int di,dj,dk;
-		
-		di = i0f[0]/2-i0c[0];
-		dj = i0f[1]/2-i0c[1];
-		dk = i0f[2]/2-i0c[2];
-		
-		#pragma omp parallel for
-		for( int i=0; i<nxd; i++ )
-			for( int j=0; j<nyd; j++ )
-				for( int k=0; k<nxd; k++ )
-				{
-					//unsigned qc = (((i+di+nxc)%nxc)*nyc+(((j+dj+nyc)%nyc)))*nzc+((k+dk+nzc)%nzc);
-					
-					if( i+di < 0 || i+di >= nxc || j+dj < 0 || j+dj >= nyc || k+dk < 0 || k+dk >= nzc )
-						continue;
-					
-					unsigned qc = ((i+di)*nyc+(j+dj))*nzc+(k+dk);
-					unsigned qcd = (i*nyd+j)*nzd+k;
-					
-					coarse_rand[qc] = deg_rand[qcd];
-				}
-		
-		deg_rand.clear();
-		
-		ifcoarse.close();
-		std::ofstream ofcoarse( fncoarse, std::ios::binary|std::ios::trunc );
-		ofcoarse.write( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
-		ofcoarse.write( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
-		ofcoarse.write( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
-		ofcoarse.write( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
-		ofcoarse.close();
-	}
-	
-	void store_rnd( int ilevel, rng* prng )
-	{
-		int shift[3], levelmin_poisson;
-		shift[0] = pcf_->getValue<int>("setup","shift_x");
-		shift[1] = pcf_->getValue<int>("setup","shift_y");
-		shift[2] = pcf_->getValue<int>("setup","shift_z");
-		
-		levelmin_poisson = pcf_->getValue<unsigned>("setup","levelmin");
-		
-		int lfac = 1<<(ilevel-levelmin_poisson);
-		
-		
-		std::vector<T> data;
-		if( ilevel == levelmin_ )
+		if( disk_cached_ )
 		{
-			int N = 1<<levelmin_;
-			int i0,j0,k0;
+			char fncoarse[128], fnfine[128];
+			sprintf(fncoarse,"wnoise_%04d.bin",icoarse);
+			sprintf(fnfine,"wnoise_%04d.bin",ifine);
 			
-			i0 = -lfac*shift[0];
-			j0 = -lfac*shift[1];
-			k0 = -lfac*shift[2];
+			std::ifstream 
+			iffine( fnfine, std::ios::binary ), 
+			ifcoarse( fncoarse, std::ios::binary );
 			
-			char fname[128];
-			sprintf(fname,"wnoise_%04d.bin",ilevel);
-
-			std::ofstream ofs(fname,std::ios::binary|std::ios::trunc);
+			int nxc,nyc,nzc,nxf,nyf,nzf;
+			iffine.read( reinterpret_cast<char*> (&nxf), sizeof(unsigned) );
+			iffine.read( reinterpret_cast<char*> (&nyf), sizeof(unsigned) );
+			iffine.read( reinterpret_cast<char*> (&nzf), sizeof(unsigned) );
 			
-			ofs.write( reinterpret_cast<char*> (&N), sizeof(unsigned) );
-			ofs.write( reinterpret_cast<char*> (&N), sizeof(unsigned) );
-			ofs.write( reinterpret_cast<char*> (&N), sizeof(unsigned) );
+			ifcoarse.read( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
+			ifcoarse.read( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
+			ifcoarse.read( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
 			
-			data.assign( N*N, 0.0 );
-			for( int i=0; i<N; ++i )
+			if( nxf!=nf[0] || nyf!=nf[1] || nzf!=nf[2] || nxc!=nc[0] || nyc!=nc[1] || nzc!=nc[2] )
+				throw std::runtime_error("White noise file mismatch. This should not happen. Notify a developer!");
+			
+			int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
+			std::vector<T> deg_rand( nxd*nyd*nzd, 0.0 );
+			double fac = 1.0/sqrt(8.0);
+			
+			for( int i=0; i<nxf; i+=2 )
 			{	
-				for( int j=0; j<N; ++j )
-					for( int k=0; k<N; ++k )
-						data[j*N+k] = (*prng)(i+i0,j+j0,k+k0);
+				std::vector<T> fine_rand( 2*nyf*nzf, 0.0 );
+				iffine.read( reinterpret_cast<char*> (&fine_rand[0]), 2*nyf*nzf*sizeof(T) );
 				
-				ofs.write(reinterpret_cast<char*> (&data[0]), N*N*sizeof(T) );
+				for( int j=0; j<nyf; j+=2 )
+					for( int k=0; k<nzf; k+=2 )
+					{
+						unsigned qc = ((i/2)*nyd+(j/2))*nzd+(k/2);
+						unsigned qf[8];
+						qf[0] = (0*nyf+j+0)*nzf+k+0;
+						qf[1] = (0*nyf+j+0)*nzf+k+1;
+						qf[2] = (0*nyf+j+1)*nzf+k+0;
+						qf[3] = (0*nyf+j+1)*nzf+k+1;
+						qf[4] = (1*nyf+j+0)*nzf+k+0;
+						qf[5] = (1*nyf+j+0)*nzf+k+1;
+						qf[6] = (1*nyf+j+1)*nzf+k+0;
+						qf[7] = (1*nyf+j+1)*nzf+k+1;
+						
+						for( int q=0; q<8; ++q )
+							deg_rand[qc] += fac*fine_rand[qf[q]];
+						
+					}
 			}
-			ofs.close();
+			
+			//... now deg_rand holds the oct-averaged fine field, store this in the coarse field
+			std::vector<T> coarse_rand(nxc*nyc*nzc,0.0);
+			ifcoarse.read( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
+			
+			int di,dj,dk;
+			
+			di = i0f[0]/2-i0c[0];
+			dj = i0f[1]/2-i0c[1];
+			dk = i0f[2]/2-i0c[2];
+			
+#pragma omp parallel for
+			for( int i=0; i<nxd; i++ )
+				for( int j=0; j<nyd; j++ )
+					for( int k=0; k<nzd; k++ )
+					{
+						//unsigned qc = (((i+di+nxc)%nxc)*nyc+(((j+dj+nyc)%nyc)))*nzc+((k+dk+nzc)%nzc);
+						
+						if( i+di < 0 || i+di >= nxc || j+dj < 0 || j+dj >= nyc || k+dk < 0 || k+dk >= nzc )
+							continue;
+						
+						unsigned qc = ((i+di)*nyc+(j+dj))*nzc+(k+dk);
+						unsigned qcd = (i*nyd+j)*nzd+k;
+						
+						coarse_rand[qc] = deg_rand[qcd];
+					}
+			
+			deg_rand.clear();
+			
+			ifcoarse.close();
+			std::ofstream ofcoarse( fncoarse, std::ios::binary|std::ios::trunc );
+			ofcoarse.write( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
+			ofcoarse.write( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
+			ofcoarse.write( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
+			ofcoarse.write( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
+			ofcoarse.close();	
 		}
 		else
 		{
-			int nx,ny,nz;
-			int i0,j0,k0;
+			int nxc,nyc,nzc,nxf,nyf,nzf;
+			nxc = nc[0]; nyc = nc[1]; nzc = nc[2];
+			nxf = nf[0]; nyf = nf[1]; nzf = nf[2];
+			int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
 			
-			nx = 2*prefh_->size(ilevel, 0);
-			ny = 2*prefh_->size(ilevel, 1);
-			nz = 2*prefh_->size(ilevel, 2);
-			i0 = prefh_->offset_abs(ilevel, 0) - lfac*shift[0] - nx/4;
-			j0 = prefh_->offset_abs(ilevel, 1) - lfac*shift[1] - nx/4;
-			k0 = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - nx/4;
+			int di,dj,dk;
 			
-			char fname[128];
-			sprintf(fname,"wnoise_%04d.bin",ilevel);
+			di = i0f[0]/2-i0c[0];
+			dj = i0f[1]/2-i0c[1];
+			dk = i0f[2]/2-i0c[2];
 			
-			std::ofstream ofs(fname,std::ios::binary|std::ios::trunc);
+			double fac = 1.0/sqrt(8.0);
 			
-			ofs.write( reinterpret_cast<char*> (&nx), sizeof(unsigned) );
-			ofs.write( reinterpret_cast<char*> (&ny), sizeof(unsigned) );
-			ofs.write( reinterpret_cast<char*> (&nz), sizeof(unsigned) );
-			
-			data.assign( ny*nz, 0.0 );
-			for( int i=0; i<nx; ++i )
-			{	
-				for( int j=0; j<ny; ++j )
-					for( int k=0; k<nz; ++k )
-						data[j*ny+k] = (*prng)(i+i0,j+j0,k+k0);
-				
-				ofs.write(reinterpret_cast<char*> (&data[0]), ny*nz*sizeof(T) );
-			}
-			ofs.close();
-			
+			for( int i=0; i<nxd; i++ )
+				for( int j=0; j<nyd; j++ )
+					for( int k=0; k<nzd; k++ )
+					{
+						if( i+di < 0 || i+di >= nxc || j+dj < 0 || j+dj >= nyc || k+dk < 0 || k+dk >= nzc )
+							continue;
+						
+						unsigned qf[8];
+						qf[0] = ((2*i+0)*nyf+2*j+0)*nzf+2*k+0;
+						qf[1] = ((2*i+0)*nyf+2*j+0)*nzf+2*k+1;
+						qf[2] = ((2*i+0)*nyf+2*j+1)*nzf+2*k+0;
+						qf[3] = ((2*i+0)*nyf+2*j+1)*nzf+2*k+1;
+						qf[4] = ((2*i+1)*nyf+2*j+0)*nzf+2*k+0;
+						qf[5] = ((2*i+1)*nyf+2*j+0)*nzf+2*k+1;
+						qf[6] = ((2*i+1)*nyf+2*j+1)*nzf+2*k+0;
+						qf[7] = ((2*i+1)*nyf+2*j+1)*nzf+2*k+1;
+						
+						double finesum = 0.0;
+						for( int q=0; q<8; ++q )
+							finesum += fac*(*mem_cache_[ifine-levelmin_])[qf[q]];
+						
+						unsigned qc = ((i+di)*nyc+(j+dj))*nzc+(k+dk);
+						
+						(*mem_cache_[icoarse-levelmin_])[qc] = finesum;
+					}						
 		}
 
+		
 	}
+	
+	
 	
 	void compute_random_numbers( void )
 	{
@@ -1377,6 +1353,126 @@ protected:
 				randc[ilevel] = new rng( *randc[ilevel+1] );
 		}*/
 	}
+	
+	
+	void store_rnd( int ilevel, rng* prng )
+	{
+		int shift[3], levelmin_poisson;
+		shift[0] = pcf_->getValue<int>("setup","shift_x");
+		shift[1] = pcf_->getValue<int>("setup","shift_y");
+		shift[2] = pcf_->getValue<int>("setup","shift_z");
+		
+		levelmin_poisson = pcf_->getValue<unsigned>("setup","levelmin");
+		
+		int lfac = 1<<(ilevel-levelmin_poisson);
+		
+		if( disk_cached_ )
+		{
+			std::vector<T> data;
+			if( ilevel == levelmin_ )
+			{
+				int N = 1<<levelmin_;
+				int i0,j0,k0;
+				
+				i0 = -lfac*shift[0];
+				j0 = -lfac*shift[1];
+				k0 = -lfac*shift[2];
+				
+				char fname[128];
+				sprintf(fname,"wnoise_%04d.bin",ilevel);
+				
+				LOGUSER("Storing white noise field in file \'%s\'...", fname );
+				
+				std::ofstream ofs(fname,std::ios::binary|std::ios::trunc);
+				
+				ofs.write( reinterpret_cast<char*> (&N), sizeof(unsigned) );
+				ofs.write( reinterpret_cast<char*> (&N), sizeof(unsigned) );
+				ofs.write( reinterpret_cast<char*> (&N), sizeof(unsigned) );
+				
+				data.assign( N*N, 0.0 );
+				for( int i=0; i<N; ++i )
+				{	
+					for( int j=0; j<N; ++j )
+						for( int k=0; k<N; ++k )
+							data[j*N+k] = (*prng)(i+i0,j+j0,k+k0);
+					
+					ofs.write(reinterpret_cast<char*> (&data[0]), N*N*sizeof(T) );
+				}
+				ofs.close();
+			}
+			else
+			{
+				int nx,ny,nz;
+				int i0,j0,k0;
+				
+				nx = 2*prefh_->size(ilevel, 0);
+				ny = 2*prefh_->size(ilevel, 1);
+				nz = 2*prefh_->size(ilevel, 2);
+				i0 = prefh_->offset_abs(ilevel, 0) - lfac*shift[0] - nx/4;
+				j0 = prefh_->offset_abs(ilevel, 1) - lfac*shift[1] - nx/4;
+				k0 = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - nx/4;
+				
+				char fname[128];
+				sprintf(fname,"wnoise_%04d.bin",ilevel);
+
+				LOGUSER("Storing white noise field in file \'%s\'...", fname );
+
+				std::ofstream ofs(fname,std::ios::binary|std::ios::trunc);
+				
+				ofs.write( reinterpret_cast<char*> (&nx), sizeof(unsigned) );
+				ofs.write( reinterpret_cast<char*> (&ny), sizeof(unsigned) );
+				ofs.write( reinterpret_cast<char*> (&nz), sizeof(unsigned) );
+				
+				data.assign( ny*nz, 0.0 );
+				for( int i=0; i<nx; ++i )
+				{	
+					for( int j=0; j<ny; ++j )
+						for( int k=0; k<nz; ++k )
+							data[j*nz+k] = (*prng)(i+i0,j+j0,k+k0);
+					
+					ofs.write(reinterpret_cast<char*> (&data[0]), ny*nz*sizeof(T) );
+				}
+				ofs.close();
+				
+			}
+			
+		}
+		else 
+		{
+			int nx,ny,nz;
+			int i0,j0,k0;
+			
+			if( ilevel == levelmin_ )
+			{
+				i0 = -lfac*shift[0];
+				j0 = -lfac*shift[1];
+				k0 = -lfac*shift[2];
+				
+				nx = ny = nz = 1<<levelmin_;
+			}
+			else
+			{
+				nx = 2*prefh_->size(ilevel, 0);
+				ny = 2*prefh_->size(ilevel, 1);
+				nz = 2*prefh_->size(ilevel, 2);
+				i0 = prefh_->offset_abs(ilevel, 0) - lfac*shift[0] - nx/4;
+				j0 = prefh_->offset_abs(ilevel, 1) - lfac*shift[1] - nx/4;
+				k0 = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - nx/4;
+			}
+			
+			mem_cache_[ilevel-levelmin_] = new std::vector<T>(nx*ny*nz,0.0);
+			
+			LOGUSER("Copying white noise to mem cache...");
+			
+			for( int i=0; i<nx; ++i )
+				for( int j=0; j<ny; ++j )
+					for( int k=0; k<nz; ++k )
+						(*mem_cache_[ilevel-levelmin_])[(i*ny+j)*nz+k] = (*prng)(i+i0,j+j0,k+k0);
+	
+		}		
+	}
+	
+	
 
 public:
 	random_number_generator( config_file& cf, refinement_hierarchy& refh )
@@ -1386,50 +1482,102 @@ public:
 		levelmax_ = prefh_->levelmax();
 		
 		ran_cube_size_	= pcf_->getValueSafe<unsigned>("random","cubesize",DEF_RAN_CUBE_SIZE);
+		disk_cached_ = pcf_->getValueSafe<bool>("random","disk_cached",true);
+		mem_cache_.assign(levelmax_-levelmin_+1,NULL);
+		
+		
+		//disk_cached_ = false;
 		
 		parse_rand_parameters();
 		
 		compute_random_numbers();
+		
+		
 	}
 	
 	~random_number_generator()
-	{  }
+	{  
+		
+		//... clear memory caches
+		for( unsigned i=0; i<mem_cache_.size(); ++i )
+			if( mem_cache_[i] != NULL )
+				delete mem_cache_[i];
+		
+		
+		//... clear disk caches
+		if( disk_cached_ )
+		{
+			for( int ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
+			{
+				char fname[128];
+				sprintf(fname,"wnoise_%04d.bin",ilevel);
+				unlink(fname);
+			}
+		}
+	}
 	
 	template< typename array >
 	void load( array& A, int ilevel )
 	{
-		char fname[128];
-		sprintf(fname,"wnoise_%04d.bin",ilevel);
-		
-		std::ifstream ifs( fname, std::ios::binary );
-		if( !ifs.good() )
-		{	
-			LOGERR("White noise file \'%s\'was not found.",fname);
-			throw std::runtime_error("A white noise file was not found. This is an internal inconsistency. Inform a developer!");
-			
-		}
-		
-		int nx,ny,nz;
-		ifs.read( reinterpret_cast<char*> (&nx), sizeof(int) );
-		ifs.read( reinterpret_cast<char*> (&ny), sizeof(int) );
-		ifs.read( reinterpret_cast<char*> (&nz), sizeof(int) );
-		
-		if( nx!=A.size(0) || ny!=A.size(1) || nz!=A.size(2) )
-		{	
-			LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",nx,ny,nz,A.size(0),A.size(1),A.size(2));
-			throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");
-		}
-		
-		for( int i=0; i<nx; ++i )
+		if( disk_cached_ )
 		{
-			std::vector<T> slice( ny*nz, 0.0 );
-			ifs.read( reinterpret_cast<char*> ( &slice[0] ), nx*nz*sizeof(T) );
+			char fname[128];
+			sprintf(fname,"wnoise_%04d.bin",ilevel);
 			
-			for( int j=0; j<ny; ++j )
-				for( int k=0; k<nz; ++k )
-					A(i,j,k) = slice[j*nz+k];
-		}		
-		ifs.close();
+			LOGUSER("Loading white noise from file \'%s\'...",fname);
+			
+			std::ifstream ifs( fname, std::ios::binary );
+			if( !ifs.good() )
+			{	
+				LOGERR("White noise file \'%s\'was not found.",fname);
+				throw std::runtime_error("A white noise file was not found. This is an internal inconsistency. Inform a developer!");
+				
+			}
+			
+			int nx,ny,nz;
+			ifs.read( reinterpret_cast<char*> (&nx), sizeof(int) );
+			ifs.read( reinterpret_cast<char*> (&ny), sizeof(int) );
+			ifs.read( reinterpret_cast<char*> (&nz), sizeof(int) );
+			
+			if( nx!=A.size(0) || ny!=A.size(1) || nz!=A.size(2) )
+			{	
+				LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",nx,ny,nz,A.size(0),A.size(1),A.size(2));
+				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");
+			}
+			
+			for( int i=0; i<nx; ++i )
+			{
+				std::vector<T> slice( ny*nz, 0.0 );
+				ifs.read( reinterpret_cast<char*> ( &slice[0] ), nx*nz*sizeof(T) );
+				
+				for( int j=0; j<ny; ++j )
+					for( int k=0; k<nz; ++k )
+						A(i,j,k) = slice[j*nz+k];
+			}		
+			ifs.close();	
+		}
+		else
+		{
+			LOGUSER("Copying white noise from memory cache...");
+			
+			if( mem_cache_[ilevel-levelmin_] == NULL )
+				LOGERR("Tried to access mem-cached random numbers for level %d. But these are not available!\n",ilevel);
+			
+			int nx( A.size(0) ), ny( A.size(1) ), nz( A.size(2) );
+			
+			if ( (unsigned)(nx*ny*nz) != mem_cache_[ilevel-levelmin_]->size() )
+			{
+				LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",nx,ny,nz,A.size(0),A.size(1),A.size(2));
+				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");
+			}
+			
+			for( int i=0; i<nx; ++i )
+				for( int j=0; j<ny; ++j )
+					for( int k=0; k<nz; ++k )
+						A(i,j,k) = (*mem_cache_[ilevel-levelmin_])[(i*ny+j)*nz+k];
+			
+		}
+
 		
 	}
 };

@@ -45,13 +45,13 @@
 #include "random.hh"
 #include "cosmology.hh"
 #include "transfer_function.hh"
-
+#include "general.hh"
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
-							  refinement_hierarchy& refh, grid_hierarchy& delta, bool bdeconvolve, bool smooth );
+							  refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool bdeconvolve, bool smooth );
 
 void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, 
-							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace, bool deconvolve, bool smooth );
+							refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool kspace, bool deconvolve, bool smooth );
 
 void normalize_density( grid_hierarchy& delta );
 

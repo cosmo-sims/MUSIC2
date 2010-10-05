@@ -50,7 +50,7 @@ bool is_number(const std::string& s)
 /*******************************************************************************************/
 
 void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, 
-							refinement_hierarchy& refh, grid_hierarchy& delta, bool kspace, bool bdeconvolve, bool smooth )
+							refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool kspace, bool bdeconvolve, bool smooth )
 {
 	unsigned    levelmin,levelmax,levelminPoisson;
 	real_t		boxlength;
@@ -94,7 +94,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 		
 	
 	//... initialize random number generator
-	random_number_generator<random_numbers<real_t>,real_t> rand_gen( cf, refh );
+	//random_number_generator<random_numbers<real_t>,real_t> rand_gen( cf, refh );
 	
 	//... initialize convolution kernel
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create( cf, ptf, refh, type );
@@ -107,7 +107,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	DensityGrid<real_t> *top = new DensityGrid<real_t>( nbase, nbase, nbase );
 	
 	//... fill with random numbers
-	rand_gen.load( *top, levelmin );
+	rand.load( *top, levelmin );
 	
 #if defined(SINGLE_PEAK)
 	top->zero();
@@ -170,7 +170,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 /*******************************************************************************************/
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
-							  refinement_hierarchy& refh, grid_hierarchy& delta, bool bdeconvolve, bool smooth )
+							  refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool bdeconvolve, bool smooth )
 {
 	unsigned					levelmin,levelmax,levelminPoisson;
 	real_t						boxlength;
@@ -189,7 +189,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	kspaceTF		= cf.getValueSafe<bool>("setup", "kspace_TF", false);
 	
 	
-	random_number_generator<random_numbers<real_t>,real_t> rand_gen( cf, refh );
+	//random_number_generator<random_numbers<real_t>,real_t> rand_gen( cf, refh );
 	
 	unsigned	nbase	= (unsigned)pow(2,levelmin);
 	
@@ -240,7 +240,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		LOGUSER("Performing noise convolution on level %3d...",levelmax);
 		
 		top = new DensityGrid<real_t>( nbase, nbase, nbase );
-		rand_gen.load( *top, levelmin );
+		//rand_gen.load( *top, levelmin );
+		rand.load( *top, levelmin );
 
 #if defined(SINGLE_PEAK)
 		top->zero();
@@ -298,12 +299,14 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		if( i==0 )
 		{
 			top = new DensityGrid<real_t>( nbase, nbase, nbase );
-			rand_gen.load(*top,levelmin);
+			//rand_gen.load(*top,levelmin);
+			rand.load(*top,levelmin);
 		}
 		
 		fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
 												refh.size(levelmin+i+1,0), 	refh.size(levelmin+i+1,1), 	refh.size(levelmin+i+1,2) );
-		rand_gen.load(*fine,levelmin+i+1);
+		//rand_gen.load(*fine,levelmin+i+1);
+		rand.load(*fine,levelmin+i+1);
 		
 		//.......................................................................................................//
 		//... PERFORM CONVOLUTIONS ..............................................................................//

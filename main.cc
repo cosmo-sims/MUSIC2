@@ -448,11 +448,14 @@ int main (int argc, const char * argv[])
 					<< "            Perturbation amplitudes will be identical!" << std::endl;
 	
 	
+	//... initialize the random numbers
+	rand_gen rand( cf, rh_TF );
 	
+	//... initialize the output plug-in
 	output_plugin *the_output_plugin = select_output_plugin( cf );
 	
 	
-		
+	//... initialize the Poisson solver
 	poisson_plugin_creator *the_poisson_plugin_creator = get_poisson_plugin_map()[ poisson_solver_name ];
 	poisson_plugin *the_poisson_solver = the_poisson_plugin_creator->create( cf );
 	
@@ -471,7 +474,7 @@ int main (int argc, const char * argv[])
 			
 			grid_hierarchy f( nbnd ), u(nbnd);
 			
-			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f, true, false );
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, rand, f, true, false );
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			
@@ -518,7 +521,7 @@ int main (int argc, const char * argv[])
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing baryon density...");
 				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f, false, true );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, false, true );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
@@ -541,7 +544,7 @@ int main (int argc, const char * argv[])
 			//... velocities
 			if( do_baryons )
 			{
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true, false );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, rand, f, true, false );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
@@ -589,7 +592,7 @@ int main (int argc, const char * argv[])
 			std::cout << "-------------------------------------------------------------\n";	
 			LOGUSER("Computing velocities...");
 			
-			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, f, true, false );
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, rand, f, true, false );
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			
@@ -660,7 +663,7 @@ int main (int argc, const char * argv[])
 			
 			//...
 			//u1 += u2;
-			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, f, true, false );
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, rand, f, true, false );
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			the_output_plugin->write_dm_density(f);
@@ -721,7 +724,7 @@ int main (int argc, const char * argv[])
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing baryon density...");
 				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, f, false, true );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, false, true );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				

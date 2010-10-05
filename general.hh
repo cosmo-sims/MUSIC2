@@ -64,6 +64,10 @@ typedef GridHierarchy<real_t> grid_hierarchy;
 typedef MeshvarBnd<real_t> meshvar_bnd;
 typedef Meshvar<real_t> meshvar;
 
+#include "random.hh"
+typedef random_numbers<real_t> rand_nums;
+typedef random_number_generator< rand_nums,real_t> rand_gen;
+
 
 //! compute square of argument
 template< typename T >

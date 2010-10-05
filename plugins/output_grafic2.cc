@@ -92,16 +92,16 @@ protected:
 		
 		std::vector<float> data(n1*n2,0.0f);
 		
-		for( unsigned i=0; i<n1; ++i )
+		for( unsigned i=0; i<n3; ++i )
 		{
 			
 			data.clear();
 			
 			for( unsigned j=0; j<n2; ++j )
-				for( unsigned k=0; k<n3; ++k )
-					data[j*n3+k] = (*gh.get_grid(ilevel))(k,j,i) * fac;
+				for( unsigned k=0; k<n1; ++k )
+					data[j*n1+k] = (*gh.get_grid(ilevel))(k,j,i) * fac;
 			
-			unsigned blksize = n2*n3*sizeof(float);
+			unsigned blksize = n1*n2*sizeof(float);
 			
 			ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
 			ofs.write( reinterpret_cast<char*> (&data[0]), blksize );

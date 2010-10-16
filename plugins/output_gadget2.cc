@@ -470,10 +470,20 @@ public:
 		
 		if( bmorethan2bnd_ )
 		{
+			unsigned npcoarse = gh.count_leaf_cells(gh.levelmin(), gh.levelmax()-1);
+			unsigned nwritten = 0;
 			
 			std::vector<T_store> temp_dat;
-			temp_dat.clear();
-						
+			temp_dat.reserve(block_buf_size_);  //clear();
+			
+			char temp_fname[256];
+			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_mass );
+			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+			
+			int blksize = sizeof(T_store)*npcoarse;
+			
+			ofs_temp.write( (char *)&blksize, sizeof(int) );
+			
 			for( int ilevel=gh.levelmax()-1; ilevel>=(int)gh.levelmin(); --ilevel )
 			{
 				double pmass = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*ilevel);			
@@ -482,18 +492,32 @@ public:
 					for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 						for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
 							if( ! gh.is_refined(ilevel,i,j,k) )
-								temp_dat.push_back( pmass );
+							{
+								if( temp_dat.size() <  block_buf_size_ )
+									temp_dat.push_back( pmass );	
+								else
+								{
+									ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );	
+									nwritten += block_buf_size_;
+									temp_dat.clear();
+									temp_dat.push_back( pmass );	
+								}
+							}
 			}
 			
-			char temp_fname[256];
-			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_mass );
-			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+			if( temp_dat.size() > 0 )
+			{	
+				ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*temp_dat.size() );		
+				nwritten+=temp_dat.size();
+			}
 			
-			int blksize = sizeof(T_store)*temp_dat.size();
-			ofs_temp.write( (char *)&blksize, sizeof(int) );
-			ofs_temp.write( (char*)&temp_dat[0], blksize );		
+			if( nwritten != npcoarse )
+				throw std::runtime_error("Internal consistency error while writing temporary file for masses");
+			
 			ofs_temp.write( (char *)&blksize, sizeof(int) );
 			
+			if( ofs_temp.bad() )
+				throw std::runtime_error("I/O error while writing temporary file for masses");
 			
 		}
 		else 
@@ -557,7 +581,17 @@ public:
 		//... collect displacements and convert to absolute coordinates with correct
 		//... units
 		std::vector<T_store> temp_data;
-		temp_data.reserve( npfine );
+		temp_data.reserve( block_buf_size_ );
+		
+		unsigned npart = npfine+npcoarse;
+		unsigned nwritten = 0;
+		
+		char temp_fname[256];
+		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
+		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+		
+		int blksize = sizeof(T_store)*npart;
+		ofs_temp.write( (char *)&blksize, sizeof(int) );
 		
 		double xfac = header_.BoxSize;
 		
@@ -572,23 +606,34 @@ public:
 							if( shift != NULL )
 								xx[coord] += shift[coord];
 							xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k))*xfac + header_.BoxSize, header_.BoxSize );
-							temp_data.push_back( xx[coord] );
+							
+							if( temp_data.size() < block_buf_size_ )
+								temp_data.push_back( xx[coord] );
+							else
+							{
+								ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*block_buf_size_ );
+								nwritten += block_buf_size_;
+								temp_data.clear();
+								temp_data.push_back( xx[coord] );
+							}
 						}
 		
+		if( temp_data.size() > 0 )
+		{	
+			ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*temp_data.size() );
+			nwritten += temp_data.size();
+		}
+		
+		if( nwritten != npart )
+			throw std::runtime_error("Internal consistency error while writing temporary file for positions");
 		
 		//... dump to temporary file
-		char temp_fname[256];
-		
-		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
-		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
-		
-		int blksize = sizeof(T_store)*temp_data.size();
 		ofs_temp.write( (char *)&blksize, sizeof(int) );
-		ofs_temp.write( (char*)&temp_data[0], blksize );
-		ofs_temp.write( (char *)&blksize, sizeof(int) );
+		
+		if( ofs_temp.bad() )
+			throw std::runtime_error("I/O error while writing temporary file for positions");
+		
 		ofs_temp.close();
-		
-		
 				
 		if( shift != NULL )
 			delete[] shift;
@@ -614,32 +659,54 @@ public:
 		//... collect displacements and convert to absolute coordinates with correct
 		//... units
 		std::vector<T_store> temp_data;
-		temp_data.reserve( npfine+npcoarse );
+		//temp_data.reserve( npfine+npcoarse );
+		temp_data.reserve( block_buf_size_ );
 		
 		float isqrta = 1.0f/sqrt(header_.time);
-		//float vfac = cosm_.astart/100.0*isqrta*param_.boxlength;
 		float vfac = isqrta*header_.BoxSize;
+		
+		unsigned npart = npfine+npcoarse;
+		unsigned nwritten = 0;
+		
+		char temp_fname[256];
+		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
+		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+		
+		int blksize = sizeof(T_store)*npart;
+		ofs_temp.write( (char *)&blksize, sizeof(int) );
 		
 		for( int ilevel=levelmax_; ilevel>=(int)levelmin_; --ilevel )
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
 						if( ! gh.is_refined(ilevel,i,j,k) )
-							temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
-							
-		//... dump to temporary file
-		char temp_fname[256];
-		
-		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
-		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
-		
-		int blksize = sizeof(T_store)*temp_data.size();
-		ofs_temp.write( (char *)&blksize, sizeof(int) );
-		ofs_temp.write( (char*)&temp_data[0], blksize );
-		ofs_temp.write( (char *)&blksize, sizeof(int) );
-		ofs_temp.close();
+						{	
+							if( temp_data.size() < block_buf_size_ )
+								temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
+							else 
+							{
+								ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*block_buf_size_ );
+								nwritten += block_buf_size_;
+								temp_data.clear();
+								temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
+							}
 
+						}
+		if( temp_data.size() > 0 )
+		{	
+			ofs_temp.write( (char*)&temp_data[0], temp_data.size()*sizeof(T_store) );
+			nwritten += temp_data.size();
+		}
 		
+		if( nwritten != npart )
+			throw std::runtime_error("Internal consistency error while writing temporary file for velocities");
+		
+		ofs_temp.write( (char *)&blksize, sizeof(int) );
+		
+		if( ofs_temp.bad() )
+			throw std::runtime_error("I/O error while writing temporary file for velocities");
+		
+		ofs_temp.close();
 	}
 	
 	void write_dm_density( const grid_hierarchy& gh )

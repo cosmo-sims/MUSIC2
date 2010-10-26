@@ -24,7 +24,7 @@
 #ifndef __DENSITIES_HH
 #define __DENSITIES_HH
 
-
+/*
 #ifdef SINGLE_PRECISION
 	#ifdef SINGLETHREAD_FFTW
 	#include <srfftw.h>
@@ -38,9 +38,11 @@
 	#include <drfftw_threads.h>
 	#endif
 #endif
+*/
 
 #include <assert.h>
 
+#include "general.hh"
 #include "config_file.hh"
 #include "random.hh"
 #include "cosmology.hh"
@@ -219,7 +221,7 @@ public:
 	double subtract_mean( void )
 	{
 		double sum = 0.0;
-		unsigned count;
+		unsigned count = 0;
 		
 		for( int i=0; i<nx_; i++ )
 			for( int j=0; j<ny_; j++ )

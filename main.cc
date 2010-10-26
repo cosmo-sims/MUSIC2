@@ -183,7 +183,7 @@ void store_grid_structure( config_file& cf, const refinement_hierarchy& rh )
 			cf.insertValue("setup",str1,str2);
 
 			sprintf(str1,"size(%d,%d)",i,j);	
-			sprintf(str2,"%d",rh.size(i,j));
+			sprintf(str2,"%ld",rh.size(i,j));
 			cf.insertValue("setup",str1,str2);
 			
 		}		
@@ -392,8 +392,13 @@ int main (int argc, const char * argv[])
 	/******************************************************************************************************/
 	/******************************************************************************************************/
 
-#ifndef SINGLETHREAD_FFTW	
+#if not defined(SINGLETHREAD_FFTW)
+#ifdef FFTW3
+	fftw_init_threads();
+	fftw_plan_with_nthreads(omp_get_max_threads());
+#else
 	fftw_threads_init();
+#endif
 #endif
 	
 	transfer_function_plugin *the_transfer_function_plugin
@@ -798,6 +803,10 @@ int main (int argc, const char * argv[])
 	
 	cf.dump( ofs );
 */
+	
+#ifdef FFTW3
+	fftw_cleanup_threads();
+#endif
 	
 	cf.log_dump();
 	

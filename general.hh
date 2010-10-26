@@ -38,7 +38,7 @@
 #include <time.h>
 #endif
 
-#ifdef SINGLE_PRECISION
+/*#ifdef SINGLE_PRECISION
  #ifdef WITH_MPI
   #include "srfftw_mpi.h"
   #define MPI_TREAL MPI_FLOAT
@@ -54,7 +54,35 @@
   #include "drfftw.h"
  #endif
   typedef double real_t;
+#endif*/
+#ifdef FFTW3
+	#include <fftw3.h>
+	#if defined(SINGLE_PRECISION)
+	typedef float fftw_real;
+	#else
+	typedef double fftw_real;
+	#endif
+
+#else
+	#if defined(SINGLE_PRECISION) and not defined(SINGLETHREAD_FFTW)
+	#include <srfftw.h>
+	#include <srfftw_threads.h>
+	#elif defined(SINGLE_PRECISION) and defined(SINGLETHREAD_FFTW)
+	#include <srfftw.h>
+	#elif not defined(SINGLE_PRECISION) and not defined(SINGLETHREAD_FFTW)
+	#include <drfftw.h>
+	#include <drfftw_threads.h>
+	#elif not defined(SINGLE_PRECISION) and defined(SINGLETHREAD_FFTW)
+	#include <drfftw.h>
+	#endif
 #endif
+
+#ifdef SINGLE_PRECISION
+	typedef float real_t;
+#else
+	typedef double real_t;
+#endif
+
 
 #include <vector>
 

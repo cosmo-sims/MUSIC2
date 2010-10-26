@@ -22,6 +22,7 @@
  */
 
 #include <fstream>
+#include "log.hh"
 #include "output.hh"
 
 template< typename T_store=float >
@@ -65,10 +66,13 @@ protected:
 	};
 	
 	unsigned block_buf_size_;
+	unsigned long long npartmax_;
+	unsigned nfiles_;
+	
 	//bool bbndparticles_;
 	bool bmorethan2bnd_;
 	
-	
+#if 0
 	void assemble_scalar( unsigned nptot, std::string ifname )
 	{
 		T_store *tmp;
@@ -120,7 +124,7 @@ protected:
 			ifs2( fname2.c_str(), std::ios::binary ),	
 			ifs3( fname3.c_str(), std::ios::binary );
 		
-		int
+		unsigned
 			npleft = nptot, 
 			n2read = std::min((int)block_buf_size_,npleft);
 		
@@ -195,16 +199,11 @@ protected:
 		delete[] tmp3;
 		
 	}
-	
+#endif	
 	
 	void assemble_gadget_file( void )
 	{
-		int blksize = sizeof(header);
 		
-		//... write the header .......................................................
-		ofs_.write( (char *)&blksize, sizeof(int) );
-		ofs_.write( (char *)&header_, sizeof(header) );
-		ofs_.write( (char *)&blksize, sizeof(int) );
 		
 		//............................................................................
 		//... copy from the temporary files, interleave the data and save ............
@@ -225,11 +224,11 @@ protected:
 		ifs3( fnz, std::ios::binary );
 		
 		
-		const int 
+		const unsigned 
 		nptot = header_.npart[1]+header_.npart[5];
-		int
+		unsigned
 		npleft = nptot, 
-		n2read = std::min((int)block_buf_size_,npleft);
+		n2read = std::min((unsigned)block_buf_size_,npleft);
 		
 		std::cout << " - Writing " << nptot << " particles to Gadget file...\n"
 				  << "      type 1 : " << header_.npart[1] << "\n"
@@ -237,18 +236,31 @@ protected:
 		
 		
 		//... particle coordinates ..................................................
-		unsigned blk;
-		ifs1.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store) )
+		long long blk;
+		ifs1.read( (char *)&blk, sizeof(long long) );
+		if( blk != nptot*(long long)sizeof(T_store) )
+		{	
+			LOGERR("Internal consistency error in gadget2 output plug-in");
+			LOGERR("Expected %d bytes in temp file but found %d",nptot*(unsigned)sizeof(T_store),blk);
 			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
+			
+		}
 		
-		ifs2.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store) )
+		ifs2.read( (char *)&blk, sizeof(long long) );
+		if( blk != nptot*(long long)sizeof(T_store) )
+		{	
+			LOGERR("Internal consistency error in gadget2 output plug-in");
+			LOGERR("Expected %d bytes in temp file but found %d",nptot*(unsigned)sizeof(T_store),blk);
 			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
+		}
 		
-		ifs3.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store) )
+		ifs3.read( (char *)&blk, sizeof(long long) );
+		if( blk != nptot*(long long)sizeof(T_store) )
+		{	
+			LOGERR("Internal consistency error in gadget2 output plug-in");
+			LOGERR("Expected %d bytes in temp file but found %d",nptot*(unsigned)sizeof(T_store),blk);
 			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
+		}
 		
 		std::vector<T_store> adata3;
 		adata3.reserve( 3*block_buf_size_ );
@@ -258,157 +270,188 @@ protected:
 		tmp2 = new T_store[block_buf_size_];
 		tmp3 = new T_store[block_buf_size_];
 		
-		blksize = 3*nptot*sizeof(T_store);
-		ofs_.write( (char *)&blksize, sizeof(int) );
+		int fileno = 0;
 		
-		while( n2read > 0 )
+		
+		while( true )
 		{
-			//ifs1.read( (char*)&tmp1[0], n2read*sizeof(T_store) );
-			ifs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
-			ifs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
-			ifs3.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
+			int blksize = sizeof(header);
 			
-			for( int i=0; i<n2read; ++i )
+			//... write the header .......................................................
+			
+			header this_header( header_ );
+			
+			ofs_.write( (char *)&blksize, sizeof(int) );
+			ofs_.write( (char *)&this_header, sizeof(header) );
+			ofs_.write( (char *)&blksize, sizeof(int) );
+			
+			
+			
+			
+			blksize = 3*nptot*sizeof(T_store);
+			ofs_.write( (char *)&blksize, sizeof(int) );
+			
+			while( n2read > 0 )
 			{
-				adata3.push_back( tmp1[i] );
-				adata3.push_back( tmp2[i] );
-				adata3.push_back( tmp3[i] );
+				//ifs1.read( (char*)&tmp1[0], n2read*sizeof(T_store) );
+				ifs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
+				ifs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
+				ifs3.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
+				
+				for( unsigned i=0; i<n2read; ++i )
+				{
+					adata3.push_back( tmp1[i] );
+					adata3.push_back( tmp2[i] );
+					adata3.push_back( tmp3[i] );
+				}
+				ofs_.write( reinterpret_cast<char*>(&adata3[0]), 3*n2read*sizeof(T_store) );
+				
+				adata3.clear();
+				npleft -= n2read;
+				n2read = std::min( block_buf_size_,npleft );
 			}
-			ofs_.write( reinterpret_cast<char*>(&adata3[0]), 3*n2read*sizeof(T_store) );
+			ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
 			
-			adata3.clear();
-			npleft -= n2read;
-			n2read = std::min( (int)block_buf_size_,npleft );
-		}
-		ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-		
-		remove( fnx );
-		remove( fny );
-		remove( fnz );
-		
-		//... particle velocities ..................................................
-		ifs1.close(); ifs1.open( fnvx, std::ios::binary );
-		ifs2.close(); ifs2.open( fnvy, std::ios::binary );
-		ifs3.close(); ifs3.open( fnvz, std::ios::binary );
-		
-		ifs1.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store)){
-			delete[] tmp1;
-			delete[] tmp2;
-			delete[] tmp3;
-			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
-		}
-		
-		ifs2.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store)){
-			delete[] tmp1;
-			delete[] tmp2;
-			delete[] tmp3;
-			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
-		}
-		
-		ifs3.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store)){
-			delete[] tmp1;
-			delete[] tmp2;
-			delete[] tmp3;
-			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
-		}
-		
-		npleft = nptot;
-		n2read = std::min((int)block_buf_size_,npleft);
-		
-		
-		ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-		
-		while( n2read > 0 )
-		{
-			ifs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
-			ifs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
-			ifs3.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
+			remove( fnx );
+			remove( fny );
+			remove( fnz );
 			
-			for( int i=0; i<n2read; ++i )
-			{
-				adata3.push_back( tmp1[i] );
-				adata3.push_back( tmp2[i] );
-				adata3.push_back( tmp3[i] );
-			}
-			
-			ofs_.write( reinterpret_cast<char*>(&adata3[0]), 3*n2read*sizeof(T_store) );
-			
-			adata3.clear();
-			npleft -= n2read;
-			n2read = std::min( (int)block_buf_size_,npleft );
-		}
-		ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-		remove( fnvx );
-		remove( fnvy );
-		remove( fnvz );
-		
-		
-		delete[] tmp2;
-		delete[] tmp3;
-		
-		
-		//... particle IDs ..........................................................
-		std::vector<unsigned> ids(block_buf_size_,0);
-		
-		unsigned idcount = 0;
-		npleft	= nptot;
-		n2read	= std::min((int)block_buf_size_,npleft);
-		blksize = sizeof(unsigned)*nptot;
-		
-		//... generate contiguous IDs and store in file .......................//
-		ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-		while( n2read > 0 )
-		{
-			for( int i=0; i<n2read; ++i )
-				ids[i] = idcount++;
-			ofs_.write( reinterpret_cast<char*>(&ids[0]), n2read*sizeof(unsigned) );
-			ids.clear();
-			npleft -= n2read;
-			n2read = std::min( (int)block_buf_size_,npleft );
-		}
-		ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-		
-		
-		//... particle masses .......................................................
-		if( bmultimass_ && bmorethan2bnd_ )
-		{
-			unsigned npcoarse = header_.npart[5];
-			
-			ifs1.close();
-			ifs1.open( fnm, std::ios::binary );
-			
-			if( !ifs1.good() )
-				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
+			//... particle velocities ..................................................
+			ifs1.close(); ifs1.open( fnvx, std::ios::binary );
+			ifs2.close(); ifs2.open( fnvy, std::ios::binary );
+			ifs3.close(); ifs3.open( fnvz, std::ios::binary );
 			
 			ifs1.read( (char *)&blk, sizeof(int) );
-			if( blk != npcoarse*sizeof(T_store)){
+			if( blk != nptot*(unsigned)sizeof(T_store)){
 				delete[] tmp1;
+				delete[] tmp2;
+				delete[] tmp3;
+				LOGERR("Internal consistency error in gadget2 output plug-in");
+				LOGERR("Expected %d bytes in temp file but found %d",nptot*(unsigned)sizeof(T_store),blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
 			
+			ifs2.read( (char *)&blk, sizeof(int) );
+			if( blk != nptot*(unsigned)sizeof(T_store)){
+				delete[] tmp1;
+				delete[] tmp2;
+				delete[] tmp3;
+				LOGERR("Internal consistency error in gadget2 output plug-in");
+				LOGERR("Expected %d bytes in temp file but found %d",nptot*(unsigned)sizeof(T_store),blk);
+				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
+			}
 			
-			npleft  = npcoarse;
-			n2read  = std::min((int)block_buf_size_,npleft);
-			blksize = npcoarse*sizeof(T_store);
+			ifs3.read( (char *)&blk, sizeof(int) );
+			if( blk != nptot*(unsigned)sizeof(T_store)){
+				delete[] tmp1;
+				delete[] tmp2;
+				delete[] tmp3;
+				LOGERR("Internal consistency error in gadget2 output plug-in");
+				LOGERR("Expected %d bytes in temp file but found %d",nptot*(unsigned)sizeof(T_store),blk);
+				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
+			}
+			
+			npleft = nptot;
+			n2read = std::min(block_buf_size_,npleft);
+			
 			
 			ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
+			
 			while( n2read > 0 )
 			{
 				ifs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
-				ofs_.write( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
+				ifs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
+				ifs3.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
+				
+				for( unsigned i=0; i<n2read; ++i )
+				{
+					adata3.push_back( tmp1[i] );
+					adata3.push_back( tmp2[i] );
+					adata3.push_back( tmp3[i] );
+				}
+				
+				ofs_.write( reinterpret_cast<char*>(&adata3[0]), 3*n2read*sizeof(T_store) );
+				
+				adata3.clear();
 				npleft -= n2read;
-				n2read = std::min( (int)block_buf_size_,npleft );
+				n2read = std::min( block_buf_size_,npleft );
+			}
+			ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
+			remove( fnvx );
+			remove( fnvy );
+			remove( fnvz );
+			
+			
+			delete[] tmp2;
+			delete[] tmp3;
+			
+			
+			//... particle IDs ..........................................................
+			std::vector<unsigned> ids(block_buf_size_,0);
+			
+			unsigned idcount = 0;
+			npleft	= nptot;
+			n2read	= std::min(block_buf_size_,npleft);
+			blksize = sizeof(unsigned)*nptot;
+			
+			//... generate contiguous IDs and store in file .......................//
+			ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
+			while( n2read > 0 )
+			{
+				for( unsigned i=0; i<n2read; ++i )
+					ids[i] = idcount++;
+				ofs_.write( reinterpret_cast<char*>(&ids[0]), n2read*sizeof(unsigned) );
+				ids.clear();
+				npleft -= n2read;
+				n2read = std::min( block_buf_size_,npleft );
 			}
 			ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
 			
-			remove( fnm );
+			
+			//... particle masses .......................................................
+			if( bmultimass_ && bmorethan2bnd_ )
+			{
+				unsigned npcoarse = header_.npart[5];
+				
+				ifs1.close();
+				ifs1.open( fnm, std::ios::binary );
+				
+				if( !ifs1.good() )
+				{	
+					LOGERR("Could not open buffer file in gadget2 output plug-in");
+					throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
+				}
+				
+				ifs1.read( (char *)&blk, sizeof(int) );
+				if( blk != npcoarse*(unsigned)sizeof(T_store)){
+					delete[] tmp1;
+					LOGERR("Internal consistency error in gadget2 output plug-in");
+					LOGERR("Expected %d bytes in temp file but found %d",nptot*(unsigned)sizeof(T_store),blk);
+					throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
+				}
+				
+				
+				npleft  = npcoarse;
+				n2read  = std::min(block_buf_size_,npleft);
+				blksize = npcoarse*sizeof(T_store);
+				
+				ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
+				while( n2read > 0 )
+				{
+					ifs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
+					ofs_.write( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
+					npleft -= n2read;
+					n2read = std::min( block_buf_size_,npleft );
+				}
+				ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
+				
+				remove( fnm );
+			}
+			
+			delete[] tmp1;
+			ofs_.flush();
 		}
 		
-		delete[] tmp1;
-		ofs_.flush();
 	}
 	
 	
@@ -420,6 +463,7 @@ public:
 		block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",1048576);
 		//block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",100000);
 		//bbndparticles_  = !cf_.getValueSafe<bool>("output","gadget_nobndpart",false);
+		npartmax_ = 1<<30;
 		
 		bmorethan2bnd_ = false;
 		if( levelmax_ > levelmin_ +1)
@@ -470,8 +514,8 @@ public:
 		
 		if( bmorethan2bnd_ )
 		{
-			unsigned npcoarse = gh.count_leaf_cells(gh.levelmin(), gh.levelmax()-1);
-			unsigned nwritten = 0;
+			unsigned long long npcoarse = gh.count_leaf_cells(gh.levelmin(), gh.levelmax()-1);
+			unsigned long long nwritten = 0;
 			
 			std::vector<T_store> temp_dat;
 			temp_dat.reserve(block_buf_size_);  //clear();
@@ -480,9 +524,9 @@ public:
 			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_mass );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 			
-			int blksize = sizeof(T_store)*npcoarse;
+			long long blksize = sizeof(T_store)*npcoarse;
 			
-			ofs_temp.write( (char *)&blksize, sizeof(int) );
+			ofs_temp.write( (char *)&blksize, sizeof(long long) );
 			
 			for( int ilevel=gh.levelmax()-1; ilevel>=(int)gh.levelmin(); --ilevel )
 			{
@@ -514,7 +558,7 @@ public:
 			if( nwritten != npcoarse )
 				throw std::runtime_error("Internal consistency error while writing temporary file for masses");
 			
-			ofs_temp.write( (char *)&blksize, sizeof(int) );
+			ofs_temp.write( (char *)&blksize, sizeof(long long) );
 			
 			if( ofs_temp.bad() )
 				throw std::runtime_error("I/O error while writing temporary file for masses");
@@ -530,7 +574,7 @@ public:
 	void write_dm_position( int coord, const grid_hierarchy& gh )
 	{
 		//... count number of leaf cells ...//
-		unsigned npcoarse = 0, npfine = 0;
+		unsigned long long npcoarse = 0, npfine = 0;
 		
 		npfine   = gh.count_leaf_cells(gh.levelmax(), gh.levelmax());
 		if( bmultimass_ )
@@ -569,29 +613,31 @@ public:
 			
 		}*/
 		
+		unsigned long long npart = npfine+npcoarse;
+		unsigned long long nwritten = 0;
+		
 		//...
 		header_.npart[1] = npfine;
 		header_.npart[5] = npcoarse;
-		header_.npartTotal[1] = npfine;
-		header_.npartTotal[5] = npcoarse;
-		header_.npartTotalHighWord[1] = 0;
-		header_.npartTotalHighWord[5] = 0;
+		header_.npartTotal[1] = (unsigned)npfine;
+		header_.npartTotal[5] = (unsigned)npcoarse;
+		header_.npartTotalHighWord[1] = (unsigned)(npfine>>32);
+		header_.npartTotalHighWord[5] = (unsigned)(npfine>>32);
 		
+		header_.num_files = (int)ceil((double)npart/(double)npartmax_);
 		
 		//... collect displacements and convert to absolute coordinates with correct
 		//... units
 		std::vector<T_store> temp_data;
 		temp_data.reserve( block_buf_size_ );
 		
-		unsigned npart = npfine+npcoarse;
-		unsigned nwritten = 0;
 		
 		char temp_fname[256];
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
 		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 		
-		int blksize = sizeof(T_store)*npart;
-		ofs_temp.write( (char *)&blksize, sizeof(int) );
+		long long blksize = sizeof(T_store)*npart;
+		ofs_temp.write( (char *)&blksize, sizeof(long long) );
 		
 		double xfac = header_.BoxSize;
 		
@@ -628,7 +674,7 @@ public:
 			throw std::runtime_error("Internal consistency error while writing temporary file for positions");
 		
 		//... dump to temporary file
-		ofs_temp.write( (char *)&blksize, sizeof(int) );
+		ofs_temp.write( (char *)&blksize, sizeof(long long) );
 		
 		if( ofs_temp.bad() )
 			throw std::runtime_error("I/O error while writing temporary file for positions");

@@ -71,6 +71,9 @@ public:
 	inline double compute( double k, tf_type type ){
 		double q, f1, f2;
 		
+		if(k < 1e-7 )
+			return 1.0;
+		
 		q = k/(m_Gamma);
 		f1 = log(1.0 + 2.34*q)/(2.34*q);
 		f2 = 1.0 + q*(3.89 + q*(259.21 + q*(162.771336 + q*2027.16958081)));

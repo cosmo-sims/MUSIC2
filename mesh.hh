@@ -41,12 +41,12 @@ class Meshvar{
 public:
 	typedef T real_t;
 	
-	unsigned 
+	size_t 
 		m_nx,	//!< x-extent of the rectangular mesh
 		m_ny,	//!< y-extent of the rectangular mesh
 		m_nz;	//!< z-extent of the rectangular mesh
 	
-	unsigned 
+	int 
 		m_offx, //!< x-offset of the grid (just as a helper, not used inside the class)
 		m_offy, //!< y-offset of the grid (just as a helper, not used inside the class)
 		m_offz;	//!< z-offset of the grid (just as a helper, not used inside the class)
@@ -54,14 +54,14 @@ public:
 	real_t * m_pdata; //!< pointer to the dynamic data array
 	
 	//! constructor for cubic mesh
-	explicit Meshvar( unsigned n, unsigned offx, unsigned offy, unsigned offz )
+	explicit Meshvar( size_t n, int offx, int offy, int offz )
 	: m_nx( n ), m_ny( n ), m_nz( n ), m_offx( offx ), m_offy( offy ), m_offz( offz )
 	{
 		m_pdata = new real_t[m_nx*m_ny*m_nz];
 	}
 	
 	//! constructor for rectangular mesh
-	Meshvar( unsigned nx, unsigned ny, unsigned nz, unsigned offx, unsigned offy, unsigned offz )
+	Meshvar( size_t nx, size_t ny, size_t nz, int offx, int offy, int offz )
 	: m_nx( nx ), m_ny( ny ), m_nz( nz ), m_offx( offx ), m_offy( offy ), m_offz( offz )
 	{
 		m_pdata = new real_t[m_nx*m_ny*m_nz];
@@ -81,7 +81,7 @@ public:
 		m_pdata = new real_t[m_nx*m_ny*m_nz];
 		
 		if( copy_over )
-			for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+			for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 				m_pdata[i] = m.m_pdata[i];
 	}
 	
@@ -98,7 +98,7 @@ public:
 		
 		m_pdata = new real_t[m_nx*m_ny*m_nz];
 		
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] = m.m_pdata[i];
 	}
 	
@@ -126,7 +126,7 @@ public:
 	}
 	
 	//! get extent of the mesh along a specified dimension
-	inline unsigned& size( unsigned dim )
+	inline size_t& size( unsigned dim )
 	{
 		if( dim == 0 ) return m_nx;
 		if( dim == 1 ) return m_ny;
@@ -134,7 +134,7 @@ public:
 	}
 	
 	//! get offset of the mesh along a specified dimension  (const)
-	inline unsigned offset( unsigned dim ) const
+	inline int offset( unsigned dim ) const
 	{
 		if( dim == 0 ) return m_offx;
 		if( dim == 1 ) return m_offy;
@@ -142,7 +142,7 @@ public:
 	}
 	
 	//! get extent of the mesh along a specified dimension
-	inline unsigned& offset( unsigned dim )
+	inline int& offset( unsigned dim )
 	{
 		if( dim == 0 ) return m_offx;
 		if( dim == 1 ) return m_offy;
@@ -152,30 +152,30 @@ public:
 	//! set all the data to zero values
 	void zero( void )
 	{
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] = 0.0;
 	}
 	
 	//! direct array random acces to the data block
-	inline real_t * operator[]( const int i )
+	inline real_t * operator[]( const size_t i )
 	{	return &m_pdata[i];	}
 
 	//! direct array random acces to the data block (const)
-	inline const real_t * operator[]( const int i ) const
+	inline const real_t * operator[]( const size_t i ) const
 	{	return &m_pdata[i];	}
 	
 	//! 3D random access to the data block via index 3-tuples
 	inline real_t& operator()(const int ix, const int iy, const int iz )
-	{	return m_pdata[ (ix*m_ny+iy)*m_nz + iz ];	}
+	{	return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];	}
 	
 	//! 3D random access to the data block via index 3-tuples (const)
 	inline const real_t& operator()(const int ix, const int iy, const int iz ) const
-	{	return m_pdata[ (ix*m_ny+iy)*m_nz + iz ];	}
+	{	return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];	}
 	
 	//! direct multiplication of the whole data block with a number
 	Meshvar<real_t>& operator*=( real_t x )
 	{
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] *= x;
 		return *this;
 	}
@@ -183,7 +183,7 @@ public:
 	//! direct addition of a number to the whole data block
 	Meshvar<real_t>& operator+=( real_t x )
 	{
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] += x;
 		return *this;
 	}
@@ -191,7 +191,7 @@ public:
 	//! direct element-wise division of the whole data block by a number
 	Meshvar<real_t>& operator/=( real_t x )
 	{
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] /= x;
 		return *this;
 	}
@@ -200,7 +200,7 @@ public:
 	//! direct subtraction of a number from the whole data block
 	Meshvar<real_t>& operator-=( real_t x )
 	{
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] -= x;
 		return *this;
 	}
@@ -211,7 +211,7 @@ public:
 		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
 			throw std::runtime_error("Meshvar::operator*= : attempt to operate on incompatible data");
 		
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] *= v.m_pdata[i];
 		
 		return *this;
@@ -223,7 +223,7 @@ public:
 		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
 			throw std::runtime_error("Meshvar::operator/= : attempt to operate on incompatible data");
 		
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] /= v.m_pdata[i];
 		
 		return *this;
@@ -235,7 +235,7 @@ public:
 		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
 			throw std::runtime_error("Meshvar::operator+= : attempt to operate on incompatible data");
 		
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] += v.m_pdata[i];
 		
 		return *this;
@@ -247,7 +247,7 @@ public:
 		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
 			throw std::runtime_error("Meshvar::operator-= : attempt to operate on incompatible data");
 		
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] -= v.m_pdata[i];
 		
 		return *this;
@@ -269,7 +269,7 @@ public:
 		
 		m_pdata = new real_t[m_nx*m_ny*m_nz];
 		
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] = m.m_pdata[i];
 		
 		return *this;
@@ -293,25 +293,25 @@ public:
 	typedef T real_t;
 	
 	//! number of boundary (ghost) cells
-	unsigned m_nbnd;		
+	int m_nbnd;		
 	
 	//! most general constructor
-	MeshvarBnd( unsigned nbnd, unsigned nx, unsigned ny, unsigned nz, unsigned xoff, unsigned yoff, unsigned zoff )
+	MeshvarBnd( int nbnd, size_t nx, size_t ny, size_t nz, size_t xoff, size_t yoff, size_t zoff )
 	: Meshvar<real_t>( nx+2*nbnd, ny+2*nbnd, nz+2*nbnd, xoff, yoff, zoff ), m_nbnd( nbnd )
 	{ 	}
 
 	//! zero-offset constructor
-	MeshvarBnd( unsigned nbnd, unsigned nx, unsigned ny, unsigned nz )
+	MeshvarBnd( size_t nbnd, size_t nx, size_t ny, size_t nz )
 	: Meshvar<real_t>( nx+2*nbnd, ny+2*nbnd, nz+2*nbnd, 0, 0, 0 ), m_nbnd( nbnd )
 	{ 	}
 	
 	//! constructor for cubic meshes
-	MeshvarBnd( unsigned nbnd, unsigned n, unsigned xoff, unsigned yoff, unsigned zoff )
+	MeshvarBnd( size_t nbnd, size_t n, size_t xoff, size_t yoff, size_t zoff )
 	: Meshvar<real_t>( n+2*nbnd, xoff, yoff, zoff ), m_nbnd( nbnd )
 	{ 	}
 	
 	//! constructor for cubic meshes with zero offset
-	MeshvarBnd( unsigned nbnd, unsigned n )
+	MeshvarBnd( size_t nbnd, size_t n )
 	: Meshvar<real_t>( n+2*nbnd, 0, 0, 0 ), m_nbnd( nbnd )
 	{ 	}
 	
@@ -326,7 +326,7 @@ public:
 	{   }
 	
 	//! get extent of the mesh along a specified dimension
-	inline unsigned size( unsigned dim=0 ) const
+	inline size_t size( unsigned dim=0 ) const
 	{
 		if( dim == 0 ) return m_nx-2*m_nbnd;
 		if( dim == 1 ) return m_ny-2*m_nbnd;
@@ -336,14 +336,14 @@ public:
 	//! 3D random access to the data block via index 3-tuples
 	inline real_t& operator()(const int ix, const int iy, const int iz )
 	{
-		int iix(ix+m_nbnd), iiy(iy+m_nbnd), iiz(iz+m_nbnd);
+		size_t iix(ix+m_nbnd), iiy(iy+m_nbnd), iiz(iz+m_nbnd);
 		return m_pdata[ (iix*m_ny+iiy)*m_nz + iiz ];
 	}
 	
 	//! 3D random access to the data block via index 3-tuples (const)
 	inline const real_t& operator()(const int ix, const int iy, const int iz ) const
 	{
-		int iix(ix+m_nbnd), iiy(iy+m_nbnd), iiz(iz+m_nbnd);
+		size_t iix(ix+m_nbnd), iiy(iy+m_nbnd), iiz(iz+m_nbnd);
 		return m_pdata[ (iix*m_ny+iiy)*m_nz + iiz ];
 	}
 	
@@ -359,7 +359,7 @@ public:
 			
 		m_pdata = new real_t[m_nx*m_ny*m_nz];
 		
-		for( unsigned i=0; i<m_nx*m_ny*m_nz; ++i )
+		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			this->m_pdata[i] = m.m_pdata[i];
 		
 		return *this;
@@ -444,7 +444,7 @@ class GridHierarchy
 public:
 	
 	//! number of ghost cells on boundary
-	unsigned m_nbnd;
+	size_t m_nbnd;
 	
 	//! highest level without adaptive refinement
 	unsigned m_levelmin;
@@ -512,7 +512,7 @@ public:
 	/*! creates an empty hierarchy, levelmin is initially zero, no grids are stored
 	 * @param nbnd number of ghost zones added at the boundary
 	 */
-	explicit GridHierarchy( unsigned nbnd )
+	explicit GridHierarchy( size_t nbnd )
 	: m_nbnd( nbnd ), m_levelmin( 0 )
 	{
 		m_pgrids.clear();
@@ -571,7 +571,7 @@ public:
 	 *  @param idim the dimension along which the size is to be determined
 	 *  @return integer value denoting the size of refinement grid at level ilevel along dimension idim
 	 */
-	int size( int ilevel, int idim ) const
+	size_t size( int ilevel, int idim ) const
 	{
 		return m_pgrids[ilevel]->size(idim);
 	}
@@ -624,9 +624,9 @@ public:
 	{
 		if( ilevel == levelmax() ) return false;
 		
-		if( i < offset(ilevel+1,0) || i >= offset(ilevel+1, 0)+size(ilevel+1,0)/2 ||
-		    j < offset(ilevel+1,1) || j >= offset(ilevel+1, 1)+size(ilevel+1,1)/2 ||
-		    k < offset(ilevel+1,2) || k >= offset(ilevel+1, 2)+size(ilevel+1,2)/2 )
+		if( i < offset(ilevel+1,0) || i >= offset(ilevel+1, 0)+(int)size(ilevel+1,0)/2 ||
+		    j < offset(ilevel+1,1) || j >= offset(ilevel+1, 1)+(int)size(ilevel+1,1)/2 ||
+		    k < offset(ilevel+1,2) || k >= offset(ilevel+1, 2)+(int)size(ilevel+1,2)/2 )
 			return false;
 		
 		return true;
@@ -1226,7 +1226,7 @@ public:
 	}
 	
 	//! get relative grid offset for a specified level along a specified dimension (in coarser grid units)
-	unsigned offset( unsigned ilevel, int dim ) const
+	int offset( unsigned ilevel, int dim ) const
 	{
 		if( dim==0 )
 			return ox_.at(ilevel);
@@ -1236,7 +1236,7 @@ public:
 	}
 	
 	//! get grid size for a specified level along a specified dimension
-	unsigned size( unsigned ilevel, int dim ) const
+	size_t size( unsigned ilevel, int dim ) const
 	{
 		if( dim==0 )
 			return nx_.at(ilevel);

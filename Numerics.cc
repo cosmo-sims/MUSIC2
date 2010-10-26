@@ -33,7 +33,7 @@
 
 
 #ifndef REL_PRECISION
-#define REL_PRECISION 1.e-4
+#define REL_PRECISION 1.e-5
 #endif
 
 int Base_interp::locate(const double x)
@@ -117,16 +117,22 @@ real_t integrate( double (* func) (double x, void * params), double a, double b,
   double result;
   double error;
 	//size_t neval;
-  gsl_integration_workspace *w = gsl_integration_workspace_alloc(100000);
-  gsl_integration_qag( &F, a, b, 0, REL_PRECISION, 100000, 6, w, &result, &error );
+
+	
+	gsl_set_error_handler_off ();
+	gsl_integration_workspace *w = gsl_integration_workspace_alloc(100000);
+	gsl_integration_qag( &F, a, b, 0, REL_PRECISION, 100000, 6, w, &result, &error );
+	
+	//gsl_integration_qags( &F, a, b, 0, REL_PRECISION, 1000, w, &result, &error );
 	//gsl_integration_qng( &F, a, b, 0, REL_PRECISION, &result, &error, &neval );
 
 	//gsl_integration_qags( &F, a, b, 0, REL_PRECISION, 10000, w, &result, &error );
 	
   gsl_integration_workspace_free(w);
 
+	gsl_set_error_handler(NULL);
 
-  if( error > 10*REL_PRECISION )
+  if( error/result > REL_PRECISION )
     std::cerr << " - Warning: no convergence in function 'integrate', rel. error=" << error/result << std::endl;
 
   return (real_t)result;

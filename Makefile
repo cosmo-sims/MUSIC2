@@ -1,5 +1,6 @@
 ##############################################################################
 ### compile time configuration options
+FFTW3		= yes
 MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
 HAVEHDF5        = no
@@ -7,31 +8,48 @@ HAVEHDF5        = no
 ##############################################################################
 ### compiler and path settings
 CC      = g++
-OPT     = -O3 -msse2
+OPT     = -Wall -O3 -msse2
 CFLAGS  = -fopenmp 
 LFLAGS  = -fopenmp -lgsl -lgslcblas 
 CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
 LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
 
 ##############################################################################
-# if you have FFTW 2.1.5 with multi-thread support, you can enable the option
+# if you have FFTW 2.1.5 or 3.x with multi-thread support, you can enable the 
+# option MULTITHREADFFTW
 ifeq ($(MULTITHREADFFTW), yes)
-  ifeq ($(SINGLEPRECISION), yes)
-    LFLAGS  += -lsrfftw_threads -lsfftw_threads
+  ifeq ($(FFTW3),yes)
+    LFLAGS  +=  -lfftw3_threads
   else
-    LFLAGS  += -ldrfftw_threads -ldfftw_threads
+    ifeq ($(SINGLEPRECISION), yes)
+      LFLAGS  += -lsrfftw_threads -lsfftw_threads
+    else
+      LFLAGS  += -ldrfftw_threads -ldfftw_threads
+    endif
   endif
 else
   CFLAGS  += -DSINGLETHREAD_FFTW
+endif
+
+ifeq ($(FFTW3),yes)
+  CFLAGS += -DFFTW3
 endif
 
 ##############################################################################
 # this section makes sure that the correct FFTW libraries are linked
 ifeq ($(SINGLEPRECISION), yes)
   CFLAGS  += -DSINGLE_PRECISION
-  LFLAGS  += -lsrfftw -lsfftw
+  ifeq ($(FFTW3),yes)
+    LFLAGS += -lfftw3
+  else
+    LFLAGS  += -lsrfftw -lsfftw
+  endif
 else
-  LFLAGS  += -ldrfftw -ldfftw
+  ifeq ($(FFTW3),yes)
+    LFLAGS += -lfftw3
+  else
+    LFLAGS  += -ldrfftw -ldfftw
+  endif
 endif
 
 ##############################################################################

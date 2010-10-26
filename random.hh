@@ -32,13 +32,23 @@
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <omp.h>
+#include "general.hh"
 
+
+/*
 #ifdef SINGLE_PRECISION
-#ifdef SINGLETHREAD_FFTW
-#include <srfftw.h>
+#ifdef FFTW3
+#include <fftw3.h>
 #else
-#include <srfftw_threads.h>
-#endif
+	#ifdef SINGLETHREAD_FFTW
+	#include <srfftw.h>
+	#else
+	#include <srfftw_threads.h>
+	#endif
+
+#else
+#ifdef FFTW3
+#include <fftw3.h>
 #else
 #ifdef SINGLETHREAD_FFTW
 #include <drfftw.h>
@@ -47,6 +57,10 @@
 #endif
 #endif
 
+#endif
+
+#endif
+*/
 #include "constraints.hh"
 #include "mesh.hh"
 #include "mg_operators.hh"
@@ -147,7 +161,7 @@ protected:
 		i = (i+ncubes_)%ncubes_;
 		j = (j+ncubes_)%ncubes_;
 		k = (k+ncubes_)%ncubes_;
-		long icube = (i*ncubes_+j)*ncubes_+k;
+		size_t icube = ((size_t)i*(size_t)ncubes_+(size_t)j)*(size_t)ncubes_+(size_t)k;
 		
 		if( rnums_[icube] != NULL )
 		{
@@ -470,7 +484,7 @@ public:
 			std::cout << " - Generating a constrained random number set with seed " << baseseed << "\n"
 					  << "    using coarse mode replacement...\n";
 
-			int nx=lx[0], ny=lx[1], nz=lx[2],
+			size_t nx=lx[0], ny=lx[1], nz=lx[2],
 				nxc=lx[0]/2, nyc=lx[1]/2, nzc=lx[2]/2;
 			
 			
@@ -481,30 +495,39 @@ public:
 			fftw_complex
 				*ccoarse = reinterpret_cast<fftw_complex*> (rcoarse),
 				*cfine = reinterpret_cast<fftw_complex*> (rfine);
-			
+#ifdef FFTW3
+			fftw_plan
+				pc  = fftw_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE),
+				pf  = fftw_plan_dft_r2c_3d( nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
+				ipf	= fftw_plan_dft_c2r_3d( nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
+#else
 			rfftwnd_plan 
-				pc	= rfftw3d_create_plan( nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-				pf	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-				ipf	= rfftw3d_create_plan( nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+			pc	= rfftw3d_create_plan( nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+			pf	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+			ipf	= rfftw3d_create_plan( nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+#endif
 			
 			#pragma omp parallel for
-			for( int i=0; i<nx; i++ )
-				for( int j=0; j<ny; j++ )
-					for( int k=0; k<nz; k++ )
+			for( int i=0; i<(int)nx; i++ )
+				for( int j=0; j<(int)ny; j++ )
+					for( int k=0; k<(int)nz; k++ )
 					{
-						unsigned q = (i*ny+j)*(nz+2)+k;
+						size_t q = ((size_t)i*(size_t)ny+(size_t)j)*(size_t)(nz+2)+(size_t)k;
 						rfine[q] = (*this)(x0[0]+i,x0[1]+j,x0[2]+k);
 					}
 			
 			#pragma omp parallel for
-			for( int i=0; i<nxc; i++ )
-				for( int j=0; j<nyc; j++ )
-					for( int k=0; k<nzc; k++ )
+			for( int i=0; i<(int)nxc; i++ )
+				for( int j=0; j<(int)nyc; j++ )
+					for( int k=0; k<(int)nzc; k++ )
 					{
-						unsigned q = (i*nyc+j)*(nzc+2)+k;
+						size_t q = ((size_t)i*(size_t)nyc+(size_t)j)*(size_t)(nzc+2)+(size_t)k;
 						rcoarse[q] = rc(x0[0]/2+i,x0[1]/2+j,x0[2]/2+k);
 					}
-			
+#ifdef FFTW3
+			fftw_execute( pc );
+			fftw_execute( pf );
+#else
 		#ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pc, rcoarse, NULL );
 			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
@@ -512,55 +535,79 @@ public:
 			rfftwnd_one_real_to_complex( pc, rcoarse, NULL );
 			rfftwnd_one_real_to_complex( pf, rfine, NULL );
 		#endif
-			
+#endif
 			
 			double fftnorm = 1.0/(nx*ny*nz);
 			
 			#pragma omp parallel for
-			for( int i=0; i<nxc; i++ )
-				for( int j=0; j<nyc; j++ )
-					for( int k=0; k<nzc/2+1; k++ )
+			for( int i=0; i<(int)nxc; i++ )
+				for( int j=0; j<(int)nyc; j++ )
+					for( int k=0; k<(int)nzc/2+1; k++ )
 					{
 						int ii(i),jj(j),kk(k);
 						
-						if( i > nxc/2 ) ii += nx/2;
-						if( j > nyc/2 ) jj += ny/2;
+						if( i > (int)nxc/2 ) ii += nx/2;
+						if( j > (int)nyc/2 ) jj += ny/2;
 						
-						unsigned qc,qf;
-						qc = (i*nyc+j)*(nzc/2+1)+k;
-						qf = (ii*ny+jj)*(nz/2+1)+kk;
-					
+						size_t qc,qf;
+						qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+						qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+#ifdef FFTW3
+						cfine[qf][0] = sqrt(8.0)*ccoarse[qc][0];
+						cfine[qf][1] = sqrt(8.0)*ccoarse[qc][1];
+#else
 						cfine[qf].re = sqrt(8.0)*ccoarse[qc].re;
 						cfine[qf].im = sqrt(8.0)*ccoarse[qc].im;
+#endif
 					}
 			
 			delete[] rcoarse;
 			
 			#pragma omp parallel for
-			for( int i=0; i<nx; i++ )
-				for( int j=0; j<ny; j++ )
-					for( int k=0; k<nz/2+1; k++ )
+			for( int i=0; i<(int)nx; i++ )
+				for( int j=0; j<(int)ny; j++ )
+					for( int k=0; k<(int)nz/2+1; k++ )
 					{
-						unsigned q = (i*ny+j)*(nz/2+1)+k;
+						size_t q = ((size_t)i*ny+(size_t)j)*(nz/2+1)+(size_t)k;
+#ifdef FFTW3
+						cfine[q][0] *= fftnorm;
+						cfine[q][1] *= fftnorm;
+#else
 						cfine[q].re *= fftnorm;
 						cfine[q].im *= fftnorm;
+#endif
 					}
 			
+#ifdef FFTW3
+			fftw_execute( ipf );
+#else
 		#ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipf, cfine, NULL );
 		#else
 			rfftwnd_one_complex_to_real( ipf, cfine, NULL );
 		#endif
-			
-			for( int i=0; i<nx; i++ )
-				for( int j=0; j<ny; j++ )
-					for( int k=0; k<nz; k++ )
+#endif
+
+			#pragma omp parallel for
+			for( int i=0; i<(int)nx; i++ )
+				for( int j=0; j<(int)ny; j++ )
+					for( int k=0; k<(int)nz; k++ )
 					{
-						unsigned q = (i*ny+j)*(nz+2)+k;
+						size_t q = ((size_t)i*ny+(size_t)j)*(nz+2)+(size_t)k;
 						(*this)(x0[0]+i,x0[1]+j,x0[2]+k) = rfine[q];
 					}
 			
 			delete[] rfine;
+			
+#ifdef FFTW3
+			fftw_destroy_plan(pf);
+			fftw_destroy_plan(pc);
+			fftw_destroy_plan(ipf);
+#else
+			fftwnd_destroy_plan(pf);
+			fftwnd_destroy_plan(pc);
+			fftwnd_destroy_plan(ipf);
+#endif
 			
 		}
 		else
@@ -606,13 +653,17 @@ public:
 		if( zeromean )
 		{
 			mean = 0.0;
-			for(unsigned i=0; i<res_; ++i )
+			
+			#pragma omp parallel for reduction(+:mean)
+			for(int i=0; i<(int)res_; ++i )
 				for( unsigned j=0; j<res_; ++j )
 					for( unsigned k=0; k<res_; ++k )
 						mean += (*this)(i,j,k);
+			
 			mean *= 1.0/(res_*res_*res_);
 			
-			for(unsigned i=0; i<res_; ++i )
+			#pragma omp parallel for
+			for(int i=0; i<(int)res_; ++i )
 				for( unsigned j=0; j<res_; ++j )
 					for( unsigned k=0; k<res_; ++k )
 						(*this)(i,j,k) = (*this)(i,j,k) - mean;
@@ -817,28 +868,38 @@ public:
 				*cfine = reinterpret_cast<fftw_complex*> (rfine);
 			
 			int nx(rc.res_), ny(rc.res_), nz(rc.res_), nxc(res_), nyc(res_), nzc(res_);
-			
+#ifdef FFTW3
+			fftw_plan
+				pf = fftw_plan_dft_r2c_3d(nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
+				ipc= fftw_plan_dft_c2r_3d(nxc, nyc, nzc, ccoarse, rcoarse, FFTW_ESTIMATE);
+#else
 			rfftwnd_plan 
 				pf	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
 				ipc	= rfftw3d_create_plan( nxc, nyc, nzc, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+#endif
 			
+			#pragma omp parallel for
 			for( int i=0; i<nx; i++ )
 				for( int j=0; j<ny; j++ )
 					for( int k=0; k<nz; k++ )
 					{
-						unsigned q = (i*ny+j)*(nz+2)+k;
+						size_t q = ((size_t)i*ny+(size_t)j)*(nz+2)+(size_t)k;
 						rfine[q] = rc(i,j,k);
 					}
 			
-			
-#ifndef SINGLETHREAD_FFTW		
-			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
+#ifdef FFTW3
+			fftw_execute( pf );
 #else
+	#ifndef SINGLETHREAD_FFTW		
+			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
+	#else
 			rfftwnd_one_real_to_complex( pf, rfine, NULL );
+	#endif
 #endif
 			
 			double fftnorm = 1.0/(nxc*nyc*nzc);
 			
+			#pragma omp parallel for
 			for( int i=0; i<nxc; i++ )
 				for( int j=0; j<nyc; j++ )
 					for( int k=0; k<nzc/2+1; k++ )
@@ -848,29 +909,38 @@ public:
 						if( i > nxc/2 ) ii += nx/2;
 						if( j > nyc/2 ) jj += ny/2;
 						
-						unsigned qc,qf;
+						size_t qc,qf;
 						
-						qc = (i*nyc+j)*(nzc/2+1)+k;
-						qf = (ii*ny+jj)*(nz/2+1)+kk;
+						qc = ((size_t)i*nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+						qf = ((size_t)ii*ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
 						
+#ifdef FFTW3
+						ccoarse[qc][0] = 1.0/sqrt(8.0)*cfine[qf][0]*fftnorm;
+						ccoarse[qc][1] = 1.0/sqrt(8.0)*cfine[qf][1]*fftnorm;
+#else
 						ccoarse[qc].re = 1.0/sqrt(8.0)*cfine[qf].re*fftnorm;
 						ccoarse[qc].im = 1.0/sqrt(8.0)*cfine[qf].im*fftnorm;
+#endif
 					}
 			
 			delete[] rfine;
-			
-#ifndef SINGLETHREAD_FFTW		
-			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipc, ccoarse, NULL );
+#ifdef FFTW3
+			fftw_execute( ipc );
 #else
+	#ifndef SINGLETHREAD_FFTW		
+			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipc, ccoarse, NULL );
+	#else
 			rfftwnd_one_complex_to_real( ipc, ccoarse, NULL );
+	#endif
 #endif
 			rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
 			
+			#pragma omp parallel for reduction(+:sum,sum2,count)
 			for( int i=0; i<nxc; i++ )
 				for( int j=0; j<nyc; j++ )
 					for( int k=0; k<nzc; k++ )
 					{
-						unsigned q = (i*nyc+j)*(nzc+2)+k;
+						size_t q = ((size_t)i*nyc+(size_t)j)*(nzc+2)+(size_t)k;
 						(*rnums_[0])(i,j,k) = rcoarse[q];
 						sum += (*rnums_[0])(i,j,k);
 						sum2+= (*rnums_[0])(i,j,k) * (*rnums_[0])(i,j,k);
@@ -879,8 +949,13 @@ public:
 
 			delete[] rcoarse;
 			
+#ifdef FFTW3
+			fftw_destroy_plan(pf);
+			fftw_destroy_plan(ipc);
+#else
 			rfftwnd_destroy_plan(pf);
 			rfftwnd_destroy_plan(ipc);
+#endif
 			
 		}
 		else
@@ -899,8 +974,8 @@ public:
 				rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );		
 				gop.restrict( *rc.rnums_[0], *rnums_[0] );
 				
-				
-				for( unsigned i=0; i< rnums_[0]->size(0); ++i )
+				#pragma omp parallel for reduction(+:sum,sum2,count)
+				for( int i=0; i< (int)rnums_[0]->size(0); ++i )
 					for( unsigned j=0; j< rnums_[0]->size(1); ++j )
 						for( unsigned k=0; k< rnums_[0]->size(2); ++k )
 						{
@@ -921,7 +996,11 @@ public:
 				rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
 				double fac = 1.0/sqrt(8);
 				
-				for( unsigned i=0,ii=0; i<rc.res_; i+=2,++ii )
+				#pragma omp parallel for reduction(+:sum,sum2,count)
+				for( int ii=0; ii<(int)rc.res_/2; ++ii )
+				{	
+					unsigned i=2*ii;
+					
 					for( unsigned j=0,jj=0; j<rc.res_; j+=2,++jj )
 						for( unsigned k=0,kk=0; k<rc.res_; k+=2,++kk )
 						{
@@ -933,7 +1012,7 @@ public:
 							sum2+= (*rnums_[0])(ii,jj,kk) * (*rnums_[0])(ii,jj,kk);
 							++count;
 						}
-				
+				}
 			}
 		}
 		
@@ -1199,6 +1278,7 @@ protected:
 			
 			double fac = 1.0/sqrt(8.0);
 			
+			#pragma omp parallel for
 			for( int i=0; i<nxd; i++ )
 				for( int j=0; j<nyd; j++ )
 					for( int k=0; k<nzd; k++ )
@@ -1220,7 +1300,7 @@ protected:
 						for( int q=0; q<8; ++q )
 							finesum += fac*(*mem_cache_[ifine-levelmin_])[qf[q]];
 						
-						unsigned qc = ((i+di)*nyc+(j+dj))*nzc+(k+dk);
+						size_t qc = ((size_t)(i+di)*nyc+(size_t)(j+dj))*nzc+(size_t)(k+dk);
 						
 						(*mem_cache_[icoarse-levelmin_])[qc] = finesum;
 					}						
@@ -1392,6 +1472,7 @@ protected:
 				data.assign( N*N, 0.0 );
 				for( int i=0; i<N; ++i )
 				{	
+					#pragma omp parallel for
 					for( int j=0; j<N; ++j )
 						for( int k=0; k<N; ++k )
 							data[j*N+k] = (*prng)(i+i0,j+j0,k+k0);
@@ -1426,6 +1507,7 @@ protected:
 				data.assign( ny*nz, 0.0 );
 				for( int i=0; i<nx; ++i )
 				{	
+					#pragma omp parallel for
 					for( int j=0; j<ny; ++j )
 						for( int k=0; k<nz; ++k )
 							data[j*nz+k] = (*prng)(i+i0,j+j0,k+k0);
@@ -1464,10 +1546,11 @@ protected:
 			
 			LOGUSER("Copying white noise to mem cache...");
 			
+			#pragma omp parallel for
 			for( int i=0; i<nx; ++i )
 				for( int j=0; j<ny; ++j )
 					for( int k=0; k<nz; ++k )
-						(*mem_cache_[ilevel-levelmin_])[(i*ny+j)*nz+k] = (*prng)(i+i0,j+j0,k+k0);
+						(*mem_cache_[ilevel-levelmin_])[((size_t)i*ny+(size_t)j)*nz+(size_t)k] = (*prng)(i+i0,j+j0,k+k0);
 	
 		}		
 	}
@@ -1486,13 +1569,13 @@ public:
 		mem_cache_.assign(levelmax_-levelmin_+1,NULL);
 		
 		
-		//disk_cached_ = false;
+		////disk_cached_ = false;
 		
+		//... determine seed/white noise file data to be applied
 		parse_rand_parameters();
 		
+		//... compute the actual random numbers
 		compute_random_numbers();
-		
-		
 	}
 	
 	~random_number_generator()

@@ -382,7 +382,7 @@ void multigrid_poisson_plugin::implementation::gradient_O6( int dir, grid_hierar
 		
 		h /= 60.;
 		if( dir == 0 )
-#pragma omp parallel for
+			#pragma omp parallel for
 			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
 				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
 					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
@@ -395,7 +395,7 @@ void multigrid_poisson_plugin::implementation::gradient_O6( int dir, grid_hierar
 						 +(*u.get_grid(ilevel))(ix+3,iy,iz))*h;
 		
 		else if( dir == 1 )
-#pragma omp parallel for
+			#pragma omp parallel for
 			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
 				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
 					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
@@ -408,7 +408,7 @@ void multigrid_poisson_plugin::implementation::gradient_O6( int dir, grid_hierar
 						 +(*u.get_grid(ilevel))(ix,iy+3,iz))*h;
 		
 		else if( dir == 2 )
-#pragma omp parallel for
+			#pragma omp parallel for
 			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
 				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
 					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
@@ -436,7 +436,7 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6( int dir, grid_hi
 		
 		h /= 60.;
 		if( dir == 0 )
-#pragma omp parallel for
+			#pragma omp parallel for
 			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
 				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
 					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
@@ -449,7 +449,7 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6( int dir, grid_hi
 						 +(*u.get_grid(ilevel))(ix+3,iy,iz))*h;
 		
 		else if( dir == 1 )
-#pragma omp parallel for
+			#pragma omp parallel for
 			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
 				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
 					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
@@ -462,7 +462,7 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6( int dir, grid_hi
 						 +(*u.get_grid(ilevel))(ix,iy+3,iz))*h;
 		
 		else if( dir == 2 )
-#pragma omp parallel for
+			#pragma omp parallel for
 			for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
 				for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
 					for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
@@ -482,7 +482,8 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6( int dir, grid_hi
 /**************************************************************************************/
 /**************************************************************************************/
 #pragma mark -
-
+#include "general.hh"
+/*
 #ifdef SINGLE_PRECISION
 #ifdef SINGLETHREAD_FFTW
 #include <srfftw.h>
@@ -496,6 +497,7 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6( int dir, grid_hi
 #include <drfftw_threads.h>
 #endif
 #endif
+ */
 
 double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 {
@@ -535,20 +537,30 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 			}
 	
 	//... perform FFT and Poisson solve................................
-	rfftwnd_plan 
-	plan = rfftw3d_create_plan( nx,ny,nz,
-							   FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-	iplan = rfftw3d_create_plan( nx,ny,nz,
-								FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
-	
 	LOGUSER("Performing forward transform.");
+
+#ifdef FFTW3
+	fftw_plan 
+		plan  = fftw_plan_dft_r2c_3d( nx, ny, nz, data, cdata, FFTW_ESTIMATE ),
+		iplan = fftw_plan_dft_c2r_3d( nx, ny, nz, cdata, data, FFTW_ESTIMATE );
 	
-#ifndef SINGLETHREAD_FFTW		
-	rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
+	fftw_execute(plan);
+	
 #else
-	rfftwnd_one_real_to_complex( plan, data, NULL );
-#endif
+	rfftwnd_plan 
+		plan = rfftw3d_create_plan( nx,ny,nz,
+								   FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+		iplan = rfftw3d_create_plan( nx,ny,nz,
+									FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 	
+		
+	#ifndef SINGLETHREAD_FFTW		
+	rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
+	#else
+	rfftwnd_one_real_to_complex( plan, data, NULL );
+	#endif
+	
+#endif
 	double kfac = 2.0*M_PI;
 	double fac = -1.0/(nx*ny*nz);
 	
@@ -565,25 +577,43 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 				double kk2 = kfac*kfac*(ki*ki+kj*kj+kk*kk);
 				
 				unsigned idx = (i*ny+j)*nzp/2+k;
-				
+#ifdef FFTW3
+				cdata[idx][0] *= -1.0/kk2*fac;
+				cdata[idx][1] *= -1.0/kk2*fac;
+
+#else
 				cdata[idx].re *= -1.0/kk2*fac;
 				cdata[idx].im *= -1.0/kk2*fac;
-				
+#endif			
 			}
+
+	LOGUSER("Performing backward transform.");
 	
+#ifdef FFTW3
+	cdata[0][0] = 0.0;
+	cdata[0][1] = 0.0;
+
+	fftw_execute(iplan);
+	fftw_destroy_plan(plan);
+	fftw_destroy_plan(iplan);
+	
+#else
 	cdata[0].re = 0.0;
 	cdata[0].im = 0.0;
 	
-	LOGUSER("Performing backward transform.");
-
-#ifndef SINGLETHREAD_FFTW		
+	#ifndef SINGLETHREAD_FFTW		
 	rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL );
-#else
+	#else
 	rfftwnd_one_complex_to_real( iplan, cdata, NULL );
-#endif
+	#endif
 	
 	rfftwnd_destroy_plan(plan);
 	rfftwnd_destroy_plan(iplan);
+#endif
+	
+	
+
+
 	
 	//... copy data ..........................................
 	for( int i=0; i<nx; ++i )
@@ -629,17 +659,28 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 			}
 	
 	//... perform FFT and Poisson solve................................
-	rfftwnd_plan 
-	plan = rfftw3d_create_plan( nx,ny,nz,
-							   FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-	iplan = rfftw3d_create_plan( nx,ny,nz,
-								FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 	
+#ifdef FFTW3
+	fftw_plan 
+		plan  = fftw_plan_dft_r2c_3d(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
+		iplan = fftw_plan_dft_c2r_3d(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
 	
-#ifndef SINGLETHREAD_FFTW		
-	rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
+	fftw_execute(plan);
+		
 #else
+	rfftwnd_plan 
+		plan = rfftw3d_create_plan( nx,ny,nz,
+								   FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+		iplan = rfftw3d_create_plan( nx,ny,nz,
+									FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+	
+	
+	#ifndef SINGLETHREAD_FFTW		
+	rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
+	#else
 	rfftwnd_one_real_to_complex( plan, data, NULL );
+	#endif
+	
 #endif
 	
 	double fac = -1.0/(nx*ny*nz);
@@ -664,32 +705,49 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				else //if( dir == 2 )
 					kdir = kfac*kk;
 				
+#ifdef FFTW3
+				double re = cdata[idx][0];
+				double im = cdata[idx][1];
 				
+				cdata[idx][0] = fac*im*kdir;
+				cdata[idx][1] = -fac*re*kdir;	
+#else
 				double re = cdata[idx].re;
 				double im = cdata[idx].im;
 				
-				/*if( i==nx/2||j==ny/2||k==nz/2 )
+				cdata[idx].re = fac*im*kdir;
+				cdata[idx].im = -fac*re*kdir;	
+#endif			
+				
+				/*double ktot = sqrt(ii*ii+jj*jj+k*k);
+				if( ktot >= nx/2 )//dir == 0 && i==nx/2 || dir == 1 && j==ny/2 || dir == 2 && k==nz/2 )
 				{
 					cdata[idx].re = 0.0;
 					cdata[idx].im = 0.0;
 				}*/
-
-				cdata[idx].re = fac*im*kdir;
-				cdata[idx].im = -fac*re*kdir;	
-				
 			}
 	
+	
+#ifdef FFTW3
+	cdata[0][0] = 0.0;
+	cdata[0][1] = 0.0;
+	fftw_execute(iplan);
+	fftw_destroy_plan(plan);
+	fftw_destroy_plan(iplan);
+	
+#else
 	cdata[0].re = 0.0;
 	cdata[0].im = 0.0;
 	
-#ifndef SINGLETHREAD_FFTW		
+	#ifndef SINGLETHREAD_FFTW		
 	rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL );
-#else
+	#else
 	rfftwnd_one_complex_to_real( iplan, cdata, NULL );
-#endif
+	#endif
 	
 	rfftwnd_destroy_plan(plan);
 	rfftwnd_destroy_plan(iplan);
+#endif
 	
 	//... copy data ..........................................
 	double dmax = 0.0;
@@ -791,7 +849,6 @@ inline double poisson_hybrid_kernel<4>(int idir, int i, int j, int k, int n )
 	else if( idir ==2)
 	kgrad = kk;
 
-	//return (kgrad/kr/kr-grad/laplace)*M_PI/n*M_PI/n;
 	return kgrad/kr/kr-grad/laplace;
 }
 	   
@@ -829,6 +886,9 @@ inline double poisson_hybrid_kernel<6>(int idir, int i, int j, int k, int n )
 	else if( idir ==2)
 		kgrad = kk;
 
+//	if( i*i+j*j+k*k >= n*n )
+//		kgrad = 0.0;
+	
 	return kgrad/kr/kr-grad/laplace;
 }
 	   
@@ -838,18 +898,16 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 {
 	double fftnorm = 1.0/(nxp*nyp*nzp);
 		
-	//fftnorm = 1.0/pow(2.0*M_PI,3)/(nxp*nyp*nzp)*1.95;
 	fftnorm = 1.0/(nxp*nyp*nzp);
 	
-	/*if(idir==0)
-		fftnorm /= 256;//nxp;
-	else if(idir==1)
-		fftnorm /= 256;//nyp;
-	else
-		fftnorm /= 256;//nzp;*/
-	
-		
 	fftw_complex	*cdata = reinterpret_cast<fftw_complex*>(data);
+	
+#ifdef FFTW3
+	fftw_plan iplan, plan;
+	plan  = fftw_plan_dft_r2c_3d(nxp, nyp, nzp, data, cdata, FFTW_ESTIMATE);
+	iplan = fftw_plan_dft_c2r_3d(nxp, nyp, nzp, cdata, data, FFTW_ESTIMATE);
+	fftw_execute(plan);
+#else
 	rfftwnd_plan	iplan, plan;
 	
 	plan  = rfftw3d_create_plan( nxp, nyp, nzp,
@@ -858,21 +916,32 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 	iplan = rfftw3d_create_plan( nxp, nyp, nzp, 
 								FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 	
-#ifndef SINGLETHREAD_FFTW		
+	#ifndef SINGLETHREAD_FFTW		
 	rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
-#else
+	#else
 	rfftwnd_one_real_to_complex( plan, data, NULL );
+	#endif
 #endif
 	
 	double ksum = 0.0;
 	unsigned kcount = 0;
 	
+	#pragma omp parallel for reduction(+:ksum,kcount)
 	for( int i=0; i<nxp; ++i )
 		for( int j=0; j<nyp; ++j )
 			for( int k=0; k<nzp/2+1; ++k )
 			{
 				unsigned ii = (i*nyp + j) * (nzp/2+1) + k;
-				
+#ifdef FFTW3
+				if( k==0 || k==nzp/2 )
+				{
+					ksum  += cdata[ii][0];
+					kcount++;
+				}else{
+					ksum  += 2.0*(cdata[ii][0]);
+					kcount+=2;
+				}
+#else
 				if( k==0 || k==nzp/2 )
 				{
 					ksum  += cdata[ii].re;
@@ -881,13 +950,12 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 					ksum  += 2.0*(cdata[ii].re);
 					kcount+=2;
 				}
+#endif
 			}
 	
 	ksum /= kcount;
 	kcount = 0;
 	
-	cdata[0].re = 0.0;
-	cdata[0].im = 0.0;
 	
 	#pragma omp parallel for
 	for( int i=0; i<nxp; ++i )
@@ -904,11 +972,17 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 				double dk = poisson_hybrid_kernel<order>(idir, ki, kj, k, nxp/2 );
 				//cdata[ii].re -= ksum;
 				
-				double re = cdata[ii].re, im = cdata[ii].im;
+#ifdef FFTW3
+				fftw_real re = cdata[ii][0], im = cdata[ii][1];
+				
+				cdata[ii][0] = -im*dk*fftnorm;
+				cdata[ii][1] = re*dk*fftnorm;
+#else
+				fftw_real re = cdata[ii].re, im = cdata[ii].im;
 				
 				cdata[ii].re = -im*dk*fftnorm;
 				cdata[ii].im = re*dk*fftnorm;
-				
+#endif
 				//cdata[ii].re += ksum*fftnorm;
 				
 				//if( i==nxp/2||j==nyp/2||k==nzp/2 )
@@ -917,18 +991,29 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 				//	cdata[ii].im = 0.0;
 				//}
 				
+				
+				
 			}
+#ifdef FFTW3
+	cdata[0][0] = 0.0;
+	cdata[0][1] = 0.0;
+	
+	fftw_execute(iplan);
+	fftw_destroy_plan(plan);
+	fftw_destroy_plan(iplan);
+#else
 	cdata[0].re = 0.0;
 	cdata[0].im = 0.0;
 	
-#ifndef SINGLETHREAD_FFTW		
+	#ifndef SINGLETHREAD_FFTW		
 	rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL);
-#else		
+	#else		
 	rfftwnd_one_complex_to_real(iplan, cdata, NULL);
-#endif
+	#endif
 	
 	rfftwnd_destroy_plan(plan);
 	rfftwnd_destroy_plan(iplan);
+#endif
 	
 }
    
@@ -964,15 +1049,18 @@ void poisson_hybrid( MeshvarBnd<double>& f, int idir, int order, bool periodic )
 	if(idir==0)
 		std::cout << "   - Performing hybrid Poisson step... (" << nxp <<  ", " << nyp << ", " << nzp << ")\n";
 	
+	size_t N = (size_t)nxp*(size_t)nyp*2*((size_t)nzp/2+1);
 	
-	for( int i=0; i<nxp*nyp*2*(nzp/2+1); ++i )
+	//#pragma omp parallel for
+	for( size_t i=0; i<N; ++i )
 		data[i]=0.0;
 	
+	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )
 			for( int k=0; k<nz; ++k )
 			{
-				int idx = ((i+xo)*nyp + j+yo) * 2*(nzp/2+1) + k+zo;
+				size_t idx = ((i+xo)*nyp + j+yo) * 2*(nzp/2+1) + k+zo;
 				data[idx] = f(i,j,k);
 			}
 	
@@ -994,11 +1082,12 @@ void poisson_hybrid( MeshvarBnd<double>& f, int idir, int order, bool periodic )
 	
 	LOGUSER("Copying hybrid correction factor...");
 	
+	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )
 			for( int k=0; k<nz; ++k )
 			{
-				int idx = ((i+xo)*nyp + j+yo) * 2*(nzp/2+1) + k+zo;	
+				size_t idx = (((size_t)i+xo)*nyp + (size_t)j+yo) * 2*(nzp/2+1) + (size_t)k+zo;	
 				f(i,j,k) = data[idx];
 			}
 	

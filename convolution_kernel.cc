@@ -21,22 +21,7 @@
  
 */
 
-#ifdef SINGLE_PRECISION
-	#ifdef SINGLETHREAD_FFTW
-		#include <srfftw.h>
-	#else
-		#include <srfftw_threads.h>
-	#endif
-#else
-	#ifdef SINGLETHREAD_FFTW
-		#include <drfftw.h>
-	#else
-		#include <drfftw_threads.h>
-	#endif
-#endif
-
-
-
+#include "general.hh"
 #include "densities.hh"
 #include "convolution_kernel.hh"
 
@@ -65,13 +50,22 @@ namespace convolution{
 		cdata		= reinterpret_cast<fftw_complex*>(data);
 		ckernel		= reinterpret_cast<fftw_complex*>( pk->get_ptr() );
 		
-		rfftwnd_plan	iplan, plan;
+		
 		
 		std::cout << "   - Performing density convolution... (" 
 			<< cparam_.nx <<  ", " << cparam_.ny << ", " << cparam_.nz << ")\n";
 		
 		
 		LOGUSER("Performing kernel convolution on (%5d,%5d,%5d) grid",cparam_.nx ,cparam_.ny ,cparam_.nz );
+		LOGUSER("Performing forward FFT...");
+#ifdef FFTW3
+		fftw_plan plan, iplan;
+		plan = fftw_plan_dft_r2c_3d( cparam_.nx, cparam_.ny, cparam_.nz, data, cdata, FFTW_ESTIMATE);
+		iplan = fftw_plan_dft_c2r_3d(cparam_.nx, cparam_.ny, cparam_.nz, cdata, data, FFTW_ESTIMATE);
+		
+		fftw_execute(plan);
+#else
+		rfftwnd_plan	iplan, plan;
 		
 		plan  = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
 									FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
@@ -79,13 +73,13 @@ namespace convolution{
 		iplan = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
 									FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 		
-		
-		LOGUSER("Performing forward FFT...");
-		#ifndef SINGLETHREAD_FFTW		
+#ifndef SINGLETHREAD_FFTW		
 		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
-		#else
+#else
 		rfftwnd_one_real_to_complex( plan, data, NULL );
-		#endif
+#endif
+		
+#endif
 		
 		#pragma omp parallel for
 		for( int i=0; i<cparam_.nx; ++i )
@@ -93,15 +87,29 @@ namespace convolution{
 				for( int k=0; k<cparam_.nz/2+1; ++k )
 				{
 					unsigned ii = (i*cparam_.ny + j) * (cparam_.nz/2+1) + k;
-
+#ifdef FFTW3
+					std::complex<double> ccdata(cdata[ii][0],cdata[ii][1]), cckernel(ckernel[ii][0],ckernel[ii][1]);
+					ccdata = ccdata * cckernel *fftnorm;
+					
+					cdata[ii][0] = ccdata.real();
+					cdata[ii][1] = ccdata.imag();
+#else
 					std::complex<double> ccdata(cdata[ii].re,cdata[ii].im), cckernel(ckernel[ii].re,ckernel[ii].im);
 					ccdata = ccdata * cckernel *fftnorm;
-
+					
 					cdata[ii].re = ccdata.real();
 					cdata[ii].im = ccdata.imag();
+#endif
 				}
 
 		LOGUSER("Performing backward FFT...");
+		
+#ifdef FFTW3
+		fftw_execute(iplan);
+		fftw_destroy_plan(plan);
+		fftw_destroy_plan(iplan);
+		
+#else
 		#ifndef SINGLETHREAD_FFTW		
 		rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL);
 		#else		
@@ -110,6 +118,7 @@ namespace convolution{
 		
 		rfftwnd_destroy_plan(plan);
 		rfftwnd_destroy_plan(iplan);
+#endif
 	}
 	
 	
@@ -228,10 +237,13 @@ namespace convolution{
 		
 		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kdata_[0] );
 		fftw_complex	*kkernel	= reinterpret_cast<fftw_complex*>( &kdata_[0] );
-		
+
+#ifdef FFTW3
+		fftw_plan		plan		= fftw_plan_dft_r2c_3d( cparam_.nx, cparam_.ny, cparam_.nz, rkernel, kkernel, FFTW_ESTIMATE);
+#else
 		rfftwnd_plan	plan		= rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
 												FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
-						
+#endif
 		int nzp = cparam_.nz/2+1;
 		double kmax = 0.5*M_PI/std::max(cparam_.nx,std::max(cparam_.ny,cparam_.nz));
 		
@@ -405,12 +417,15 @@ namespace convolution{
 		if( cparam_.deconvolve )//&& cparam_.is_finest)
 			kdata_[0] = 0.0;
 		
+#ifdef FFTW3
+		fftw_execute(plan);
+#else
 		#ifndef SINGLETHREAD_FFTW		
 		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
 		#else
 		rfftwnd_one_real_to_complex( plan, rkernel, NULL );
 		#endif
-	
+#endif
 /*#define XI_SAMPLE
 #ifdef XI_SAMPLE
 		#pragma omp parallel for
@@ -476,8 +491,13 @@ namespace convolution{
 							{
 								if( kspacepoisson )
 								{
+#ifdef FFTW3
+									kkernel[q][0] /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+									kkernel[q][1] /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+#else
 									kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
 									kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+#endif
 									///////kkernel[q].re *= ipix;
 									///////kkernel[q].im *= ipix;	
 									//kkernel[q].re *= ipix;
@@ -486,14 +506,23 @@ namespace convolution{
 									
 									////////kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
 									////////kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
-									
+#ifdef FFTW3
+									kkernel[q][0] *= ipix;
+									kkernel[q][1] *= ipix;	
+#else
 									kkernel[q].re *= ipix;
 									kkernel[q].im *= ipix;	
+#endif
 								}
 								
 							}else{
+#ifdef FFTW3
+								kkernel[q][0] /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+								kkernel[q][1] /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+#else
 								kkernel[q].re /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
 								kkernel[q].im /= cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+#endif
 								////////kkernel[q].re *= ipix;
 								////////kkernel[q].im *= ipix;
 							}
@@ -501,11 +530,26 @@ namespace convolution{
 						}else{
 							//... if smooth==true, convolve with 
 							//... NGP kernel to get CIC smoothness
+#ifdef FFTW3
+							kkernel[q][0] /= ipix;
+							kkernel[q][1] /= ipix;	
+#else
 							kkernel[q].re /= ipix;
-							kkernel[q].im /= ipix;	
+							kkernel[q].im /= ipix;
+#endif
 						}
 						
 						//... store k-space average
+#ifdef FFTW3
+						if( k==0 || k==nz/2 )
+						{
+							ksum  += kkernel[q][0];
+							kcount++;
+						}else{
+							ksum  += 2.0*(kkernel[q][0]);
+							kcount+=2;
+						}
+#else
 						if( k==0 || k==nz/2 )
 						{
 							ksum  += kkernel[q].re;
@@ -514,6 +558,8 @@ namespace convolution{
 							ksum  += 2.0*(kkernel[q].re);
 							kcount+=2;
 						}
+#endif
+						
 					}
 			
 			double dk;
@@ -537,11 +583,19 @@ namespace convolution{
 					for( int k=0; k<nzp; ++k )
 					{
 						unsigned q  = (i*ny+j)*nzp+k;
+#ifdef FFTW3
+						kkernel[q][0] += dk;
+#else
 						kkernel[q].re += dk;
+#endif
 					}
 		}		
 		
+#ifdef FFTW3
+		fftw_destroy_plan(plan);
+#else
 		rfftwnd_destroy_plan(plan);
+#endif
 		
 		return this;
 	}
@@ -625,6 +679,19 @@ namespace convolution{
 					if( ky > ny/2 ) ky -= ny;
 					
 					q = (i*ny+j)*nzp+k;
+#ifdef FFTW3
+					kdata[q][0] = fac*tfk->compute(kfac*sqrt(kx*kx+ky*ky+kz*kz));
+					kdata[q][1] = 0.0;
+					
+					if( k==0 || k==nz/2 )
+					{
+						ksum  += kdata[q][0];
+						kcount++;
+					}else{
+						ksum  += 2.0*(kdata[q][0]);
+						kcount+=2;
+					}
+#else
 					kdata[q].re = fac*tfk->compute(kfac*sqrt(kx*kx+ky*ky+kz*kz));
 					kdata[q].im = 0.0;
 					
@@ -637,6 +704,7 @@ namespace convolution{
 						kcount+=2;
 					}
 					
+#endif
 				}
 		
 		delete tfk;
@@ -722,6 +790,13 @@ namespace convolution{
 		
 		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kdata_[0] );
 		
+#ifdef FFTW3
+		fftw_complex		*kkernel	= reinterpret_cast<fftw_complex*> (&rkernel[0]);
+		fftw_plan plan = fftw_plan_dft_r2c_3d( cparam_.nx, cparam_.ny, cparam_.nz, rkernel, kkernel, FFTW_ESTIMATE);
+		fftw_execute(plan);
+		fftw_destroy_plan(plan);
+		
+#else
 		rfftwnd_plan	plan		= rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
 														  FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
 		
@@ -733,6 +808,7 @@ namespace convolution{
 #endif
 		
 		rfftwnd_destroy_plan( plan );
+#endif
 		return this;
 	}
 	
@@ -844,9 +920,9 @@ namespace convolution{
 									rr[1] = ((double)iiy ) * dx + jj*boxlength;
 									rr[2] = ((double)iiz ) * dx + kk*boxlength;
 									
-									if( rr[0] > -boxlength && rr[0] < boxlength
-									   && rr[1] > -boxlength && rr[1] < boxlength
-									   && rr[2] > -boxlength && rr[2] < boxlength )
+									if( rr[0] > -boxlength && rr[0] <= boxlength
+									   && rr[1] > -boxlength && rr[1] <= boxlength
+									   && rr[2] > -boxlength && rr[2] <= boxlength )
 									{
 										rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
 										val += tfr->compute_real(rr2);	
@@ -903,22 +979,31 @@ namespace convolution{
 			
 			bool kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
 							 pcf_->getValueSafe<bool>("poisson","kspace",false));
-			fftw_complex	*kkernel	= reinterpret_cast<fftw_complex*>( &rkernel[0] );
-			rfftwnd_plan	plan		= rfftw3d_create_plan( nx,ny,nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-			iplan		= rfftw3d_create_plan( nx,ny,nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 			
 			double fftnorm = 1.0/(nx*ny*nz);
 			double k0 = rkernel[0];
 			
+			fftw_complex	*kkernel	= reinterpret_cast<fftw_complex*>( &rkernel[0] );
+			
 			//... subtract white noise component before deconvolution
 			rkernel[0] = 0.0;
+			
+#ifdef FFTW3
+			fftw_plan 
+				plan  = fftw_plan_dft_r2c_3d(nx,ny,nz, rkernel, kkernel, FFTW_ESTIMATE),
+				iplan = fftw_plan_dft_c2r_3d(nx,ny,nz, kkernel, rkernel, FFTW_ESTIMATE);			
+			
+			fftw_execute(plan);
+#else
+			rfftwnd_plan	plan		= rfftw3d_create_plan( nx,ny,nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+							iplan		= rfftw3d_create_plan( nx,ny,nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 			
 	#ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
 	#else
 			rfftwnd_one_real_to_complex( plan, rkernel, NULL );
 	#endif
-			
+#endif		
 			{
 				
 				double ksum = 0.0;
@@ -949,8 +1034,13 @@ namespace convolution{
 								{
 									//... Use child average response function to emulate sub-sampling
 									double ipix = cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
+#ifdef FFTW3
+									kkernel[q][0] /= ipix;
+									kkernel[q][1] /= ipix;
+#else
 									kkernel[q].re /= ipix;
 									kkernel[q].im /= ipix;
+#endif
 								}else{
 									
 									//... Use piecewise constant response function (NGP-kernel)
@@ -964,8 +1054,13 @@ namespace convolution{
 									if( k > 0 )
 										ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 									
+#ifdef FFTW3
+									kkernel[q][0] *= ipix;
+									kkernel[q][1] *= ipix;
+#else
 									kkernel[q].re *= ipix;
-									kkernel[q].im *= ipix;	
+									kkernel[q].im *= ipix;
+#endif
 								}
 							}else{
 								//... if smooth==true, convolve with 
@@ -978,11 +1073,26 @@ namespace convolution{
 								if( k > 0 )
 									ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 								
+#ifdef FFTW3
+								kkernel[q][0] /= ipix;
+								kkernel[q][1] /= ipix;
+#else
 								kkernel[q].re /= ipix;
-								kkernel[q].im /= ipix;	
+								kkernel[q].im /= ipix;
+#endif	
 							}
 							
 							//... store k-space average
+#ifdef FFTW3
+							if( k==0 || k==nz/2 )
+							{
+								ksum  += kkernel[q][0];
+								kcount++;
+							}else{
+								ksum  += 2.0*(kkernel[q][1]);
+								kcount+=2;
+							}
+#else
 							if( k==0 || k==nz/2 )
 							{
 								ksum  += kkernel[q].re;
@@ -991,6 +1101,7 @@ namespace convolution{
 								ksum  += 2.0*(kkernel[q].re);
 								kcount+=2;
 							}
+#endif
 						}
 				
 				double dk;
@@ -1009,16 +1120,28 @@ namespace convolution{
 						for( int k=0; k<(nz/2+1); ++k )
 						{
 							unsigned q  = (i*ny+j)*(nz/2+1)+k;
+#ifdef FFTW3
+							kkernel[q][0] += dk;
+							
+							kkernel[q][0] *= fftnorm;
+							kkernel[q][1] *= fftnorm;
+							
+#else
 							kkernel[q].re += dk;
 							
 							kkernel[q].re *= fftnorm;
 							kkernel[q].im *= fftnorm;
+#endif
 						}
 			}		
 			
 			
 			
-			
+#ifdef FFTW3
+			fftw_execute(iplan);
+			fftw_destroy_plan(plan);
+			fftw_destroy_plan(iplan);
+#else
 	#ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, kkernel, NULL );
 	#else
@@ -1026,6 +1149,7 @@ namespace convolution{
 	#endif
 			rfftwnd_destroy_plan(plan);
 			rfftwnd_destroy_plan(iplan);
+#endif
 		}
 		
 		/*************************************************************************************/

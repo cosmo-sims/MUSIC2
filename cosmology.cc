@@ -185,7 +185,7 @@ void compute_Lu_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigned
 }
 
 #pragma mark -
-
+/*
 #ifdef SINGLE_PRECISION
 #ifdef SINGLETHREAD_FFTW
 #include <srfftw.h>
@@ -199,6 +199,9 @@ void compute_Lu_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigned
 #include <drfftw_threads.h>
 #endif
 #endif
+*/
+
+#include "general.hh"
 
 void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hierarchy& fnew )
 {
@@ -236,19 +239,124 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 			}
 	
 	//... perform FFT and Poisson solve................................
-	rfftwnd_plan 
-	plan = rfftw3d_create_plan( nx,ny,nz,
-							   FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-	iplan = rfftw3d_create_plan( nx,ny,nz,
-								FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+#ifdef FFTW3
+	fftw_plan
+		plan  = fftw_plan_dft_r2c_3d(nx,ny,nz, data, cdata, FFTW_ESTIMATE),
+		iplan = fftw_plan_dft_c2r_3d(nx,ny,nz, cdata, data, FFTW_ESTIMATE),
+		ip11  = fftw_plan_dft_c2r_3d(nx,ny,nz, cdata_11, data_11, FFTW_ESTIMATE),
+		ip12  = fftw_plan_dft_c2r_3d(nx,ny,nz, cdata_12, data_12, FFTW_ESTIMATE),
+		ip13  = fftw_plan_dft_c2r_3d(nx,ny,nz, cdata_13, data_13, FFTW_ESTIMATE),
+		ip22  = fftw_plan_dft_c2r_3d(nx,ny,nz, cdata_22, data_22, FFTW_ESTIMATE),
+		ip23  = fftw_plan_dft_c2r_3d(nx,ny,nz, cdata_23, data_23, FFTW_ESTIMATE),
+		ip33  = fftw_plan_dft_c2r_3d(nx,ny,nz, cdata_33, data_33, FFTW_ESTIMATE);
+	
+	fftw_execute(plan);
+	
+	double kfac = 2.0*M_PI;
+	double norm = 1.0/((double)(nx*ny*nz));
+	
+	for( int i=0; i<nx; ++i )
+		for( int j=0; j<ny; ++j )	
+			for( int l=0; l<nz/2+1; ++l )
+			{
+				int ii = i; if(ii>nx/2) ii-=nx;
+				int jj = j; if(jj>ny/2) jj-=ny;
+				double ki = (double)ii;
+				double kj = (double)jj;
+				double kk = (double)l;
+				
+				double k[3];
+				k[0] = (double)ki * kfac;
+				k[1] = (double)kj * kfac;
+				k[2] = (double)kk * kfac;
+				
+				unsigned idx = (i*ny+j)*nzp/2+l;
+				//double re = cdata[idx][0];
+				//double im = cdata[idx][1];
+				
+				cdata_11[idx][0] = -k[0]*k[0] * cdata[idx][0] * norm;
+				cdata_11[idx][1] = -k[0]*k[0] * cdata[idx][1] * norm;
+				
+				cdata_12[idx][0] = -k[0]*k[1] * cdata[idx][0] * norm;
+				cdata_12[idx][1] = -k[0]*k[1] * cdata[idx][1] * norm;
+				
+				cdata_13[idx][0] = -k[0]*k[2] * cdata[idx][0] * norm;
+				cdata_13[idx][1] = -k[0]*k[2] * cdata[idx][1] * norm;
+				
+				cdata_22[idx][0] = -k[1]*k[1] * cdata[idx][0] * norm;
+				cdata_22[idx][1] = -k[1]*k[1] * cdata[idx][1] * norm;
+				
+				cdata_23[idx][0] = -k[1]*k[2] * cdata[idx][0] * norm;
+				cdata_23[idx][1] = -k[1]*k[2] * cdata[idx][1] * norm;
+				
+				cdata_33[idx][0] = -k[2]*k[2] * cdata[idx][0] * norm;
+				cdata_33[idx][1] = -k[2]*k[2] * cdata[idx][1] * norm;
+				
+				
+				if( i==nx/2||j==ny/2||l==nz/2)
+				{
+					cdata_11[idx][0] = 0.0;
+					cdata_11[idx][1] = 0.0;
+					
+					cdata_12[idx][0] = 0.0;
+					cdata_12[idx][1] = 0.0;
+					
+					cdata_13[idx][0] = 0.0;
+					cdata_13[idx][1] = 0.0;
+					
+					cdata_22[idx][0] = 0.0;
+					cdata_22[idx][1] = 0.0;
+					
+					cdata_23[idx][0] = 0.0;
+					cdata_23[idx][1] = 0.0;
+					
+					cdata_33[idx][0] = 0.0;
+					cdata_33[idx][1] = 0.0;
+				}
+				
+			}
+	
+	delete[] data;
+	/*cdata_11[0][0]	= 0.0; cdata_11[0][1]	= 0.0;
+	 cdata_12[0][0]	= 0.0; cdata_12[0][1]	= 0.0;
+	 cdata_13[0][0]	= 0.0; cdata_13[0][1]	= 0.0;
+	 cdata_22[0][0]	= 0.0; cdata_22[0][1]	= 0.0;
+	 cdata_23[0][0]	= 0.0; cdata_23[0][1]	= 0.0;
+	 cdata_33[0][0]	= 0.0; cdata_33[0][1]	= 0.0;*/
+	
+	fftw_execute(ip11);
+	fftw_execute(ip12);
+	fftw_execute(ip13);
+	fftw_execute(ip22);
+	fftw_execute(ip23);
+	fftw_execute(ip33);
+	
+	fftw_destroy_plan(plan);
+	fftw_destroy_plan(iplan);
+	fftw_destroy_plan(ip11);
+	fftw_destroy_plan(ip12);
+	fftw_destroy_plan(ip13);
+	fftw_destroy_plan(ip22);
+	fftw_destroy_plan(ip23);
+	fftw_destroy_plan(ip33);
+
+//#endif
 	
 	
-#ifndef SINGLETHREAD_FFTW		
-	rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
 #else
-	rfftwnd_one_real_to_complex( plan, data, NULL );
-#endif
+	rfftwnd_plan 
+		plan = rfftw3d_create_plan( nx,ny,nz,
+								   FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+		iplan = rfftw3d_create_plan( nx,ny,nz,
+									FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 	
+	
+	#ifndef SINGLETHREAD_FFTW		
+	rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, data, NULL );
+	#else
+	rfftwnd_one_real_to_complex( plan, data, NULL );
+	#endif
+//#endif
 	//double fac = -1.0/(nx*ny*nz);
 	double kfac = 2.0*M_PI;
 	double norm = 1.0/((double)(nx*ny*nz));
@@ -346,7 +454,7 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 	
 	rfftwnd_destroy_plan(plan);
 	rfftwnd_destroy_plan(iplan);
-	
+#endif
 
 	//... copy data ..........................................
 	for( int i=0; i<nx; ++i )

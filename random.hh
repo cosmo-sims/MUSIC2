@@ -1115,7 +1115,11 @@ protected:
 				long ltemp;
 				pcf_->convert( tempstr, ltemp );
 				rngfnames_.push_back( "" );
-				rngseeds_.push_back( ltemp );
+				if( ltemp < 0 )
+					//... generate some dummy seed which only depends on the level 
+					rngseeds_.push_back( -abs((unsigned)(ltemp-i)%123+(unsigned)(ltemp+827342523521*i)%123456789) );
+				else
+					rngseeds_.push_back( ltemp );
 			}else{
 				rngfnames_.push_back( tempstr );
 				rngseeds_.push_back(-1);

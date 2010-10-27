@@ -50,7 +50,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.7.2a"
+#define THE_CODE_VERSION "0.7.3a"
 
 
 namespace music
@@ -550,7 +550,7 @@ int main (int argc, const char * argv[])
 			//.. use 2LPT ...
 			LOGUSER("Entering 2LPT branch");
 			
-			grid_hierarchy f( nbnd ), u1(nbnd), u2(nbnd), fsave( nbnd );
+			grid_hierarchy f( nbnd ), u1(nbnd), u2LPT(nbnd), f2LPT( nbnd );
 			
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING VELOCITIES\n";
@@ -564,34 +564,39 @@ int main (int argc, const char * argv[])
 			u1 = f;	u1.zero();
 			
 			if(bdefd)
-				fsave=f;
+				f2LPT=f;
 
 			//... compute 1LPT term
 			err = the_poisson_solver->solve(f, u1);
 			the_output_plugin->write_dm_potential(u1);
 			
 			//... compute 2LPT term
-			u2 = f; u2.zero();
+			u2LPT = f; u2LPT.zero();
 			
 			if( !kspace )
-				compute_2LPT_source(u1, f, grad_order );
+				compute_2LPT_source(u1, f2LPT, grad_order );
 			else
-				compute_2LPT_source_FFT(cf, u1, f);
+				compute_2LPT_source_FFT(cf, u1, f2LPT);
 			
 				
-			err = the_poisson_solver->solve(f, u2);
+			err = the_poisson_solver->solve(f2LPT, u2LPT);
 			
+			//... if doing the hybrid step, we need a combined source term
 			if( bdefd )
 			{
-				f*=6.0/7.0;
-				f+=fsave;
-				fsave.deallocate();
+				f2LPT*=6.0/7.0;
+				f+=f2LPT;
+				
+				if( do_baryons )
+					f2LPT.deallocate();
 			}
 			
-			u2 *= 6.0/7.0;
-			u1 += u2;
-			//u1 = u2;
-			u2.deallocate();
+			//... add the 2LPT contribution
+			u2LPT *= 6.0/7.0;
+			u1 += u2LPT;
+			
+			if( do_baryons )
+				u2LPT.deallocate();
 			
 			grid_hierarchy data_forIO(u1);
 			for( int icoord = 0; icoord < 3; ++icoord )
@@ -625,43 +630,62 @@ int main (int argc, const char * argv[])
 			std::cout << "-------------------------------------------------------------\n";
 			LOGUSER("Computing dark matter displacements...");
 			
-			
-			//...
-			//u1 += u2;
-			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, rand, f, true, false );
-			coarsen_density(rh_Poisson, f);
-			normalize_density(f);
-			the_output_plugin->write_dm_density(f);
-			the_output_plugin->write_dm_mass(f);
-			u1 = f;	u1.zero();
-			
-			if(bdefd)
-				fsave=f;
-			
-			//... compute 1LPT term
-			err = the_poisson_solver->solve(f, u1);
-			
-			//... compute 2LPT term
-			u2 = f; u2.zero();
-			
-			if( !kspace )
-				compute_2LPT_source(u1, f, grad_order );
-			else
-				compute_2LPT_source_FFT(cf, u1, f);
-			
-			err = the_poisson_solver->solve(f, u2);
-			
-			if( bdefd )
+			//... if baryons are enabled, the displacements have to be recomputed
+			//... otherwise we can compute them directly from the velocities
+			if( do_baryons )
 			{
-				f*=3.0/7.0;
-				f+=fsave;
-				fsave.deallocate();
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, rand, f, true, false );
+				coarsen_density(rh_Poisson, f);
+				normalize_density(f);
+				the_output_plugin->write_dm_density(f);
+				the_output_plugin->write_dm_mass(f);
+				u1 = f;	u1.zero();
+				
+				if(bdefd)
+					f2LPT=f;
+				
+				//... compute 1LPT term
+				err = the_poisson_solver->solve(f, u1);
+				
+				//... compute 2LPT term
+				u2LPT = f; u2LPT.zero();
+				
+				if( !kspace )
+					compute_2LPT_source(u1, f2LPT, grad_order );
+				else
+					compute_2LPT_source_FFT(cf, u1, f2LPT);
+				
+				err = the_poisson_solver->solve(f2LPT, u2LPT);
+				
+				if( bdefd )
+				{
+					f2LPT*=3.0/7.0;
+					f+=f2LPT;
+					f2LPT.deallocate();
+				}
+				
+				u2LPT *= 3.0/7.0;
+				u1 += u2LPT;
+				u2LPT.deallocate();
+			}else{
+				//... reuse prior data
+				f-=f2LPT;
+				the_output_plugin->write_dm_density(f);
+				the_output_plugin->write_dm_mass(f);
+				f+=f2LPT;
+				
+				u2LPT *= 0.5;
+				u1 -= u2LPT;
+				u2LPT.deallocate();
+				
+				if(bdefd)
+				{
+					f2LPT *= 0.5;
+					f-=f2LPT;
+					f2LPT.deallocate();
+				}
 			}
-			
-			u2 *= 3.0/7.0;
-			u1 += u2;
-			u2.deallocate();
-			
+						
 			data_forIO = u1;
 			
 			for( int icoord = 0; icoord < 3; ++icoord )
@@ -703,17 +727,17 @@ int main (int argc, const char * argv[])
 					err = the_poisson_solver->solve(f, u1);
 					
 					//... compute 2LPT term
-					u2 = f; u2.zero();
+					u2LPT = f; u2LPT.zero();
 					
 					if( !kspace )
-						compute_2LPT_source(u1, f, grad_order );
+						compute_2LPT_source(u1, f2LPT, grad_order );
 					else
-						compute_2LPT_source_FFT(cf, u1, f);
+						compute_2LPT_source_FFT(cf, u1, f2LPT);
 					
-					err = the_poisson_solver->solve(f, u2);
-					u2 *= 3.0/7.0;
-					u1 += u2;
-					u2.deallocate();
+					err = the_poisson_solver->solve(f2LPT, u2LPT);
+					u2LPT *= 3.0/7.0;
+					u1 += u2LPT;
+					u2LPT.deallocate();
 					
 					compute_LLA_density( u1, f, grad_order );
 					normalize_density(f);

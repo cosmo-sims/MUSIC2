@@ -72,135 +72,6 @@ protected:
 	//bool bbndparticles_;
 	bool bmorethan2bnd_;
 	
-#if 0
-	void assemble_scalar( unsigned nptot, std::string ifname )
-	{
-		T_store *tmp;
-		
-		std::ifstream 
-		ifs( ifname.c_str(), std::ios::binary );
-		
-		int
-		npleft = nptot, 
-		n2read = std::min((int)block_buf_size_,npleft);
-		
-		tmp = new T_store[block_buf_size_];
-		
-		std::vector<T_store> adata;
-		adata.reserve( block_buf_size_ );
-		
-		unsigned blk;
-		ifs.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store) ){
-			delete[] tmp;
-			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
-		}
-		
-		npleft  = nptot;
-		n2read  = std::min((int)block_buf_size_,npleft);
-		int blksize = nptot*sizeof(T_store);
-		
-		ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-		while( n2read > 0 )
-		{
-			ifs.read( reinterpret_cast<char*>(&tmp[0]), n2read*sizeof(T_store) );
-			ofs_.write( reinterpret_cast<char*>(&tmp[0]), n2read*sizeof(T_store) );
-			npleft -= n2read;
-			n2read = std::min( (int)block_buf_size_,npleft );
-		}
-		ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-		
-		remove( fname.c_str() );
-		
-		
-	}
-	
-	void assemble_vector( unsigned nptot, std::string fname1, std::string fname2,std::string fname3 )
-	{
-		T_store *tmp1, *tmp2, *tmp3;
-
-		std::ifstream 
-			ifs1( fname1.c_str(), std::ios::binary ),	
-			ifs2( fname2.c_str(), std::ios::binary ),	
-			ifs3( fname3.c_str(), std::ios::binary );
-		
-		unsigned
-			npleft = nptot, 
-			n2read = std::min((int)block_buf_size_,npleft);
-		
-		
-		tmp1 = new T_store[block_buf_size_];
-		tmp2 = new T_store[block_buf_size_];
-		tmp3 = new T_store[block_buf_size_];
-		
-		std::vector<T_store> adata3;
-		adata3.reserve( 3*block_buf_size_ );
-		
-		unsigned blk;
-		ifs1.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store) ){
-			delete[] tmp1;
-			delete[] tmp2;
-			delete[] tmp3;
-			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
-		}
-			
-		
-		ifs2.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store) )
-		{	
-			delete[] tmp1;
-			delete[] tmp2;
-			delete[] tmp3;
-			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
-		}
-		
-		ifs3.read( (char *)&blk, sizeof(int) );
-		if( blk != nptot*sizeof(T_store) )
-		{	
-			delete[] tmp1;
-			delete[] tmp2;
-			delete[] tmp3;
-			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
-		}
-		
-		
-		//int blksize = 3*nptot*sizeof(T_store);
-		//ofs_.write( (char *)&blksize, sizeof(int) );
-		
-		while( n2read > 0 )
-		{
-			//ifs1.read( (char*)&tmp1[0], n2read*sizeof(T_store) );
-			ifs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
-			ifs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
-			ifs3.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
-			
-			for( int i=0; i<n2read; ++i )
-			{
-				adata3.push_back( tmp1[i] );
-				adata3.push_back( tmp2[i] );
-				adata3.push_back( tmp3[i] );
-			}
-			ofs_.write( reinterpret_cast<char*>(&adata3[0]), 3*n2read*sizeof(T_store) );
-			
-			adata3.clear();
-			npleft -= n2read;
-			n2read = std::min( (int)block_buf_size_,npleft );
-		}
-		//ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-		
-		remove( fname1.c_str() );
-		remove( fname2.c_str() );
-		remove( fname3.c_str() );
-		
-		
-		delete[] tmp1;
-		delete[] tmp2;
-		delete[] tmp3;
-		
-	}
-#endif	
-	
 	void assemble_gadget_file( void )
 	{
 		
@@ -272,6 +143,7 @@ protected:
 		
 		int fileno = 0;
 		
+		size_t npart_left = nptot;
 		
 		while( true )
 		{
@@ -450,6 +322,8 @@ protected:
 			
 			delete[] tmp1;
 			ofs_.flush();
+			
+			break;
 		}
 		
 	}
@@ -464,6 +338,9 @@ public:
 		//block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",100000);
 		//bbndparticles_  = !cf_.getValueSafe<bool>("output","gadget_nobndpart",false);
 		npartmax_ = 1<<30;
+		
+		if(!ofs_.good())
+			throw std::runtime_error("gadget-2 output plug-in could not open output file for writing!\n");
 		
 		bmorethan2bnd_ = false;
 		if( levelmax_ > levelmin_ +1)

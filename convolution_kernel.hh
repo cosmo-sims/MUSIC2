@@ -32,8 +32,8 @@
 #include "transfer_function.hh"
 
 
-#define ACC_RF(i,j,k) (((((i)+nx)%nx)*ny+(((j)+ny)%ny))*2*(nz/2+1)+(((k)+nz)%nz))
-#define ACC_RC(i,j,k) (((((i)+nxc)%nxc)*nyc+(((j)+nyc)%nyc))*2*(nzc/2+1)+(((k)+nzc)%nzc))
+#define ACC_RF(i,j,k) (((((size_t)(i)+nx)%nx)*ny+(((size_t)(j)+ny)%ny))*2*(nz/2+1)+(((size_t)(k)+nz)%nz))
+#define ACC_RC(i,j,k) (((((size_t)(i)+nxc)%nxc)*nyc+(((size_t)(j)+nyc)%nyc))*2*(nzc/2+1)+(((size_t)(k)+nzc)%nzc))
 
 namespace convolution{
 

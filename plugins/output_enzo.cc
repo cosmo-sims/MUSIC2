@@ -185,7 +185,7 @@ public:
 	
 	
 	void write_dm_density( const grid_hierarchy& gh )
-	{	/* do nothing, not needed */	
+	{	/* write the parameter file data */	
 	
 		bool bhave_hydro = cf_.getValue<bool>("setup","baryons");
 		char filename[256];

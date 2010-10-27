@@ -271,17 +271,17 @@ namespace convolution{
 						
 						
 						//... speed up 8x by copying data to other octants
-						int idx[8];
+						size_t idx[8];
 						//int nx=cparam_.nx, ny = cparam_.ny, nz = cparam_.nz;
 						
-						idx[0] = ((i)*ny + (j)) * 2*(nz/2+1) + (k);
-						idx[1] = ((nx-i)*ny + (j)) * 2*(nz/2+1) + (k);
-						idx[2] = ((i)*ny + (ny-j)) * 2*(nz/2+1) + (k);
-						idx[3] = ((nx-i)*ny + (ny-j)) * 2*(nz/2+1) + (k);
-						idx[4] = ((i)*ny + (j)) * 2*(nz/2+1) + (nz-k);
-						idx[5] = ((nx-i)*ny + (j)) * 2*(nz/2+1) + (nz-k);
-						idx[6] = ((i)*ny + (ny-j)) * 2*(nz/2+1) + (nz-k);
-						idx[7] = ((nx-i)*ny + (ny-j)) * 2*(nz/2+1) + (nz-k);
+						idx[0] = ((size_t)(i)*ny + (size_t)(j)) * 2*(size_t)(nz/2+1) + (size_t)(k);
+						idx[1] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
+						idx[2] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
+						idx[3] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
+						idx[4] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
+						idx[5] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
+						idx[6] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
+						idx[7] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
 						
 						if(i==0||i==nx/2){ idx[1]=idx[3]=idx[5]=idx[7]=-1;}
 						if(j==0||j==ny/2){ idx[2]=idx[3]=idx[6]=idx[7]=-1;}
@@ -350,7 +350,7 @@ namespace convolution{
 						if( iiy > (int)ny/2 ) iiy -= ny;
 						if( iiz > (int)nz/2 ) iiz -= nz;
 						
-						unsigned idx = (i*ny + j) * 2*(nz/2+1) + k;
+						size_t idx = ((size_t)i*ny + (size_t)j) * 2*(size_t)(nz/2+1) + (size_t)k;
 						
 						rr[0] = ((double)iix ) * dx;
 						rr[1] = ((double)iiy ) * dx;
@@ -449,7 +449,7 @@ namespace convolution{
 		{
 			
 			double ksum = 0.0;
-			unsigned kcount = 0;
+			size_t kcount = 0;
 			
 			#pragma omp parallel for reduction(+:ksum,kcount)
 			for( int i=0; i<nx; ++i )
@@ -483,7 +483,7 @@ namespace convolution{
 								ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 						}
 						
-						unsigned q  = (i*ny+j)*nzp+k;
+						size_t q  = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
 						
 						if( !cparam_.smooth )
 						{
@@ -582,7 +582,7 @@ namespace convolution{
 				for( int j=0; j<ny; ++j )
 					for( int k=0; k<nzp; ++k )
 					{
-						unsigned q  = (i*ny+j)*nzp+k;
+						size_t q  = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
 #ifdef FFTW3
 						kkernel[q][0] += dk;
 #else
@@ -662,7 +662,7 @@ namespace convolution{
 		fac =1.0;
 		
 		double kfac = 2.0*M_PI/boxlength, ksum = 0.0;
-		unsigned q=0, kcount = 0;
+		size_t kcount = 0;
 		
 		#pragma omp parallel for reduction(+:ksum,kcount)
 		for( int i=0; i<nx; ++i )
@@ -678,7 +678,7 @@ namespace convolution{
 					if( kx > nx/2 ) kx -= nx;
 					if( ky > ny/2 ) ky -= ny;
 					
-					q = (i*ny+j)*nzp+k;
+					size_t q = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
 #ifdef FFTW3
 					kdata[q][0] = fac*tfk->compute(kfac*sqrt(kx*kx+ky*ky+kz*kz));
 					kdata[q][1] = 0.0;
@@ -770,9 +770,16 @@ namespace convolution{
 		fread(	reinterpret_cast<void*> (&ny), sizeof(unsigned), 1, fp );
 		fread(	reinterpret_cast<void*> (&nz), sizeof(unsigned), 1, fp );
 		
-		kdata_.assign(nx*ny*nz,0.0);
+		kdata_.assign((size_t)nx*(size_t)ny*(size_t)nz,0.0);
+		//kdata_.assign((size_t)nx*(size_t)ny*2*((size_t)nz/2+1),0.0);
 		
-		fread( reinterpret_cast<void*>(&kdata_[0]), sizeof(fftw_real), nx*ny*nz, fp );
+		for( size_t ix=0;ix<nx; ++ix )
+		{
+			//fread( reinterpret_cast<void*>(&kdata_[0]), sizeof(fftw_real), nx*ny*nz, fp );		
+			size_t sz = ny*nz;
+			fread( reinterpret_cast<void*>(&kdata_[(size_t)ix * sz]), sizeof(fftw_real), sz, fp );			
+		}
+
 		fclose(fp);
 		
 		//... set parameters
@@ -848,7 +855,7 @@ namespace convolution{
 		
 		double 
 		kny			= M_PI/dx,
-		fac			= lx*ly*lz/pow(2.0*M_PI,3)/(nx*ny*nz),
+		fac			= lx*ly*lz/pow(2.0*M_PI,3)/((double)nx*(double)ny*(double)nz),
 		
 		nspec		= pcf_->getValue<double>("cosmology","nspec"),
 		pnorm		= pcf_->getValue<double>("cosmology","pnorm"),
@@ -864,13 +871,14 @@ namespace convolution{
 								  0.25*dx,2.0*boxlength,kny, (int)pow(2,levelmax+2));
 		
 		
-		fftw_real *rkernel = new fftw_real[nx*ny*2*(nz/2+1)], *rkernel_coarse;
+		fftw_real *rkernel = new fftw_real[(size_t)nx*(size_t)ny*2*((size_t)nz/2+1)], *rkernel_coarse;
 		
+		#pragma omp parallel for
 		for( int i=0; i<nx; ++i )
 			for( int j=0; j<ny; ++j )
 				for( int k=0; k<nz; ++k )
 				{
-					int q=((i)*ny + (j)) * 2*(nz/2+1) + (k);
+					size_t q=((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
 					rkernel[q] = 0.0;
 					
 				}
@@ -895,20 +903,20 @@ namespace convolution{
 						
 						
 						//... speed up 8x by copying data to other octants
-						int idx[8];
+						size_t idx[8];
 						
-						idx[0] = ((i)*ny + (j)) * 2*(nz/2+1) + (k);
-						idx[1] = ((nx-i)*ny + (j)) * 2*(nz/2+1) + (k);
-						idx[2] = ((i)*ny + (ny-j)) * 2*(nz/2+1) + (k);
-						idx[3] = ((nx-i)*ny + (ny-j)) * 2*(nz/2+1) + (k);
-						idx[4] = ((i)*ny + (j)) * 2*(nz/2+1) + (nz-k);
-						idx[5] = ((nx-i)*ny + (j)) * 2*(nz/2+1) + (nz-k);
-						idx[6] = ((i)*ny + (ny-j)) * 2*(nz/2+1) + (nz-k);
-						idx[7] = ((nx-i)*ny + (ny-j)) * 2*(nz/2+1) + (nz-k);
+						idx[0] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
+						idx[1] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
+						idx[2] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
+						idx[3] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
+						idx[4] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
+						idx[5] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
+						idx[6] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
+						idx[7] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
 						
-						if(i==0||i==nx/2){ idx[1]=idx[3]=idx[5]=idx[7]=-1;}
-						if(j==0||j==ny/2){ idx[2]=idx[3]=idx[6]=idx[7]=-1;}
-						if(k==0||k==nz/2){ idx[4]=idx[5]=idx[6]=idx[7]=-1;}
+						if(i==0||i==nx/2){ idx[1]=idx[3]=idx[5]=idx[7]=(size_t)-1;}
+						if(j==0||j==ny/2){ idx[2]=idx[3]=idx[6]=idx[7]=(size_t)-1;}
+						if(k==0||k==nz/2){ idx[4]=idx[5]=idx[6]=idx[7]=(size_t)-1;}
 						
 						double val = 0.0;
 						
@@ -932,7 +940,7 @@ namespace convolution{
 						val *= fac;
 						
 						for(int q=0;q<8;++q)
-							if(idx[q]!=-1)  
+							if(idx[q]!=(size_t)-1)  
 								rkernel[idx[q]] = val;	
 					}
 			
@@ -949,7 +957,7 @@ namespace convolution{
 						if( iiy > (int)ny/2 ) iiy -= ny;
 						if( iiz > (int)nz/2 ) iiz -= nz;
 						
-						unsigned idx = (i*ny + j) * 2*(nz/2+1) + k;
+						size_t idx = ((size_t)i*ny + (size_t)j) * 2*(nz/2+1) + (size_t)k;
 						
 						rr[0] = ((double)iix ) * dx;
 						rr[1] = ((double)iiy ) * dx;
@@ -980,7 +988,7 @@ namespace convolution{
 			bool kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
 							 pcf_->getValueSafe<bool>("poisson","kspace",false));
 			
-			double fftnorm = 1.0/(nx*ny*nz);
+			double fftnorm = 1.0/((size_t)nx*(size_t)ny*(size_t)nz);
 			double k0 = rkernel[0];
 			
 			fftw_complex	*kkernel	= reinterpret_cast<fftw_complex*>( &rkernel[0] );
@@ -1007,7 +1015,7 @@ namespace convolution{
 			{
 				
 				double ksum = 0.0;
-				unsigned kcount = 0;
+				size_t kcount = 0;
 				double kmax = 0.5*M_PI/std::max(nx,std::max(ny,nz));
 				
 				#pragma omp parallel for reduction(+:ksum,kcount)
@@ -1026,7 +1034,7 @@ namespace convolution{
 							
 							
 							double kkmax = kmax;
-							unsigned q  = (i*ny+j)*(nz/2+1)+k;
+							size_t q  = ((size_t)i*ny+(size_t)j)*(nz/2+1)+(size_t)k;
 							
 							if( true )//!cparam_.smooth )
 							{
@@ -1119,7 +1127,7 @@ namespace convolution{
 					for( int j=0; j<ny; ++j )
 						for( int k=0; k<(nz/2+1); ++k )
 						{
-							unsigned q  = (i*ny+j)*(nz/2+1)+k;
+							size_t q  = ((size_t)i*ny+(size_t)j)*(nz/2+1)+(size_t)k;
 #ifdef FFTW3
 							kkernel[q][0] += dk;
 							
@@ -1168,7 +1176,18 @@ namespace convolution{
 		fwrite(	reinterpret_cast<void*> (&q), sizeof(unsigned), 1, fp );
 		q = 2*(nz/2+1);
 		fwrite(	reinterpret_cast<void*> (&q), sizeof(unsigned), 1, fp );
-		fwrite( reinterpret_cast<void*>(&rkernel[0]), sizeof(fftw_real), nx*ny*2*(nz/2+1), fp );
+		
+		
+		for( int ix=0; ix<nx; ++ix )
+		{
+			size_t sz = ny*2*(nz/2+1);
+			//fwrite( reinterpret_cast<void*>(&rkernel[0]), sizeof(fftw_real), nx*ny*2*(nz/2+1), fp );			
+			fwrite( reinterpret_cast<void*>(&rkernel[(size_t)ix * sz]), sizeof(fftw_real), sz, fp );			
+		}
+
+		
+		
+		
 		fclose(fp);
 		
 		//... average and fill for other levels
@@ -1196,8 +1215,8 @@ namespace convolution{
 			lyc = dxc * nyc;
 			lzc = dxc * nzc;
 			
-			rkernel_coarse = new fftw_real[nxc*nyc*2*(nzc/2+1)];
-			fac			= lxc*lyc*lzc/pow(2.0*M_PI,3)/(nxc*nyc*nzc);
+			rkernel_coarse = new fftw_real[(size_t)nxc*(size_t)nyc*2*((size_t)nzc/2+1)];
+			fac			= lxc*lyc*lzc/pow(2.0*M_PI,3)/((double)nxc*(double)nyc*(double)nzc);
 			
 			if( bperiodic  )
 			{		
@@ -1214,20 +1233,20 @@ namespace convolution{
 							if( iiz > (int)nzc/2 ) iiz -= nzc;
 							
 							//... speed up 8x by copying data to other octants
-							int idx[8];
+							size_t idx[8];
 							
-							idx[0] = ((i)*nyc + (j)) * 2*(nzc/2+1) + (k);
-							idx[1] = ((nxc-i)*nyc + (j)) * 2*(nzc/2+1) + (k);
-							idx[2] = ((i)*nyc + (nyc-j)) * 2*(nzc/2+1) + (k);
-							idx[3] = ((nxc-i)*nyc + (nyc-j)) * 2*(nzc/2+1) + (k);
-							idx[4] = ((i)*nyc + (j)) * 2*(nzc/2+1) + (nzc-k);
-							idx[5] = ((nxc-i)*nyc + (j)) * 2*(nzc/2+1) + (nzc-k);
-							idx[6] = ((i)*nyc + (nyc-j)) * 2*(nzc/2+1) + (nzc-k);
-							idx[7] = ((nxc-i)*nyc + (nyc-j)) * 2*(nzc/2+1) + (nzc-k);
+							idx[0] = ((size_t)(i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(k);
+							idx[1] = ((size_t)(nxc-i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(k);
+							idx[2] = ((size_t)(i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(k);
+							idx[3] = ((size_t)(nxc-i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(k);
+							idx[4] = ((size_t)(i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
+							idx[5] = ((size_t)(nxc-i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
+							idx[6] = ((size_t)(i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
+							idx[7] = ((size_t)(nxc-i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
 							
-							if(i==0||i==nxc/2){ idx[1]=idx[3]=idx[5]=idx[7]=-1;}
-							if(j==0||j==nyc/2){ idx[2]=idx[3]=idx[6]=idx[7]=-1;}
-							if(k==0||k==nzc/2){ idx[4]=idx[5]=idx[6]=idx[7]=-1;}
+							if(i==0||i==nxc/2){ idx[1]=idx[3]=idx[5]=idx[7]=(size_t)-1;}
+							if(j==0||j==nyc/2){ idx[2]=idx[3]=idx[6]=idx[7]=(size_t)-1;}
+							if(k==0||k==nzc/2){ idx[4]=idx[5]=idx[6]=idx[7]=(size_t)-1;}
 							
 							double val = 0.0;
 							
@@ -1251,7 +1270,7 @@ namespace convolution{
 							val *= fac;
 							
 							for(int qq=0;qq<8;++qq)
-								if(idx[qq]!=-1)  
+								if(idx[qq]!=(size_t)-1)  
 									rkernel_coarse[idx[qq]] = val;	
 						}
 				
@@ -1268,7 +1287,7 @@ namespace convolution{
 							if( iiy > (int)nyc/2 ) iiy -= nyc;
 							if( iiz > (int)nzc/2 ) iiz -= nzc;
 							
-							unsigned idx = (i*nyc + j) * 2*(nzc/2+1) + k;
+							size_t idx = ((size_t)i*nyc + (size_t)j) * 2*(nzc/2+1) + (size_t)k;
 							
 							rr[0] = ((double)iix ) * dxc;
 							rr[1] = ((double)iiy ) * dxc;
@@ -1286,6 +1305,7 @@ namespace convolution{
 			LOGUSER("Averaging fine kernel to coarse kernel...");
 
 			//... copy averaged and convolved fine kernel to coarse kernel
+			#pragma omp parallel for
 			for( int ix=0; ix<nx; ix+=2 )
 				for( int iy=0; iy<ny; iy+=2 )
 					for( int iz=0; iz<nz; iz+=2 )
@@ -1329,7 +1349,14 @@ namespace convolution{
 			fwrite(	reinterpret_cast<void*> (&q), sizeof(unsigned), 1, fp );
 			q = 2*(nzc/2+1);
 			fwrite(	reinterpret_cast<void*> (&q), sizeof(unsigned), 1, fp );
-			fwrite( reinterpret_cast<void*>(&rkernel_coarse[0]), sizeof(fftw_real), nxc*nyc*2*(nzc/2+1), fp );
+			
+			for( int ix=0; ix<nxc; ++ix )
+			{
+				size_t sz = nyc*2*(nzc/2+1);
+				//fwrite( reinterpret_cast<void*>(&rkernel_coarse[0]), sizeof(fftw_real), nxc*nyc*2*(nzc/2+1), fp );
+				fwrite( reinterpret_cast<void*>(&rkernel_coarse[ix*sz]), sizeof(fftw_real), sz, fp );
+			}
+			
 			fclose(fp);
 			
 			delete[] rkernel;

@@ -1207,6 +1207,7 @@ protected:
 				std::vector<T> fine_rand( 2*nyf*nzf, 0.0 );
 				iffine.read( reinterpret_cast<char*> (&fine_rand[0]), 2*nyf*nzf*sizeof(T) );
 				
+				#pragma omp parallel for
 				for( int j=0; j<nyf; j+=2 )
 					for( int k=0; k<nzf; k+=2 )
 					{
@@ -1237,7 +1238,7 @@ protected:
 			dj = i0f[1]/2-i0c[1];
 			dk = i0f[2]/2-i0c[2];
 			
-#pragma omp parallel for
+			#pragma omp parallel for
 			for( int i=0; i<nxd; i++ )
 				for( int j=0; j<nyd; j++ )
 					for( int k=0; k<nzd; k++ )
@@ -1631,11 +1632,13 @@ public:
 			for( int i=0; i<nx; ++i )
 			{
 				std::vector<T> slice( ny*nz, 0.0 );
-				ifs.read( reinterpret_cast<char*> ( &slice[0] ), nx*nz*sizeof(T) );
+				ifs.read( reinterpret_cast<char*> ( &slice[0] ), ny*nz*sizeof(T) );
 				
+				#pragma omp parallel for
 				for( int j=0; j<ny; ++j )
 					for( int k=0; k<nz; ++k )
 						A(i,j,k) = slice[j*nz+k];
+				
 			}		
 			ifs.close();	
 		}
@@ -1654,10 +1657,15 @@ public:
 				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");
 			}
 			
+			#pragma omp parallel for
 			for( int i=0; i<nx; ++i )
 				for( int j=0; j<ny; ++j )
 					for( int k=0; k<nz; ++k )
-						A(i,j,k) = (*mem_cache_[ilevel-levelmin_])[(i*ny+j)*nz+k];
+						A(i,j,k) = (*mem_cache_[ilevel-levelmin_])[((size_t)i*ny+(size_t)j)*nz+(size_t)k];
+			
+			std::vector<T>().swap( *mem_cache_[ilevel-levelmin_] );
+			delete mem_cache_[ilevel-levelmin_];
+			mem_cache_[ilevel-levelmin_] = NULL;
 			
 		}
 

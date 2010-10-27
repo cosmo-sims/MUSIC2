@@ -50,7 +50,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.7.0a"
+#define THE_CODE_VERSION "0.7.1a"
 
 
 namespace music
@@ -187,42 +187,6 @@ void store_grid_structure( config_file& cf, const refinement_hierarchy& rh )
 			cf.insertValue("setup",str1,str2);
 			
 		}		
-	}
-}
-
-//... this is just for testing purposes ...
-void compute_Lu( const grid_hierarchy& u, grid_hierarchy& Du )
-{
-	Du = u;
-	
-	for( unsigned ilevel=u.levelmin(); ilevel<=u.levelmax(); ++ilevel )
-	{
-		double h = pow(2.0,ilevel);
-		h = h*h;
-		meshvar_bnd *pvar = Du.get_grid(ilevel);
-		
-		/*#pragma omp parallel for
-		for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
-			for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
-				for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
-					(*pvar)(ix,iy,iz) = -((*u.get_grid(ilevel))(ix+1,iy,iz)+(*u.get_grid(ilevel))(ix-1,iy,iz)+
-										 (*u.get_grid(ilevel))(ix,iy+1,iz)+(*u.get_grid(ilevel))(ix,iy-1,iz)+
-										 (*u.get_grid(ilevel))(ix,iy,iz+1)+(*u.get_grid(ilevel))(ix,iy,iz-1)-
-										 6.0*(*u.get_grid(ilevel))(ix,iy,iz))*h;
-		 */
-		
-	/*#pragma omp parallel for
-		for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
-			for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
-				for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
-					(*pvar)(ix,iy,iz) = -stencil_13P<double>().apply(*u.get_grid(ilevel),ix,iy,iz)*h;
-	*/	
-	
-	#pragma omp parallel for
-		for( int ix = 0; ix < (int)(*u.get_grid(ilevel)).size(0); ++ix )
-			for( int iy = 0; iy < (int)(*u.get_grid(ilevel)).size(1); ++iy )
-				for( int iz = 0; iz < (int)(*u.get_grid(ilevel)).size(2); ++iz )
-					(*pvar)(ix,iy,iz) = -stencil_19P<double>().apply(*u.get_grid(ilevel),ix,iy,iz)*h;
 	}
 }
 
@@ -429,13 +393,10 @@ int main (int argc, const char * argv[])
 		do_CVM		= cf.getValueSafe<bool>("setup","center_velocities",false);
 	
 
+	//... determine the refinement hierarchy
 	refinement_hierarchy rh_Poisson( cf );
 	store_grid_structure(cf, rh_Poisson);
 	rh_Poisson.output();
-	
-
-	
-	
 	
 	refinement_hierarchy rh_TF( rh_Poisson );
 	modify_grid_for_TF( rh_Poisson, rh_TF, cf );
@@ -453,12 +414,11 @@ int main (int argc, const char * argv[])
 					<< "            Perturbation amplitudes will be identical!" << std::endl;
 	
 	
-	//... initialize the random numbers
-	rand_gen rand( cf, rh_TF );
-	
 	//... initialize the output plug-in
 	output_plugin *the_output_plugin = select_output_plugin( cf );
 	
+	//... initialize the random numbers
+	rand_gen rand( cf, rh_TF );
 	
 	//... initialize the Poisson solver
 	poisson_plugin_creator *the_poisson_plugin_creator = get_poisson_plugin_map()[ poisson_solver_name ];

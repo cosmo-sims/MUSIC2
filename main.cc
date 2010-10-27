@@ -343,7 +343,7 @@ int main (int argc, const char * argv[])
 	
 	unsigned grad_order = cf.getValueSafe<unsigned> ( "poisson" , "grad_order", 4 );
 
-	bool bdefd = cf.getValueSafe<bool> ( "poisson" , "fft_fine", false );
+	bool bdefd = cf.getValueSafe<bool> ( "poisson" , "fft_fine", true );
 	
 	//... if in unigrid mode, use k-space instead
 	//if(bdefd&lbase==lmax)

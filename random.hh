@@ -1108,6 +1108,7 @@ protected:
 			if( pcf_->containsKey( "random", seedstr ) )
 				tempstr = pcf_->getValue<std::string>( "random", seedstr );
 			else
+				// "-2" means that no seed entry was found for that level
 				tempstr = std::string("-2");
 			
 			if( is_number( tempstr ) )
@@ -1116,7 +1117,8 @@ protected:
 				pcf_->convert( tempstr, ltemp );
 				rngfnames_.push_back( "" );
 				if( ltemp < 0 )
-					//... generate some dummy seed which only depends on the level 
+					//... generate some dummy seed which only depends on the level, negative so we know it's not
+					//... an actual seed and thus should not be used as a constraint for coarse levels
 					rngseeds_.push_back( -abs((unsigned)(ltemp-i)%123+(unsigned)(ltemp+827342523521*i)%123456789) );
 				else
 					rngseeds_.push_back( ltemp );

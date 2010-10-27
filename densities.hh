@@ -88,7 +88,7 @@ public:
 	DensityGrid( unsigned nx, unsigned ny, unsigned nz )
 	: nx_(nx), ny_(ny), nz_(nz)
 	{
-		data_.assign(nx_*ny_*2*(nz_/2+1),0.0);
+		data_.assign((size_t)nx_*(size_t)ny_*2*((size_t)nz_/2+1),0.0);
 		nzp_ = 2*(nz_/2+1);
 	}
 	
@@ -147,11 +147,11 @@ public:
 	
 	//! 3D index based data access operator
 	inline real_t& operator()( int i, int j, int k )
-	{	return data_[(i*ny_+j)*nzp_+k]; 	}
+	{	return data_[((size_t)i*ny_+(size_t)j)*nzp_+(size_t)k]; 	}
 	
 	//! 3D index based const data access operator 
 	inline const real_t& operator()( int i, int j, int k ) const
-	{	return data_[(i*ny_+j)*nzp_+k]; 	}
+	{	return data_[((size_t)i*ny_+(size_t)j)*nzp_+(size_t)k]; 	}
 	
 	//! recover the pointer to the 1D data array
 	inline real_t * get_data_ptr( void )
@@ -198,6 +198,7 @@ public:
 	template< class array3 >
 	void copy( array3& v )
 	{
+		#pragma omp parallel for
 		for( int ix=0; ix<(int)nx_; ++ix )
 			for( int iy=0; iy<(int)ny_; ++iy )	
 				for( int iz=0; iz<(int)nz_; ++iz )
@@ -209,6 +210,7 @@ public:
 	template< class array3 >
 	void copy_add( array3& v )
 	{
+		#pragma omp parallel for
 		for( int ix=0; ix<(int)nx_; ++ix )
 			for( int iy=0; iy<(int)ny_; ++iy )	
 				for( int iz=0; iz<(int)nz_; ++iz )
@@ -223,6 +225,7 @@ public:
 		double sum = 0.0;
 		unsigned count = 0;
 		
+		#pragma omp parallel for reduction(+:sum,count)
 		for( int i=0; i<nx_; i++ )
 			for( int j=0; j<ny_; j++ )
 				for( int k=0; k<nz_; k++ )
@@ -233,7 +236,7 @@ public:
 		sum /= count;
 		
 					
-					
+		#pragma omp parallel for
 		for( int i=0; i<nx_; i++ )
 			for( int j=0; j<ny_; j++ )
 				for( int k=0; k<nz_; k++ )
@@ -249,6 +252,7 @@ public:
 	 */
 	void subtract_oct_mean( void )
 	{
+		#pragma omp parallel for
 		for( int i=0; i<nx_; i+=2 )
 			for( int j=0; j<ny_; j+=2 )
 				for( int k=0; k<nz_; k+=2 )
@@ -273,6 +277,7 @@ public:
 	//! replaces the value of all cells in an oct with the average value of the oct
 	void set_to_oct_mean( void )
 	{
+		#pragma omp parallel for
 		for( int i=0; i<nx_; i+=2 )
 			for( int j=0; j<ny_; j+=2 )
 				for( int k=0; k<nz_; k+=2 )
@@ -298,6 +303,7 @@ public:
 	void zero_subgrid( unsigned oxsub, unsigned oysub, unsigned ozsub, unsigned lxsub, unsigned lysub, unsigned lzsub )
 	{
 		//... correct offsets for padding (not needed for top grid)
+		#pragma omp parallel for
 		for( int ix=oxsub; ix<(int)(oxsub+lxsub); ++ix )
 			for( int iy=oysub; iy<(int)(oysub+lysub); ++iy )	
 				for( int iz=ozsub; iz<(int)(ozsub+lzsub); ++iz )
@@ -316,6 +322,8 @@ public:
 		lxsub *= 2;
 		lysub *= 2;
 		lzsub *= 2;
+		
+		#pragma omp parallel for
 		for( int ix=oxsub; ix<(int)(oxsub+lxsub); ++ix )
 			for( int iy=oysub; iy<(int)(oysub+lysub); ++iy )	
 				for( int iz=ozsub; iz<(int)(ozsub+lzsub); ++iz )
@@ -334,6 +342,7 @@ public:
 		lysub *= 2;
 		lzsub *= 2;
 		
+		#pragma omp parallel for
 		for( int ix=0; ix<nx_; ++ix )
 			for( int iy=0; iy<ny_; ++iy )
 				for( int iz=0; iz<nz_; ++iz )		
@@ -349,6 +358,7 @@ public:
 	//! sets the field to zero outside of a rectangular box
 	void zero_but_subgrid( int oxsub, int oysub, int ozsub, int lxsub, int lysub, int lzsub )
 	{
+		#pragma omp parallel for
 		for( int ix=0; ix<nx_; ++ix )
 			for( int iy=0; iy<ny_; ++iy )
 				for( int iz=0; iz<nz_; ++iz )		
@@ -367,6 +377,7 @@ public:
 		//... correct offsets for padding (not needed for top grid)
 		
 		// zero the subgrid
+		#pragma omp parallel for
 		for( int ix=oxsub; ix<(int)(oxsub+lxsub); ++ix )
 			for( int iy=oysub; iy<(int)(oysub+lysub); ++iy )	
 				for( int iz=ozsub; iz<(int)(ozsub+lzsub); ++iz )
@@ -381,37 +392,44 @@ public:
 		
 		// zero the outside, except the boundary
 		//#pragma parallel nowait
-		{
-			
+		//{
+		#pragma omp parallel for
 		for( int ix=0; ix<oxsub; ++ix )
 			for( int iy=0; iy<ny_; ++iy )
 				for( int iz=0; iz<nz_; ++iz )
 					(*this)(ix,iy,iz) = 0.0;
-			
+		
+		#pragma omp parallel for
 		for( int ix=oxsub+lxsub; ix<nx_; ++ix )
 			for( int iy=0; iy<ny_; ++iy )
 				for( int iz=0; iz<nz_; ++iz )
 					(*this)(ix,iy,iz) = 0.0;
 		
+		#pragma omp parallel for
 		for( int ix=0; ix<nx_; ++ix )
 			for( int iy=0; iy<oysub; ++iy )
 				for( int iz=0; iz<nz_; ++iz )
 					(*this)(ix,iy,iz) = 0.0;
+			
+		#pragma omp parallel for
 		for( int ix=0; ix<nx_; ++ix )
 			for( int iy=oysub+lysub; iy<ny_; ++iy )
 				for( int iz=0; iz<nz_; ++iz )
 					(*this)(ix,iy,iz) = 0.0;
 		
+		#pragma omp parallel for
 		for( int ix=0; ix<nx_; ++ix )
 			for( int iy=0; iy<ny_; ++iy )
 				for( int iz=0; iz<ozsub; ++iz )
 					(*this)(ix,iy,iz) = 0.0;
+		
+		#pragma omp parallel for
 		for( int ix=0; ix<nx_; ++ix )
 			for( int iy=0; iy<ny_; ++iy )
 				for( int iz=ozsub+lzsub; iz<nz_; ++iz )
 					(*this)(ix,iy,iz) = 0.0;
 		
-		}
+		//}
 		
 	}
 	
@@ -469,6 +487,7 @@ public:
 		ozsub += nz_/4;
 		
 		//... correct offsets for padding (not needed for top grid)
+		#pragma omp parallel for
 		for( int ix=oxsub; ix<(int)(oxsub+lxsub); ++ix )
 			for( int iy=oysub; iy<(int)(oysub+lysub); ++iy )	
 				for( int iz=ozsub; iz<(int)(ozsub+lzsub); ++iz )
@@ -484,6 +503,7 @@ public:
 		oysub += ny_/4;
 		ozsub += nz_/4;
 		
+		#pragma omp parallel for
 		for( int ix=oxsub; ix<(int)(oxsub+lxsub); ++ix )
 			for( int iy=oysub; iy<(int)(oysub+lysub); ++iy )	
 				for( int iz=ozsub; iz<(int)(ozsub+lzsub); ++iz )
@@ -504,6 +524,7 @@ public:
 		//lzsub += nx_/4;
 		
 		// zero the subgrid
+		#pragma omp parallel for
 		for( int ix=oxsub; ix<(int)(oxsub+lxsub); ++ix )
 			for( int iy=oysub; iy<(int)(oysub+lysub); ++iy )	
 				for( int iz=ozsub; iz<(int)(ozsub+lzsub); ++iz )
@@ -556,6 +577,7 @@ public:
 	template< class array3 >
 	void upload_bnd_add( array3& top )
 	{
+		#pragma omp parallel for
 		for( int ix=0; ix<nx_; ix+=2 )
 			for( int iy=0; iy<ny_; iy+=2 )
 				for( int iz=0; iz<nz_; iz+=2 )
@@ -735,7 +757,7 @@ public:
 	}
 	
 	
-	double oct_mean( int i, int j, int k )
+	inline double oct_mean( int i, int j, int k )
 	{
 		
 		return 0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)

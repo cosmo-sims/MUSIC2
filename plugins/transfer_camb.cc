@@ -135,6 +135,7 @@ public:
 		gsl_spline_init (spline_baryon, &m_tab_k[0], &m_tab_Tk_baryon[0], m_tab_k.size() );
 		
 		tf_distinct_ = true;
+		tf_withvel_  = false;
 	}
 	
 	~transfer_CAMB_plugin()

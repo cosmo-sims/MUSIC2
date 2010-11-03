@@ -186,7 +186,10 @@ public:
 		TFset_parameters( (cosmo_.Omega_m)*cosmo_.H0*cosmo_.H0*(0.01*0.01), 
 						 cosmo_.Omega_b/(cosmo_.Omega_m-cosmo_.Omega_b),//-aCosm.Omega_b), 
 						 Tcmb);
+		
+		std::cerr << "CHECK!!\n";
 		tf_distinct_ = false;
+		tf_withvel_  = false;
 	}
 	
 	//! Computes the transfer function for k in Mpc/h by calling TFfit_onek

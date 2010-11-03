@@ -978,15 +978,19 @@ namespace convolution{
 		/*************************************************************************************/
 		/*************************************************************************************/
 		/******* perform deconvolution *******************************************************/
-		
-		if( pcf_->getValueSafe<bool>("setup","deconvolve",true) )
+		bool deconv = pcf_->getValueSafe<bool>("setup","deconvolve",true);
+		bool deconv_baryons = pcf_->getValueSafe<bool>("setup","deconvolve_baryons",false);
+		bool bsmooth_baryons = false;//type==baryon;// && !deconv_baryons;
+		bool baryons = type==baryon||type==vbaryon;
+		//if( deconv )
+		if( deconv && !(type==baryon&&!deconv_baryons) )
 		{
 				
 			LOGUSER("Deconvolving fine kernel...");
 			std::cout << " - Deconvoling density kernel...\n";
 			
-			bool kspacepoisson = (pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
-							 pcf_->getValueSafe<bool>("poisson","kspace",false));
+			bool kspacepoisson = ((pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
+							 pcf_->getValueSafe<bool>("poisson","kspace",false)))&!baryons ;
 			
 			double fftnorm = 1.0/((size_t)nx*(size_t)ny*(size_t)nz);
 			double k0 = rkernel[0];
@@ -994,7 +998,8 @@ namespace convolution{
 			fftw_complex	*kkernel	= reinterpret_cast<fftw_complex*>( &rkernel[0] );
 			
 			//... subtract white noise component before deconvolution
-			rkernel[0] = 0.0;
+			if(!bsmooth_baryons)
+				rkernel[0] = 0.0;
 			
 #ifdef FFTW3
 			fftw_plan 
@@ -1036,7 +1041,7 @@ namespace convolution{
 							double kkmax = kmax;
 							size_t q  = ((size_t)i*ny+(size_t)j)*(nz/2+1)+(size_t)k;
 							
-							if( true )//!cparam_.smooth )
+							if( !bsmooth_baryons )
 							{
 								if( kspacepoisson )
 								{
@@ -1070,9 +1075,14 @@ namespace convolution{
 									kkernel[q].im *= ipix;
 #endif
 								}
-							}else{
+							}
+#if 1					
+							else{
 								//... if smooth==true, convolve with 
 								//... NGP kernel to get CIC smoothness
+								
+								//kkmax *= 2.0;
+								
 								double ipix = 1.0;
 								if( i > 0 )
 									ipix /= sin(kx*2.0*kkmax)/(kx*2.0*kkmax);
@@ -1089,7 +1099,7 @@ namespace convolution{
 								kkernel[q].im /= ipix;
 #endif	
 							}
-							
+#endif
 							//... store k-space average
 #ifdef FFTW3
 							if( k==0 || k==nz/2 )
@@ -1118,7 +1128,8 @@ namespace convolution{
 				dk = k0-ksum/kcount;
 				
 				//... set white noise component to zero if smoothing is enabled
-				if( false )//cparam_.smooth )
+				//if( false )//cparam_.smooth )
+				if( bsmooth_baryons )
 					dk = 0.0;
 				
 				//... enforce the r=0 component by adjusting the k-space mean

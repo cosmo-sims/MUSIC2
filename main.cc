@@ -438,6 +438,10 @@ int main (int argc, const char * argv[])
 			LOGUSER("Computing dark matter displacements...");
 			
 			grid_hierarchy f( nbnd ), u(nbnd);
+			tf_type my_tf_type = cdm;
+			if( !do_baryons || !the_transfer_function_plugin->tf_is_distinct() )
+				my_tf_type = total;
+			
 			
 			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, rand, f, true, false );
 			coarsen_density(rh_Poisson, f);
@@ -507,45 +511,122 @@ int main (int argc, const char * argv[])
 			LOGUSER("Computing velocitites...");
 			
 			//... velocities
-			if( do_baryons )
+			if( !the_transfer_function_plugin->tf_has_velocities() || !do_baryons )
+			{			
+				if( do_baryons )
+				{
+					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, rand, f, true, false );
+					coarsen_density(rh_Poisson, f);
+					normalize_density(f);
+					
+					u = f;	u.zero();
+					
+					err = the_poisson_solver->solve(f, u);
+					
+					if(!bdefd)
+						f.deallocate();
+				}
+				grid_hierarchy data_forIO(u);
+				for( int icoord = 0; icoord < 3; ++icoord )
+				{
+					//... displacement
+					if(bdefd)
+					{
+						data_forIO.zero();
+						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
+						the_poisson_solver->gradient_add(icoord, u, data_forIO );
+					}
+					else 
+						the_poisson_solver->gradient(icoord, u, data_forIO );
+					
+					//... multiply to get velocity
+					data_forIO *= cosmo.vfact;
+					
+					if(do_CVM)
+						subtract_finest_mean(data_forIO);
+					
+					the_output_plugin->write_dm_velocity(icoord, data_forIO);
+					if( do_baryons )
+						the_output_plugin->write_gas_velocity(icoord, data_forIO);
+				}
+				
+			}
+			else
 			{
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, rand, f, true, false );
+				//... we do baryons and have velocity transfer functions
+				//... do DM first
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vcdm , rh_TF, rand, f, true, false );
+				//GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vcdm , rh_TF, rand, f, false, false );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
 				u = f;	u.zero();
-					
+				
 				err = the_poisson_solver->solve(f, u);
 				
 				if(!bdefd)
 					f.deallocate();
-			}
-			grid_hierarchy data_forIO(u);
-			for( int icoord = 0; icoord < 3; ++icoord )
-			{
-				//... displacement
-				if(bdefd)
+				
+				grid_hierarchy data_forIO(u);
+				for( int icoord = 0; icoord < 3; ++icoord )
 				{
-					data_forIO.zero();
-					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
-					*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
-					the_poisson_solver->gradient_add(icoord, u, data_forIO );
+					//... displacement
+					if(bdefd)
+					{
+						data_forIO.zero();
+						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
+						the_poisson_solver->gradient_add(icoord, u, data_forIO );
+					}
+					else 
+						the_poisson_solver->gradient(icoord, u, data_forIO );
+					
+					//... multiply to get velocity
+					data_forIO *= cosmo.vfact;
+					
+					//... we have two velocity contributions, can't do averaging at the moment
+					//if(do_CVM)
+					//	subtract_finest_mean(data_forIO);
+					
+					the_output_plugin->write_dm_velocity(icoord, data_forIO);
 				}
-				else 
+				data_forIO.deallocate();
+				
+				//... do baryons
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vbaryon , rh_TF, rand, f, false, false );
+				coarsen_density(rh_Poisson, f);
+				normalize_density(f);
+				
+				u = f;	u.zero();
+				
+				err = the_poisson_solver->solve(f, u);
+				
+				//if(!bdefd)
+				f.deallocate();
+				
+				data_forIO = u;
+				for( int icoord = 0; icoord < 3; ++icoord )
+				{
+					//... displacement
 					the_poisson_solver->gradient(icoord, u, data_forIO );
-
-				//... multiply to get velocity
-				data_forIO *= cosmo.vfact;
-				
-				if(do_CVM)
-					subtract_finest_mean(data_forIO);
-				
-				the_output_plugin->write_dm_velocity(icoord, data_forIO);
-				if( do_baryons )
+					
+					//... multiply to get velocity
+					data_forIO *= cosmo.vfact;
+					
+					//... we have two velocity contributions, can't do averaging at the moment
+					//if(do_CVM)
+					//	subtract_finest_mean(data_forIO);
+					
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
+				}
 			}
-		
+		/*********************************************************************************************/
+		/*********************************************************************************************/
+		/*** 2LPT ************************************************************************************/
+		/*********************************************************************************************/
 		}else {
 			//.. use 2LPT ...
 			LOGUSER("Entering 2LPT branch");

@@ -46,7 +46,7 @@
 #include "config_file.hh"
 
 enum tf_type{
-	total, cdm, baryon
+	total, cdm, baryon, vcdm, vbaryon
 };
 
 //! Abstract base class for transfer functions
@@ -58,7 +58,8 @@ class transfer_function_plugin{
 public:
 	Cosmology cosmo_;		//!< cosmological parameter, read from config_file
 	config_file *pcf_;		//!< pointer to config_file from which to read parameters
-	bool tf_distinct_;		//!< bool if transfer function is distinct for baryons and DM
+	bool tf_distinct_;		//!< bool if density transfer function is distinct for baryons and DM
+	bool tf_withvel_;		//!< bool if also have velocity transfer functions
 	
 public:
 	
@@ -89,9 +90,13 @@ public:
 	//! return minimum wave number allowed
 	virtual double get_kmin( void ) = 0;
 	
-	//! return if transfer function is distinct for baryons and DM
+	//! return if density transfer function is distinct for baryons and DM
 	bool tf_is_distinct( void )
 	{	return tf_distinct_;	}
+	
+	//! return if we also have velocity transfer functions
+	bool tf_has_velocities( void )
+	{	return tf_withvel_; }
 };
 
 
@@ -278,7 +283,7 @@ protected:
 			in[i][1] = 0.0;
 			
 			sum_in += in[i][0];	
-			ofsk << std::setw(16) << k <<std::setw(16) << in[i][0] << std::endl;
+			ofsk << std::setw(16) << k <<std::setw(16) << in[i][0] << std::setw(16) << T << std::endl;
 #else
 			
 #ifdef XI_SAMPLE
@@ -289,7 +294,7 @@ protected:
 			in[i].im = 0.0;
 			
 			sum_in += in[i].re;
-			ofsk << std::setw(16) << k <<std::setw(16) << in[i].re << std::endl;
+			ofsk << std::setw(16) << k <<std::setw(16) << in[i].re << std::setw(16) << T << std::endl;
 #endif
 			
 		}
@@ -509,43 +514,6 @@ public:
 			Tr0_ = res;
 		}
 		
-#if 0
-		{
-			double sum = 0.0;
-			unsigned long long count = 0;
-			
-			int nf2 = nfull/2;
-			double dk = 2.0*M_PI/boxlength;
-			
-			#pragma omp parallel for reduction(+:sum,count)
-			for( int i=0; i<=nf2; ++i )
-				for( int j=0; j<=nf2; ++j )
-					for( int k=0; k<=nf2; ++k )
-					{
-						int ii(i),jj(j),kk(k);
-						double rr = (double)ii*(double)ii+(double)jj*(double)jj+(double)kk*(double)kk;
-						double kp = sqrt(rr)*dk;
-						
-						if( i==0||j==0||k==0||i==nf2||j==nf2||k==nf2 )
-						{
-							sum += pow(kp,0.5*nspec_)*ptf_->compute( kp, type_ );
-							count++;                                                        
-						}
-						else
-						{
-							sum += 2.0*pow(kp,0.5*nspec_)*ptf_->compute( kp, type_ );
-							count+=2;                                                               
-						}
-						
-					}
-			
-			
-			Tr0_ = pow(2.0*M_PI/boxlength*nfull,3.0)*dplus*sqrt(pnorm)*sum/(double)count;
-			
-		}
-#endif
-		
-		
 		/*****************************************************************/
 		//... store as table for spline interpolation
 		
@@ -653,7 +621,7 @@ public:
 							 
 		gsl_integration_workspace_free (wx);
 		
-		return resx;
+		return resx*cos(0.5*M_PI*kx/kmax);
 	}
 	
 	static double call_y( double ky, void *arg )
@@ -674,23 +642,22 @@ public:
 		
 		gsl_integration_workspace_free (wy);
 		
-		return resy;
+		return resy*cos(0.5*M_PI*ky/kmax);
 	}
 	
 	static double call_z( double kz, void *arg )
 	{
 		double *a = (double*)arg;
 		//double kmin = a[3], kmax = a[4];
-		double kx = a[0], ky = a[1];
+		double kx = a[0], ky = a[1], kmax = a[4];
 		
 		double kk = sqrt(kx*kx+ky*ky+kz*kz);
 		double T = ptf_->compute( kk, type_ );
 		
 		
-		return pow(kk,0.5*nspec_)*T;
+		return pow(kk,0.5*nspec_)*T*cos(0.5*M_PI*kz/kmax);
 		
 	}
-	
 	
 	~TransferFunction_real()
 	{ }

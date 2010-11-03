@@ -63,7 +63,7 @@ public:
 			m_Gamma = FreeGamma;
 		
 		tf_distinct_ = false;
-	
+		tf_withvel_  = false;
 		
 	}
 	

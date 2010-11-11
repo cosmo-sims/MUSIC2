@@ -71,6 +71,7 @@ protected:
 	
 	//bool bbndparticles_;
 	bool bmorethan2bnd_;
+	bool kpcunits_;
 	
 	void assemble_gadget_file( void )
 	{
@@ -193,7 +194,7 @@ protected:
 			ifs2.close(); ifs2.open( fnvy, std::ios::binary );
 			ifs3.close(); ifs3.open( fnvz, std::ios::binary );
 			
-			ifs1.read( (char *)&blk, sizeof(int) );
+			ifs1.read( (char *)&blk, sizeof(long long) );
 			if( blk != nptot*(unsigned)sizeof(T_store)){
 				delete[] tmp1;
 				delete[] tmp2;
@@ -203,7 +204,7 @@ protected:
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
 			
-			ifs2.read( (char *)&blk, sizeof(int) );
+			ifs2.read( (char *)&blk, sizeof(long long) );
 			if( blk != nptot*(unsigned)sizeof(T_store)){
 				delete[] tmp1;
 				delete[] tmp2;
@@ -213,7 +214,7 @@ protected:
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
 			
-			ifs3.read( (char *)&blk, sizeof(int) );
+			ifs3.read( (char *)&blk, sizeof(long long) );
 			if( blk != nptot*(unsigned)sizeof(T_store)){
 				delete[] tmp1;
 				delete[] tmp2;
@@ -294,7 +295,7 @@ protected:
 					throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
 				}
 				
-				ifs1.read( (char *)&blk, sizeof(int) );
+				ifs1.read( (char *)&blk, sizeof(long long) );
 				if( blk != npcoarse*(unsigned)sizeof(T_store)){
 					delete[] tmp1;
 					LOGERR("Internal consistency error in gadget2 output plug-in");
@@ -312,8 +313,10 @@ protected:
 				{
 					ifs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
 					ofs_.write( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
+					
 					npleft -= n2read;
 					n2read = std::min( block_buf_size_,npleft );
+
 				}
 				ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
 				
@@ -359,6 +362,9 @@ public:
 			header_.mass[i] = 0.0;
 		}
 		
+		//... write displacements in kpc/h rather than Mpc/h?
+		kpcunits_ = cf.getValueSafe<bool>("output","gadget_usekpc",false);
+		
 		//... set time ......................................................
 		header_.redshift = cf.getValue<double>("setup","zstart");
 		header_.time = 1.0/(1.0+header_.redshift);
@@ -380,6 +386,9 @@ public:
 		
 		
 		header_.flag_entropy_instead_u = 0;
+		
+		if( kpcunits_ )
+			header_.BoxSize *= 1000.0;
 	}
 	
 	
@@ -387,8 +396,11 @@ public:
 	{
 		double rhoc = 27.7519737; // h^2 1e10 M_sol / Mpc^3
 		
-		header_.mass[1] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmax_);
+		if( kpcunits_ )
+			rhoc *= 10.0; // in h^2 M_sol / kpc^3
 		
+		header_.mass[1] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmax_);
+				
 		if( bmorethan2bnd_ )
 		{
 			unsigned long long npcoarse = gh.count_leaf_cells(gh.levelmin(), gh.levelmax()-1);
@@ -407,7 +419,7 @@ public:
 			
 			for( int ilevel=gh.levelmax()-1; ilevel>=(int)gh.levelmin(); --ilevel )
 			{
-				double pmass = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*ilevel);			
+				double pmass = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*ilevel);		
 				
 				for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 					for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
@@ -518,6 +530,9 @@ public:
 		
 		double xfac = header_.BoxSize;
 		
+		//if(kpcunits_)
+		//	xfac *= 1000.0;
+		
 		for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
@@ -588,6 +603,9 @@ public:
 		float isqrta = 1.0f/sqrt(header_.time);
 		float vfac = isqrta*header_.BoxSize;
 		
+		if( kpcunits_ )
+			vfac /= 1000.0;
+		
 		unsigned npart = npfine+npcoarse;
 		unsigned nwritten = 0;
 		
@@ -595,8 +613,10 @@ public:
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
 		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 		
-		int blksize = sizeof(T_store)*npart;
-		ofs_temp.write( (char *)&blksize, sizeof(int) );
+		//int blksize = sizeof(T_store)*npart;
+		//ofs_temp.write( (char *)&blksize, sizeof(int) );
+		long long blksize = sizeof(T_store)*npart;
+		ofs_temp.write( (char *)&blksize, sizeof(long long) );
 		
 		for( int ilevel=levelmax_; ilevel>=(int)levelmin_; --ilevel )
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )

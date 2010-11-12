@@ -26,6 +26,7 @@
 
 #include "log.hh"
 
+#include <cassert>
 #include <omp.h>
 
 #ifdef WITH_MPI
@@ -86,15 +87,9 @@
 
 #include <vector>
 
+#include "config_file.hh"
+//#include "mesh.hh"
 
-#include "mesh.hh"
-typedef GridHierarchy<real_t> grid_hierarchy;
-typedef MeshvarBnd<real_t> meshvar_bnd;
-typedef Meshvar<real_t> meshvar;
-
-#include "random.hh"
-typedef random_numbers<real_t> rand_nums;
-typedef random_number_generator< rand_nums,real_t> rand_gen;
 
 
 //! compute square of argument
@@ -136,6 +131,30 @@ typedef struct cosmology{
 	WDMmass,		//!< Warm DM particle mass
 	WDMg_x,			//!< Warm DM particle degrees of freedom
 	astart;			//!< expansion factor a for which to generate initial conditions
+	
+	cosmology( config_file cf )
+	{
+		double zstart = cf.getValue<double>( "setup", "zstart" );
+		
+		astart		= 1.0/(1.0+zstart);
+		Omega_b		= cf.getValue<double>( "cosmology", "Omega_b" );
+		Omega_m		= cf.getValue<double>( "cosmology", "Omega_m" );
+		Omega_L		= cf.getValue<double>( "cosmology", "Omega_L" );
+		H0			= cf.getValue<double>( "cosmology", "H0" );
+		sigma8		= cf.getValue<double>( "cosmology", "sigma_8" );
+		nspect		= cf.getValue<double>( "cosmology", "nspec" );
+		WDMg_x		= cf.getValueSafe<double>( "cosmology", "WDMg_x", 1.5 );
+		WDMmass		= cf.getValueSafe<double>( "cosmology", "WDMmass", 0.0 );
+		
+		dplus			= 0.0;
+		pnorm			= 0.0;
+		vfact			= 0.0;
+	}
+	
+	cosmology( void )
+	{
+		
+	}
 }Cosmology;
 
 //! basic box/grid/refinement structure parameters

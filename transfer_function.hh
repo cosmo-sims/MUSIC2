@@ -34,20 +34,21 @@
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_spline.h>
 #include <gsl/gsl_sf_gamma.h>
-#include <gsl/gsl_errno.h>
+
 
 #include "Numerics.hh"
-#include "general.hh"
+//#include "general.hh"
 
 #include <complex>
 
 //#define XI_SAMPLE
-
+//#include "cosmology.hh"
 #include "config_file.hh"
 
 enum tf_type{
 	total, cdm, baryon, vcdm, vbaryon
 };
+
 
 //! Abstract base class for transfer functions
 /*!
@@ -230,13 +231,15 @@ protected:
 	void transform( real_t pnorm, real_t dplus, unsigned N, real_t q, std::vector<double>& rr, std::vector<double>& TT )
 	{
 		const double mu = 0.5;
-		double qmin = 1.0e-6, qmax = 1.0e+6;
+		double qmin = 1.0e-7, qmax = 1.0e+7;
 		
 		q = 0.0;
 		
-		N = 16384;
+		//N = 16384;
+		N = 1<<12;
 		
 #ifdef NZERO_Q
+		//q=0.4;
 		q=0.4;
 #endif
 		
@@ -269,7 +272,7 @@ protected:
 		
 		for( unsigned i=0; i<N; ++i )
 		{
-			//double lambda0=1e-4;
+			double lambda0=1e-4;
 
 			double k = k0*exp(((int)i - (int)N/2+1) * dlnk);
 			double T = ptf_->compute( k, type_ );
@@ -278,7 +281,7 @@ protected:
 #ifdef XI_SAMPLE
 			in[i][0] = dplus*dplus*sqrtpnorm*sqrtpnorm*T*T*pow(k,nspec_)*pow(k,1.5-q)*exp(-k*lambda0);//*exp(k*lambda1);
 #else
-			in[i][0] = dplus*sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);//*exp(-k*lambda0);//*exp(k*lambda1);
+			in[i][0] = dplus*sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);//*exp(-k*1e-5);//*exp(k*lambda0);//*exp(k*lambda1);
 #endif
 			in[i][1] = 0.0;
 			
@@ -422,6 +425,8 @@ protected:
 			if(type_==total) fname = "transfer_real_total.txt";
 			if(type_==cdm) fname = "transfer_real_cdm.txt";
 			if(type_==baryon) fname = "transfer_real_baryon.txt";
+			if(type_==vcdm) fname = "transfer_real_vcdm.txt";
+			if(type_==vbaryon) fname = "transfer_real_vbaryon.txt";
 			
 			std::ofstream ofs(fname.c_str());//"transfer_real.txt");
 							  
@@ -475,6 +480,9 @@ public:
 		
 		/*****************************************************************/
 		//... compute T(r=0) by 3D k-space integration
+		//if( true )//type==baryon || type==vbaryon )
+		//	Tr0_ = 0.0;
+		//else
 		{
 			const double REL_PRECISION=1.e-5;
 			

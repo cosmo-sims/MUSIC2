@@ -110,8 +110,8 @@ private:
 	}
 	
 public:
-	transfer_CAMB_plugin( config_file& cf )//Cosmology aCosm, std::string filename_Tk, TFtype iwhich )
-	: transfer_function_plugin( cf )//, m_filename_Tk( filename_Tk ), m_psinterp( NULL )
+	transfer_CAMB_plugin( config_file& cf )
+	: transfer_function_plugin( cf )
 	{
 		m_filename_Tk = pcf_->getValue<std::string>("cosmology","transfer_file");
 		
@@ -122,13 +122,9 @@ public:
 		acc_baryon = gsl_interp_accel_alloc();
 		
 		
-		spline_tot = gsl_spline_alloc( gsl_interp_akima, m_tab_k.size() );
-		spline_cdm = gsl_spline_alloc( gsl_interp_akima, m_tab_k.size() );
-		spline_baryon = gsl_spline_alloc( gsl_interp_akima, m_tab_k.size() );
-		
-		/*spline_tot = gsl_spline_alloc( gsl_interp_linear, m_tab_k.size() );
-		spline_cdm = gsl_spline_alloc( gsl_interp_linear, m_tab_k.size() );
-		spline_baryon = gsl_spline_alloc( gsl_interp_linear, m_tab_k.size() );*/
+		spline_tot = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
+		spline_cdm = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
+		spline_baryon = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
 		
 		gsl_spline_init (spline_tot, &m_tab_k[0], &m_tab_Tk_tot[0], m_tab_k.size() );
 		gsl_spline_init (spline_cdm, &m_tab_k[0], &m_tab_Tk_cdm[0], m_tab_k.size() );

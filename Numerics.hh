@@ -34,6 +34,8 @@
 
 #include <cmath>
 #include <gsl/gsl_integration.h>
+#include <gsl/gsl_errno.h>
+
 #include <vector>
 #include <algorithm>
 #include "general.hh"

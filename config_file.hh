@@ -134,9 +134,35 @@ public:
       posEqual=line.find('=');
       name  = trim(line.substr(0,posEqual));
       value = trim(line.substr(posEqual+1));
+	
+	  if( (size_t)posEqual==std::string::npos && (name.size()!=0||value.size()!=0) )
+	  {
+		  LOGWARN("Ignoring non-assignment in %s:%d",FileName.c_str(),m_iLine);
+		  continue;
+	  }
+	
+	  if(name.length()==0&&value.size()!=0)
+	  {  
+		  LOGWARN("Ignoring assignment missing entry name in %s:%d",FileName.c_str(),m_iLine);
+		  continue;
+		  
+	  }
+		
+	  if(value.length()==0&&name.size()!=0)
+	  {	  
+		  LOGWARN("Empty entry will be ignored in %s:%d",FileName.c_str(),m_iLine);
+		  continue;
+	  }
+		
+	  if( value.length()==0&&name.size()==0)
+		  continue;
       
       //.. add key/value pair to hash table ..
-      m_Items[inSection+'/'+name] = value;
+	  if( m_Items.find(inSection+'/'+name) != m_Items.end() )
+		  LOGWARN("Redeclaration overwrites previous value in %s:%d",FileName.c_str(),m_iLine);
+	
+	  m_Items[inSection+'/'+name] = value;
+		
     }
   }
 	

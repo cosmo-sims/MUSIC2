@@ -142,9 +142,9 @@ protected:
 		tmp2 = new T_store[block_buf_size_];
 		tmp3 = new T_store[block_buf_size_];
 		
-		int fileno = 0;
+		//int fileno = 0;
 		
-		size_t npart_left = nptot;
+		//size_t npart_left = nptot;
 		
 		while( true )
 		{

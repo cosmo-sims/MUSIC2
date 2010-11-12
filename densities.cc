@@ -21,7 +21,6 @@
  
  */
 
-#include "constraints.hh"
 #include "densities.hh"
 #include "convolution_kernel.hh"
 

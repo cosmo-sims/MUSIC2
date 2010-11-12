@@ -62,7 +62,7 @@ endif
 ##############################################################################
 CFLAGS += $(OPT)
 TARGET  = MUSIC
-OBJS    = output.o transfer_function.o Numerics.o defaults.o\
+OBJS    = output.o transfer_function.o Numerics.o defaults.o constraints.o random.o\
 		convolution_kernel.o densities.o cosmology.o poisson.o log.o main.o \
 		$(patsubst plugins/%.cc,plugins/%.o,$(wildcard plugins/*.cc))
 

@@ -28,6 +28,7 @@
 #include <map>
 
 #include "general.hh"
+#include "mesh.hh"
 
 
 /*!

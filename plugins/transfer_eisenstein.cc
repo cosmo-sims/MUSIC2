@@ -156,12 +156,12 @@ protected:
 		T_c = T_c_f*T_c_ln_beta/(T_c_ln_beta+T_c_C_noalpha*SQR(q)) +
 	    (1-T_c_f)*T_c_ln_beta/(T_c_ln_beta+T_c_C_alpha*SQR(q));
 		
-		s_tilde = sound_horizon*pow(1+CUBE(beta_node/xx),-1./3.);
+		s_tilde = sound_horizon*pow(1.+CUBE(beta_node/xx),-1./3.);
 		xx_tilde = k*s_tilde;
 		
 		T_b_T0 = T_c_ln_nobeta/(T_c_ln_nobeta+T_c_C_noalpha*SQR(q));
-		T_b = sin(xx_tilde)/(xx_tilde)*(T_b_T0/(1+SQR(xx/5.2))+
-										alpha_b/(1+CUBE(beta_b/xx))*exp(-pow(k/k_silk,1.4)));
+		T_b = sin(xx_tilde)/(xx_tilde)*(T_b_T0/(1.+SQR(xx/5.2))+
+										alpha_b/(1.+CUBE(beta_b/xx))*exp(-pow(k/k_silk,1.4)));
 		
 		f_baryon = obhh/omhh;
 		T_full = f_baryon*T_b + (1-f_baryon)*T_c;
@@ -187,7 +187,6 @@ public:
 						 cosmo_.Omega_b/(cosmo_.Omega_m-cosmo_.Omega_b),//-aCosm.Omega_b), 
 						 Tcmb);
 		
-		std::cerr << "CHECK!!\n";
 		tf_distinct_ = false;
 		tf_withvel_  = false;
 	}

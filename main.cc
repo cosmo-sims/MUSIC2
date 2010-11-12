@@ -50,7 +50,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.7.3a"
+#define THE_CODE_VERSION "0.8a"
 
 
 namespace music
@@ -149,6 +149,68 @@ void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarc
 		
 }
 
+void print_hierarchy_stats( config_file& cf, const refinement_hierarchy& rh )
+{
+	double omegam = cf.getValue<double>("cosmology","Omega_m");
+	double omegab = cf.getValue<double>("cosmology","Omega_b");
+	bool bbaryons = cf.getValue<bool>("setup","baryons");
+	double boxlength = cf.getValue<double>("setup","boxlength");
+	
+	unsigned levelmin = rh.levelmin();
+	double dx = boxlength/(double)(1<<levelmin), dx3=dx*dx*dx;
+	double rhom = 2.77519737e11; // h-1 M_o / (h-1 Mpc)**3
+	double cmass, bmass(0.0), mtotgrid;
+	if( bbaryons )
+	{
+		cmass = (omegam-omegab)*rhom*dx3;
+		bmass = omegab*rhom*dx3;
+	}else
+		cmass = omegam*rhom*dx3;
+	
+	
+	
+	std::cout << "-------------------------------------------------------------\n";
+	
+	if( rh.get_shift(0)!=0||rh.get_shift(1)!=0||rh.get_shift(2)!=0 )
+		std::cout << " - Domain will be shifted by (" << rh.get_shift(0) << ", " << rh.get_shift(1) << ", " << rh.get_shift(2) << ")\n" << std::endl;
+	
+	std::cout << " - Grid structure:\n";
+	
+	 
+	
+	for( unsigned ilevel=rh.levelmin(); ilevel<=rh.levelmax(); ++ilevel )
+	{
+		double rfac = 1.0/(1<<(ilevel-rh.levelmin())), rfac3=rfac*rfac*rfac;
+		
+		mtotgrid = omegam*rhom*dx3*rfac3*rh.size(ilevel, 0)*rh.size(ilevel, 1)*rh.size(ilevel, 2);
+		std::cout 
+		<< "     Level " << std::setw(3) << ilevel << " :   offset = (" << std::setw(5) << rh.offset(ilevel,0) << ", " << std::setw(5) << rh.offset(ilevel,0) << ", " << std::setw(5) << rh.offset(ilevel,0) << ")\n"
+		<< "                     size = (" << std::setw(5) << rh.size(ilevel,0) << ", " << std::setw(5) << rh.size(ilevel,1) << ", " << std::setw(5) << rh.size(ilevel,2) << ")\n";
+		
+		if( ilevel == rh.levelmax() )
+		{
+			std::cout << "-------------------------------------------------------------\n";
+			std::cout << " - Finest level :\n";
+			/*std::cout << "      extent =  " << dx*rfac*rh.size(ilevel,0) << " x " 
+					  << dx*rfac*rh.size(ilevel,1) << " x " 
+					  << dx*rfac*rh.size(ilevel,2) << " (h-1 Mpc)**3\n\n";*/
+			
+			std::cout << "                 mtotgrid =  " << mtotgrid << " h-1 M_o\n";
+			std::cout << "            particle mass =  " << cmass*rfac3 << " h-1 M_o\n";
+			if( bbaryons )
+				std::cout << "         baryon mass/cell =  " << bmass*rfac3 << " h-1 M_o\n";
+			if( dx*rfac > 0.1 )
+				std::cout << "                       dx =  " << dx*rfac << " h-1 Mpc\n";
+			else if( dx*rfac > 1e-4 )
+				std::cout << "                       dx =  " << dx*rfac*1000.0 << " h-1 kpc\n";
+			else
+				std::cout << "                       dx =  " << dx*rfac*1.e6 << " h-1 pc\n";
+		}
+		
+	}
+	std::cout << "-------------------------------------------------------------\n";
+}
+
 void coarsen_density( const refinement_hierarchy& rh, grid_hierarchy& u )
 {
 	for( int i=rh.levelmax(); i>0; --i )
@@ -228,13 +290,9 @@ int main (int argc, const char * argv[])
 	unsigned lbase, lmax, lbaseTF;
 	double   err;
 	
-	cosmology cosmo;
-	double boxlength, zstart;
-	std::vector<long> rngseeds;
-	std::vector<std::string> rngfnames;
-	
-	double x0[3], lx[3];
-	unsigned npad = 8;
+	//------------------------------------------------------------------------------
+	//... parse command line options
+	//------------------------------------------------------------------------------
 	
 	splash();
 	if( argc != 2 ){
@@ -247,7 +305,10 @@ int main (int argc, const char * argv[])
 		exit(0);
 	}
 	
+	//------------------------------------------------------------------------------
 	//... open log file
+	//------------------------------------------------------------------------------
+
 	char logfname[128];
 	sprintf(logfname,"%s_log.txt",argv[1]);
 	MUSIC::log::setOutput(logfname);
@@ -270,21 +331,22 @@ int main (int argc, const char * argv[])
 #endif
 	
 	
-	/******************************************************************************************************/
-	/* read and interpret config file *********************************************************************/
-	/******************************************************************************************************/
+	//------------------------------------------------------------------------------
+	//... read and interpret config file
+	//------------------------------------------------------------------------------
 	config_file cf(argv[1]);
-	std::string tfname,randfname,temp, outformat, outfname, poisson_solver_name;;
-	bool shift_back(false), align_top(false), kspace(false), force_shift(false);
-	float tf0,tf1,tf2;
+	std::string tfname,randfname,temp;
+	bool force_shift(false);
+	double boxlength;
 	
+	//------------------------------------------------------------------------------
+	//... initialize some parameters about grid set-up
+	//------------------------------------------------------------------------------
 	
 	boxlength           = cf.getValue<double>( "setup", "boxlength" );
 	lbase				= cf.getValue<unsigned>( "setup", "levelmin" );
 	lmax				= cf.getValue<unsigned>( "setup", "levelmax" );
 	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelmin_TF", lbase );
-	force_shift			= cf.getValueSafe<bool>("setup", "force_shift", force_shift );
-	
 	
 	if( lbase == lmax && !force_shift )
 		cf.insertValue("setup","no_shift","yes");
@@ -300,62 +362,12 @@ int main (int argc, const char * argv[])
 		cf.insertValue("setup","levelmin_TF",cf.getValue<std::string>("setup","levelmin"));
 	}
 	
-	temp				= cf.getValue<std::string>( "setup", "ref_offset" );
-	sscanf( temp.c_str(), "%g,%g,%g", &tf0, &tf1, &tf2 ); x0[0] = tf0; x0[1] = tf1; x0[2] = tf2;
 	
+		
+	//------------------------------------------------------------------------------
+	//... initialize multithread FFTW
+	//------------------------------------------------------------------------------
 	
-	temp				= cf.getValue<std::string>( "setup", "ref_extent" );
-	sscanf( temp.c_str(), "%g,%g,%g", &tf0, &tf1, &tf2 ); lx[0] = tf0; lx[1] = tf1; lx[2] = tf2;
-	
-	npad                = cf.getValue<unsigned>( "setup", "padding" );
-	align_top			= cf.getValueSafe<bool>( "setup", "align_top", false );
-	kspace				= cf.getValueSafe<bool>( "poisson", "kspace", false );
-	
-	if( kspace )
-		poisson_solver_name = std::string("fft_poisson");
-	else
-		poisson_solver_name = std::string("mg_poisson");
-	
-	// TODO: move cosmology parameters reading to cosmo_calc
-	zstart				= cf.getValue<double>( "setup", "zstart" );
-	cosmo.astart		= 1.0/(1.0+zstart);
-	cosmo.Omega_b		= cf.getValue<double>( "cosmology", "Omega_b" );
-	cosmo.Omega_m		= cf.getValue<double>( "cosmology", "Omega_m" );
-	cosmo.Omega_L		= cf.getValue<double>( "cosmology", "Omega_L" );
-	cosmo.H0			= cf.getValue<double>( "cosmology", "H0" );
-	cosmo.sigma8		= cf.getValue<double>( "cosmology", "sigma_8" );
-	cosmo.nspect		= cf.getValue<double>( "cosmology", "nspec" );
-	cosmo.WDMg_x		= cf.getValueSafe<double>( "cosmology", "WDMg_x", 1.5 );
-	cosmo.WDMmass		= cf.getValueSafe<double>( "cosmology", "WDMmass", 0.0 );
-	cosmo.dplus			= 0.0;
-	cosmo.pnorm			= 0.0;
-	cosmo.vfact			= 0.0;
-	
-	//cosmo.Gamma			= cf.getValueSafe<double>( "cosmology", "Gamma", -1.0 );
-	
-	/******************************************************************************************************/
-	/******************************************************************************************************/
-	
-	shift_back			= cf.getValueSafe<bool>( "output", "shift_back", shift_back );
-	outformat			= cf.getValue<std::string>( "output", "format" );
-	outfname			= cf.getValue<std::string>( "output", "filename" );
-	
-	
-	unsigned grad_order = cf.getValueSafe<unsigned> ( "poisson" , "grad_order", 4 );
-
-	bool bdefd = cf.getValueSafe<bool> ( "poisson" , "fft_fine", true );
-	
-	//... if in unigrid mode, use k-space instead
-	//if(bdefd&lbase==lmax)
-	//kspace=true;
-	
-	//... switch off if using kspace anyway
-	bdefd &= !kspace;
-	
-	/******************************************************************************************************/
-	/******************************************************************************************************/
-	/******************************************************************************************************/
-
 #if not defined(SINGLETHREAD_FFTW)
 #ifdef FFTW3
 	fftw_init_threads();
@@ -365,8 +377,13 @@ int main (int argc, const char * argv[])
 #endif
 #endif
 	
+	//------------------------------------------------------------------------------
+	//... initialize cosmology
+	//------------------------------------------------------------------------------
 	transfer_function_plugin *the_transfer_function_plugin
 		= select_transfer_function_plugin( cf );
+	
+	cosmology cosmo( cf );
 	
 	CosmoCalc ccalc(cosmo,the_transfer_function_plugin);
 	cosmo.pnorm	= ccalc.ComputePNorm( 2.0*M_PI/boxlength );
@@ -383,20 +400,28 @@ int main (int argc, const char * argv[])
 		
 	}
 	
-	/******************************************************************************************************/
-	/******************************************************************************************************/
-	
+	//------------------------------------------------------------------------------
+	//... determine run parameters
+	//------------------------------------------------------------------------------
 	bool 
 		do_baryons	= cf.getValue<bool>("setup","baryons"),
 		do_2LPT		= cf.getValue<bool>("setup","use_2LPT"),
 		do_LLA		= cf.getValue<bool>("setup","use_LLA"),
 		do_CVM		= cf.getValueSafe<bool>("setup","center_velocities",false);
 	
+	if( !the_transfer_function_plugin->tf_is_distinct() && do_baryons )
+		std::cout	<< " - WARNING: The selected transfer function does not support\n"
+		<< "            distinct amplitudes for baryon and DM fields!\n"
+		<< "            Perturbation amplitudes will be identical!" << std::endl;
+	
 
+	//------------------------------------------------------------------------------
 	//... determine the refinement hierarchy
+	//------------------------------------------------------------------------------
 	refinement_hierarchy rh_Poisson( cf );
 	store_grid_structure(cf, rh_Poisson);
-	rh_Poisson.output();
+	//rh_Poisson.output();
+	print_hierarchy_stats( cf, rh_Poisson );
 	
 	refinement_hierarchy rh_TF( rh_Poisson );
 	modify_grid_for_TF( rh_Poisson, rh_TF, cf );
@@ -407,31 +432,54 @@ int main (int argc, const char * argv[])
 	LOGUSER("Grid structure for density convolution:");
 	rh_TF.output_log();
 	
-	
-	if( !the_transfer_function_plugin->tf_is_distinct() && do_baryons )
-		std::cout	<< " - WARNING: The selected transfer function does not support\n"
-					<< "            distinct amplitudes for baryon and DM fields!\n"
-					<< "            Perturbation amplitudes will be identical!" << std::endl;
-	
-	
+	//------------------------------------------------------------------------------
 	//... initialize the output plug-in
+	//------------------------------------------------------------------------------
+	std::string outformat, outfname;
+	outformat			= cf.getValue<std::string>( "output", "format" );
+	outfname			= cf.getValue<std::string>( "output", "filename" );
 	output_plugin *the_output_plugin = select_output_plugin( cf );
 	
+	//------------------------------------------------------------------------------
 	//... initialize the random numbers
-	rand_gen rand( cf, rh_TF );
+	//------------------------------------------------------------------------------
+	rand_gen rand( cf, rh_TF, the_transfer_function_plugin );
 	
+	//------------------------------------------------------------------------------
 	//... initialize the Poisson solver
+	//------------------------------------------------------------------------------
+	bool kspace	= cf.getValueSafe<bool>( "poisson", "kspace", false );
+	std::string poisson_solver_name;
+	if( kspace )
+		poisson_solver_name = std::string("fft_poisson");
+	else
+		poisson_solver_name = std::string("mg_poisson");
+	
+	unsigned grad_order = cf.getValueSafe<unsigned> ( "poisson" , "grad_order", 4 );
+	bool bdefd = cf.getValueSafe<bool> ( "poisson" , "fft_fine", true );
+	
+	//... if in unigrid mode, use k-space instead
+	//if(bdefd&lbase==lmax)
+	//kspace=true;
+	
+	//... switch off if using kspace anyway
+	bdefd &= !kspace;
+	
 	poisson_plugin_creator *the_poisson_plugin_creator = get_poisson_plugin_map()[ poisson_solver_name ];
 	poisson_plugin *the_poisson_solver = the_poisson_plugin_creator->create( cf );
 	
+	//---------------------------------------------------------------------------------
 	//... THIS IS THE MAIN DRIVER BRANCHING TREE RUNNING THE VARIOUS PARTS OF THE CODE
+	//---------------------------------------------------------------------------------
 	bool bfatal = false;
 	try{
 		if( ! do_2LPT )
 		{
 			LOGUSER("Entering 1LPT branch");
 			
+			//------------------------------------------------------------------------------
 			//... cdm density and displacements
+			//------------------------------------------------------------------------------
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
 			std::cout << "-------------------------------------------------------------\n";
@@ -443,7 +491,7 @@ int main (int argc, const char * argv[])
 				my_tf_type = total;
 			
 			
-			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, cdm , rh_TF, rand, f, true, false );
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, true, false );
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			
@@ -460,7 +508,9 @@ int main (int argc, const char * argv[])
 			the_output_plugin->write_dm_potential(u);
 			
 			
+			//------------------------------------------------------------------------------
 			//... DM displacements
+			//------------------------------------------------------------------------------
 			{
 				grid_hierarchy data_forIO(u);
 				for( int icoord = 0; icoord < 3; ++icoord )
@@ -482,7 +532,9 @@ int main (int argc, const char * argv[])
 				}
 			}
 			
+			//------------------------------------------------------------------------------
 			//... gas density
+			//------------------------------------------------------------------------------
 			if( do_baryons )
 			{
 				std::cout << "=============================================================\n";
@@ -510,7 +562,9 @@ int main (int argc, const char * argv[])
 			std::cout << "-------------------------------------------------------------\n";
 			LOGUSER("Computing velocitites...");
 			
+			//------------------------------------------------------------------------------
 			//... velocities
+			//------------------------------------------------------------------------------
 			if( !the_transfer_function_plugin->tf_has_velocities() || !do_baryons )
 			{			
 				if( do_baryons )
@@ -838,41 +892,36 @@ int main (int argc, const char * argv[])
 
 	std::cout << "=============================================================\n";
 	
-	//... clean up
+	//------------------------------------------------------------------------------
+	//... finish output
+	//------------------------------------------------------------------------------
+	
 	the_output_plugin->finalize();
 	delete the_output_plugin;
-	
-	
+
 	if( !bfatal )
 	{	
 		std::cout << " - Wrote output file \'" << outfname << "\'\n     using plugin \'" << outformat << "\'...\n";
 		LOGUSER("Wrote output file \'%s\'.",outfname.c_str());
 	}
 	
+	//------------------------------------------------------------------------------
+	//... clean up
+	//------------------------------------------------------------------------------
 	delete the_transfer_function_plugin;
 	delete the_poisson_solver;
-	
-	/** we are done ! **/
-	std::cout << " - Done!" << std::endl << std::endl;
-	ltime=time(NULL);
-	LOGUSER("Run finished succesfully on %s",asctime( localtime(&ltime) ));
-	
-	///*****************************************///
-	
-	/*std::string save_fname(std::string(argv[1])+std::string("_stats"));
-	std::ofstream ofs(save_fname.c_str());
-	time_t ltime=time(NULL);
-	
-	ofs << "Parameter dump for the run on " << asctime( localtime(&ltime) );
-	ofs << "You ran " << THE_CODE_NAME << " version " << THE_CODE_VERSION << std::endl << std::endl;
-	
-	cf.dump( ofs );
-*/
-	
+
 #ifdef FFTW3
 	fftw_cleanup_threads();
 #endif
 	
+	
+	//------------------------------------------------------------------------------
+	//... we are done !
+	//------------------------------------------------------------------------------
+	std::cout << " - Done!" << std::endl << std::endl;
+	ltime=time(NULL);
+	LOGUSER("Run finished succesfully on %s",asctime( localtime(&ltime) ));
 	cf.log_dump();
 	
 	

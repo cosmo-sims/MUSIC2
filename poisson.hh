@@ -28,6 +28,7 @@
 #include <map>
 
 #include "general.hh"
+#include "mesh.hh"
 
 //! abstract base class for Poisson solvers and gradient calculations
 class poisson_plugin

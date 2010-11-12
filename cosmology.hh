@@ -24,9 +24,10 @@
 #ifndef _COSMOLOGY_HH
 #define _COSMOLOGY_HH
 
+
+#include "transfer_function.hh"
 #include "mesh.hh"
 #include "general.hh"
-#include "transfer_function.hh"
 
 /*!
  * @class CosmoCalc

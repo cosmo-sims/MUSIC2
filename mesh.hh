@@ -956,11 +956,24 @@ public:
 		
 		std::string temp;
 		
-		temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
-		sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] ); 
+		if( cf_.containsKey("setup","ref_offset") && cf_.containsKey("setup","ref_center") )
+			throw std::runtime_error("Found both ref_offset and ref_center. You can only specify one.");
 		
 		temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
 		sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
+		
+		if( cf_.containsKey("setup","ref_center") )
+		{
+			temp		= cf_.getValue<std::string>( "setup", "ref_center" );
+			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
+			x0ref_[0] = fmod( x0ref_[0]-0.5*lxref_[0]+1.0,1.0);
+			x0ref_[1] = fmod( x0ref_[1]-0.5*lxref_[1]+1.0,1.0);
+			x0ref_[2] = fmod( x0ref_[2]-0.5*lxref_[2]+1.0,1.0);			
+		}else{
+			temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
+			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
+		}
+		
 		
 		unsigned 
 			ncoarse = 1<<levelmin_;
@@ -1253,6 +1266,9 @@ public:
 	unsigned levelmax( void ) const
 	{	return levelmax_;	}
 	
+	//! get the total shift of the coordinate system
+	int get_shift( int idim ) const
+	{	return xshift_[idim];  }
 	
 	//! write refinement hierarchy to stdout
 	void output( void )
@@ -1284,6 +1300,12 @@ public:
 	}
 	
 };
+
+
+typedef GridHierarchy<real_t> grid_hierarchy;
+typedef MeshvarBnd<real_t> meshvar_bnd;
+typedef Meshvar<real_t> meshvar;
+
 
 #endif
 

@@ -79,15 +79,53 @@ private:
 				
 				m_tab_k.push_back( log10(k) );
 				
+#if 1
 				m_tab_Tk_tot.push_back( log10(Tktot) );
 				m_tab_Tk_baryon.push_back( log10(Tkb) );
 				m_tab_Tk_cdm.push_back( log10(Tkc) );
 				m_tab_Tvk_cdm.push_back( log10(Tkvc) );
 				m_tab_Tvk_baryon.push_back( log10(Tkvb) );
+#else
+/*				m_tab_Tk_tot.push_back( log10(fabs(Tktot)) );
+				m_tab_Tk_baryon.push_back( log10(fabs(Tkb)) );
+				m_tab_Tk_cdm.push_back( log10(fabs(Tkc)) );
+				m_tab_Tvk_cdm.push_back( log10(fabs(Tkvc)) );
+				m_tab_Tvk_baryon.push_back( log10(fabs(Tkvb)) );*/
 				
+				m_tab_Tk_tot.push_back( Tktot );
+				m_tab_Tk_baryon.push_back( Tkb );
+				m_tab_Tk_cdm.push_back( Tkc );
+				m_tab_Tvk_cdm.push_back( Tkvc );
+				m_tab_Tvk_baryon.push_back( Tkvb );
+#endif
 			}
 			
 			ifs.close();
+			
+			
+			/*******/
+			/*double Tmin=1e30;
+			for( int i=0; i<m_tab_Tvk_baryon.size(); ++i )
+				if( m_tab_Tvk_baryon[i] < Tmin ) Tmin = m_tab_Tvk_baryon[i];
+			
+			if( Tmin > 0.0 ) Tmin = 0.0;
+			std::cerr << "Tmin = " << Tmin << std::endl;
+			for( int i=0; i<m_tab_Tvk_baryon.size(); ++i )
+			{	m_tab_Tvk_baryon[i] = log10(m_tab_Tvk_baryon[i]-1.1*Tmin);
+				std::cerr << m_tab_Tvk_baryon[i] << std::endl;
+			}
+			
+			Tmin=1e30;
+			for( int i=0; i<m_tab_Tk_baryon.size(); ++i )
+				if( m_tab_Tk_baryon[i] < Tmin ) Tmin = m_tab_Tk_baryon[i];
+			
+			if( Tmin > 0.0 ) Tmin = 0.0;
+			std::cerr << "Tmin = " << Tmin << std::endl;
+			for( int i=0; i<m_tab_Tk_baryon.size(); ++i )
+			{	m_tab_Tk_baryon[i] = log10(m_tab_Tk_baryon[i]-1.1*Tmin);
+				std::cerr << m_tab_Tk_baryon[i] << std::endl;
+			}*/
+			/*******/
 			
 			
 			
@@ -130,11 +168,11 @@ public:
 		acc_dbaryon = gsl_interp_accel_alloc();
 		
 		
-		spline_dtot = gsl_spline_alloc( gsl_interp_akima, m_tab_k.size() );
-		spline_dcdm = gsl_spline_alloc( gsl_interp_akima, m_tab_k.size() );
-		spline_dbaryon = gsl_spline_alloc( gsl_interp_akima, m_tab_k.size() );
-		spline_vcdm = gsl_spline_alloc( gsl_interp_akima, m_tab_k.size() );
-		spline_vbaryon = gsl_spline_alloc( gsl_interp_akima, m_tab_k.size() );
+		spline_dtot = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
+		spline_dcdm = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
+		spline_dbaryon = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
+		spline_vcdm = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
+		spline_vbaryon = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
 		
 		gsl_spline_init (spline_dtot, &m_tab_k[0], &m_tab_Tk_tot[0], m_tab_k.size() );
 		gsl_spline_init (spline_dcdm, &m_tab_k[0], &m_tab_Tk_cdm[0], m_tab_k.size() );

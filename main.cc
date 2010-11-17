@@ -416,12 +416,28 @@ int main (int argc, const char * argv[])
 	//------------------------------------------------------------------------------
 	//... initialize the random numbers
 	//------------------------------------------------------------------------------
+	std::cout << "=============================================================\n";
+	std::cout << "   GENERATING WHITE NOISE\n";
+	std::cout << "-------------------------------------------------------------\n";
+	LOGUSER("Computing white noise...");
 	rand_gen rand( cf, rh_TF, the_transfer_function_plugin );
 	
 	//------------------------------------------------------------------------------
 	//... initialize the Poisson solver
 	//------------------------------------------------------------------------------
+	bool bdefd = cf.getValueSafe<bool> ( "poisson" , "fft_fine", true );
+	bool bsph  = cf.getValueSafe<bool>("setup","do_SPH",false) && do_baryons;
+	
+	
 	bool kspace	= cf.getValueSafe<bool>( "poisson", "kspace", false );
+	
+	//... if in unigrid mode, use k-space instead of hybrid
+	if(bdefd&lbase==lmax)
+	{
+		kspace=true;
+		bdefd=false;
+	}
+	
 	std::string poisson_solver_name;
 	if( kspace )
 		poisson_solver_name = std::string("fft_poisson");
@@ -429,15 +445,12 @@ int main (int argc, const char * argv[])
 		poisson_solver_name = std::string("mg_poisson");
 	
 	unsigned grad_order = cf.getValueSafe<unsigned> ( "poisson" , "grad_order", 4 );
-	bool bdefd = cf.getValueSafe<bool> ( "poisson" , "fft_fine", true );
-	bool bsph  = cf.getValueSafe<bool>("setup","do_SPH",false) && do_baryons;
 	
-	//... if in unigrid mode, use k-space instead
-	//if(bdefd&lbase==lmax)
-	//kspace=true;
+	
+	
 	
 	//... switch off if using kspace anyway
-	bdefd &= !kspace;
+	//bdefd &= !kspace;
 	
 	poisson_plugin_creator *the_poisson_plugin_creator = get_poisson_plugin_map()[ poisson_solver_name ];
 	poisson_plugin *the_poisson_solver = the_poisson_plugin_creator->create( cf );
@@ -459,7 +472,7 @@ int main (int argc, const char * argv[])
 			std::cout << "-------------------------------------------------------------\n";
 			LOGUSER("Computing dark matter displacements...");
 			
-			grid_hierarchy f( nbnd ), u(nbnd);
+			grid_hierarchy f( nbnd );//, u(nbnd);
 			tf_type my_tf_type = cdm;
 			if( !do_baryons || !the_transfer_function_plugin->tf_is_distinct() )
 				my_tf_type = total;
@@ -469,11 +482,10 @@ int main (int argc, const char * argv[])
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			
-			u = f;	u.zero();
-			
 			the_output_plugin->write_dm_mass(f);
 			the_output_plugin->write_dm_density(f);
 			
+			grid_hierarchy u( f );	u.zero();
 			err = the_poisson_solver->solve(f, u);
 			
 			if(!bdefd)
@@ -504,7 +516,10 @@ int main (int argc, const char * argv[])
 
 					the_output_plugin->write_dm_position(icoord, data_forIO );
 				}
+				u.deallocate();
+				data_forIO.deallocate();
 			}
+			
 			
 			//------------------------------------------------------------------------------
 			//... gas density
@@ -526,6 +541,9 @@ int main (int argc, const char * argv[])
 					u = f;	u.zero();
 					err = the_poisson_solver->solve(f, u);
 					
+					if(!bdefd)
+						f.deallocate();
+					
 					grid_hierarchy data_forIO(u);
 					for( int icoord = 0; icoord < 3; ++icoord )
 					{
@@ -542,18 +560,25 @@ int main (int argc, const char * argv[])
 							//... displacement
 							the_poisson_solver->gradient(icoord, u, data_forIO );
 						
+						
 						the_output_plugin->write_gas_position(icoord, data_forIO );
+						
 					}
+					u.deallocate();
+					data_forIO.deallocate();
+					f.deallocate();
 				}
 				else if( do_LLA )
 				{
 					u = f;	u.zero();
 					err = the_poisson_solver->solve(f, u);
 					compute_LLA_density( u, f,grad_order );
+					u.deallocate();
 					normalize_density(f);
 				}
 				
 				the_output_plugin->write_gas_density(f);
+				f.deallocate();
 			}
 			
 			
@@ -596,6 +621,8 @@ int main (int argc, const char * argv[])
 					else 
 						the_poisson_solver->gradient(icoord, u, data_forIO );
 					
+					
+					
 					//... multiply to get velocity
 					data_forIO *= cosmo.vfact;
 					
@@ -606,7 +633,12 @@ int main (int argc, const char * argv[])
 
 					if( do_baryons )
 						the_output_plugin->write_gas_velocity(icoord, data_forIO);
+					
+				
 				}
+				
+				u.deallocate();
+				data_forIO.deallocate();
 				
 			}
 			else
@@ -655,7 +687,9 @@ int main (int argc, const char * argv[])
 					
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
 				}
+				u.deallocate();
 				data_forIO.deallocate();
+				f.deallocate();
 				
 				
 				std::cout << "=============================================================\n";
@@ -698,6 +732,9 @@ int main (int argc, const char * argv[])
 					
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
 				}
+				u.deallocate();
+				f.deallocate();
+				data_forIO.deallocate();
 			}
 		/*********************************************************************************************/
 		/*********************************************************************************************/
@@ -794,6 +831,8 @@ int main (int argc, const char * argv[])
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);				
 			}
 			data_forIO.deallocate();
+			if( !dm_only )
+				u1.deallocate();
 			
 			
 			if( do_baryons && the_transfer_function_plugin->tf_has_velocities() )
@@ -864,6 +903,7 @@ int main (int argc, const char * argv[])
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);				
 				}
 				data_forIO.deallocate();
+				u1.deallocate();
 			}
 			
 			
@@ -951,6 +991,9 @@ int main (int argc, const char * argv[])
 				
 				the_output_plugin->write_dm_position(icoord, data_forIO );	
 			}
+			
+			data_forIO.deallocate();
+			u1.deallocate();
 			
 
 			if( do_baryons && !bsph )
@@ -1054,7 +1097,12 @@ int main (int argc, const char * argv[])
 
 		}
 		
+		//------------------------------------------------------------------------------
+		//... finish output
+		//------------------------------------------------------------------------------
 		
+		the_output_plugin->finalize();
+		delete the_output_plugin;
 		
 	}catch(std::runtime_error& excp){
 		LOGERR("Fatal error occured. Code will exit:");
@@ -1066,12 +1114,7 @@ int main (int argc, const char * argv[])
 
 	std::cout << "=============================================================\n";
 	
-	//------------------------------------------------------------------------------
-	//... finish output
-	//------------------------------------------------------------------------------
 	
-	the_output_plugin->finalize();
-	delete the_output_plugin;
 
 	if( !bfatal )
 	{	

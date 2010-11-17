@@ -70,7 +70,7 @@ namespace convolution{
 		//..... need a phase shift for baryons for SPH
 		bool do_SPH = pk->pcf_->getValueSafe<bool>("setup","do_SPH",false) & (pk->type_==baryon | pk->type_==vbaryon);
 		double dsph = 0.0;
-		double boxlength = pk->pcf_->getValue<int>("setup","boxlength");
+		double boxlength = pk->pcf_->getValue<double>("setup","boxlength");
 		if( do_SPH )
 		{	
 			int lmax = pk->pcf_->getValue<int>("setup","levelmax");

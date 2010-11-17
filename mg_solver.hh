@@ -296,7 +296,7 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 		
 	
 
-	meshvar_bnd Lu(*uf,false);
+	/*meshvar_bnd Lu(*uf,false);
 	Lu.zero();
 
 	#pragma omp parallel for
@@ -310,7 +310,33 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 	
 	//... restrict Lu
 	m_gridop.restrict( Lu, tLu );
-	Lu.deallocate();
+	Lu.deallocate();*/
+	
+	int 
+	oxp = uf->offset(0),
+	oyp = uf->offset(1),
+	ozp = uf->offset(2);
+	
+	meshvar_bnd tLu(*uc,false);
+	#pragma omp parallel for
+	for( int ix=0; ix<nx/2; ++ix )
+	{	
+		int iix=2*ix;
+		for( int iy=0,iiy=0; iy<ny/2; ++iy,iiy+=2 )
+		
+		
+			for( int iz=0,iiz=0; iz<nz/2; ++iz,iiz+=2 )
+				tLu(ix+oxp,iy+oyp,iz+ozp) = 0.125 * (
+							 m_scheme.apply( (*uf), iix, iiy, iiz )
+							+m_scheme.apply( (*uf), iix, iiy, iiz+1 )
+							+m_scheme.apply( (*uf), iix, iiy+1, iiz )
+							+m_scheme.apply( (*uf), iix, iiy+1, iiz+1 )
+							+m_scheme.apply( (*uf), iix+1, iiy, iiz )
+							+m_scheme.apply( (*uf), iix+1, iiy, iiz+1 )
+							+m_scheme.apply( (*uf), iix+1, iiy+1, iiz )
+							+m_scheme.apply( (*uf), iix+1, iiy+1, iiz+1 )
+						)/h2;
+	}
 	
 	//... restrict source term
 	m_gridop.restrict( *ff, *fc );

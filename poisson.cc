@@ -500,11 +500,12 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	fftw_real *data = new fftw_real[nx*ny*nzp];
 	fftw_complex *cdata = reinterpret_cast<fftw_complex*> (data);
 	
+	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz; ++k )
 			{
-				unsigned idx = (i*ny+j)*nzp+k;
+				size_t idx = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
 				data[idx] = (*f.get_grid(f.levelmax()))(i,j,k);
 			}
 	
@@ -536,6 +537,7 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	double kfac = 2.0*M_PI;
 	double fac = -1.0/(nx*ny*nz);
 	
+	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz/2+1; ++k )
@@ -548,7 +550,7 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 				
 				double kk2 = kfac*kfac*(ki*ki+kj*kj+kk*kk);
 				
-				unsigned idx = (i*ny+j)*nzp/2+k;
+				size_t idx = ((size_t)i*ny+(size_t)j)*nzp/2+(size_t)k;
 #ifdef FFTW3
 				cdata[idx][0] *= -1.0/kk2*fac;
 				cdata[idx][1] *= -1.0/kk2*fac;
@@ -588,11 +590,12 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 
 	
 	//... copy data ..........................................
+	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz; ++k )
 			{
-				unsigned idx = (i*ny+j)*nzp+k;
+				size_t idx = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
 				(*u.get_grid(u.levelmax()))(i,j,k) = data[idx];
 			}
 	
@@ -622,11 +625,12 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	fftw_real *data = new fftw_real[nx*ny*nzp];
 	fftw_complex *cdata = reinterpret_cast<fftw_complex*> (data);
 	
+	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz; ++k )
 			{
-				unsigned idx = (i*ny+j)*nzp+k;
+				size_t idx = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
 				data[idx] = (*u.get_grid(u.levelmax()))(i,j,k);
 			}
 	
@@ -658,11 +662,12 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	double fac = -1.0/(nx*ny*nz);
 	double kfac = 2.0*M_PI;
 	
+	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz/2+1; ++k )
 			{
-				unsigned idx = (i*ny+j)*nzp/2+k;
+				size_t idx = (i*(size_t)ny+j)*(size_t)nzp/2+(size_t)k;
 				int ii = i; if(ii>nx/2) ii-=nx;
 				int jj = j; if(jj>ny/2) jj-=ny;
 				double ki = (double)ii;
@@ -727,7 +732,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz; ++k )
 			{
-				unsigned idx = (i*ny+j)*nzp+k;
+				size_t idx = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
 				(*Du.get_grid(u.levelmax()))(i,j,k) = data[idx];
 				if(fabs(data[idx])>dmax)
 					dmax = fabs(data[idx]);
@@ -1023,7 +1028,7 @@ void poisson_hybrid( MeshvarBnd<double>& f, int idir, int order, bool periodic )
 	
 	size_t N = (size_t)nxp*(size_t)nyp*2*((size_t)nzp/2+1);
 	
-	//#pragma omp parallel for
+	#pragma omp parallel for
 	for( size_t i=0; i<N; ++i )
 		data[i]=0.0;
 	

@@ -337,14 +337,17 @@ public:
 	//! assignment operator for rectangular meshes with ghost zones
 	MeshvarBnd<real_t>& operator=( const MeshvarBnd<real_t>& m )
 	{
-		this->m_nx = m.m_nx;
-		this->m_ny = m.m_ny;
-		this->m_nz = m.m_nz;
-		
-		if( m_pdata != NULL )
-			delete[] m_pdata;
+		if( this->m_nx != m.m_nx || this->m_ny != m.m_ny || this->m_nz != m.m_nz )
+		{
+			this->m_nx = m.m_nx;
+			this->m_ny = m.m_ny;
+			this->m_nz = m.m_nz;
 			
-		m_pdata = new real_t[m_nx*m_ny*m_nz];
+			if( m_pdata != NULL )
+				delete[] m_pdata;
+			
+			m_pdata = new real_t[m_nx*m_ny*m_nz];			
+		}
 		
 		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			this->m_pdata[i] = m.m_pdata[i];
@@ -665,6 +668,9 @@ public:
 	void create_base_hierarchy( unsigned lmax )
 	{
 		unsigned n=1;
+		
+		this->deallocate();
+		
 		m_pgrids.clear();
 		
 		m_xoffabs.clear();

@@ -37,7 +37,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.8a"
+#define THE_CODE_VERSION "0.9b"
 
 
 namespace music

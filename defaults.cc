@@ -1,10 +1,11 @@
 /*
- *  defaults.cc
- *  MUSIC
- *
- *  Created by Oliver Hahn on 9/28/10.
- *  Copyright 2010 KIPAC/SLAC. All rights reserved.
- *
+ 
+ defaults.cc - This file is part of MUSIC -
+ a code to generate multi-scale initial conditions 
+ for cosmological simulations 
+ 
+ Copyright (C) 2010  Oliver Hahn
+ 
  */
 
 #include "defaults.hh"

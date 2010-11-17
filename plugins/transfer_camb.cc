@@ -6,20 +6,7 @@
  
  Copyright (C) 2010  Oliver Hahn
  
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- 
- */
+*/
 
 #include "transfer_function.hh"
 
@@ -27,12 +14,8 @@ class transfer_CAMB_plugin : public transfer_function_plugin
 {
 	
 private:
-	//Cosmology m_Cosmology;
-	
 	std::string m_filename_Pk, m_filename_Tk;
 	std::vector<double> m_tab_k, m_tab_Tk_tot, m_tab_Tk_cdm, m_tab_Tk_baryon;
-	
-	Spline_interp *m_psinterp;
 	gsl_interp_accel *acc_tot, *acc_cdm, *acc_baryon;
 	gsl_spline *spline_tot, *spline_cdm, *spline_baryon;
 	

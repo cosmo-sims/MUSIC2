@@ -6,19 +6,6 @@
  
  Copyright (C) 2010  Oliver Hahn
  
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- 
  */
 
 #include "transfer_function.hh"
@@ -27,12 +14,8 @@ class transfer_MUSIC_plugin : public transfer_function_plugin
 {
 	
 private:
-	//Cosmology m_Cosmology;
-	
 	std::string m_filename_Pk, m_filename_Tk;
 	std::vector<double> m_tab_k, m_tab_Tk_tot, m_tab_Tk_cdm, m_tab_Tk_baryon, m_tab_Tvk_cdm, m_tab_Tvk_baryon;
-	
-	Spline_interp *m_psinterp;
 	gsl_interp_accel *acc_dtot, *acc_dcdm, *acc_dbaryon, *acc_vcdm, *acc_vbaryon;
 	gsl_spline *spline_dtot, *spline_dcdm, *spline_dbaryon, *spline_vcdm, *spline_vbaryon;
 	
@@ -75,61 +58,16 @@ private:
 				ss >> Tkvb;
 				
 				
-				//std::cerr << k << "  " << Tktot << "  " << Tkc << std::endl;
-				
 				m_tab_k.push_back( log10(k) );
 				
-#if 1
 				m_tab_Tk_tot.push_back( log10(Tktot) );
 				m_tab_Tk_baryon.push_back( log10(Tkb) );
 				m_tab_Tk_cdm.push_back( log10(Tkc) );
 				m_tab_Tvk_cdm.push_back( log10(Tkvc) );
 				m_tab_Tvk_baryon.push_back( log10(Tkvb) );
-#else
-/*				m_tab_Tk_tot.push_back( log10(fabs(Tktot)) );
-				m_tab_Tk_baryon.push_back( log10(fabs(Tkb)) );
-				m_tab_Tk_cdm.push_back( log10(fabs(Tkc)) );
-				m_tab_Tvk_cdm.push_back( log10(fabs(Tkvc)) );
-				m_tab_Tvk_baryon.push_back( log10(fabs(Tkvb)) );*/
-				
-				m_tab_Tk_tot.push_back( Tktot );
-				m_tab_Tk_baryon.push_back( Tkb );
-				m_tab_Tk_cdm.push_back( Tkc );
-				m_tab_Tvk_cdm.push_back( Tkvc );
-				m_tab_Tvk_baryon.push_back( Tkvb );
-#endif
 			}
 			
-			ifs.close();
-			
-			
-			/*******/
-			/*double Tmin=1e30;
-			for( int i=0; i<m_tab_Tvk_baryon.size(); ++i )
-				if( m_tab_Tvk_baryon[i] < Tmin ) Tmin = m_tab_Tvk_baryon[i];
-			
-			if( Tmin > 0.0 ) Tmin = 0.0;
-			std::cerr << "Tmin = " << Tmin << std::endl;
-			for( int i=0; i<m_tab_Tvk_baryon.size(); ++i )
-			{	m_tab_Tvk_baryon[i] = log10(m_tab_Tvk_baryon[i]-1.1*Tmin);
-				std::cerr << m_tab_Tvk_baryon[i] << std::endl;
-			}
-			
-			Tmin=1e30;
-			for( int i=0; i<m_tab_Tk_baryon.size(); ++i )
-				if( m_tab_Tk_baryon[i] < Tmin ) Tmin = m_tab_Tk_baryon[i];
-			
-			if( Tmin > 0.0 ) Tmin = 0.0;
-			std::cerr << "Tmin = " << Tmin << std::endl;
-			for( int i=0; i<m_tab_Tk_baryon.size(); ++i )
-			{	m_tab_Tk_baryon[i] = log10(m_tab_Tk_baryon[i]-1.1*Tmin);
-				std::cerr << m_tab_Tk_baryon[i] << std::endl;
-			}*/
-			/*******/
-			
-			
-			
-			
+			ifs.close();			
 #ifdef WITH_MPI
 		}
 		

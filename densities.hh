@@ -6,39 +6,10 @@
  
  Copyright (C) 2010  Oliver Hahn
  
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- 
  */
 
 #ifndef __DENSITIES_HH
 #define __DENSITIES_HH
-
-/*
-#ifdef SINGLE_PRECISION
-	#ifdef SINGLETHREAD_FFTW
-	#include <srfftw.h>
-	#else
-	#include <srfftw_threads.h>
-	#endif
-#else
-	#ifdef SINGLETHREAD_FFTW
-	#include <drfftw.h>
-	#else
-	#include <drfftw_threads.h>
-	#endif
-#endif
-*/
 
 #include <assert.h>
 
@@ -963,5 +934,12 @@ inline void enforce_mean( M& v, M& V )
 	}
 	
 }
+
+
+
+
+void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u );
+
+
 #endif
 

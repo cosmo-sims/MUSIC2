@@ -6,24 +6,12 @@
  
  Copyright (C) 2010  Oliver Hahn
  
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- 
  */
 
 #include "cosmology.hh"
 #include "mesh.hh"
 #include "mg_operators.hh"
+#include "general.hh"
 
 #define ACC(i,j,k) ((*u.get_grid((ilevel)))((i),(j),(k)))
 #define SQR(x)	((x)*(x))
@@ -185,23 +173,7 @@ void compute_Lu_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigned
 }
 
 #pragma mark -
-/*
-#ifdef SINGLE_PRECISION
-#ifdef SINGLETHREAD_FFTW
-#include <srfftw.h>
-#else
-#include <srfftw_threads.h>
-#endif
-#else
-#ifdef SINGLETHREAD_FFTW
-#include <drfftw.h>
-#else
-#include <drfftw_threads.h>
-#endif
-#endif
-*/
 
-#include "general.hh"
 
 void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hierarchy& fnew )
 {

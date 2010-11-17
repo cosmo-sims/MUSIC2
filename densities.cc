@@ -6,19 +6,6 @@
  
  Copyright (C) 2010  Oliver Hahn
  
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- 
  */
 
 #include "densities.hh"
@@ -35,14 +22,7 @@
 //TODO: this should be a larger number by default, just to maintain consistency with old default
 #define DEF_RAN_CUBE_SIZE	32
 
-bool is_number(const std::string& s)
-{
-	for (unsigned i = 0; i < s.length(); i++)
-		if (!std::isdigit(s[i])&&s[i]!='-' )
-			return false;
-	
-	return true;
-}
+
 
 /*******************************************************************************************/
 /*******************************************************************************************/
@@ -617,4 +597,30 @@ void normalize_density( grid_hierarchy& delta )
 					(*delta.get_grid(i))(ix,iy,iz) -= sum;
 	}
 }
+
+
+
+void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
+{
+	for( int i=rh.levelmax(); i>0; --i )
+		mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+	
+	for( unsigned i=1; i<=rh.levelmax(); ++i )
+	{
+		if(	  rh.offset(i,0) != u.get_grid(i)->offset(0)
+   		   || rh.offset(i,1) != u.get_grid(i)->offset(1)
+		   || rh.offset(i,2) != u.get_grid(i)->offset(2)
+		   || rh.size(i,0) != u.get_grid(i)->size(0)
+		   || rh.size(i,1) != u.get_grid(i)->size(1)
+		   || rh.size(i,2) != u.get_grid(i)->size(2) )
+		{
+			u.cut_patch(i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
+						rh.size(i,0), rh.size(i,1), rh.size(i,2) );
+		}
+	}
+}
+
+
+
+
 

@@ -1,10 +1,11 @@
 /*
- *  random.cc
- *  MUSIC
- *
- *  Created by Oliver Hahn on 11/4/10.
- *  Copyright 2010 KIPAC/SLAC. All rights reserved.
- *
+ 
+ random.cc - This file is part of MUSIC -
+ a code to generate multi-scale initial conditions 
+ for cosmological simulations 
+ 
+ Copyright (C) 2010  Oliver Hahn
+ 
  */
 
 #include "random.hh"

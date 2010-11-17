@@ -6,19 +6,6 @@
  
  Copyright (C) 2010  Oliver Hahn
  
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
- 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <http://www.gnu.org/licenses/>.
- 
 */
 
 #ifndef __GENERAL_HH
@@ -39,23 +26,6 @@
 #include <time.h>
 #endif
 
-/*#ifdef SINGLE_PRECISION
- #ifdef WITH_MPI
-  #include "srfftw_mpi.h"
-  #define MPI_TREAL MPI_FLOAT
- #else
-  #include "srfftw.h"
- #endif
-  typedef float real_t;
-#else
- #ifdef WITH_MPI
-  #include "drfftw_mpi.h"
-  #define MPI_TREAL MPI_DOUBLE
- #else
-  #include "drfftw.h"
- #endif
-  typedef double real_t;
-#endif*/
 #ifdef FFTW3
 	#include <fftw3.h>
 	#if defined(SINGLE_PRECISION)
@@ -173,5 +143,16 @@ inline double time_seconds( void )
     return ((double) clock()) / CLOCKS_PER_SEC;
   #endif
 }
+
+
+inline bool is_number(const std::string& s)
+{
+	for (unsigned i = 0; i < s.length(); i++)
+		if (!std::isdigit(s[i])&&s[i]!='-' )
+			return false;
+	
+	return true;
+}
+
 
 #endif

@@ -435,7 +435,7 @@ struct interp_O3_fluxcorr
 : public coarse_fine_interpolation
 {
 	template< class G >
-	void interp_coarse_fine( unsigned ilevel, G& coarse, G& fine )
+	void interp_coarse_fine( unsigned ilevel, const G& coarse, G& fine )
 	{
 		
 		//... use cubic interpolation to get all values on boundary
@@ -444,7 +444,7 @@ struct interp_O3_fluxcorr
 		//... use flux corrected quadratic interpolation for the
 		//... the boundary overlapped by the Laplace stencil
 		G *u    = &fine;
-		G *utop = &coarse;
+		const G *utop = &coarse;
 		
 		int
 			xoff = u->offset(0),
@@ -641,7 +641,7 @@ struct interp_O5_fluxcorr
 	
 		
 	template< class G >
-	void interp_coarse_fine( unsigned ilevel, G& coarse, G& fine )
+	void interp_coarse_fine( unsigned ilevel, const G& coarse, G& fine )
 	{
 		
 		//... use cubic interpolation to get all values on boundary
@@ -650,7 +650,7 @@ struct interp_O5_fluxcorr
 		//... use flux corrected quadratic interpolation for the
 		//... the boundary overlapped by the Laplace stencil
 		G *u    = &fine;
-		G *utop = &coarse;
+		const G *utop = &coarse;
 		
 		
 		int
@@ -948,7 +948,7 @@ struct interp_O7_fluxcorr
 	
 	
 	template< class G >
-	void interp_coarse_fine( unsigned ilevel, G& coarse, G& fine )
+	void interp_coarse_fine( unsigned ilevel, const G& coarse, G& fine )
 	{
 		
 		//... use cubic interpolation to get all values on boundary
@@ -957,7 +957,7 @@ struct interp_O7_fluxcorr
 		//... use flux corrected quadratic interpolation for the
 		//... the boundary overlapped by the Laplace stencil
 		G *u    = &fine;
-		G *utop = &coarse;
+		const G *utop = &coarse;
 		
 		
 		int

@@ -143,9 +143,11 @@ public:
 		
 		if( type == baryon )
 			fname = "input_powerspec_baryon.txt";
+		if( type == total )
+			fname = "input_powerspec_total.txt";
 		
 		
-		if( type == cdm || type == baryon )
+		if( type == cdm || type == baryon || type == total )
 		{
 			std::ofstream ofs(fname.c_str());
 			double kmin=-3, kmax=3, dk=(kmax-kmin)/100.;

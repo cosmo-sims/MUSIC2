@@ -358,6 +358,8 @@ int main (int argc, const char * argv[])
 	
 	cosmology cosmo( cf );
 	
+	std::cout << " - starting at a=" << cosmo.astart << std::endl;
+	
 	CosmoCalc ccalc(cosmo,the_transfer_function_plugin);
 	cosmo.pnorm	= ccalc.ComputePNorm( 2.0*M_PI/boxlength );
 	cosmo.dplus	= ccalc.CalcGrowthFactor( cosmo.astart )/ccalc.CalcGrowthFactor( 1.0 );
@@ -516,7 +518,8 @@ int main (int argc, const char * argv[])
 
 					the_output_plugin->write_dm_position(icoord, data_forIO );
 				}
-				u.deallocate();
+				if( do_baryons )
+					u.deallocate();
 				data_forIO.deallocate();
 			}
 			

@@ -68,10 +68,10 @@ namespace convolution{
 		
 #endif
 		//..... need a phase shift for baryons for SPH
-		bool do_SPH = pk->pcf_->getValueSafe<bool>("setup","do_SPH",false) & (pk->type_==baryon | pk->type_==vbaryon);
+		bool do_SPH = pk->pcf_->getValueSafe<bool>("setup","do_SPH",false);
 		double dsph = 0.0;
 		double boxlength = pk->pcf_->getValue<double>("setup","boxlength");
-		if( do_SPH )
+		if( do_SPH  & (pk->type_==baryon | pk->type_==vbaryon) )
 		{	
 			int lmax = pk->pcf_->getValue<int>("setup","levelmax");
 			
@@ -103,13 +103,13 @@ namespace convolution{
 											  
 #ifdef FFTW3
 					std::complex<double> ccdata(cdata[ii][0],cdata[ii][1]), cckernel(ckernel[ii][0],ckernel[ii][1]);
-					ccdata = ccdata * cckernel *fftnorm;
+					ccdata = ccdata * cckernel *fftnorm * carg;
 					
 					cdata[ii][0] = ccdata.real();
 					cdata[ii][1] = ccdata.imag();
 #else
 					std::complex<double> ccdata(cdata[ii].re,cdata[ii].im), cckernel(ckernel[ii].re,ckernel[ii].im);
-					ccdata = ccdata * cckernel *fftnorm;
+					ccdata = ccdata * cckernel *fftnorm * carg;
 					
 					cdata[ii].re = ccdata.real();
 					cdata[ii].im = ccdata.imag();

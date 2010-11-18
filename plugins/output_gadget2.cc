@@ -617,7 +617,7 @@ public:
 			if( coord == 0 )
 				std::cout << " - gadget2 output plug-in will shift particle positions back...\n";
 			
-			double h = 1.0/pow(2,levelmin_);
+			double h = 1.0/(1<<levelmin_);
 			shift = new double[3];
 			shift[0] = -(double)cf_.getValue<int>( "setup", "shift_x" )*h;
 			shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;
@@ -874,7 +874,7 @@ public:
 			if( coord == 0 )
 				std::cout << " - gadget2 output plug-in will shift particle positions back...\n";
 			
-			double h = 1.0/pow(2,levelmin_);
+			double h = 1.0/(1<<levelmin_);
 			shift = new double[3];
 			shift[0] = -(double)cf_.getValue<int>( "setup", "shift_x" )*h;
 			shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;

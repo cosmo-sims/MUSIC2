@@ -480,10 +480,11 @@ int main (int argc, const char * argv[])
 				my_tf_type = total;
 			
 			
-			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, true, false );
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, false, false );
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			
+			LOGUSER("Writing CDM data");
 			the_output_plugin->write_dm_mass(f);
 			the_output_plugin->write_dm_density(f);
 			
@@ -493,6 +494,7 @@ int main (int argc, const char * argv[])
 			if(!bdefd)
 				f.deallocate();
 			
+			LOGUSER("Writing CDM potential");
 			the_output_plugin->write_dm_potential(u);
 			
 			
@@ -507,7 +509,8 @@ int main (int argc, const char * argv[])
 					{
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+									   data_forIO.levelmin()==data_forIO.levelmax());					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 						
@@ -516,6 +519,7 @@ int main (int argc, const char * argv[])
 						//... displacement
 						the_poisson_solver->gradient(icoord, u, data_forIO );
 
+					LOGUSER("Writing CDM displacements");
 					the_output_plugin->write_dm_position(icoord, data_forIO );
 				}
 				if( do_baryons )
@@ -533,16 +537,20 @@ int main (int argc, const char * argv[])
 				std::cout << "   COMPUTING BARYON DENSITY\n";
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing baryon density...");
-				
-				//GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, false, true );
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, true, false );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, false, bsph );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
+				
+				if( !do_LLA )
+				{	
+					LOGUSER("Writing baryon density");
+					the_output_plugin->write_gas_density(f);
+				}
 				
 				if( bsph )
 				{
 					u = f;	u.zero();
-					err = the_poisson_solver->solve(f, u);
+					err = the_poisson_solver->solve(f, u);					
 					
 					if(!bdefd)
 						f.deallocate();
@@ -554,7 +562,8 @@ int main (int argc, const char * argv[])
 						{
 							data_forIO.zero();
 							*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-							poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+							poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+										   data_forIO.levelmin()==data_forIO.levelmax());					
 							*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 							the_poisson_solver->gradient_add(icoord, u, data_forIO );
 							
@@ -563,13 +572,14 @@ int main (int argc, const char * argv[])
 							//... displacement
 							the_poisson_solver->gradient(icoord, u, data_forIO );
 						
-						
+						LOGUSER("Writing baryon displacements");
 						the_output_plugin->write_gas_position(icoord, data_forIO );
 						
-					}
+					}	
 					u.deallocate();
 					data_forIO.deallocate();
-					f.deallocate();
+					if( bdefd )
+						f.deallocate();
 				}
 				else if( do_LLA )
 				{
@@ -578,9 +588,10 @@ int main (int argc, const char * argv[])
 					compute_LLA_density( u, f,grad_order );
 					u.deallocate();
 					normalize_density(f);
+					LOGUSER("Writing baryon density");
+					the_output_plugin->write_gas_density(f);
 				}
 				
-				the_output_plugin->write_gas_density(f);
 				f.deallocate();
 			}
 			
@@ -589,7 +600,7 @@ int main (int argc, const char * argv[])
 			//------------------------------------------------------------------------------
 			//... velocities
 			//------------------------------------------------------------------------------
-			if( !the_transfer_function_plugin->tf_has_velocities() || !do_baryons )
+			if( (!the_transfer_function_plugin->tf_has_velocities() || !do_baryons) && !bsph )
 			{	
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING VELOCITIES\n";
@@ -598,7 +609,7 @@ int main (int argc, const char * argv[])
 				
 				if( do_baryons )
 				{
-					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, rand, f, true, false );
+					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, rand, f, false, false );
 					coarsen_density(rh_Poisson, f);
 					normalize_density(f);
 					
@@ -617,7 +628,8 @@ int main (int argc, const char * argv[])
 					{
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+									   data_forIO.levelmin()==data_forIO.levelmax());					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 					}
@@ -632,10 +644,14 @@ int main (int argc, const char * argv[])
 					if(do_CVM)
 						subtract_finest_mean(data_forIO);
 					
+					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
 
 					if( do_baryons )
+					{	
+						LOGUSER("Writing baryon velocities");
 						the_output_plugin->write_gas_velocity(icoord, data_forIO);
+					}
 					
 				
 				}
@@ -646,16 +662,15 @@ int main (int argc, const char * argv[])
 			}
 			else
 			{
-				LOGINFO("Computing separate velocities for CDM and baryons");
+				LOGINFO("Computing separate velocities for CDM and baryons:");
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING DARK MATTER VELOCITIES\n";
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing dark matter velocitites...");
 				
-				//... we do baryons and have velocity transfer functions
+				//... we do baryons and have velocity transfer functions, or we do SPH and not to shift
 				//... do DM first
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vcdm , rh_TF, rand, f, true, false );
-				//GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vcdm , rh_TF, rand, f, false, false );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vcdm , rh_TF, rand, f, false, false );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
@@ -674,7 +689,8 @@ int main (int argc, const char * argv[])
 					{
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+									   data_forIO.levelmin()==data_forIO.levelmax());					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 					}
@@ -688,6 +704,7 @@ int main (int argc, const char * argv[])
 					//if(do_CVM)
 					//	subtract_finest_mean(data_forIO);
 					
+					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
 				}
 				u.deallocate();
@@ -700,7 +717,7 @@ int main (int argc, const char * argv[])
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing baryon velocitites...");
 				//... do baryons
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vbaryon , rh_TF, rand, f, false, false );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vbaryon , rh_TF, rand, f, false, bsph );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
@@ -719,7 +736,8 @@ int main (int argc, const char * argv[])
 					{
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+									   data_forIO.levelmin()==data_forIO.levelmax());					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 					}
@@ -733,6 +751,7 @@ int main (int argc, const char * argv[])
 					//if(do_CVM)
 					//	subtract_finest_mean(data_forIO);
 					
+					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
 				}
 				u.deallocate();
@@ -768,7 +787,7 @@ int main (int argc, const char * argv[])
 			std::cout << "-------------------------------------------------------------\n";	
 
 			
-			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, true, false );
+			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, false, false );
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			
@@ -779,7 +798,7 @@ int main (int argc, const char * argv[])
 
 			//... compute 1LPT term
 			err = the_poisson_solver->solve(f, u1);
-			the_output_plugin->write_dm_potential(u1);
+			//the_output_plugin->write_dm_potential(u1);
 			
 			//... compute 2LPT term
 			u2LPT = f; u2LPT.zero();
@@ -816,7 +835,8 @@ int main (int argc, const char * argv[])
 				{
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+								   data_forIO.levelmin()==data_forIO.levelmax());					
 					*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 				}
@@ -828,24 +848,28 @@ int main (int argc, const char * argv[])
 				if( do_CVM )
 					subtract_finest_mean(data_forIO);
 					
+				LOGUSER("Writing CDM velocities");
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);					
 				
-				if( do_baryons && !the_transfer_function_plugin->tf_has_velocities() )
+				if( do_baryons && !the_transfer_function_plugin->tf_has_velocities() && !bsph)
+				{	
+					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);				
+				}
 			}
 			data_forIO.deallocate();
 			if( !dm_only )
 				u1.deallocate();
 			
 			
-			if( do_baryons && the_transfer_function_plugin->tf_has_velocities() )
+			if( do_baryons && the_transfer_function_plugin->tf_has_velocities() || bsph )
 			{
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON VELOCITIES\n";
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing baryon displacements...");
 				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vbaryon , rh_TF, rand, f, true, false );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vbaryon , rh_TF, rand, f, false, bsph );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
@@ -856,6 +880,8 @@ int main (int argc, const char * argv[])
 				
 				//... compute 1LPT term
 				err = the_poisson_solver->solve(f, u1);
+
+				LOGINFO("Writing baryon potential");
 				the_output_plugin->write_gas_potential(u1);
 				
 				//... compute 2LPT term
@@ -891,7 +917,8 @@ int main (int argc, const char * argv[])
 					{
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+									   data_forIO.levelmin()==data_forIO.levelmax());					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 					}
@@ -903,6 +930,7 @@ int main (int argc, const char * argv[])
 					if( do_CVM )
 						subtract_finest_mean(data_forIO);
 					
+					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);				
 				}
 				data_forIO.deallocate();
@@ -924,9 +952,11 @@ int main (int argc, const char * argv[])
 				if( !do_baryons || !the_transfer_function_plugin->tf_is_distinct() )
 					my_tf_type = total;
 				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, true, false );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, false, false );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
+				
+				LOGUSER("Writing CDM data");
 				the_output_plugin->write_dm_density(f);
 				the_output_plugin->write_dm_mass(f);
 				u1 = f;	u1.zero();
@@ -985,13 +1015,15 @@ int main (int argc, const char * argv[])
 				{
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+								   data_forIO.levelmin()==data_forIO.levelmax());					
 					*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 				}
 				else 
 					the_poisson_solver->gradient(icoord, u1, data_forIO );
 				
+				LOGUSER("Writing CDM displacements");
 				the_output_plugin->write_dm_position(icoord, data_forIO );	
 			}
 			
@@ -1006,7 +1038,7 @@ int main (int argc, const char * argv[])
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing baryon density...");
 				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, false, true );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, true, false );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
 				
@@ -1034,6 +1066,8 @@ int main (int argc, const char * argv[])
 					
 					compute_LLA_density( u1, f, grad_order );
 					normalize_density(f);
+					
+					LOGUSER("Writing baryon density");
 					the_output_plugin->write_gas_density(f);
 				}
 			}
@@ -1044,11 +1078,12 @@ int main (int argc, const char * argv[])
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing baryon displacements...");
 				
-				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, true, false );
+				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, false, true );
 				coarsen_density(rh_Poisson, f);
 				normalize_density(f);
+				
+				LOGUSER("Writing baryon density");
 				the_output_plugin->write_gas_density(f);
-				//the_output_plugin->write_dm_mass(f);
 				u1 = f;	u1.zero();
 				
 				if(bdefd)
@@ -1087,13 +1122,15 @@ int main (int argc, const char * argv[])
 					{
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, data_forIO.levelmin()==data_forIO.levelmax());					
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+									   data_forIO.levelmin()==data_forIO.levelmax());					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 					}
 					else 
 						the_poisson_solver->gradient(icoord, u1, data_forIO );
 					
+					LOGUSER("Writing baryon displacements");
 					the_output_plugin->write_gas_position(icoord, data_forIO );	
 				}
 			}

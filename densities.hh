@@ -21,10 +21,10 @@
 #include "general.hh"
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
-							  refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool bdeconvolve, bool smooth );
+							  refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool smooth, bool shift );
 
 void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, 
-							refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool kspace, bool deconvolve, bool smooth );
+							refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool smooth, bool shift );
 
 void normalize_density( grid_hierarchy& delta );
 

@@ -138,12 +138,13 @@ public:
 		//if( lk>m_tab_k[m_tab_k.size()-2] );
 		//	return m_tab_Tk_cdm[m_tab_k.size()-2]/k/k;
 		
-		if( type == total )
-			return pow(10.0, gsl_spline_eval (spline_tot, lk, acc_tot) );
 		if( type == cdm )
 			return pow(10.0, gsl_spline_eval (spline_cdm, lk, acc_cdm) );
+
+		if( type == baryon )
+			return pow(10.0, gsl_spline_eval (spline_baryon, lk, acc_baryon) );
 		
-		return pow(10.0, gsl_spline_eval (spline_baryon, lk, acc_baryon) );
+		return pow(10.0, gsl_spline_eval (spline_tot, lk, acc_tot) );
 	}
 	
 	inline double get_kmin( void ){

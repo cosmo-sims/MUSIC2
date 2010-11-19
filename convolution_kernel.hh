@@ -107,7 +107,7 @@ namespace convolution{
 	
 	//! actual implementation of the FFT convolution (independent of the actual kernel)
 	template< typename real_t >
-	void perform( kernel* pk, void *pd );
+	void perform( kernel* pk, void *pd, bool shift );
 	
 	
 	

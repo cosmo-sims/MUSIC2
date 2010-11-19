@@ -281,7 +281,7 @@ public:
 	void write_dm_position( int coord, const grid_hierarchy& gh )
 	{
 		char fieldname[256];
-		sprintf( fieldname, "ParticlePositions_%c", (char)('x'+coord) );
+		sprintf( fieldname, "ParticleDisplacements_%c", (char)('x'+coord) );
 		
 		char enzoname[256], filename[256];
 		
@@ -300,9 +300,10 @@ public:
 				for( int j=0; j<ng[1]; ++j )
 					for( int i=0; i<ng[0]; ++i )
 					{
-						double xx[3];
-						gh.cell_pos(ilevel, i, j, k, xx);
-						data.push_back( fmod( 1.0 + xx[coord] + (*gh.get_grid(ilevel))(k,j,i), 1.0 ) );
+						//double xx[3];
+						//gh.cell_pos(ilevel, i, j, k, xx);
+						//data.push_back( fmod( 1.0 + xx[coord] + (*gh.get_grid(ilevel))(k,j,i), 1.0 ) );
+						data.push_back( (*gh.get_grid(ilevel))(i,j,k) );
 					}
 						
 			//--------------------------------------------------------------------------

@@ -29,7 +29,7 @@
 /*******************************************************************************************/
 
 void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type type, 
-							refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool kspace, bool bdeconvolve, bool smooth )
+							refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool smooth, bool shift )
 {
 	unsigned    levelmin,levelmax,levelminPoisson;
 	real_t		boxlength;
@@ -39,6 +39,8 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	levelmin	= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
 	levelmax	= cf.getValue<unsigned>("setup","levelmax");
 	boxlength   = cf.getValue<real_t>( "setup", "boxlength" );
+	
+	bool kspace = cf.getValueSafe<unsigned>("setup","kspace_TF",false);
 	
 	unsigned	nbase	= 1<<levelmin;
 	
@@ -128,7 +130,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	the_tf_kernel->fetch_kernel( levelmin, false );
 	
 	//... perform convolution
-	convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
+	convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ), shift );
 	
 	//... clean up kernel
 	delete the_tf_kernel;
@@ -149,7 +151,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 /*******************************************************************************************/
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
-							  refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool bdeconvolve, bool smooth )
+							  refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool smooth, bool shift )
 {
 	unsigned					levelmin,levelmax,levelminPoisson;
 	real_t						boxlength;
@@ -259,7 +261,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		}
 #endif
 				
-		convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmax ), reinterpret_cast<void*>( top->get_data_ptr() ) );
+		convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmax ), reinterpret_cast<void*>( top->get_data_ptr() ), shift );
 		the_tf_kernel->deallocate();
 		
 		delta.create_base_hierarchy(levelmin);
@@ -324,7 +326,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			//... 1) compute standard convolution for levelmin
 			LOGUSER("Computing density self-contribution");
-			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
+			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ), shift );
 			top->copy( *delta.get_grid(levelmin) );
 			
 			
@@ -335,7 +337,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			top->zero_subgrid(refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
 							  refh.size(levelmin+i+1,0)/2, refh.size(levelmin+i+1,1)/2, refh.size(levelmin+i+1,2)/2 );
 
-			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ) );
+			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( top->get_data_ptr() ), shift );
 			the_tf_kernel->deallocate();
 			
 			meshvar_bnd delta_longrange( *delta.get_grid(levelmin) );
@@ -385,7 +387,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			//... 1) the inner region
 			LOGUSER("Computing density self-contribution");
 			coarse->subtract_boundary_oct_mean();
-			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
+			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()), shift );
 			coarse->copy_add_unpad( *delta.get_grid(levelmin+i) );
 			
 			
@@ -396,7 +398,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			coarse->zero_subgrid(refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
 								 refh.size(levelmin+i+1,0)/2, refh.size(levelmin+i+1,1)/2, refh.size(levelmin+i+1,2)/2 );
 			
-			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( coarse->get_data_ptr() ) );
+			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*>( coarse->get_data_ptr() ), shift );
 			
 			//... interpolate to finer grid(s)
 			meshvar_bnd delta_longrange( *delta.get_grid(levelmin+i) );
@@ -410,7 +412,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			LOGUSER("Computing coarse grid correction");
 			*coarse = coarse_save;
 			coarse->subtract_oct_mean();
-			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
+			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()), shift );
 			coarse->subtract_mean();
 			coarse->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
 			
@@ -471,7 +473,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		coarse->subtract_boundary_oct_mean();
 		
 		//... perform convolution
-		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
+		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()), shift );
 		
 		//... copy to grid hierarchy
 		coarse->copy_add_unpad( *delta.get_grid(levelmax) );
@@ -485,7 +487,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		coarse->subtract_oct_mean();
 		
 		//... perform convolution
-		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()) );
+		convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()), shift );
 
 		the_tf_kernel->deallocate();
 		

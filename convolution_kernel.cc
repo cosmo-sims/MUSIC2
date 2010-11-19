@@ -24,7 +24,7 @@ namespace convolution{
 	}
 	
 	template< typename real_t >
-	void perform( kernel * pk, void *pd )
+	void perform( kernel * pk, void *pd, bool shift )
 	{
 		//return;
 		parameters cparam_ = pk->cparam_;
@@ -68,18 +68,18 @@ namespace convolution{
 		
 #endif
 		//..... need a phase shift for baryons for SPH
-		bool do_SPH = pk->pcf_->getValueSafe<bool>("setup","do_SPH",false);
-		double dsph = 0.0;
-		double boxlength = pk->pcf_->getValue<double>("setup","boxlength");
-		if( do_SPH  & (pk->type_==baryon | pk->type_==vbaryon) )
+		double dstag = 0.0;
+
+		if( shift )
 		{	
-			int lmax = pk->pcf_->getValue<int>("setup","levelmax");
-			
-			double dx = boxlength/(1<<lmax);
+			double boxlength = pk->pcf_->getValue<double>("setup","boxlength");
+			int lmax = pk->pcf_->getValue<int>("setup","levelmax");	
+			double dxmax = boxlength/(1<<lmax);
+			double dxcur = cparam_.lx/cparam_.nx;
 			LOGUSER("Performing staggering shift for SPH");
-			dsph = 0.5*dx;
+			dstag = M_PI/cparam_.nx * dxmax/dxcur;
 		}
-		double am  = 2.0*M_PI/cparam_.lx * dsph;
+		
 		//.............................................
 		
 		#pragma omp parallel for
@@ -98,7 +98,7 @@ namespace convolution{
 					if( kx > cparam_.nx/2 ) kx -= cparam_.nx;
 					if( ky > cparam_.ny/2 ) ky -= cparam_.ny;
 					
-					double arg = (kx+ky+kz)*am;
+					double arg = (kx+ky+kz)*dstag;
 					std::complex<double> carg( cos(arg), sin(arg) );
 											  
 #ifdef FFTW3
@@ -136,8 +136,8 @@ namespace convolution{
 	}
 	
 	
-	template void perform<double>( kernel* pk, void *pd );
-	template void perform<float>( kernel* pk, void *pd );
+	template void perform<double>( kernel* pk, void *pd, bool shift );
+	template void perform<float>( kernel* pk, void *pd, bool shift );
 	
 	/*****************************************************************************************\
 	 ***    SPECIFIC KERNEL IMPLEMENTATIONS      *********************************************

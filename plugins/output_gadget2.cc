@@ -467,7 +467,10 @@ public:
 		npartmax_ = 1<<30;
 		
 		if(!ofs_.good())
-			throw std::runtime_error("gadget-2 output plug-in could not open output file for writing!\n");
+		{	
+			LOGERR("gadget-2 output plug-in could not open output file \'%s\' for writing!",fname_.c_str());
+			throw std::runtime_error(std::string("gadget-2 output plug-in could not open output file \'")+fname_+"\' for writing!\n");
+		}
 		
 		bmorethan2bnd_ = false;
 		if( levelmax_ > levelmin_ +1)

@@ -978,7 +978,6 @@ public:
 		xc[1] = fmod(x0ref_[1]+0.5*lxref_[1],1.0);
 		xc[2] = fmod(x0ref_[2]+0.5*lxref_[2],1.0);
 		
-		
 		if( levelmin_ != levelmax_ && !bnoshift || force_shift )
 		{
 			xshift_[0] = (int)((0.5-xc[0])*ncoarse);
@@ -1050,8 +1049,18 @@ public:
 			ir += ir%2; jr += jr%2; kr += kr%2; 
 		}
 		
+		//... make sure bounding box lies in domain
+		il = (il+nresmax)%nresmax; ir = (ir+nresmax)%nresmax;
+		jl = (jl+nresmax)%nresmax; jr = (jr+nresmax)%nresmax;
+		kl = (kl+nresmax)%nresmax; kr = (kr+nresmax)%nresmax;
+		
+		if( il>=ir || jl>=jr || kl>=kr )
+			LOGERR("Internal refinement bounding box error: (%d,%d,%d),(%d,%d,%d)",il,ir,jl,jr,kl,kr);
+		
+		//... determine offsets
 		if( levelmin_ != levelmax_ )
 		{
+
 			oax_[levelmax_] = (il+nresmax)%nresmax;
 			oay_[levelmax_] = (jl+nresmax)%nresmax;
 			oaz_[levelmax_] = (kl+nresmax)%nresmax;
@@ -1091,9 +1100,11 @@ public:
 				ir += ir%2; jr += jr%2; kr += kr%2; 
 			}
 			
+			if( il>=ir || jl>=jr || kl>=kr )
+				LOGERR("Internal refinement bounding box error: (%d,%d,%d),(%d,%d,%d)",il,ir,jl,jr,kl,kr);
+
 			oax_[ilevel] = il;		oay_[ilevel] = jl;		oaz_[ilevel] = kl;
 			nx_[ilevel]  = ir-il;	ny_[ilevel]  = jr-jl;	nz_[ilevel]  = kr-kl;
-			
 		}
 		
 		//... determine relative offsets between grids

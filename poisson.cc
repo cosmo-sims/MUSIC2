@@ -601,6 +601,49 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	
 	delete[] data;
 	
+	//... set boundary values ................................
+	int nb = u.get_grid(u.levelmax())->m_nbnd;
+	for( int iy=-nb; iy<ny+nb; ++iy )
+		for( int iz=-nb; iz<nz+nb; ++iz )
+		{
+			int iiy( (iy+ny)%ny ), iiz( (iz+nz)%nz );
+			
+			for( int i=-nb; i<0; ++i )
+			{
+				(*u.get_grid(u.levelmax()))(i,iy,iz) = (*u.get_grid(u.levelmax()))(nx+i,iiy,iiz);
+				(*u.get_grid(u.levelmax()))(nx-1-i,iy,iz) = (*u.get_grid(u.levelmax()))(-1-i,iiy,iiz);	
+			}
+			
+		}
+		
+	for( int ix=-nb; ix<nx+nb; ++ix )
+		for( int iz=-nb; iz<nz+nb; ++iz )
+		{
+			int iix( (ix+nx)%nx ), iiz( (iz+nz)%nz );
+			
+			for( int i=-nb; i<0; ++i )
+			{
+				(*u.get_grid(u.levelmax()))(ix,i,iz) = (*u.get_grid(u.levelmax()))(iix,ny+i,iiz);
+				(*u.get_grid(u.levelmax()))(ix,ny-1-i,iz) = (*u.get_grid(u.levelmax()))(iix,-1-i,iiz);
+			}
+		}
+		
+	for( int ix=-nb; ix<nx+nb; ++ix )
+		for( int iy=-nb; iy<ny+nb; ++iy )
+		{
+			int iix( (ix+nx)%nx ), iiy( (iy+ny)%ny );
+			
+			for( int i=-nb; i<0; ++i )
+			{
+				(*u.get_grid(u.levelmax()))(ix,iy,i) = (*u.get_grid(u.levelmax()))(iix,iiy,nz+i);
+				(*u.get_grid(u.levelmax()))(ix,iy,nz-1-i) = (*u.get_grid(u.levelmax()))(iix,iiy,-1-i);
+			}
+		}
+		
+		
+
+	
+	
 	LOGUSER("Done with k-space Poisson solver.");
 	return 0.0;
 }

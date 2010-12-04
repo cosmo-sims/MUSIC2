@@ -146,7 +146,6 @@ public:
 		if( type == total )
 			fname = "input_powerspec_total.txt";
 		
-		
 		if( type == cdm || type == baryon || type == total )
 		{
 			std::ofstream ofs(fname.c_str());

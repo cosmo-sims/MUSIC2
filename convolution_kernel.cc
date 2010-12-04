@@ -403,7 +403,13 @@ namespace convolution{
 		dplus		= pcf_->getValue<double>("cosmology","dplus");
 		
 		bool
-		bperiodic	= pcf_->getValueSafe<bool>("setup","periodic_TF",true);
+			bperiodic	= pcf_->getValueSafe<bool>("setup","periodic_TF",true),
+			deconv = pcf_->getValueSafe<bool>("setup","deconvolve",true);
+		//		bool deconv_baryons = true;//pcf_->getValueSafe<bool>("setup","deconvolve_baryons",false) || do_SPH;
+		bool bsmooth_baryons = false;//type==baryon && !deconv_baryons;
+									 //bool bbaryons = type==baryon | type==vbaryon;
+		bool kspacepoisson = ((pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
+							   pcf_->getValueSafe<bool>("poisson","kspace",false)));// & !(type==baryon&!do_SPH);//&!baryons ;
 		
 		std::cout << "   - Computing transfer function kernel...\n";
 		
@@ -424,6 +430,11 @@ namespace convolution{
 				}
 		
 		LOGUSER("Computing fine kernel (level %d)...", levelmax);
+		
+		int ref_fac = (deconv&&kspacepoisson)? 2 : 0;
+		const int ql = -ref_fac/2+1, qr = ql+ref_fac;
+		const double rf8 = pow(ref_fac,3);
+		const double dx05 = 0.5*dx, dx025 = 0.25*dx;
 		
 		if( bperiodic  )
 		{		
@@ -472,8 +483,35 @@ namespace convolution{
 									   && rr[1] > -boxlength && rr[1] <= boxlength
 									   && rr[2] > -boxlength && rr[2] <= boxlength )
 									{
-										rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-										val += tfr->compute_real(rr2);	
+										if( ref_fac > 0 )
+										{
+											double rrr[3];
+											register double rrr2[3];
+											for( int iii=ql; iii<qr; ++iii )
+											{       
+												rrr[0] = rr[0]+(double)iii*dx05 - dx025;
+												rrr2[0]= rrr[0]*rrr[0];
+												for( int jjj=ql; jjj<qr; ++jjj )
+												{
+													rrr[1] = rr[1]+(double)jjj*dx05 - dx025;
+													rrr2[1]= rrr[1]*rrr[1];
+													for( int kkk=ql; kkk<qr; ++kkk )
+													{
+														rrr[2] = rr[2]+(double)kkk*dx05 - dx025;
+														rrr2[2]= rrr[2]*rrr[2];
+														rr2 = rrr2[0]+rrr2[1]+rrr2[2];
+														val += tfr->compute_real(rr2)/rf8;
+													}
+												}
+											}
+										}
+										else
+										{
+											rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+											val += tfr->compute_real(rr2);	
+										}
+
+										
 									}
 								}
 						
@@ -505,7 +543,7 @@ namespace convolution{
 						
 						//rkernel[idx] = 0.0;
 						
-						rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+						//rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
 						
 						//... speed up 8x by copying data to other octants
 						size_t idx[8];
@@ -523,8 +561,37 @@ namespace convolution{
 						if(j==0||j==ny/2){ idx[2]=idx[3]=idx[6]=idx[7]=(size_t)-1;}
 						if(k==0||k==nz/2){ idx[4]=idx[5]=idx[6]=idx[7]=(size_t)-1;}
 						
+						double val = 0.0;//(fftw_real)tfr->compute_real(rr2)*fac;
 						
-						double val = (fftw_real)tfr->compute_real(rr2)*fac;
+						if( ref_fac > 0 )
+						{
+							double rrr[3];
+							register double rrr2[3];
+							for( int iii=ql; iii<qr; ++iii )
+							{       
+								rrr[0] = rr[0]+(double)iii*dx05 - dx025;
+								rrr2[0]= rrr[0]*rrr[0];
+								for( int jjj=ql; jjj<qr; ++jjj )
+								{
+									rrr[1] = rr[1]+(double)jjj*dx05 - dx025;
+									rrr2[1]= rrr[1]*rrr[1];
+									for( int kkk=ql; kkk<qr; ++kkk )
+									{
+										rrr[2] = rr[2]+(double)kkk*dx05 - dx025;
+										rrr2[2]= rrr[2]*rrr[2];
+										rr2 = rrr2[0]+rrr2[1]+rrr2[2];
+										val += tfr->compute_real(rr2)/rf8;
+									}
+								}
+							}
+						}
+						else
+						{
+							rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+							val = tfr->compute_real(rr2);	
+						}
+						
+						
 						//if( rr2 <= boxlength2*boxlength2 )
 						//rkernel[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
 						
@@ -541,10 +608,7 @@ namespace convolution{
 		/*************************************************************************************/
 		/*************************************************************************************/
 		/******* perform deconvolution *******************************************************/
-		bool deconv = pcf_->getValueSafe<bool>("setup","deconvolve",true);
-		//		bool deconv_baryons = true;//pcf_->getValueSafe<bool>("setup","deconvolve_baryons",false) || do_SPH;
-		bool bsmooth_baryons = false;//type==baryon && !deconv_baryons;
-		//bool bbaryons = type==baryon | type==vbaryon;
+		
 		
 		
 		//bool baryons = type==baryon||type==vbaryon;
@@ -554,8 +618,7 @@ namespace convolution{
 			LOGUSER("Deconvolving fine kernel...");
 			std::cout << " - Deconvoling density kernel...\n";
 			
-			bool kspacepoisson = ((pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
-								   pcf_->getValueSafe<bool>("poisson","kspace",false)));// & !(type==baryon&!do_SPH);//&!baryons ;
+			
 			
 			double fftnorm = 1.0/((size_t)nx*(size_t)ny*(size_t)nz);
 			double k0 = rkernel[0];

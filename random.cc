@@ -11,6 +11,8 @@
 #include "random.hh"
 
 
+//#define DEGRADE_RAND1
+
 template< typename T >
 random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long baseseed, int *x0, int *lx )
 : res_( res ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
@@ -1288,6 +1290,104 @@ void random_number_generator<rng,T>:: store_rnd( int ilevel, rng* prng )
 	
 	int lfac = 1<<(ilevel-levelmin_poisson);
 	
+	
+	bool grafic_out = false;
+	
+	
+	if( grafic_out )
+	{
+		std::vector<float> data;
+		if( ilevel == levelmin_ )
+		{
+			int N = 1<<levelmin_;
+			int i0,j0,k0;
+			i0 = -lfac*shift[0];
+			j0 = -lfac*shift[1];
+			k0 = -lfac*shift[2];
+			
+			char fname[128];
+			sprintf(fname,"grafic_wnoise_%04d.bin",ilevel);
+			
+			LOGUSER("Storing white noise field for grafic in file \'%s\'...", fname );
+			
+			std::ofstream ofs(fname,std::ios::binary|std::ios::trunc);
+			data.assign( N*N, 0.0 );
+			
+			int blksize = 4*sizeof(int);
+			int iseed = 0;
+			
+			ofs.write(reinterpret_cast<char*> (&blksize), sizeof(int) );
+			ofs.write(reinterpret_cast<char*> (&N), sizeof(int) );
+			ofs.write(reinterpret_cast<char*> (&N), sizeof(int) );
+			ofs.write(reinterpret_cast<char*> (&N), sizeof(int) );
+			ofs.write(reinterpret_cast<char*> (&iseed), sizeof(int) );
+			ofs.write(reinterpret_cast<char*> (&blksize), sizeof(int) );
+			
+			for( int k=0; k<N; ++k )
+			{	
+				#pragma omp parallel for
+				for( int j=0; j<N; ++j )
+					for( int i=0; i<N; ++i )
+						data[j*N+i] = -(*prng)(i+i0,j+j0,k+k0);
+			
+				blksize = N*N*sizeof(float);
+				ofs.write(reinterpret_cast<char*> (&blksize), sizeof(int) );
+				ofs.write(reinterpret_cast<char*> (&data[0]), N*N*sizeof(float) );
+				ofs.write(reinterpret_cast<char*> (&blksize), sizeof(int) );
+			}
+			
+			ofs.close();
+			
+		}
+		else {
+			
+			int nx,ny,nz;
+			int i0,j0,k0;
+			
+			nx = prefh_->size(ilevel, 0);
+			ny = prefh_->size(ilevel, 1);
+			nz = prefh_->size(ilevel, 2);
+			i0 = prefh_->offset_abs(ilevel, 0) - lfac*shift[0];
+			j0 = prefh_->offset_abs(ilevel, 1) - lfac*shift[1];
+			k0 = prefh_->offset_abs(ilevel, 2) - lfac*shift[2];
+			
+			char fname[128];
+			sprintf(fname,"grafic_wnoise_%04d.bin",ilevel);
+			
+			LOGUSER("Storing white noise field for grafic in file \'%s\'...", fname );
+			
+			std::ofstream ofs(fname,std::ios::binary|std::ios::trunc);
+			data.assign( nx*ny, 0.0 );
+			
+			int blksize = 4*sizeof(int);
+			int iseed = 0;
+			
+			ofs.write(reinterpret_cast<char*> (&blksize), sizeof(int) );
+			ofs.write( reinterpret_cast<char*> (&nz), sizeof(unsigned) );
+			ofs.write( reinterpret_cast<char*> (&ny), sizeof(unsigned) );
+			ofs.write( reinterpret_cast<char*> (&nx), sizeof(unsigned) );
+			ofs.write(reinterpret_cast<char*> (&iseed), sizeof(int) );
+			ofs.write(reinterpret_cast<char*> (&blksize), sizeof(int) );
+			
+			for( int k=0; k<nz; ++k )
+			{	
+				#pragma omp parallel for
+				for( int j=0; j<ny; ++j )
+					for( int i=0; i<nx; ++i )
+						data[j*nx+i] = -(*prng)(i+i0,j+j0,k+k0);
+				
+				blksize = nx*ny*sizeof(float);
+				ofs.write(reinterpret_cast<char*> (&blksize), sizeof(int) );
+				ofs.write(reinterpret_cast<char*> (&data[0]), nx*ny*sizeof(float) );
+				ofs.write(reinterpret_cast<char*> (&blksize), sizeof(int) );
+			}
+			ofs.close();
+			
+		}
+
+	}
+	
+	
 	if( disk_cached_ )
 	{
 		std::vector<T> data;
@@ -1314,7 +1414,7 @@ void random_number_generator<rng,T>:: store_rnd( int ilevel, rng* prng )
 			data.assign( N*N, 0.0 );
 			for( int i=0; i<N; ++i )
 			{	
-#pragma omp parallel for
+				#pragma omp parallel for
 				for( int j=0; j<N; ++j )
 					for( int k=0; k<N; ++k )
 						data[j*N+k] = (*prng)(i+i0,j+j0,k+k0);

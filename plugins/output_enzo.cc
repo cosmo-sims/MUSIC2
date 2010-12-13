@@ -296,15 +296,12 @@ public:
 			std::vector<double> data;
 			data.reserve( ng[0]*ng[1]*ng[2] );
 
+			double dx = 1.0/(1<<ilevel);
+
 			for( int k=0; k<ng[2]; ++k )
 				for( int j=0; j<ng[1]; ++j )
 					for( int i=0; i<ng[0]; ++i )
-					{
-						//double xx[3];
-						//gh.cell_pos(ilevel, i, j, k, xx);
-						//data.push_back( fmod( 1.0 + xx[coord] + (*gh.get_grid(ilevel))(k,j,i), 1.0 ) );
 						data.push_back( (*gh.get_grid(ilevel))(i,j,k) );
-					}
 						
 			//--------------------------------------------------------------------------
 			

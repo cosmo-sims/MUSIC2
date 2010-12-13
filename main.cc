@@ -432,12 +432,14 @@ int main (int argc, const char * argv[])
 	
 	
 	bool kspace	= cf.getValueSafe<bool>( "poisson", "kspace", false );
-	
+        bool kspace2LPT = kspace;
+
 	//... if in unigrid mode, use k-space instead of hybrid
 	if(bdefd&lbase==lmax)
 	{
 		kspace=true;
 		bdefd=false;
+		kspace2LPT=false;
 	}
 	
 	std::string poisson_solver_name;
@@ -802,13 +804,15 @@ int main (int argc, const char * argv[])
 			
 			//... compute 2LPT term
 			u2LPT = f; u2LPT.zero();
-			
-			if( !kspace )
+		
+			LOGINFO("Computing 2LPT term....");
+			if( !kspace2LPT )
 				compute_2LPT_source(u1, f2LPT, grad_order );
-			else
+			else{
+				LOGUSER("computing term using FFT");
 				compute_2LPT_source_FFT(cf, u1, f2LPT);
-			
-				
+			}
+			LOGINFO("Solving 2LPT Poisson equation");
 			err = the_poisson_solver->solve(f2LPT, u2LPT);
 			
 			//... if doing the hybrid step, we need a combined source term
@@ -887,7 +891,7 @@ int main (int argc, const char * argv[])
 				//... compute 2LPT term
 				u2LPT = f; u2LPT.zero();
 				
-				if( !kspace )
+				if( !kspace2LPT )
 					compute_2LPT_source(u1, f2LPT, grad_order );
 				else
 					compute_2LPT_source_FFT(cf, u1, f2LPT);
@@ -970,7 +974,7 @@ int main (int argc, const char * argv[])
 				//... compute 2LPT term
 				u2LPT = f; u2LPT.zero();
 				
-				if( !kspace )
+				if( !kspace2LPT )
 					compute_2LPT_source(u1, f2LPT, grad_order );
 				else
 					compute_2LPT_source_FFT(cf, u1, f2LPT);
@@ -1054,7 +1058,7 @@ int main (int argc, const char * argv[])
 					//... compute 2LPT term
 					u2LPT = f; u2LPT.zero();
 					
-					if( !kspace )
+					if( !kspace2LPT )
 						compute_2LPT_source(u1, f2LPT, grad_order );
 					else
 						compute_2LPT_source_FFT(cf, u1, f2LPT);
@@ -1095,7 +1099,7 @@ int main (int argc, const char * argv[])
 				//... compute 2LPT term
 				u2LPT = f; u2LPT.zero();
 				
-				if( !kspace )
+				if( !kspace2LPT )
 					compute_2LPT_source(u1, f2LPT, grad_order );
 				else
 					compute_2LPT_source_FFT(cf, u1, f2LPT);

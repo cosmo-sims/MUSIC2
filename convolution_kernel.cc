@@ -594,7 +594,7 @@ namespace convolution{
 						
 						//if( rr2 <= boxlength2*boxlength2 )
 						//rkernel[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
-						
+						val *= fac;	
 						
 						for(int q=0;q<8;++q)
 							if(idx[q]!=(size_t)-1)  

@@ -12,6 +12,8 @@
 #include <iostream>
 #include <algorithm>
 
+std::string RemoveMultipleWhiteSpaces( std::string s );
+
 
 std::string MUSIC::log::outputFile_;
 std::ofstream MUSIC::log::outputStream_;

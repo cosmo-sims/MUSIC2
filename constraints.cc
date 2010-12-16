@@ -6,9 +6,171 @@
  
  Copyright (C) 2010  Oliver Hahn
  
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ 
  */
 
 #include "constraints.hh"
+
+double dsigma2_tophat( double k, void *params );
+double dsigma2_gauss( double k, void *params );
+double find_coll_z( const std::vector<double>& z, const std::vector<double>& sigma, double nu );
+void compute_sigma_tophat( config_file& cf, transfer_function *ptf, double R, std::vector<double>& z, std::vector<double>& sigma );
+void compute_sigma_gauss( config_file& cf, transfer_function *ptf, double R, std::vector<double>& z, std::vector<double>& sigma );
+
+
+
+double dsigma2_tophat( double k, void *pparams )
+{
+	if( k<=0.0 )
+		return 0.0;
+	
+	char **params = reinterpret_cast<char**> (pparams);
+	
+	transfer_function *ptf = reinterpret_cast<transfer_function*>(params[0]);
+	double x = k * *reinterpret_cast<double*>(params[1]);
+	double nspect = *reinterpret_cast<double*>(params[2]);
+	
+	double w = 3.0*(sin(x)-x*cos(x))/(x*x*x);
+	
+	double tfk = ptf->compute(k,total);
+	return k*k * w*w * pow(k,nspect) * tfk*tfk;
+}
+
+double dsigma2_gauss( double k, void *pparams )
+{
+	if( k<=0.0 )
+		return 0.0;
+	
+	char **params = reinterpret_cast<char**> (pparams);
+	
+	transfer_function *ptf = reinterpret_cast<transfer_function*> (params[0]);
+	double x = k * *reinterpret_cast<double*>(params[1]);
+	double nspect = *reinterpret_cast<double*>(params[2]);
+	
+	double w = exp(-x*x*0.5);
+	
+	double tfk = ptf->compute(k,total);
+	return k*k * w*w * pow(k,nspect) * tfk*tfk;
+}
+
+double find_coll_z( const std::vector<double>& z, const std::vector<double>& sigma, double nu )
+{
+	double dcoll = 1.686/nu;
+	double zcoll = 0.0;
+	
+	gsl_interp_accel *acc = gsl_interp_accel_alloc ();
+	gsl_spline *spline = gsl_spline_alloc (gsl_interp_cspline, z.size());
+	
+	gsl_spline_init (spline, &sigma[0], &z[0], z.size() );
+	
+	zcoll = gsl_spline_eval(spline, dcoll, acc );
+	
+	gsl_spline_free (spline);
+	gsl_interp_accel_free (acc);
+	
+	return zcoll;
+}
+
+
+void compute_sigma_tophat( config_file& cf, transfer_function *ptf, double R, std::vector<double>& z, std::vector<double>& sigma )
+{
+	z.clear();
+	sigma.clear();
+	
+	cosmology cosm( cf );
+	CosmoCalc ccalc( cosm, ptf );
+	
+	double zmin = 0.0, zmax = 200.0;
+	int nz = 100;
+	for( int i=0; i <nz; ++i )
+		z.push_back( zmax - i*(zmax-zmin)/(nz-1.0) );
+	
+	double D0 = ccalc.CalcGrowthFactor(1.0);
+
+	double sigma8 = cf.getValue<double>("cosmology","sigma_8"); 
+	double nspec = cf.getValue<double>("cosmology","nspec");
+	
+	double sigma0 = 0.0;
+	{
+		double eight=8.0;
+
+		char *params[3];
+		params[0] = reinterpret_cast<char*> (ptf);
+		params[1] = reinterpret_cast<char*> (&eight);
+		params[2] = reinterpret_cast<char*> (&nspec);
+		
+		sigma0 = sqrt(4.0*M_PI*integrate( &dsigma2_tophat, 1e-4, 1e4, reinterpret_cast<void*>(params) ));
+	}
+	
+	for( int i=0; i <nz; ++i )
+	{
+		void *params[3];
+		params[0] = reinterpret_cast<char*> (ptf);
+		params[1] = reinterpret_cast<char*> (&R);
+		params[2] = reinterpret_cast<char*> (&nspec);
+		
+		double sig = sqrt(4.0*M_PI*integrate( &dsigma2_tophat, 1e-4, 1e4, reinterpret_cast<void*>(params) ));
+		double Dz  = ccalc.CalcGrowthFactor(1./(1.+z[i]));
+		sigma.push_back( sig*sigma8/sigma0*Dz/D0 );
+	}
+}
+
+void compute_sigma_gauss( config_file& cf, transfer_function *ptf, double R, std::vector<double>& z, std::vector<double>& sigma )
+{
+	z.clear();
+	sigma.clear();
+	
+	cosmology cosm( cf );
+	CosmoCalc ccalc( cosm, ptf );
+	
+	double zmin = 0.0, zmax = 200.0;
+	int nz = 100;
+	for( int i=0; i <nz; ++i )
+		z.push_back( zmax - i*(zmax-zmin)/(nz-1.0) );
+	
+	double D0 = ccalc.CalcGrowthFactor(1.0);
+	
+	double sigma8 = cf.getValue<double>("cosmology","sigma_8"); 
+	double nspec = cf.getValue<double>("cosmology","nspec");
+	
+	double sigma0 = 0.0;
+	{
+		double eight=8.0;
+		
+		char *params[3];
+		params[0] = reinterpret_cast<char*> (ptf);
+		params[1] = reinterpret_cast<char*> (&eight);
+		params[2] = reinterpret_cast<char*> (&nspec);
+		
+		sigma0 = sqrt(4.0*M_PI*integrate( &dsigma2_tophat, 1e-4, 1e4, reinterpret_cast<void*>(params) ));
+	}
+	
+	for( int i=0; i <nz; ++i )
+	{
+		void *params[3];
+		params[0] = reinterpret_cast<char*> (ptf);
+		params[1] = reinterpret_cast<char*> (&R);
+		params[2] = reinterpret_cast<char*> (&nspec);
+		
+		double sig = sqrt(4.0*M_PI*integrate( &dsigma2_gauss, 1e-4, 1e4, reinterpret_cast<void*>(params) ));
+		double Dz  = ccalc.CalcGrowthFactor(1./(1.+z[i]));
+		
+		//std::cerr << z[i] << "    " << sig << std::endl;
+		sigma.push_back( sig*sigma8/sigma0*Dz/D0 );
+	}
+}
 
 
 constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
@@ -26,11 +188,11 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 	
 	constr_level_ = std::max(constr_level_,levelmin_TF);
 	
-	//double omegam = pcf_->getValue<double>("cosmology","Omega_m");
-	//double rhom = omegam*2.77519737e11; //... mean matter density
+	double omegam = pcf_->getValue<double>("cosmology","Omega_m");
+	double rhom = omegam*2.77519737e11; //... mean matter density
 	
 	//... use EdS density for estimation
-	double rhom = 2.77519737e11;
+	//double rhom = 2.77519737e11;
 	
 	std::map< std::string, constr_type> constr_type_map;
 	constr_type_map.insert( std::pair<std::string,constr_type>("halo",halo) );
@@ -74,13 +236,30 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 			else if( new_c.type == peak )
 			{
 				//... peak type constraints take a scale and a peak height
-				sprintf(temp1,"constraint[%u].Rg",i);
-				new_c.Rg = cf.getValue<double>( "constraints", temp1 );
+				//sprintf(temp1,"constraint[%u].Rg",i);
+				//new_c.Rg = cf.getValue<double>( "constraints", temp1 );
+				//double mass = pow(new_c.Rg,3.0)*rhom*pow(2.*M_PI,1.5);
 				
+				sprintf(temp1,"constraint[%u].mass",i);
+				double mass = cf.getValue<double>( "constraints", temp1 );
+				new_c.Rg = pow((mass/pow(2.*M_PI,1.5)/rhom),1./3.);
+				double Rtophat = pow(mass/4.0*3.0/M_PI/rhom,1./3.);
 				sprintf(temp1,"constraint[%u].nu",i);
-				new_c.sigma = cf.getValue<double>( "constraints", temp1 );
+				double nu = cf.getValue<double>( "constraints", temp1 );
 				
-				LOGINFO("Constraint %d : peak with Rg=%g h-1 Mpc and nu = %g",i,new_c.Rg,new_c.sigma);
+				std::vector<double> z,sigma;
+				compute_sigma_tophat( cf, ptf, Rtophat, z, sigma );
+				double zcoll = find_coll_z( z, sigma, nu );
+				
+				//LOGINFO("Probable collapse redshift for constraint %d : z = %f @ M = %g", i, zcoll,mass );
+				
+				compute_sigma_gauss( cf, ptf, new_c.Rg, z, sigma );
+				new_c.sigma = nu*sigma.back();
+				
+				//LOGINFO("Constraint %d : peak with Rg=%g h-1 Mpc and nu = %g",i,new_c.Rg,new_c.sigma);
+				LOGINFO("Constraint %3d : peak",i);
+				LOGINFO("   M = %g h-1 M_o, nu = %.2f sigma", mass, nu );
+				LOGINFO("   estimated z_coll = %f, sigma = %f", zcoll, new_c.sigma );
 				
 			}
 			

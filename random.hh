@@ -29,7 +29,6 @@
 #include "mesh.hh"
 #include "mg_operators.hh"
 #include "constraints.hh"
-//#include "transfer_function.hh"
 
 
 /*!

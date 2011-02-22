@@ -118,39 +118,6 @@ solver<S,I,O,T>::solver( GridHierarchy<T>& f, opt::smtype smoother, unsigned npr
 m_smoother( smoother ), m_ilevelmin( f.levelmin() ), m_is_ini( true ), m_pf( &f )
 { 
 	m_is_ini = true;
-	
-	// TODO: maybe later : add more than one refinement region, then we need the mask
-	//... initialize the refinement mask
-	//m_pmask = new GridHierarchy<bool>( f.m_nbnd );
-	//m_pmask->create_base_hierarchy(f.levelmin());
-			
-	/*for( unsigned ilevel=f.levelmin()+1; ilevel<=f.levelmax(); ++ilevel )
-	{
-		meshvar_bnd* pf = f.get_grid(ilevel);
-		m_pmask->add_patch( pf->offset(0), pf->offset(1), pf->offset(2), pf->size(0), pf->size(1), pf->size(2) );
-	}
-	
-	m_pmask->zero();
-	
-	for( unsigned ilevel=0; ilevel<f.levelmin(); ++ilevel )
-	{
-		MeshvarBnd<T> *pf = f.get_grid(ilevel);
-		for( int ix=0; ix < (int)pf->size(0); ++ix )
-			for( int iy=0; iy < (int)pf->size(1); ++iy )
-				for( int iz=0; iz < (int)pf->size(2); ++iz )
-					(*m_pmask->get_grid(ilevel))(ix,iy,iz) = true;
-	}
-	
-	for( unsigned ilevel=m_ilevelmin; ilevel<f.levelmax(); ++ilevel )
-	{
-		MeshvarBnd<T>* pf = f.get_grid(ilevel+1);//, *pfc = f.get_grid(ilevel);
-		
-		for( int ix=pf->offset(0); ix < (int)(pf->offset(0)+pf->size(0)/2); ++ix )
-			for( int iy=pf->offset(1); iy < (int)(pf->offset(1)+pf->size(1)/2); ++iy )
-				for( int iz=pf->offset(2); iz < (int)(pf->offset(2)+pf->size(2)/2); ++iz )
-					(*m_pmask->get_grid(ilevel))(ix,iy,iz) = true;
-	}
-	*/	
 }
 
 
@@ -295,7 +262,8 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 		interp().interp_coarse_fine(ilevel,*uc,*uf);
 		
 	
-
+	//....................................................................
+	//... we now use hard-coded restriction+operatore app, see below
 	/*meshvar_bnd Lu(*uf,false);
 	Lu.zero();
 
@@ -311,6 +279,7 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 	//... restrict Lu
 	m_gridop.restrict( Lu, tLu );
 	Lu.deallocate();*/
+	//.................................................................... 
 	
 	int 
 	oxp = uf->offset(0),

@@ -11,6 +11,7 @@
 #include "densities.hh"
 #include "convolution_kernel.hh"
 
+//... THIS IS FOR TESTING, TODO: TAKE OUT FOR RELEASE VERSION
 //... uncomment this to have a single peak in the centre and otherwise zeros
 //#define SINGLE_PEAK
 //#define SINGLE_OCT_PEAK
@@ -73,9 +74,6 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 		#endif
 	}	
 		
-	
-	//... initialize random number generator
-	//random_number_generator<random_numbers<real_t>,real_t> rand_gen( cf, refh );
 	
 	//... initialize convolution kernel
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create( cf, ptf, refh, type );
@@ -169,8 +167,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	boxlength		= cf.getValue<real_t>( "setup", "boxlength" );
 	kspaceTF		= cf.getValueSafe<bool>("setup", "kspace_TF", false);
 	
-	
-	//random_number_generator<random_numbers<real_t>,real_t> rand_gen( cf, refh );
 	
 	unsigned	nbase	= (unsigned)pow(2,levelmin);
 	
@@ -280,13 +276,11 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		if( i==0 )
 		{
 			top = new DensityGrid<real_t>( nbase, nbase, nbase );
-			//rand_gen.load(*top,levelmin);
 			rand.load(*top,levelmin);
 		}
 		
 		fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
 												refh.size(levelmin+i+1,0), 	refh.size(levelmin+i+1,1), 	refh.size(levelmin+i+1,2) );
-		//rand_gen.load(*fine,levelmin+i+1);
 		rand.load(*fine,levelmin+i+1);
 		
 		//.......................................................................................................//
@@ -495,8 +489,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		
 		//... upload data to coarser grid
 		coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );
-		
-		//delete the_tf_kernel;		
+			
 		delete coarse;
 	}
 	

@@ -135,7 +135,6 @@ void compute_LLA_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 						(*pvar)(ix,iy,iz) = 1.0/det-1.0;
 						
 					}
-			//TODO: test sixth order
 			
 		}else
 			throw std::runtime_error("compute_LLA_density : invalid operator order specified");
@@ -542,7 +541,7 @@ void compute_2LPT_source( const grid_hierarchy& u, grid_hierarchy& fnew, unsigne
 											+ D[1][1]*D[2][2] - SQR( D[1][2] ) );
 						
 					}
-			//TODO: test sixth order
+			
 			
 		}
 		else

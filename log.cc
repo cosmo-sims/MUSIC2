@@ -76,12 +76,12 @@ void MUSIC::log::send(messageType type, const std::string& text_)
 		// print type
 		switch(type)
 		{
-			case Info:		outputStream_ << " |  info   | "; break;
-			case DebugInfo: outputStream_ << " |  debug  | "; break;
+			case Info:		outputStream_ << " | info    | "; break;
+			case DebugInfo: outputStream_ << " | debug   | "; break;
 			case Warning:	outputStream_ << " | warning | "; break;
-			case Error:		outputStream_ << " |  ERROR  | "; break;
-			case FatalError:outputStream_ << " |  FATAL  | "; break;
-			case User:		outputStream_ << " |  info   | "; break;
+			case Error:		outputStream_ << " | ERROR   | "; break;
+			case FatalError:outputStream_ << " | FATAL   | "; break;
+			case User:		outputStream_ << " | info    | "; break;
 			default:		outputStream_ << " | ";
 		}
 		
@@ -107,8 +107,7 @@ void MUSIC::log::setOutput(const std::string& filename)
 	// create file
 	outputStream_.open(filename.c_str());
 	if(!outputStream_.is_open())
-		LOGERR("Cannot create/open \'%s\' for logging",filename.c_str());
-		//send(Error, "Cannot create/open '" + filename + "' for logging");
+		LOGERR("Cannot create/open logfile \'%s\'.",filename.c_str());
 }
 
 void MUSIC::log::setLevel(const MUSIC::log::messageType level) 

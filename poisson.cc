@@ -1037,7 +1037,9 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 	
 }
    
-void poisson_hybrid( MeshvarBnd<double>& f, int idir, int order, bool periodic )
+template< typename T >
+void poisson_hybrid( T& f, int idir, int order, bool periodic )
+
 {
 	int nx=f.size(0), ny=f.size(1), nz=f.size(2), nxp, nyp, nzp;
 	fftw_real		*data;
@@ -1120,6 +1122,9 @@ void poisson_hybrid( MeshvarBnd<double>& f, int idir, int order, bool periodic )
 /**************************************************************************************/
 /**************************************************************************************/
 #pragma mark -
+
+template void poisson_hybrid< MeshvarBnd<double> >( MeshvarBnd<double>& f, int idir, int order, bool periodic );
+template void poisson_hybrid< MeshvarBnd<float> >( MeshvarBnd<float>& f, int idir, int order, bool periodic );
 
 namespace{
 	poisson_plugin_creator_concrete<multigrid_poisson_plugin> multigrid_poisson_creator("mg_poisson");

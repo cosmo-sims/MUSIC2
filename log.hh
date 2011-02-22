@@ -168,38 +168,6 @@ inline void LOGINFO( const char* str, ... )
 	MUSIC::log::send(MUSIC::log::Info, std::string(out));
 }
 
-
-
-/*#ifndef LOGERR
-#define LOGERR(x) { std::stringstream ss; ss<<(x); MUSIC::log::send(MUSIC::log::Error, ss); }
-#endif
-
-#ifndef LOGINFO
-#define LOGINFO(x) { std::stringstream ss; ss<<(x); MUSIC::log::send(MUSIC::log::Info, ss); }
-#endif
-
-#ifndef LOGWARN
-#define LOGWARN(x) { std::stringstream ss; ss<<(x); MUSIC::log::send(MUSIC::log::Warning, ss); }
-#endif
-
-#ifndef LOGFATAL
-#define LOGFATAL(x) { std::stringstream ss; ss<<(x); MUSIC::log::send(MUSIC::log::FatalError, ss); }
-#endif
-
-#ifndef LOGDEBUG
-#define LOGDEBUG(x) { std::stringstream ss; ss<<(x); MUSIC::log::send(MUSIC::log::DebugInfo, ss); }
-#endif
-
-#ifndef LOGUSER
-#define LOGUSER(x) { std::stringstream ss; ss<<(x); MUSIC::log::send(MUSIC::log::User, ss); }
-#endif*/
-
-/*#define LOGINFO(x) MUSIC::log::send(MUSIC::log::Info, std::stringstream()<<(x));
-#define LOGWARN(x) MUSIC::log::send(MUSIC::log::Warning, std::stringstream()<<(x));
-#define LOGFATAL(x) MUSIC::log::send(MUSIC::log::FatalError, std::stringstream()<<(x));
-*/
-
-
 #endif //__LOG_HH
 
 

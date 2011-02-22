@@ -174,7 +174,8 @@ public:
 /**************************************************************************************/
 #pragma mark -
 
-void poisson_hybrid( MeshvarBnd<double>& f, int idir, int order, bool periodic );
+template< typename T >
+void poisson_hybrid( T& f, int idir, int order, bool periodic );
 
 
 

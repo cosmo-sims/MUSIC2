@@ -10,6 +10,7 @@
 
 #include "random.hh"
 
+// TODO: move all this into a plugin!!!
 
 //#define DEGRADE_RAND1
 

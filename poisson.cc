@@ -1071,11 +1071,20 @@ void poisson_hybrid( T& f, int idir, int order, bool periodic )
 	if(idir==0)
 		std::cout << "   - Performing hybrid Poisson step... (" << nxp <<  ", " << nyp << ", " << nzp << ")\n";
 	
-	size_t N = (size_t)nxp*(size_t)nyp*2*((size_t)nzp/2+1);
+	//size_t N = (size_t)nxp*(size_t)nyp*2*((size_t)nzp/2+1);
+	
+	//#pragma omp parallel for
+	//for( size_t i=0; i<N; ++i )
+	//	data[i]=0.0;
 	
 	#pragma omp parallel for
-	for( size_t i=0; i<N; ++i )
-		data[i]=0.0;
+	for( int i=0; i<nxp; ++i )
+		for( int j=0; j<nyp; ++j )
+			for( int k=0; k<=nzp; ++k )
+			{
+				size_t idx = ((size_t)i*(size_t)nxp+(size_t)j)*(size_t)(nzp+2)+(size_t)k;
+				data[idx] = 0.0;
+			}
 	
 	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )

@@ -104,7 +104,8 @@ public:
 		acc_dtot = gsl_interp_accel_alloc();
 		acc_dcdm = gsl_interp_accel_alloc();
 		acc_dbaryon = gsl_interp_accel_alloc();
-		
+		acc_vcdm = gsl_interp_accel_alloc();
+		acc_vbaryon = gsl_interp_accel_alloc();
 		
 		spline_dtot = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
 		spline_dcdm = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );

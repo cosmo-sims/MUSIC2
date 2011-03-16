@@ -937,13 +937,14 @@ void random_number_generator<rng,T>::parse_rand_parameters( void )
 		
 		if( is_number( tempstr ) )
 		{	
-			long ltemp;
+			size_t ltemp;
 			pcf_->convert( tempstr, ltemp );
 			rngfnames_.push_back( "" );
 			if( ltemp < 0 )
 				//... generate some dummy seed which only depends on the level, negative so we know it's not
 				//... an actual seed and thus should not be used as a constraint for coarse levels
-				rngseeds_.push_back( -abs((unsigned)(ltemp-i)%123+(unsigned)(ltemp+827342523521*i)%123456789) );
+				//rngseeds_.push_back( -abs((unsigned)(ltemp-i)%123+(unsigned)(ltemp+827342523521*i)%123456789) );
+                rngseeds_.push_back( -abs((size_t)(ltemp-i)%123+(size_t)(ltemp+827342523521*i)%123456789) );
 			else
 				rngseeds_.push_back( ltemp );
 		}else{

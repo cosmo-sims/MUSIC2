@@ -89,6 +89,7 @@ protected:
 			for( int k=0; k<ng[2]; ++k )
 				for( int j=0; j<ng[1]; ++j )
 					for( int i=0; i<ng[0]; ++i )
+						//data.push_back( 0.0 );
 						data.push_back( (add+(*gh.get_grid(ilevel))(i,j,k))*factor );
 			
 			sprintf( enzoname, "%s.%d", fieldname.c_str(), ilevel-levelmin_ );

@@ -435,7 +435,7 @@ int main (int argc, const char * argv[])
         bool kspace2LPT = kspace;
 
 	//... if in unigrid mode, use k-space instead of hybrid
-	if(bdefd&lbase==lmax)
+	if(bdefd && (lbase==lmax))
 	{
 		kspace=true;
 		bdefd=false;
@@ -866,7 +866,7 @@ int main (int argc, const char * argv[])
 				u1.deallocate();
 			
 			
-			if( do_baryons && the_transfer_function_plugin->tf_has_velocities() || bsph )
+			if( do_baryons && (the_transfer_function_plugin->tf_has_velocities() || bsph) )
 			{
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON VELOCITIES\n";

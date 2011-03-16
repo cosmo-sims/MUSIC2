@@ -104,7 +104,7 @@ public:
 	
 protected:
 	
-	typedef struct constraint{
+	struct constraint{
 		constr_type type;
 		double x,y,z;
 		double gx,gy,gz;

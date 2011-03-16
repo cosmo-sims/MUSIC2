@@ -978,7 +978,7 @@ public:
 		xc[1] = fmod(x0ref_[1]+0.5*lxref_[1],1.0);
 		xc[2] = fmod(x0ref_[2]+0.5*lxref_[2],1.0);
 		
-		if( levelmin_ != levelmax_ && !bnoshift || force_shift )
+		if( (levelmin_ != levelmax_) && (!bnoshift || force_shift) )
 		{
 			xshift_[0] = (int)((0.5-xc[0])*ncoarse);
 			xshift_[1] = (int)((0.5-xc[1])*ncoarse);
@@ -1228,7 +1228,7 @@ public:
 			}
 		}
 		
-		if( old_levelmin != levelmin_ & print)
+		if( (old_levelmin != levelmin_) && print)
 			std::cerr << " - refinement_hierarchy: set new levelmin to " << levelmin_ << std::endl;
 	}
 	

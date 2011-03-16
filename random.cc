@@ -871,7 +871,7 @@ random_number_generator<rng,T>::random_number_generator( config_file& cf, refine
 	
 	ran_cube_size_	= pcf_->getValueSafe<unsigned>("random","cubesize",DEF_RAN_CUBE_SIZE);
 	disk_cached_ = pcf_->getValueSafe<bool>("random","disk_cached",true);
-	mem_cache_.assign(levelmax_-levelmin_+1,NULL);
+	mem_cache_.assign(levelmax_-levelmin_+1, (std::vector<T>*)NULL);
 	
 	
 	////disk_cached_ = false;
@@ -1203,11 +1203,13 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	
 	//... levelmin
 	if( randc[levelmin_] == NULL )
-		if( rngfnames_[levelmin_].size() > 0 )
+	{
+        if( rngfnames_[levelmin_].size() > 0 )
 			randc[levelmin_] = new rng( 1<<levelmin_, rngfnames_[levelmin_] );
 		else
 			randc[levelmin_] = new rng( 1<<levelmin_, ran_cube_size_, rngseeds_[levelmin_], true );
-	
+	}
+    
 	//if( levelmax_ == levelmin_ )
 	{
 		//... apply constraints to coarse grid

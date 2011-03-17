@@ -55,7 +55,7 @@ protected:
 	};
 	
 	unsigned block_buf_size_;
-	unsigned long long npartmax_;
+	size_t npartmax_;
 	unsigned nfiles_;
 	
 	//bool bbndparticles_;
@@ -66,9 +66,9 @@ protected:
 	std::ifstream& open_and_check( std::string ffname, size_t npart )
 	{
 		std::ifstream ifs( ffname.c_str(), std::ios::binary );
-		long long blk;
-		ifs.read( (char*)&blk, sizeof(long long) );
-		if( blk != npart*(long long)sizeof(T_store) )
+		size_t blk;
+		ifs.read( (char*)&blk, sizeof(size_t) );
+		if( blk != npart*(size_t)sizeof(T_store) )
 		{	
 			LOGERR("Internal consistency error in gadget2 output plug-in");
 			LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
@@ -84,7 +84,7 @@ protected:
 		pistream (std::string fname, size_t npart )
 		: std::ifstream( fname.c_str(), std::ios::binary )
 		{
-			long long blk;
+			size_t blk;
 			
 			if( !this->good() )
 			{	
@@ -92,9 +92,9 @@ protected:
 				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
 			}
 			
-			this->read( (char*)&blk, sizeof(long long) );
+			this->read( (char*)&blk, sizeof(size_t) );
 			
-			if( blk != (long long)(npart*sizeof(T_store)) )
+			if( blk != (size_t)(npart*sizeof(T_store)) )
 			{	
 				LOGERR("Internal consistency error in gadget2 output plug-in");
 				LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
@@ -110,7 +110,7 @@ protected:
 		void open(std::string fname, size_t npart )
 		{
 			std::ifstream::open( fname.c_str(), std::ios::binary );
-			long long blk;
+			size_t blk;
 			
 			if( !this->good() )
 			{	
@@ -118,9 +118,9 @@ protected:
 				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
 			}
 			
-			this->read( (char*)&blk, sizeof(long long) );
+			this->read( (char*)&blk, sizeof(size_t) );
 			
-			if( blk != (long long)(npart*sizeof(T_store)) )
+			if( blk != (size_t)(npart*sizeof(T_store)) )
 			{	
 				LOGERR("Internal consistency error in gadget2 output plug-in");
 				LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
@@ -540,8 +540,8 @@ public:
 				
 		if( bmorethan2bnd_ )
 		{
-			unsigned long long npcoarse = gh.count_leaf_cells(gh.levelmin(), gh.levelmax()-1);
-			unsigned long long nwritten = 0;
+			size_t npcoarse = gh.count_leaf_cells(gh.levelmin(), gh.levelmax()-1);
+			size_t nwritten = 0;
 			
 			std::vector<T_store> temp_dat;
 			temp_dat.reserve(block_buf_size_);
@@ -550,9 +550,9 @@ public:
 			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_mass );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 			
-			long long blksize = sizeof(T_store)*npcoarse;
+			size_t blksize = sizeof(T_store)*npcoarse;
 			
-			ofs_temp.write( (char *)&blksize, sizeof(long long) );
+			ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 			
 			for( int ilevel=gh.levelmax()-1; ilevel>=(int)gh.levelmin(); --ilevel )
 			{
@@ -589,7 +589,7 @@ public:
 			if( nwritten != npcoarse )
 				throw std::runtime_error("Internal consistency error while writing temporary file for masses");
 			
-			ofs_temp.write( (char *)&blksize, sizeof(long long) );
+			ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 			
 			if( ofs_temp.bad() )
 				throw std::runtime_error("I/O error while writing temporary file for masses");
@@ -605,7 +605,7 @@ public:
 	void write_dm_position( int coord, const grid_hierarchy& gh )
 	{
 		//... count number of leaf cells ...//
-		unsigned long long npcoarse = 0, npfine = 0;
+		size_t npcoarse = 0, npfine = 0;
 		
 		npfine   = gh.count_leaf_cells(gh.levelmax(), gh.levelmax());
 		if( bmultimass_ )
@@ -627,8 +627,8 @@ public:
 			shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
 		}
 		
-		unsigned long long npart = npfine+npcoarse;
-		unsigned long long nwritten = 0;
+        size_t npart = npfine+npcoarse;
+		size_t nwritten = 0;
 		
 		//...
 		header_.npart[1] = npfine;
@@ -650,8 +650,8 @@ public:
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
 		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 		
-		long long blksize = sizeof(T_store)*npart;
-		ofs_temp.write( (char *)&blksize, sizeof(long long) );
+		size_t blksize = sizeof(T_store)*npart;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 		
 		double xfac = header_.BoxSize;
 		
@@ -688,7 +688,7 @@ public:
 			throw std::runtime_error("Internal consistency error while writing temporary file for positions");
 		
 		//... dump to temporary file
-		ofs_temp.write( (char *)&blksize, sizeof(long long) );
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 		
 		if( ofs_temp.bad() )
 			throw std::runtime_error("I/O error while writing temporary file for positions");
@@ -734,8 +734,8 @@ public:
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
 		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 		
-		long long blksize = sizeof(T_store)*npart;
-		ofs_temp.write( (char *)&blksize, sizeof(long long) );
+		size_t blksize = sizeof(T_store)*npart;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 		
 		for( int ilevel=levelmax_; ilevel>=(int)levelmin_; --ilevel )
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
@@ -814,8 +814,8 @@ public:
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_vel+coord );
 		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 
-		long long blksize = sizeof(T_store)*npart;
-		ofs_temp.write( (char *)&blksize, sizeof(long long) );
+		size_t blksize = sizeof(T_store)*npart;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 		
 		{
 			const unsigned ilevel = gh.levelmax();
@@ -865,7 +865,7 @@ public:
 	void write_gas_position( int coord, const grid_hierarchy& gh )
 	{	
 		//... count number of leaf cells ...//
-		unsigned long long npfine = 0;
+		size_t npfine = 0;
 		
 		npfine   = gh.count_leaf_cells(gh.levelmax(), gh.levelmax());
 		
@@ -884,8 +884,8 @@ public:
 			shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
 		}
 		
-		unsigned long long npart = npfine;
-		unsigned long long nwritten = 0;
+		size_t npart = npfine;
+        size_t nwritten = 0;
 		
 		//...
 		header_.npart[0] = npfine;
@@ -904,8 +904,8 @@ public:
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_pos+coord );
 		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 		
-		long long blksize = sizeof(T_store)*npart;
-		ofs_temp.write( (char *)&blksize, sizeof(long long) );
+		size_t blksize = sizeof(T_store)*npart;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 		
 		double xfac = header_.BoxSize;
 		
@@ -959,7 +959,7 @@ public:
 			throw std::runtime_error("Internal consistency error while writing temporary file for gas positions");
 		
 		//... dump to temporary file
-		ofs_temp.write( (char *)&blksize, sizeof(long long) );
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 		
 		if( ofs_temp.bad() )
 			throw std::runtime_error("I/O error while writing temporary file for gas positions");

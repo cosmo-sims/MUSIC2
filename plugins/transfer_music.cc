@@ -42,6 +42,8 @@ private:
 			m_tab_Tvk_cdm.clear();
 			m_tab_Tvk_baryon.clear();
 			
+			const double zero = 1e-10;
+			
 			while( !ifs.eof() ){
 				getline(ifs,line);
 				
@@ -56,6 +58,13 @@ private:
 				ss >> Tkb;
 				ss >> Tkvc;
 				ss >> Tkvb;
+				
+				Tktot = std::max(zero,Tktot);
+				Tkc   = std::max(zero,Tkc);
+				Tkb   = std::max(zero,Tkb);
+				Tkvc  = std::max(zero,Tkvc);
+				Tkvb  = std::max(zero,Tkvb);
+				
 				
 				
 				m_tab_k.push_back( log10(k) );

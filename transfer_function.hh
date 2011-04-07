@@ -30,6 +30,7 @@ enum tf_type{
 	total, cdm, baryon, vcdm, vbaryon
 };
 
+#define GSL_INTEGRATION_ERR 1e-5
 
 //! Abstract base class for transfer functions
 /*!
@@ -465,22 +466,22 @@ public:
 
 			//... integrate 0..kmax
 			double a[6];
-			a[3] = 0.0;
+			a[3] = 0.1*kmin;
 			a[4] = kmax;
 			  
 			ff.function = &call_x;
 			ff.params = reinterpret_cast<void*> (a);
 			double res, err, res2, err2;
 			
-			gsl_integration_qags( &ff, a[3], a[4], 0.0, REL_PRECISION, 1000, ws, &res, &err );
+			gsl_integration_qags( &ff, a[3], a[4], 0.0, GSL_INTEGRATION_ERR, 1000, ws, &res, &err );
 			
 			if( err/res > REL_PRECISION )
 				std::cerr << " - Warning: no convergence in \'TransferFunction_real\', rel. error=" << err/res << std::endl;
 			
 			//... integrate 0..kmin
-			a[3] = 0.0;
+			a[3] = 0.1*kmin;
 			a[4] = kmin;
-			gsl_integration_qags( &ff, a[3], a[4], 0.0, REL_PRECISION, 1000, ws, &res2, &err2 );
+			gsl_integration_qags( &ff, a[3], a[4], 0.0, GSL_INTEGRATION_ERR, 1000, ws, &res2, &err2 );
 			
 			if( err2/res2 > 10*REL_PRECISION )
 				std::cerr << " - Warning: no convergence in \'TransferFunction_real\', rel. error=" << err2/res2 << std::endl;
@@ -570,7 +571,7 @@ public:
 		FX.params = reinterpret_cast<void*> (a);
 		
 		double resx, errx;
-		gsl_integration_qags( &FX, kmin, kmax, 1e-5, 1e-5, 1000, wx, &resx, &errx );
+		gsl_integration_qags( &FX, kmin, kmax, 0.0, GSL_INTEGRATION_ERR, 1000, wx, &resx, &errx );
 							 
 		gsl_integration_workspace_free (wx);
 		
@@ -591,7 +592,7 @@ public:
 		FY.params = reinterpret_cast<void*> (a);
 		
 		double resy, erry;
-		gsl_integration_qags( &FY, kmin, kmax, 1e-5, 1e-5, 1000, wy, &resy, &erry );
+		gsl_integration_qags( &FY, kmin, kmax, 0.0, GSL_INTEGRATION_ERR, 1000, wy, &resy, &erry );
 		
 		gsl_integration_workspace_free (wy);
 		

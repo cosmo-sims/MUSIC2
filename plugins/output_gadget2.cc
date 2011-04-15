@@ -532,7 +532,7 @@ public:
 		if( kpcunits_ )
 			rhoc *= 10.0; // in h^2 M_sol / kpc^3
 		
-		
+		// only type 1 are baryons
 		if( !do_baryons_ )
 			header_.mass[1] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmax_);
 		else
@@ -556,13 +556,10 @@ public:
 			
 			for( int ilevel=gh.levelmax()-1; ilevel>=(int)gh.levelmin(); --ilevel )
 			{
-				double pmass = 0.0;
+                // baryon particles live only on finest grid
+                // these particles here are total matter particles
+				double pmass = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*ilevel);	
 				
-				if( !do_baryons_ )
-					pmass = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*ilevel);		
-				else
-					pmass = (header_.Omega0-omegab_) * rhoc * pow(header_.BoxSize,3.)/pow(2,3*ilevel);
-					
 				for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 					for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 						for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )

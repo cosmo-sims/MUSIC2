@@ -916,7 +916,8 @@ class refinement_hierarchy
 	
 	config_file& cf_;	//!< reference to config_file
 	
-	bool align_top_;	//!< bool whether to align all grids with coarsest grid cells
+	bool align_top_,	//!< bool whether to align all grids with coarsest grid cells
+	     equal_extent_; //!< bool whether the simulation code requires squared refinement regions (e.g. RAMSES)
 	
 	double 
 		x0ref_[3],	//!< coordinates of refinement region origin (in [0..1[)
@@ -943,6 +944,8 @@ public:
 		levelmin_tf_= cf_.getValueSafe<unsigned>("setup","levelmin_TF",levelmin_);
 		padding_	= cf_.getValue<unsigned>("setup","padding");
 		align_top_	= cf_.getValue<bool>("setup","align_top");
+		equal_extent_ = cf_.getValueSafe<bool>("setup","force_equal_extent",false);
+		
 		
 		bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
 		bool force_shift = cf_.getValueSafe<bool>("setup","force_shift",false);
@@ -1067,6 +1070,22 @@ public:
 			nx_[levelmax_]  = ir-il;	
 			ny_[levelmax_]  = jr-jl;	
 			nz_[levelmax_]  = kr-kl;
+			
+			if( equal_extent_ )
+			{
+				size_t ilevel = levelmax_;
+				size_t nmax = std::max( nx_[ilevel], std::max( ny_[ilevel], nz_[ilevel] ) );				
+				int dx = (int)((double)(nmax-nx_[ilevel])*0.5);
+				int dy = (int)((double)(nmax-ny_[ilevel])*0.5);
+				int dz = (int)((double)(nmax-nz_[ilevel])*0.5);
+				
+				oax_[ilevel] -= dx;
+				oay_[ilevel] -= dy;
+				oaz_[ilevel] -= dz;
+				nx_[ilevel] = nmax;
+				ny_[ilevel] = nmax;
+				nz_[ilevel] = nmax;
+			}
 		}
 		
 		//... determine position of coarser grids
@@ -1100,11 +1119,27 @@ public:
 				ir += ir%2; jr += jr%2; kr += kr%2; 
 			}
 			
-			if( il>=ir || jl>=jr || kl>=kr )
+			if( il>=ir || jl>=jr || kl>=kr || il < 0 || jl < 0 || kl < 0)
 				LOGERR("Internal refinement bounding box error: (%d,%d,%d),(%d,%d,%d)",il,ir,jl,jr,kl,kr);
 
 			oax_[ilevel] = il;		oay_[ilevel] = jl;		oaz_[ilevel] = kl;
 			nx_[ilevel]  = ir-il;	ny_[ilevel]  = jr-jl;	nz_[ilevel]  = kr-kl;
+			
+			if( equal_extent_ )
+			{
+				size_t nmax = std::max( nx_[ilevel], std::max( ny_[ilevel], nz_[ilevel] ) );				
+				int dx = (int)((double)(nmax-nx_[ilevel])*0.5);
+				int dy = (int)((double)(nmax-ny_[ilevel])*0.5);
+				int dz = (int)((double)(nmax-nz_[ilevel])*0.5);
+				
+				oax_[ilevel] -= dx;
+				oay_[ilevel] -= dy;
+				oaz_[ilevel] -= dz;
+				nx_[ilevel] = nmax;
+				ny_[ilevel] = nmax;
+				nz_[ilevel] = nmax;
+			}
+
 		}
 		
 		//... determine relative offsets between grids

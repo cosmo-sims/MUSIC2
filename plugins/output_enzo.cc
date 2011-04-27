@@ -77,11 +77,16 @@ protected:
 		
 		for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
 		{
-			std::vector<int> ng;
+			std::vector<int> ng, ng_fortran;
 			ng.push_back( gh.get_grid(ilevel)->size(0) );
 			ng.push_back( gh.get_grid(ilevel)->size(1) );
 			ng.push_back( gh.get_grid(ilevel)->size(2) );
 			
+            ng_fortran.push_back( gh.get_grid(ilevel)->size(2) );
+			ng_fortran.push_back( gh.get_grid(ilevel)->size(1) );
+			ng_fortran.push_back( gh.get_grid(ilevel)->size(0) );
+			
+            
 			//... need to copy data because we need to get rid of the ghost zones
 			std::vector<double> data;
 			data.reserve( ng[0]*ng[1]*ng[2] );
@@ -89,7 +94,6 @@ protected:
 			for( int k=0; k<ng[2]; ++k )
 				for( int j=0; j<ng[1]; ++j )
 					for( int i=0; i<ng[0]; ++i )
-						//data.push_back( 0.0 );
 						data.push_back( (add+(*gh.get_grid(ilevel))(i,j,k))*factor );
 			
 			sprintf( enzoname, "%s.%d", fieldname.c_str(), ilevel-levelmin_ );
@@ -97,7 +101,7 @@ protected:
 			
 			HDFCreateFile( filename );
 			write_sim_header( filename, the_sim_header );
-			HDFWriteDataset3Ds( filename, enzoname, reinterpret_cast<unsigned*>(&ng[0]), data );
+			HDFWriteDataset3Ds( filename, enzoname, reinterpret_cast<unsigned*>(&ng_fortran[0]), data );
 			
 			//... header data for the patch
 			patch_header ph;
@@ -107,11 +111,11 @@ protected:
 			ph.dimensions		= ng;
 			ph.rank				= 3;
 			
-			ph.top_grid_dims.assign(3,(int)pow(2,levelmin_));
+			ph.top_grid_dims.assign(3, 1<<levelmin_);
 			
 			//... offset_abs is in units of the current level cell size
 			
-			double rfac = 1.0/pow(2,ilevel-levelmin_);
+			double rfac = 1.0/(1<<(ilevel-levelmin_));
 			
 			ph.top_grid_start.push_back( (int)(gh.offset_abs(ilevel, 0)*rfac) );
 			ph.top_grid_start.push_back( (int)(gh.offset_abs(ilevel, 1)*rfac) );
@@ -142,9 +146,9 @@ public:
 		if( !align_top )
 			throw std::runtime_error("ENZO output plug-in requires that \'align_top=true\'!");
 		
-		the_sim_header.dimensions.push_back( (int)pow(2,levelmin_) );
-		the_sim_header.dimensions.push_back( (int)pow(2,levelmin_) );
-		the_sim_header.dimensions.push_back( (int)pow(2,levelmin_) );
+		the_sim_header.dimensions.push_back( 1<<levelmin_ );
+		the_sim_header.dimensions.push_back( 1<<levelmin_ );
+		the_sim_header.dimensions.push_back( 1<<levelmin_ );
 		
 		the_sim_header.offset.push_back( 0 );
 		the_sim_header.offset.push_back( 0 );
@@ -235,13 +239,15 @@ public:
 			<< "GravitationalConstant                    = 1       // this must be true for cosmology\n"
 			<< "#\n"
 			<< "#\n"
+            << "ParallelRootGridIO                       = 1\n"
+            << "ParallelParticleIO                       = 1\n"
+            << "PartitionNestedGrids                     = 1\n"
 			<< "CosmologySimulationNumberOfInitialGrids  = " << 1+levelmax_-levelmin_ << "\n";
-		
 		
 		//... only for additionally refined grids
 		for( unsigned ilevel = 0; ilevel< levelmax_-levelmin_; ++ilevel )
 		{
-			double h = 1.0/pow(2,levelmin_+1+ilevel);
+			double h = 1.0/(1<<(levelmin_+1+ilevel));
 			
 			ofs
 			
@@ -262,12 +268,25 @@ public:
 			
 			<< "CosmologySimulationGridLevel[" << 1+ilevel << "]          = " << 1+ilevel << "\n";
 		}
-		
-		
-		
-		
-		
-	
+        
+        if( levelmin_ != levelmax_ )
+        {
+            double h = 1.0/(1<<levelmax_);
+            
+            ofs
+                << "#\n"
+                << "# region allowed for further refinement\n"
+                << "#\n"
+                << "RefineRegionAutoAdjust                   = 1\n"
+                << "RefineRegionLeftEdge                     = "
+                    << std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmax_, 0)
+                    << std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmax_, 1)
+                    << std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmax_, 2) << "\n"
+                << "RefineRegionRightEdge                     = "
+                    << std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmax_, 0)+gh.size( levelmax_, 0 )) << " "
+                    << std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmax_, 1)+gh.size( levelmax_, 1 )) << " "
+                    << std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmax_, 2)+gh.size( levelmax_, 2 )) << "\n";
+        }
 	}
 	
 	
@@ -276,7 +295,7 @@ public:
 		char enzoname[256];
 		sprintf( enzoname, "ParticleVelocities_%c", (char)('x'+coord) );
 		
-		double vunit = 1.0/(1.225e2*sqrt(the_sim_header.omega_m/the_sim_header.a_start));// /the_sim_header.h0;
+		double vunit = 1.0/(1.225e2*sqrt(the_sim_header.omega_m/the_sim_header.a_start));
 		
 		dump_grid_data( enzoname, gh, vunit );
 	}
@@ -284,64 +303,10 @@ public:
 	
 	void write_dm_position( int coord, const grid_hierarchy& gh )
 	{
-		char fieldname[256];
-		sprintf( fieldname, "ParticleDisplacements_%c", (char)('x'+coord) );
-		
-		char enzoname[256], filename[256];
-		
-		for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
-		{
-			std::vector<int> ng;
-			ng.push_back( gh.get_grid(ilevel)->size(0) );
-			ng.push_back( gh.get_grid(ilevel)->size(1) );
-			ng.push_back( gh.get_grid(ilevel)->size(2) );
-			
-			//... need to copy data because we need to get rid of the ghost zones
-			std::vector<double> data;
-			data.reserve( ng[0]*ng[1]*ng[2] );
-
-			//double dx = 1.0/(1<<ilevel);
-
-			for( int k=0; k<ng[2]; ++k )
-				for( int j=0; j<ng[1]; ++j )
-					for( int i=0; i<ng[0]; ++i )
-						data.push_back( (*gh.get_grid(ilevel))(i,j,k) );
-						
-			//--------------------------------------------------------------------------
-			
-			sprintf( enzoname, "%s.%d", fieldname, ilevel-levelmin_ );
-			sprintf( filename, "%s/%s", fname_.c_str(), enzoname );
-			
-			HDFCreateFile( filename );
-			write_sim_header( filename, the_sim_header );
-			HDFWriteDataset3Ds( filename, enzoname, reinterpret_cast<unsigned*>(&ng[0]), data );
-			
-			//--------------------------------------------------------------------------
-			//... header data for the patch
-			patch_header ph;
-			
-			ph.component_rank	= 1;
-			ph.component_size	= ng[0]*ng[1]*ng[2];
-			ph.dimensions		= ng;
-			ph.rank				= 3;
-			
-			ph.top_grid_dims.assign(3,(int)pow(2,levelmin_));
-			
-			//... offset_abs is in units of the current level cell size
-			
-			double rfac = 1.0/pow(2,ilevel-levelmin_);
-			
-			ph.top_grid_start.push_back( (int)(gh.offset_abs(ilevel, 0)*rfac) );
-			ph.top_grid_start.push_back( (int)(gh.offset_abs(ilevel, 1)*rfac) );
-			ph.top_grid_start.push_back( (int)(gh.offset_abs(ilevel, 2)*rfac) );
-			
-			ph.top_grid_end.push_back( ph.top_grid_start[0] + (int)(ng[0]*rfac) );
-			ph.top_grid_end.push_back( ph.top_grid_start[1] + (int)(ng[1]*rfac) );
-			ph.top_grid_end.push_back( ph.top_grid_start[2] + (int)(ng[2]*rfac) );
-			
-			write_patch_header( filename, enzoname, ph );
-			//--------------------------------------------------------------------------
-		}
+		char enzoname[256];
+		sprintf( enzoname, "ParticleDisplacements_%c", (char)('x'+coord) );
+        
+        dump_grid_data( enzoname, gh );
 	}
 	
 	void write_dm_potential( const grid_hierarchy& gh )

@@ -42,10 +42,10 @@ class DensityGrid
 {
 public:
 	
-	int nx_;	//!< number of grid cells in x-direction
-	int ny_;	//!< number of grid cells in y-direction
-	int nz_;	//!< number of grid cells in z-direction
-	int nzp_;	//!< number of cells in memory (z-dir), used for Nyquist padding
+	size_t nx_;	//!< number of grid cells in x-direction
+	size_t ny_;	//!< number of grid cells in y-direction
+	size_t nz_;	//!< number of grid cells in z-direction
+	size_t nzp_;	//!< number of cells in memory (z-dir), used for Nyquist padding
 	
 	//! the actual data container in the form of a 1D array
 	std::vector< real_t > data_;
@@ -89,7 +89,7 @@ public:
 	 * @param i the dimension for which size is to be returned
 	 * @returns array size along dimension i
 	 */
-	int size( int i )
+	size_t size( int i )
 	{
 		if(i==0) return nx_;
 		if(i==1) return ny_;
@@ -117,11 +117,11 @@ public:
 	}
 	
 	//! 3D index based data access operator
-	inline real_t& operator()( int i, int j, int k )
+	inline real_t& operator()( size_t i, size_t j, size_t k )
 	{	return data_[((size_t)i*ny_+(size_t)j)*nzp_+(size_t)k]; 	}
 	
 	//! 3D index based const data access operator 
-	inline const real_t& operator()( int i, int j, int k ) const
+	inline const real_t& operator()( size_t i, size_t j, size_t k ) const
 	{	return data_[((size_t)i*ny_+(size_t)j)*nzp_+(size_t)k]; 	}
 	
 	//! recover the pointer to the 1D data array
@@ -194,12 +194,12 @@ public:
 	double subtract_mean( void )
 	{
 		double sum = 0.0;
-		unsigned count = 0;
+		size_t count = 0;
 		
 		#pragma omp parallel for reduction(+:sum,count)
-		for( int i=0; i<nx_; i++ )
-			for( int j=0; j<ny_; j++ )
-				for( int k=0; k<nz_; k++ )
+		for( int i=0; i<(int)nx_; i++ )
+			for( int j=0; j<(int)ny_; j++ )
+				for( int k=0; k<(int)nz_; k++ )
 				{
 					sum += (*this)(i,j,k);
 					count++;
@@ -208,9 +208,9 @@ public:
 		
 					
 		#pragma omp parallel for
-		for( int i=0; i<nx_; i++ )
-			for( int j=0; j<ny_; j++ )
-				for( int k=0; k<nz_; k++ )
+		for( int i=0; i<(int)nx_; i++ )
+			for( int j=0; j<(int)ny_; j++ )
+				for( int k=0; k<(int)nz_; k++ )
 					(*this)(i,j,k)			-= sum;
 		
 		return sum;
@@ -224,9 +224,9 @@ public:
 	void subtract_oct_mean( void )
 	{
 		#pragma omp parallel for
-		for( int i=0; i<nx_; i+=2 )
-			for( int j=0; j<ny_; j+=2 )
-				for( int k=0; k<nz_; k+=2 )
+		for( int i=0; i<(int)nx_; i+=2 )
+			for( int j=0; j<(int)ny_; j+=2 )
+				for( int k=0; k<(int)nz_; k+=2 )
 				{
 					real_t avg = 
 						0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)+
@@ -549,12 +549,12 @@ public:
 	void upload_bnd_add( array3& top )
 	{
 		#pragma omp parallel for
-		for( int ix=0; ix<nx_; ix+=2 )
-			for( int iy=0; iy<ny_; iy+=2 )
-				for( int iz=0; iz<nz_; iz+=2 )
+		for( int ix=0; ix<(int)nx_; ix+=2 )
+			for( int iy=0; iy<(int)ny_; iy+=2 )
+				for( int iz=0; iz<(int)nz_; iz+=2 )
 				{
 					
-					if( (ix<nx_/4||ix>=3*nx_/4) || (iy<ny_/4||iy>=3*ny_/4) || (iz<nz_/4||iz>=3*nz_/4) )
+					if( (ix<(int)nx_/4||ix>=3*(int)nx_/4) || (iy<(int)ny_/4||iy>=3*(int)ny_/4) || (iz<(int)nz_/4||iz>=3*(int)nz_/4) )
 					{
 						int ic,jc,kc;
 						
@@ -703,18 +703,18 @@ public:
 	template< class array3 >
 	void copy_unpad( array3& v )
 	{
-		for( int ix=nx_/4,ixu=0; ix<3*nx_/4; ++ix,++ixu )
-			for( int iy=ny_/4,iyu=0; iy<3*ny_/4; ++iy,++iyu )	
-				for( int iz=nz_/4,izu=0; iz<3*nz_/4; ++iz,++izu )
+		for( size_t ix=nx_/4,ixu=0; ix<3*nx_/4; ++ix,++ixu )
+			for( size_t iy=ny_/4,iyu=0; iy<3*ny_/4; ++iy,++iyu )	
+				for( size_t iz=nz_/4,izu=0; iz<3*nz_/4; ++iz,++izu )
 					v(ixu,iyu,izu) = (*this)(ix,iy,iz);
 	}
 	
 	template< class array3 >
 	void copy_add_unpad( array3& v )
 	{
-		for( int ix=nx_/4,ixu=0; ix<3*nx_/4; ++ix,++ixu )
-			for( int iy=ny_/4,iyu=0; iy<3*ny_/4; ++iy,++iyu )	
-				for( int iz=nz_/4,izu=0; iz<3*nz_/4; ++iz,++izu )
+		for( size_t ix=nx_/4,ixu=0; ix<3*nx_/4; ++ix,++ixu )
+			for( size_t iy=ny_/4,iyu=0; iy<3*ny_/4; ++iy,++iyu )	
+				for( size_t iz=nz_/4,izu=0; iz<3*nz_/4; ++iz,++izu )
 					v(ixu,iyu,izu) += (*this)(ix,iy,iz);
 	}
 	
@@ -762,10 +762,10 @@ public:
 	void subtract_boundary_oct_mean( void )
 	{
 		#pragma omp parallel for
-		for( int ix=0; ix<nx_/4-1; ix+=2 )
+		for( int ix=0; ix<(int)nx_/4-1; ix+=2 )
 		{	
-			for( int iy=0; iy<ny_; iy+=2 )
-				for( int iz=0; iz<nz_; iz+=2 )
+			for( int iy=0; iy<(int)ny_; iy+=2 )
+				for( int iz=0; iz<(int)nz_; iz+=2 )
 				{
 					add_oct_val( ix,iy,iz, -oct_mean(ix,iy,iz) );
 					add_oct_val( ix+3*nx_/4,iy,iz, -oct_mean(ix+3*nx_/4,iy,iz) );
@@ -773,10 +773,10 @@ public:
 		}
 		
 		#pragma omp parallel for
-		for( int ix=0; ix<nx_; ix+=2 )
-			for( int iy=0; iy<ny_/4-1; iy+=2 )
+		for( int ix=0; ix<(int)nx_; ix+=2 )
+			for( int iy=0; iy<(int)ny_/4-1; iy+=2 )
 			{
-				for( int iz=0; iz<nz_; iz+=2 )
+				for( int iz=0; iz<(int)nz_; iz+=2 )
 				{
 					add_oct_val( ix,iy,iz, -oct_mean(ix,iy,iz) );
 					add_oct_val( ix,iy+3*ny_/4,iz, -oct_mean(ix,iy+3*ny_/4,iz) );
@@ -784,9 +784,9 @@ public:
 			}
 		
 		#pragma omp parallel for
-		for( int ix=0; ix<nx_; ix+=2 )
-			for( int iy=0; iy<ny_; iy+=2 )
-				for( int iz=0; iz<nz_/4-1; iz+=2 )
+		for( int ix=0; ix<(int)nx_; ix+=2 )
+			for( int iy=0; iy<(int)ny_; iy+=2 )
+				for( int iz=0; iz<(int)nz_/4-1; iz+=2 )
 				{
 					add_oct_val( ix,iy,iz, -oct_mean(ix,iy,iz) );
 					add_oct_val( ix,iy,iz+3*nz_/4, -oct_mean(ix,iy,iz+3*nz_/4) );
@@ -829,7 +829,7 @@ template< typename M >
 inline void enforce_coarse_mean( M& v, M& V )
 {
 	double outersum =0.0, innersum = 0.0;
-	unsigned 
+	size_t 
 		nx = v.size(0)/2, 
 		ny = v.size(1)/2, 
 		nz = v.size(2)/2,
@@ -837,7 +837,7 @@ inline void enforce_coarse_mean( M& v, M& V )
 		oy = v.offset(1),
 		oz = v.offset(2);
 
-	unsigned innercount = 0, outercount = 0;
+	size_t innercount = 0, outercount = 0;
 	for( unsigned i=0; i<V.size(0); ++i )
 		for( unsigned j=0; j<V.size(1); ++j )
 			for( unsigned k=0; k<V.size(2); ++k )
@@ -889,7 +889,7 @@ inline void enforce_mean( M& v, M& V )
 
 	
 	double coarsemean = 0.0, finemean = 0.0;
-	unsigned count = 0;
+	size_t count = 0;
 	#pragma omp parallel for reduction(+:coarsemean,finemean,count)
 	for( int i=0; i<nx; ++i )
 	{

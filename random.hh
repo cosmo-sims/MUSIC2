@@ -253,7 +253,7 @@ public:
 			ifs.read( reinterpret_cast<char*> (&ny), sizeof(int) );
 			ifs.read( reinterpret_cast<char*> (&nz), sizeof(int) );
 			
-			if( nx!=A.size(0) || ny!=A.size(1) || nz!=A.size(2) )
+			if( nx!=(int)A.size(0) || ny!=(int)A.size(1) || nz!=(int)A.size(2) )
 			{	
 				LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",nx,ny,nz,A.size(0),A.size(1),A.size(2));
 				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");

@@ -502,7 +502,7 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	
 	
 	//... copy data ..................................................
-	fftw_real *data = new fftw_real[nx*ny*nzp];
+	fftw_real *data = new fftw_real[(size_t)nx*(size_t)ny*(size_t)nzp];
 	fftw_complex *cdata = reinterpret_cast<fftw_complex*> (data);
 	
 	#pragma omp parallel for
@@ -683,7 +683,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	nzp = 2*(nz/2+1);
 	
 	//... copy data ..................................................
-	fftw_real *data = new fftw_real[nx*ny*nzp];
+	fftw_real *data = new fftw_real[(size_t)nx*(size_t)ny*(size_t)nzp];
 	fftw_complex *cdata = reinterpret_cast<fftw_complex*> (data);
 	
 	#pragma omp parallel for
@@ -727,7 +727,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	
 #endif
 	
-	double fac = -1.0/(nx*ny*nz);
+	double fac = -1.0/((size_t)nx*(size_t)ny*(size_t)nz);
 	double kfac = 2.0*M_PI;
 	
 	
@@ -979,9 +979,9 @@ inline double poisson_hybrid_kernel<6>(int idir, int i, int j, int k, int n )
 template<int order>
 void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bool periodic )
 {
-	double fftnorm = 1.0/(nxp*nyp*nzp);
+	double fftnorm = 1.0/((double)nxp*(double)nyp*(double)nzp);
 		
-	fftnorm = 1.0/(nxp*nyp*nzp);
+	//fftnorm = 1.0/(nxp*nyp*nzp);
 	
 	fftw_complex	*cdata = reinterpret_cast<fftw_complex*>(data);
 	
@@ -1013,7 +1013,7 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 	#endif
 #endif
 	
-	double ksum = 0.0;
+	long double ksum = 0.0;
 	size_t kcount = 0;
 	
 	#pragma omp parallel for reduction(+:ksum,kcount)
@@ -1021,7 +1021,7 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 		for( int j=0; j<nyp; ++j )
 			for( int k=0; k<nzp/2+1; ++k )
 			{
-				unsigned ii = (i*nyp + j) * (nzp/2+1) + k;
+				size_t ii = (size_t)(i*nyp + j) * (size_t)(nzp/2+1) + (size_t)k;
 #ifdef FFTW3
 				if( k==0 || k==nzp/2 )
 				{
@@ -1052,8 +1052,9 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 		for( int j=0; j<nyp; ++j )
 			for( int k=0; k<nzp/2+1; ++k )
 			{
-				unsigned ii = (i*nyp + j) * (nzp/2+1) + k;
-				
+			
+				size_t ii = (size_t)(i*nyp + j) * (size_t)(nzp/2+1) + (size_t)k;
+	
 				int ki(i), kj(j);
 				if( ki > nxp/2 ) ki-=nxp;
 				if( kj > nyp/2 ) kj-=nyp;
@@ -1141,7 +1142,6 @@ void poisson_hybrid( T& f, int idir, int order, bool periodic )
 	}
 	
 	
-	
 	data		= new fftw_real[(size_t)nxp*(size_t)nyp*(size_t)(nzp+2)];
 	
 	if(idir==0)
@@ -1167,7 +1167,7 @@ void poisson_hybrid( T& f, int idir, int order, bool periodic )
 		for( int j=0; j<ny; ++j )
 			for( int k=0; k<nz; ++k )
 			{
-				size_t idx = ((i+xo)*nyp + j+yo) * 2*(nzp/2+1) + k+zo;
+				size_t idx = (size_t)((i+xo)*nyp + j+yo) * (size_t)(nzp+2) + (size_t)(k+zo);
 				data[idx] = f(i,j,k);
 			}
 	
@@ -1194,7 +1194,7 @@ void poisson_hybrid( T& f, int idir, int order, bool periodic )
 		for( int j=0; j<ny; ++j )
 			for( int k=0; k<nz; ++k )
 			{
-				size_t idx = (((size_t)i+xo)*nyp + (size_t)j+yo) * 2*(nzp/2+1) + (size_t)k+zo;	
+				size_t idx = ((size_t)(i+xo)*nyp + (size_t)(j+yo)) * (size_t)(nzp+2) + (size_t)(k+zo);	
 				f(i,j,k) = data[idx];
 			}
 	

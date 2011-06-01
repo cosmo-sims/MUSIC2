@@ -229,9 +229,9 @@ double compute_finest_mean( grid_hierarchy& u )
 			for( int iz = 0; iz < (int)(*u.get_grid(u.levelmax())).size(2); ++iz )
 				sum += (*u.get_grid(u.levelmax()))(ix,iy,iz);
 	
-	sum /= (*u.get_grid(u.levelmax())).size(0)
-			* (*u.get_grid(u.levelmax())).size(1)
-			* (*u.get_grid(u.levelmax())).size(2);
+	sum /= (double)(*u.get_grid(u.levelmax())).size(0)
+			* (double)(*u.get_grid(u.levelmax())).size(1)
+			* (double)(*u.get_grid(u.levelmax())).size(2);
 	
 	return sum;
 	
@@ -248,9 +248,9 @@ double compute_finest_sigma( grid_hierarchy& u )
 				sum2 +=  (*u.get_grid(u.levelmax()))(ix,iy,iz)* (*u.get_grid(u.levelmax()))(ix,iy,iz);
 			}
 
-	size_t N = (*u.get_grid(u.levelmax())).size(0)
-		 * (*u.get_grid(u.levelmax())).size(1)
-		 * (*u.get_grid(u.levelmax())).size(2);
+	size_t N = (size_t)(*u.get_grid(u.levelmax())).size(0)
+		 * (size_t)(*u.get_grid(u.levelmax())).size(1)
+		 * (size_t)(*u.get_grid(u.levelmax())).size(2);
 	sum /= N;
 	sum2 /= N;
 

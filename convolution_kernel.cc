@@ -32,7 +32,7 @@ namespace convolution{
 	{
 		//return;
 		parameters cparam_ = pk->cparam_;
-		double fftnorm = pow(2.0*M_PI,1.5)/sqrt(cparam_.lx*cparam_.ly*cparam_.lz)/sqrt((double)(cparam_.nx*cparam_.ny*cparam_.nz));
+		double fftnorm = pow(2.0*M_PI,1.5)/sqrt(cparam_.lx*cparam_.ly*cparam_.lz)/sqrt((double)cparam_.nx*(double)cparam_.ny*(double)cparam_.nz);
 		
 		fftw_complex	*cdata,*ckernel;
 		fftw_real		*data;
@@ -100,7 +100,7 @@ namespace convolution{
 			for( int j=0; j<cparam_.ny; ++j )
 				for( int k=0; k<cparam_.nz/2+1; ++k )
 				{
-					unsigned ii = (i*cparam_.ny + j) * (cparam_.nz/2+1) + k;
+					size_t ii = (size_t)(i*cparam_.ny + j) * (size_t)(cparam_.nz/2+1) + (size_t)k;
 					
 					double kx,ky,kz;
 					
@@ -213,7 +213,7 @@ namespace convolution{
 		cparam_.lz = boxlength;
 		cparam_.pcf = pcf_;
 		
-		kdata_.assign( nx*ny*2*(nz/2+1), 0.0 );
+		kdata_.assign( (size_t)nx*(size_t)ny*(size_t)(nz+2), 0.0 );
 		
 		fftw_complex *kdata = reinterpret_cast<fftw_complex*> ( this->get_ptr() );
 		
@@ -440,14 +440,14 @@ namespace convolution{
 						new TransferFunction_real( boxlength, 1<<levelmax, type, ptf,nspec,pnorm,
 								  0.25*dx,2.0*boxlength,kny, (int)pow(2,levelmax+2));		
 		
-		fftw_real *rkernel = new fftw_real[(size_t)nx*(size_t)ny*2*((size_t)nz/2+1)], *rkernel_coarse;
+		fftw_real *rkernel = new fftw_real[(size_t)nx*(size_t)ny*((size_t)nz+2)], *rkernel_coarse;
 		
 		#pragma omp parallel for
 		for( int i=0; i<nx; ++i )
 			for( int j=0; j<ny; ++j )
 				for( int k=0; k<nz; ++k )
 				{
-					size_t q=((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
+					size_t q=((size_t)(i)*ny + (size_t)(j)) * (size_t)(nz+2) + (size_t)(k);
 					rkernel[q] = 0.0;
 					
 				}
@@ -703,7 +703,7 @@ namespace convolution{
 							
 							
 							double kkmax = kmax;
-							size_t q  = ((size_t)i*ny+(size_t)j)*(nz/2+1)+(size_t)k;
+							size_t q  = ((size_t)i*ny+(size_t)j)*(size_t)(nz/2+1)+(size_t)k;
 							
 							if( !bsmooth_baryons )
 							{

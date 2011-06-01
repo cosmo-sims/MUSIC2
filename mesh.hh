@@ -120,13 +120,13 @@ public:
 		return m_offz;
 	}
 	
-	/*//! get extent of the mesh along a specified dimension
+	//! get extent of the mesh along a specified dimension
 	inline int& offset( unsigned dim )
 	{
 		if( dim == 0 ) return m_offx;
 		if( dim == 1 ) return m_offy;
 		return m_offz;
-	}*/
+	}
 	
 	//! set all the data to zero values
 	void zero( void )

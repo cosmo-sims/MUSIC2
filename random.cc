@@ -247,7 +247,7 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 #endif
 #endif
 		
-		double fftnorm = 1.0/(nxc*nyc*nzc);
+		double fftnorm = 1.0/((double)nxc*(double)nyc*(double)nzc);
 		
 #pragma omp parallel for
 		for( int i=0; i<nxc; i++ )
@@ -487,7 +487,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 #endif
 #endif
 		
-		double fftnorm = 1.0/(nx*ny*nz);
+		double fftnorm = 1.0/((double)nx*(double)ny*(double)nz);
 		
 #pragma omp parallel for
 		for( int i=0; i<(int)nxc; i++ )

@@ -558,22 +558,23 @@ void normalize_density( grid_hierarchy& delta )
 {	
 	//return;
 	
-	double sum = 0.0;
+	long double sum = 0.0;
 	unsigned levelmin = delta.levelmin(), levelmax = delta.levelmax();
 	
 	{
-		int nx,ny,nz;
+		size_t nx,ny,nz;
 		
 		nx = delta.get_grid(levelmin)->size(0);
 		ny = delta.get_grid(levelmin)->size(1);
 		nz = delta.get_grid(levelmin)->size(2);
 		
-		for( int ix=0; ix<nx; ++ix )
-			for( int iy=0; iy<ny; ++iy )
-				for( int iz=0; iz<nz; ++iz )
+		#pragma omp parallel for reduction(+:sum)
+		for( int ix=0; ix<(int)nx; ++ix )
+			for( size_t iy=0; iy<ny; ++iy )
+				for( size_t iz=0; iz<nz; ++iz )
 					sum += (*delta.get_grid(levelmin))(ix,iy,iz);
 		
-		sum /= (nx*ny*nz);
+		sum /= (double)(nx*ny*nz);
 	}
 	
 	std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
@@ -581,14 +582,15 @@ void normalize_density( grid_hierarchy& delta )
 	
 	for( unsigned i=levelmin; i<=levelmax; ++i )
 	{		
-		int nx,ny,nz;
+		size_t nx,ny,nz;
 		nx = delta.get_grid(i)->size(0);
 		ny = delta.get_grid(i)->size(1);
 		nz = delta.get_grid(i)->size(2);
 		
-		for( int ix=0; ix<nx; ++ix )
-			for( int iy=0; iy<ny; ++iy )
-				for( int iz=0; iz<nz; ++iz )
+		#pragma omp parallel for
+		for( int ix=0; ix<(int)nx; ++ix )
+			for( size_t iy=0; iy<ny; ++iy )
+				for( size_t iz=0; iz<nz; ++iz )
 					(*delta.get_grid(i))(ix,iy,iz) -= sum;
 	}
 }

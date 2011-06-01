@@ -104,7 +104,7 @@ public:
 		double dx = 0.5;//1.0/(double)N;
 		int nx = v.size(0), ny = v.size(1), nz = v.size(2);
 		double finemean = 0.0, coarsemean = 0.0;
-		unsigned finecount = 0, coarsecount = 0;
+		size_t finecount = 0, coarsecount = 0;
 		
 		int oxc = V.offset(0), oyc = V.offset(1), ozc = V.offset(2);
 		int oxf = v.offset(0), oyf = v.offset(1), ozf = v.offset(2);
@@ -170,7 +170,7 @@ public:
 		double dx = 1.0/(double)N;
 		int nx = v.size(0), ny = v.size(1), nz = v.size(2);
 		double finemean = 0.0, coarsemean = 0.0;
-		unsigned finecount = 0, coarsecount = 0;
+		size_t finecount = 0, coarsecount = 0;
 		
 		#pragma omp parallel for reduction(+:finemean,finecount,coarsemean,coarsecount)
 		for( int i=0; i<nx; ++i )
@@ -228,7 +228,7 @@ public:
 		int nx = v.size(0), ny = v.size(1), nz = v.size(2);
 		
 		double finemean = 0.0, coarsemean = 0.0;
-		unsigned finecount = 0, coarsecount = 0;
+		size_t finecount = 0, coarsecount = 0;
 		
 		#pragma omp parallel for reduction(+:finemean,finecount,coarsemean,coarsecount)
 		for( int i=0; i<nx; ++i )

@@ -128,54 +128,57 @@ protected:
 		<< "nparttot=3000000\n"
 		<< "nexpand=1\n/\n\n";
 		
+		const size_t fprec = 12, fwid = 16;
 		
 		if( gh.levelmax() > gh.levelmin() )
 		{
-			l = pow(2.0,gh.levelmin()+1);
+			l = (double)(1l<<(gh.levelmin()+1));
 			xc = ((double)gh.offset_abs(gh.levelmin()+1,0)+0.5*(double)gh.size(gh.levelmin()+1,0))/l;
 			yc = ((double)gh.offset_abs(gh.levelmin()+1,1)+0.5*(double)gh.size(gh.levelmin()+1,1))/l;
 			zc = ((double)gh.offset_abs(gh.levelmin()+1,2)+0.5*(double)gh.size(gh.levelmin()+1,2))/l;	
 		
 			ofst << "&REFINE_PARAMS\n"
-				<< "m_refine=0.";
+			<< "m_refine=  "<< std::setw(fwid) << std::setprecision(fprec) << 0.0;
 			
 			
 			for( unsigned i=gh.levelmin()+1;i<gh.levelmax(); ++i)
-				ofst << ",0.";
-			ofst << "\nx_refine="<< std::setw(12) << xc;
+				ofst << "," << std::setw(fwid) << std::setprecision(fprec) << 0.0;
+			ofst << "\nx_refine=  "<< std::setw(fwid) << std::setprecision(fprec) << xc;
 			for( unsigned i=gh.levelmin()+1;i<gh.levelmax(); ++i)
 			{	
-				l = pow(2.0,i+1);
+				l = (double)(1l<<(i+1));
 				xc = ((double)gh.offset_abs(i+1,0)+0.5*(double)gh.size(i+1,0))/l;
-				ofst << ","<< std::setw(12) << xc;
+				ofst << ","<< std::setw(fwid) << std::setprecision(fprec) << xc;
 			}
-			ofst << "\ny_refine="<< std::setw(12)<< yc;
+			ofst << "\ny_refine=  "<< std::setw(fwid) << std::setprecision(fprec) << yc;
 			for( unsigned i=gh.levelmin()+1;i<gh.levelmax(); ++i)
 			{	
-				l = pow(2.0,i+1);
+				l = (double)(1l<<(i+1));
 				yc = ((double)gh.offset_abs(i+1,1)+0.5*(double)gh.size(i+1,1))/l;
-				ofst << ","<< std::setw(12) << yc;
+				ofst << ","<< std::setw(fwid) << std::setprecision(fprec) << yc;
 			}
-			ofst << "\nz_refine="<< std::setw(12) << zc;
+			ofst << "\nz_refine=  "<< std::setw(fwid) << std::setprecision(fprec) << zc;
 			for( unsigned i=gh.levelmin()+1;i<gh.levelmax(); ++i)
 			{	
-				l = pow(2.0,i+1);
+				l = (double)(1l<<(i+1));
 				zc = ((double)gh.offset_abs(i+1,2)+0.5*(double)gh.size(i+1,2))/l;
-				ofst << ","<< std::setw(12) << zc;
+				ofst << ","<< std::setw(fwid) << std::setprecision(fprec) << zc;
 			}
 			
-			ofst << "\nr_refine=";
+			ofst << "\nr_refine=  ";
 			for(unsigned i=gh.levelmin();i<gh.levelmax(); ++i )
 			{
-				double r = (gh.size(i+1,0)-4.0)/pow(2.0,i+1);
+				size_t nmax = std::min(gh.size(i+1,0),std::min(gh.size(i+1,1),gh.size(i+1,2)));
+				
+				double r = (nmax-4.0)/(double)(1l<<(i+1));
 				if( i==gh.levelmin() )
-					ofst << std::setw(12) << r;
+					ofst << std::setw(fwid) << std::setprecision(fprec) << r;
 				else
-					ofst << "," << std::setw(12) << r;
+					ofst << "," << std::setw(fwid) << std::setprecision(fprec) << r;
 			}
-			ofst << "\nexp_refine=10.0";
+			ofst << "\nexp_refine=" << std::setw(fwid) << std::setprecision(fprec) << 10.0;
 			for( unsigned i=gh.levelmin()+1;i<gh.levelmax(); ++i)
-				ofst << ",10.0";
+				ofst << "," << std::setw(fwid) << std::setprecision(fprec) << 10.0;
 			ofst << "\n/\n";
 		}
 		
@@ -190,6 +193,10 @@ public:
 	: output_plugin( cf )
 	{
 		// create directory structure
+		
+		if( !cf.getValueSafe<bool>("setup","force_equal_extent",false) )
+			LOGWARN("Refinement region is not a square box, this may cause problems with RAMSES");
+		
 		remove( fname_.c_str() );
 		mkdir( fname_.c_str(), 0777 );
 		for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )

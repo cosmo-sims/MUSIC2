@@ -65,8 +65,6 @@ private:
 				Tkvc  = std::max(zero,Tkvc);
 				Tkvb  = std::max(zero,Tkvb);
 				
-				
-				
 				m_tab_k.push_back( log10(k) );
 				
 				m_tab_Tk_tot.push_back( log10(Tktot) );

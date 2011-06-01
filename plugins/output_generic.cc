@@ -34,7 +34,6 @@ protected:
 		
 		unsigned nd[3] = { n0+2*nb,n1+2*nb,n2+2*nb	};
 		HDFWriteDataset3D( fname, dname, nd, vdata);
-		
 	}
 	
 public:

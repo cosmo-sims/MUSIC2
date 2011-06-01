@@ -13,6 +13,11 @@
 #include "poisson.hh"
 #include "Numerics.hh"
 
+#if defined(FFTW3) && defined(SINGLE_PRECISION)
+#define fftw_complex fftwf_complex
+#endif
+
+
 std::map< std::string, poisson_plugin_creator *>& 
 get_poisson_plugin_map()
 {
@@ -513,11 +518,19 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	LOGUSER("Performing forward transform.");
 
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+	fftwf_plan 
+		plan  = fftwf_plan_dft_r2c_3d( nx, ny, nz, data, cdata, FFTW_ESTIMATE ),
+		iplan = fftwf_plan_dft_c2r_3d( nx, ny, nz, cdata, data, FFTW_ESTIMATE );
+	
+	fftwf_execute(plan);
+	#else
 	fftw_plan 
-		plan  = fftw_plan_dft_r2c_3d( nx, ny, nz, data, cdata, FFTW_ESTIMATE ),
-		iplan = fftw_plan_dft_c2r_3d( nx, ny, nz, cdata, data, FFTW_ESTIMATE );
+	plan  = fftw_plan_dft_r2c_3d( nx, ny, nz, data, cdata, FFTW_ESTIMATE ),
+	iplan = fftw_plan_dft_c2r_3d( nx, ny, nz, cdata, data, FFTW_ESTIMATE );
 	
 	fftw_execute(plan);
+	#endif
 	
 #else
 	rfftwnd_plan 
@@ -567,10 +580,15 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	cdata[0][0] = 0.0;
 	cdata[0][1] = 0.0;
 
+	#ifdef SINGLE_PRECISION
+	fftwf_execute(iplan);
+	fftwf_destroy_plan(plan);
+	fftwf_destroy_plan(iplan);
+	#else
 	fftw_execute(iplan);
 	fftw_destroy_plan(plan);
 	fftw_destroy_plan(iplan);
-	
+	#endif
 #else
 	cdata[0].re = 0.0;
 	cdata[0].im = 0.0;
@@ -680,12 +698,19 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	//... perform FFT and Poisson solve................................
 	
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+	fftwf_plan 
+		plan  = fftwf_plan_dft_r2c_3d(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
+		iplan = fftwf_plan_dft_c2r_3d(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
+	
+	fftwf_execute(plan);
+	#else	
 	fftw_plan 
-		plan  = fftw_plan_dft_r2c_3d(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
-		iplan = fftw_plan_dft_c2r_3d(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
+	plan  = fftw_plan_dft_r2c_3d(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
+	iplan = fftw_plan_dft_c2r_3d(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
 	
 	fftw_execute(plan);
-		
+	#endif
 #else
 	rfftwnd_plan 
 		plan = rfftw3d_create_plan( nx,ny,nz,
@@ -704,6 +729,11 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	
 	double fac = -1.0/(nx*ny*nz);
 	double kfac = 2.0*M_PI;
+	
+	
+	
+	bool do_glass = cf_.getValueSafe<bool>("output","glass",false);
+	bool deconvolve_cic = do_glass;
 	
 	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
@@ -731,12 +761,38 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				
 				cdata[idx][0] = fac*im*kdir;
 				cdata[idx][1] = -fac*re*kdir;	
+				
+				if( deconvolve_cic )
+				{
+					double dfx, dfy, dfz;
+					dfx = M_PI*ki/(double)nx; dfx = (i!=0)? sin(dfx)/dfx : 1.0;
+					dfy = M_PI*kj/(double)ny; dfy = (j!=0)? sin(dfy)/dfy : 1.0;
+					dfz = M_PI*kk/(double)nz; dfz = (k!=0)? sin(dfz)/dfz : 1.0;
+					
+					dfx = 1.0/(dfx*dfy*dfz); dfx = dfx*dfx;
+					cdata[idx][0] *= dfx;
+					cdata[idx][1] *= dfx;
+					
+				}
 #else
 				double re = cdata[idx].re;
 				double im = cdata[idx].im;
 				
 				cdata[idx].re = fac*im*kdir;
 				cdata[idx].im = -fac*re*kdir;	
+				
+				if( deconvolve_cic )
+				{
+					double dfx, dfy, dfz;
+					dfx = M_PI*ki/(double)nx; dfx = (i!=0)? sin(dfx)/dfx : 1.0;
+					dfy = M_PI*kj/(double)ny; dfy = (j!=0)? sin(dfy)/dfy : 1.0;
+					dfz = M_PI*kk/(double)nz; dfz = (k!=0)? sin(dfz)/dfz : 1.0;
+					
+					dfx = 1.0/(dfx*dfy*dfz); dfx = dfx*dfx;
+
+					cdata[idx].re *= dfx;
+					cdata[idx].im *= dfx;
+				}
 #endif			
 				
 				/*double ktot = sqrt(ii*ii+jj*jj+k*k);
@@ -751,10 +807,17 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 #ifdef FFTW3
 	cdata[0][0] = 0.0;
 	cdata[0][1] = 0.0;
+	
+	#ifdef SINGLE_PRECISION
+	fftwf_execute(iplan);
+	fftwf_destroy_plan(plan);
+	fftwf_destroy_plan(iplan);
+	#else
 	fftw_execute(iplan);
 	fftw_destroy_plan(plan);
 	fftw_destroy_plan(iplan);
-	
+	#endif
+
 #else
 	cdata[0].re = 0.0;
 	cdata[0].im = 0.0;
@@ -923,10 +986,17 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 	fftw_complex	*cdata = reinterpret_cast<fftw_complex*>(data);
 	
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+	fftwf_plan iplan, plan;
+	plan  = fftwf_plan_dft_r2c_3d(nxp, nyp, nzp, data, cdata, FFTW_ESTIMATE);
+	iplan = fftwf_plan_dft_c2r_3d(nxp, nyp, nzp, cdata, data, FFTW_ESTIMATE);
+	fftwf_execute(plan);
+	#else
 	fftw_plan iplan, plan;
 	plan  = fftw_plan_dft_r2c_3d(nxp, nyp, nzp, data, cdata, FFTW_ESTIMATE);
 	iplan = fftw_plan_dft_c2r_3d(nxp, nyp, nzp, cdata, data, FFTW_ESTIMATE);
 	fftw_execute(plan);
+	#endif
 #else
 	rfftwnd_plan	iplan, plan;
 	
@@ -944,7 +1014,7 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 #endif
 	
 	double ksum = 0.0;
-	unsigned kcount = 0;
+	size_t kcount = 0;
 	
 	#pragma omp parallel for reduction(+:ksum,kcount)
 	for( int i=0; i<nxp; ++i )
@@ -1018,9 +1088,15 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 	cdata[0][0] = 0.0;
 	cdata[0][1] = 0.0;
 	
+	#ifdef SINGLE_PRECISION
+	fftwf_execute(iplan);
+	fftwf_destroy_plan(plan);
+	fftwf_destroy_plan(iplan);
+	#else
 	fftw_execute(iplan);
 	fftw_destroy_plan(plan);
 	fftw_destroy_plan(iplan);
+	#endif	
 #else
 	cdata[0].re = 0.0;
 	cdata[0].im = 0.0;
@@ -1066,7 +1142,7 @@ void poisson_hybrid( T& f, int idir, int order, bool periodic )
 	
 	
 	
-	data		= new fftw_real[nxp*nyp*2*(nzp/2+1)];
+	data		= new fftw_real[(size_t)nxp*(size_t)nyp*(size_t)(nzp+2)];
 	
 	if(idir==0)
 		std::cout << "   - Performing hybrid Poisson step... (" << nxp <<  ", " << nyp << ", " << nzp << ")\n";

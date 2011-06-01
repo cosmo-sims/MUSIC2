@@ -69,7 +69,7 @@ protected:
 		j = (j+ncubes_)%ncubes_;
 		k = (k+ncubes_)%ncubes_;
 		
-		long icube = (i*ncubes_+j)*ncubes_+k;
+		size_t icube = (i*ncubes_+j)*ncubes_+k;
 		
 		for( int ii=0; ii<(int)cubesize_; ++ii )
 			for( int jj=0; jj<(int)cubesize_; ++jj )
@@ -281,7 +281,7 @@ public:
 			
 			int nx( A.size(0) ), ny( A.size(1) ), nz( A.size(2) );
 			
-			if ( (unsigned)(nx*ny*nz) != mem_cache_[ilevel-levelmin_]->size() )
+			if ( (size_t)nx*(size_t)ny*(size_t)nz != mem_cache_[ilevel-levelmin_]->size() )
 			{
 				LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",nx,ny,nz,A.size(0),A.size(1),A.size(2));
 				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");

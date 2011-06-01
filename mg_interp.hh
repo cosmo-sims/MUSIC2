@@ -486,6 +486,7 @@ struct interp_O3_fluxcorr
 						double ustar1, ustar2, ustar3, uhat;			
 						double fac = 0.5;//0.25;
 						double flux;;
+						// left boundary
 						if( ix == -1 && iy%2==0 && iz%2==0 )
 						{
 							flux = 0.0;

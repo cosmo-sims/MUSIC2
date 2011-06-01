@@ -12,6 +12,10 @@
 #include "densities.hh"
 #include "convolution_kernel.hh"
 
+#if defined(FFTW3) && defined( SINGLE_PRECISION)
+#define fftw_complex fftwf_complex
+#endif
+
 double T0 = 1.0;
 
 namespace convolution{
@@ -46,11 +50,19 @@ namespace convolution{
 		LOGUSER("Performing kernel convolution on (%5d,%5d,%5d) grid",cparam_.nx ,cparam_.ny ,cparam_.nz );
 		LOGUSER("Performing forward FFT...");
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+		fftwf_plan plan, iplan;
+		plan = fftwf_plan_dft_r2c_3d( cparam_.nx, cparam_.ny, cparam_.nz, data, cdata, FFTW_ESTIMATE);
+		iplan = fftwf_plan_dft_c2r_3d(cparam_.nx, cparam_.ny, cparam_.nz, cdata, data, FFTW_ESTIMATE);
+		
+		fftwf_execute(plan);
+	#else
 		fftw_plan plan, iplan;
 		plan = fftw_plan_dft_r2c_3d( cparam_.nx, cparam_.ny, cparam_.nz, data, cdata, FFTW_ESTIMATE);
 		iplan = fftw_plan_dft_c2r_3d(cparam_.nx, cparam_.ny, cparam_.nz, cdata, data, FFTW_ESTIMATE);
 		
 		fftw_execute(plan);
+	#endif
 #else
 		rfftwnd_plan	iplan, plan;
 		
@@ -69,13 +81,14 @@ namespace convolution{
 #endif
 		//..... need a phase shift for baryons for SPH
 		double dstag = 0.0;
-
+        
 		if( shift )
 		{	
 			double boxlength = pk->pcf_->getValue<double>("setup","boxlength");
 			int lmax = pk->pcf_->getValue<int>("setup","levelmax");	
 			double dxmax = boxlength/(1<<lmax);
 			double dxcur = cparam_.lx/cparam_.nx;
+			std::cerr << "Performing staggering shift for SPH\n";
 			LOGUSER("Performing staggering shift for SPH");
 			dstag = M_PI/cparam_.nx * dxmax/dxcur;
 		}
@@ -119,10 +132,16 @@ namespace convolution{
 		LOGUSER("Performing backward FFT...");
 		
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+		fftwf_execute(iplan);
+		fftwf_destroy_plan(plan);
+		fftwf_destroy_plan(iplan);
+	#else	
 		fftw_execute(iplan);
 		fftw_destroy_plan(plan);
 		fftw_destroy_plan(iplan);
 		
+	#endif
 #else
 		#ifndef SINGLETHREAD_FFTW		
 		rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL);
@@ -177,10 +196,9 @@ namespace convolution{
 			boxlength	= pcf_->getValue<double>("setup","boxlength"),
 			nspec		= pcf_->getValue<double>("cosmology","nspec"),
 			pnorm		= pcf_->getValue<double>("cosmology","pnorm"),
-			dplus		= pcf_->getValue<double>("cosmology","dplus"),
 			fac			= pow(boxlength,3)/pow(2.0*M_PI,3);
 		
-		TransferFunction_k *tfk = new TransferFunction_k(type_,ptf_,nspec,pnorm,dplus);
+		TransferFunction_k *tfk = new TransferFunction_k(type_,ptf_,nspec,pnorm);
 		
 		int 
 			nx = prefh_->size(prefh_->levelmax(),0),
@@ -339,11 +357,17 @@ namespace convolution{
 		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kdata_[0] );
 		
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+		fftwf_complex		*kkernel	= reinterpret_cast<fftwf_complex*> (&rkernel[0]);
+		fftwf_plan plan = fftwf_plan_dft_r2c_3d( cparam_.nx, cparam_.ny, cparam_.nz, rkernel, kkernel, FFTW_ESTIMATE);
+		fftwf_execute(plan);
+		fftwf_destroy_plan(plan);
+	#else	
 		fftw_complex		*kkernel	= reinterpret_cast<fftw_complex*> (&rkernel[0]);
 		fftw_plan plan = fftw_plan_dft_r2c_3d( cparam_.nx, cparam_.ny, cparam_.nz, rkernel, kkernel, FFTW_ESTIMATE);
 		fftw_execute(plan);
 		fftw_destroy_plan(plan);
-		
+	#endif
 #else
 		rfftwnd_plan	plan		= rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
 														  FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
@@ -399,8 +423,7 @@ namespace convolution{
 		fac			= lx*ly*lz/pow(2.0*M_PI,3)/((double)nx*(double)ny*(double)nz),
 		
 		nspec		= pcf_->getValue<double>("cosmology","nspec"),
-		pnorm		= pcf_->getValue<double>("cosmology","pnorm"),
-		dplus		= pcf_->getValue<double>("cosmology","dplus");
+		pnorm		= pcf_->getValue<double>("cosmology","pnorm");
 		
 		bool
 			bperiodic	= pcf_->getValueSafe<bool>("setup","periodic_TF",true),
@@ -414,7 +437,7 @@ namespace convolution{
 		std::cout << "   - Computing transfer function kernel...\n";
 		
 		TransferFunction_real *tfr = 
-						new TransferFunction_real( boxlength, 1<<levelmax, type, ptf,nspec,pnorm,dplus,
+						new TransferFunction_real( boxlength, 1<<levelmax, type, ptf,nspec,pnorm,
 								  0.25*dx,2.0*boxlength,kny, (int)pow(2,levelmax+2));		
 		
 		fftw_real *rkernel = new fftw_real[(size_t)nx*(size_t)ny*2*((size_t)nz/2+1)], *rkernel_coarse;
@@ -630,11 +653,19 @@ namespace convolution{
 				rkernel[0] = 0.0;
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_plan 
+				plan  = fftwf_plan_dft_r2c_3d(nx,ny,nz, rkernel, kkernel, FFTW_ESTIMATE),
+				iplan = fftwf_plan_dft_c2r_3d(nx,ny,nz, kkernel, rkernel, FFTW_ESTIMATE);			
+			
+			fftwf_execute(plan);
+	#else
 			fftw_plan 
-				plan  = fftw_plan_dft_r2c_3d(nx,ny,nz, rkernel, kkernel, FFTW_ESTIMATE),
-				iplan = fftw_plan_dft_c2r_3d(nx,ny,nz, kkernel, rkernel, FFTW_ESTIMATE);			
+			plan  = fftw_plan_dft_r2c_3d(nx,ny,nz, rkernel, kkernel, FFTW_ESTIMATE),
+			iplan = fftw_plan_dft_c2r_3d(nx,ny,nz, kkernel, rkernel, FFTW_ESTIMATE);			
 			
 			fftw_execute(plan);
+	#endif
 #else
 			rfftwnd_plan	plan		= rfftw3d_create_plan( nx,ny,nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
 							iplan		= rfftw3d_create_plan( nx,ny,nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
@@ -802,9 +833,15 @@ namespace convolution{
 			
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_execute(iplan);
+			fftwf_destroy_plan(plan);
+			fftwf_destroy_plan(iplan);
+	#else
 			fftw_execute(iplan);
 			fftw_destroy_plan(plan);
 			fftw_destroy_plan(iplan);
+	#endif
 #else
 	#ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, kkernel, NULL );

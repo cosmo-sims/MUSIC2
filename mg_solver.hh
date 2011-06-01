@@ -440,7 +440,7 @@ double solver<S,I,O,T>::compute_RMS_resid( const GridHierarchy<T>& uh, const Gri
 		
 		double h = 1.0/(1<<ilevel), h2=h*h, err;
 		double sum = 0.0;
-		unsigned count = 0;
+		size_t count = 0;
 		
 		#pragma omp parallel for reduction(+:sum,count)
 		for( int ix=0; ix<nx; ++ix )

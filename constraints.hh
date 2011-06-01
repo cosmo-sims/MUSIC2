@@ -137,13 +137,22 @@ protected:
 	}
 	
 	
+#if defined(FFTW3) && defined(SINGLE_PRECISION)
+	
+	//! apply constraints to the white noise
+	void wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t nz, std::vector<double>& g0, matrix& cinv, fftwf_complex* cw );
+	
+	//! measure sigma for each constraint in the unconstrained noise
+	void wnoise_constr_corr( double dx, fftwf_complex* cw, size_t nx, size_t ny, size_t nz, std::vector<double>& g0 );
+	
+#else
 	//! apply constraints to the white noise
 	void wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t nz, std::vector<double>& g0, matrix& cinv, fftw_complex* cw );
 	
-	
 	//! measure sigma for each constraint in the unconstrained noise
 	void wnoise_constr_corr( double dx, fftw_complex* cw, size_t nx, size_t ny, size_t nz, std::vector<double>& g0 );
-			
+	
+#endif
 	
 	//! compute the covariance between the constraints
 	void icov_constr( double dx, size_t nx, size_t ny, size_t nz, matrix& cij );
@@ -202,12 +211,20 @@ public:
 			//... we are operating on the periodic coarse grid
 			size_t nx = lx[0], ny = lx[1], nz = lx[2], nzp = nz+2;
 			fftw_real * w = new fftw_real[nx*ny*nzp];
-			fftw_complex * cw = reinterpret_cast<fftw_complex*> (w);
+			
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_complex * cw = reinterpret_cast<fftwf_complex*> (w);
+			fftwf_plan	p  = fftwf_plan_dft_r2c_3d( nx, ny, nz, w, cw, FFTW_ESTIMATE),
+						ip = fftwf_plan_dft_c2r_3d( nx, ny, nz, cw, w, FFTW_ESTIMATE);
+	#else
+			fftw_complex * cw = reinterpret_cast<fftw_complex*> (w);
 			fftw_plan	p  = fftw_plan_dft_r2c_3d( nx, ny, nz, w, cw, FFTW_ESTIMATE),
 						ip = fftw_plan_dft_c2r_3d( nx, ny, nz, cw, w, FFTW_ESTIMATE);
+	#endif
 #else
+			fftw_complex * cw = reinterpret_cast<fftw_complex*> (w);
 			rfftwnd_plan p	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
 						 ip = rfftw3d_create_plan( nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 #endif
@@ -224,7 +241,11 @@ public:
 					}
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_execute( p );
+	#else
 			fftw_execute( p );
+	#endif
 #else
 #ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), p, w, NULL );
@@ -241,7 +262,11 @@ public:
 			wnoise_constr_corr( dx, nx, ny, nz, g0, c, cw );
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_execute( ip );
+	#else
 			fftw_execute( ip );
+	#endif
 #else
 #ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ip, cw, NULL );
@@ -266,7 +291,11 @@ public:
 			
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_destroy_plan(p);
+	#else
 			fftw_destroy_plan(p);
+	#endif
 #else
 			fftwnd_destroy_plan(p);
 #endif
@@ -276,12 +305,20 @@ public:
 			
 			size_t nx = lx[0], ny = lx[1], nz = lx[2], nzp = nz+2;
 			fftw_real * w = new fftw_real[nx*ny*nzp];
-			fftw_complex * cw = reinterpret_cast<fftw_complex*> (w);
+			
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_complex * cw = reinterpret_cast<fftwf_complex*> (w);
+			fftwf_plan	p  = fftwf_plan_dft_r2c_3d( nx, ny, nz, w, cw, FFTW_ESTIMATE),
+						ip = fftwf_plan_dft_c2r_3d( nx, ny, nz, cw, w, FFTW_ESTIMATE);
+	#else
+			fftw_complex * cw = reinterpret_cast<fftw_complex*> (w);
 			fftw_plan	p  = fftw_plan_dft_r2c_3d( nx, ny, nz, w, cw, FFTW_ESTIMATE),
-			ip = fftw_plan_dft_c2r_3d( nx, ny, nz, cw, w, FFTW_ESTIMATE);
+						ip = fftw_plan_dft_c2r_3d( nx, ny, nz, cw, w, FFTW_ESTIMATE);
+	#endif
 #else
+			fftw_complex * cw = reinterpret_cast<fftw_complex*> (w);
 			rfftwnd_plan p	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
 			ip = rfftw3d_create_plan( nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 #endif
@@ -315,7 +352,11 @@ public:
 			}
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_execute( p );
+	#else
 			fftw_execute( p );
+	#endif
 #else
 #ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), p, w, NULL );
@@ -332,7 +373,11 @@ public:
 			wnoise_constr_corr( dx, nx, ny, nz, g0, c, cw );
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_execute( ip );
+	#else
 			fftw_execute( ip );
+	#endif
 #else
 #ifndef SINGLETHREAD_FFTW		
 			rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ip, cw, NULL );
@@ -358,7 +403,11 @@ public:
 			
 			
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+			fftwf_destroy_plan(p);
+	#else
 			fftw_destroy_plan(p);
+	#endif
 #else
 			fftwnd_destroy_plan(p);
 #endif

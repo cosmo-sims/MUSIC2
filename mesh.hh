@@ -105,15 +105,7 @@ public:
 	}
 	
 	//! get extent of the mesh along a specified dimension (const)
-	inline unsigned size( unsigned dim ) const
-	{
-		if( dim == 0 ) return m_nx;
-		if( dim == 1 ) return m_ny;
-		return m_nz;
-	}
-	
-	//! get extent of the mesh along a specified dimension
-	inline size_t& size( unsigned dim )
+	inline size_t size( unsigned dim ) const
 	{
 		if( dim == 0 ) return m_nx;
 		if( dim == 1 ) return m_ny;
@@ -128,13 +120,13 @@ public:
 		return m_offz;
 	}
 	
-	//! get extent of the mesh along a specified dimension
+	/*//! get extent of the mesh along a specified dimension
 	inline int& offset( unsigned dim )
 	{
 		if( dim == 0 ) return m_offx;
 		if( dim == 1 ) return m_offy;
 		return m_offz;
-	}
+	}*/
 	
 	//! set all the data to zero values
 	void zero( void )
@@ -636,9 +628,9 @@ public:
 	 *  @param lmax the maximum refinement level to consider
 	 *  @return the integer number of cells between lmin and lmax that are not further refined
 	 */
-	unsigned count_leaf_cells( unsigned lmin, unsigned lmax ) const
+	size_t count_leaf_cells( unsigned lmin, unsigned lmax ) const
 	{
-		unsigned npcount = 0;
+		size_t npcount = 0;
 		
 		for( int ilevel=lmax; ilevel>=(int)lmin; --ilevel )
 			for( unsigned i=0; i<get_grid(ilevel)->size(0); ++i )
@@ -654,7 +646,7 @@ public:
 	/*! for allocation purposes it is useful to query the number of cells to be expected
 	 *  @return the integer number of cells in the hierarchy that are not further refined
 	 */
-	unsigned count_leaf_cells( void ) const
+	size_t count_leaf_cells( void ) const
 	{
 		return count_leaf_cells( levelmin(), levelmax() );
 	}
@@ -667,7 +659,7 @@ public:
 	 */
 	void create_base_hierarchy( unsigned lmax )
 	{
-		unsigned n=1;
+		size_t n=1;
 		
 		this->deallocate();
 		

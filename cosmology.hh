@@ -87,7 +87,7 @@ public:
 	/*! Function integrates over member function GrowthIntegrand */
 	inline real_t CalcGrowthFactor( real_t a )
 	{ 
-		real_t eta =  sqrt((double)(m_Cosmology.Omega_m/a+m_Cosmology.Omega_L*a*a
+		real_t eta =  sqrt((double)(m_Cosmology.Omega_r/a/a+m_Cosmology.Omega_m/a+m_Cosmology.Omega_L*a*a
 								  +1.0-m_Cosmology.Omega_m-m_Cosmology.Omega_L));
 		
 		real_t integral = integrate( &GrowthIntegrand, 0.0, a, (void*)&m_Cosmology );
@@ -98,36 +98,62 @@ public:
 	inline static double GrowthIntegrand( double a, void *Params )
 	{
 		Cosmology *cosm = (Cosmology*)Params;
+		double eta = sqrt((double)(cosm->Omega_r/a/a+cosm->Omega_m/a+cosm->Omega_L*a*a
+								   +1.0-cosm->Omega_m-cosm->Omega_L));
+		return 2.5/(eta*eta*eta);
+	}
+    
+    //! Computes the linear theory growth factor D+
+	/*! Function integrates over member function GrowthIntegrand */
+	inline real_t CalcGrowthFactor_Matter( real_t a )
+	{ 
+		real_t eta =  sqrt((double)(m_Cosmology.Omega_m/a+m_Cosmology.Omega_L*a*a
+                                    +1.0-m_Cosmology.Omega_m-m_Cosmology.Omega_L));
+		
+		real_t integral = integrate( &GrowthIntegrand_Matter, 0.0, a, (void*)&m_Cosmology );
+		return eta/a*integral;
+	}
+    
+	//! Integrand used by function CalcGrowthFactor to determine the linear growth factor D+
+	inline static double GrowthIntegrand_Matter( double a, void *Params )
+	{
+		Cosmology *cosm = (Cosmology*)Params;
 		double eta = sqrt((double)(cosm->Omega_m/a+cosm->Omega_L*a*a
 								   +1.0-cosm->Omega_m-cosm->Omega_L));
 		return 2.5/(eta*eta*eta);
 	}
 	
+    real_t ComputeVFactnew( real_t a ){
+     return Calc_fPeebles(a)*sqrt(m_Cosmology.Omega_m/a+m_Cosmology.Omega_L*a*a+1.0-m_Cosmology.Omega_m-m_Cosmology.Omega_L)*100.0;
+    }
+     
+     real_t ComputedDdt( real_t a )
+     {
+     return Calc_fPeebles(a);
+     }
+    
 	//! Compute the factor relating particle displacement and velocity
-	real_t ComputeVFact_old( real_t a ){
+	real_t ComputeVFact( real_t a ){
 		real_t fomega, dlogadt, eta;
 		real_t Omega_k = 1.0 - m_Cosmology.Omega_m - m_Cosmology.Omega_L;
 		
 		real_t Dplus = CalcGrowthFactor( a );
 		
-		eta     = sqrt( (double)(m_Cosmology.Omega_m/a+ m_Cosmology.Omega_L*a*a + Omega_k ));
+		eta     = sqrt( (double)(m_Cosmology.Omega_r/a/a+m_Cosmology.Omega_m/a+ m_Cosmology.Omega_L*a*a + Omega_k ));
 		fomega  = (2.5/Dplus-1.5*m_Cosmology.Omega_m/a-Omega_k)/eta/eta;
 		dlogadt = a*eta;
 		
 		//... /100.0 since we would have to multiply by H0 to convert
 		//... the displacement to velocity units. But displacement is
 		//... in Mpc/h, and H0 in units of h is 100.
+        
+        //std::cerr << "vfact1 = " << fomega * dlogadt/a *100.0 << "\n";
+        //std::cerr << "vfact2 = " << ComputeVFactnew(a) << "\n";
+        
 		return fomega * dlogadt/a *100.0;
 	}
 	
-	real_t ComputeVFact( real_t a ){
-		return Calc_fPeebles(a)*sqrt(m_Cosmology.Omega_m/a+m_Cosmology.Omega_L*a*a+1.0-m_Cosmology.Omega_m-m_Cosmology.Omega_L)*100.0;
-	}
 	
-	real_t ComputedDdt( real_t a )
-	{
-		return Calc_fPeebles(a);
-	}
 	
 	
 	//! Integrand for the sigma_8 normalization of the power spectrum
@@ -145,6 +171,27 @@ public:
 		static double nspect = (double)ptf->cosmo_.nspect;
 		
 		double tf = ptf->compute(k, total);
+		
+		//... no growth factor since we compute at z=0 and normalize so that D+(z=0)=1
+		return k*k * w*w * pow((double)k,(double)nspect) * tf*tf;
+		
+	}
+    
+    //! Integrand for the sigma_8 normalization of the power spectrum
+	/*! Returns the value of the primordial power spectrum multiplied with 
+	 the transfer function and the window function of 8 Mpc/h at wave number k */
+	static double dSigma8_0( double k, void *Params )
+	{
+		if( k<=0.0 )
+			return 0.0f;
+		
+		transfer_function *ptf = (transfer_function *)Params;
+		
+		double x = k*8.0;
+		double w = 3.0*(sin(x)-x*cos(x))/(x*x*x);
+		static double nspect = (double)ptf->cosmo_.nspect;
+		
+		double tf = ptf->compute(k, total0);
 		
 		//... no growth factor since we compute at z=0 and normalize so that D+(z=0)=1
 		return k*k * w*w * pow((double)k,(double)nspect) * tf*tf;
@@ -174,12 +221,47 @@ public:
 		real_t sigma0, kmin;
 		kmax = m_pTransferFunction->get_kmax();//m_Cosmology.H0/8.0;
 		kmin = m_pTransferFunction->get_kmin();//0.0;
-		sigma0 = 4.0 * M_PI * integrate( &dSigma8, (double)kmin, (double)kmax, (void*)m_pTransferFunction );
+        
+        if( !m_pTransferFunction->tf_has_total0() )
+            sigma0 = 4.0 * M_PI * integrate( &dSigma8, (double)kmin, (double)kmax, (void*)m_pTransferFunction );
+		else
+            sigma0 = 4.0 * M_PI * integrate( &dSigma8_0, (double)kmin, (double)kmax, (void*)m_pTransferFunction );
 		
-		return m_Cosmology.sigma8*m_Cosmology.sigma8/sigma0;
+        return m_Cosmology.sigma8*m_Cosmology.sigma8/sigma0;
+	}
+    
+    
+	
+    
+	//! integrand function for comoving line element
+	inline static double dline( double a, void *Params )
+	{
+		Cosmology *cosm = (Cosmology*)Params;
+		double y = (cosm->Omega_m + cosm->Omega_L*a*a*a)*a;
 		
+		return 1./sqrt(y);
 	}
 	
+	//! compute necessary initial velocity kick to prevent motion of zoom region 
+	real_t ComputeVelocityCompensation( double astart, double afinal )
+	{
+		double s = integrate( &dline, astart, afinal, (void*)&m_Cosmology );
+		//std::cerr << "s      = " << s << std::endl;
+		//std::cerr << "D(z_f) = " << CalcGrowthFactor(afinal) << std::endl;
+		//std::cerr << "D(z_i) = " << CalcGrowthFactor(astart) << std::endl;
+		return m_Cosmology.H0 * CalcGrowthFactor(afinal)/CalcGrowthFactor(astart)/s;
+	}
+	
+	real_t ComputeVelocityCompensation_2LPT( double astart, double afinal )
+	{
+		double s = integrate( &dline, astart, afinal, (void*)&m_Cosmology );
+		//std::cerr << "s      = " << s << std::endl;
+		//std::cerr << "D(z_f) = " << CalcGrowthFactor(afinal) << std::endl;
+		//std::cerr << "D(z_i) = " << CalcGrowthFactor(astart) << std::endl;
+		return m_Cosmology.H0 * pow(CalcGrowthFactor(afinal)/CalcGrowthFactor(astart),2.0)/s;
+	}
+	
+
 	
 };
 

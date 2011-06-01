@@ -16,6 +16,10 @@
 #define ACC(i,j,k) ((*u.get_grid((ilevel)))((i),(j),(k)))
 #define SQR(x)	((x)*(x))
 
+#if defined(FFTW3) && defined(SINGLE_PRECISION)
+#define fftw_complex fftwf_complex
+#endif
+
 
 void compute_LLA_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigned order )
 {
@@ -211,6 +215,22 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 	
 	//... perform FFT and Poisson solve................................
 #ifdef FFTW3
+	
+	#ifdef SINGLE_PRECISION
+	fftwf_plan
+		plan  = fftwf_plan_dft_r2c_3d(nx,ny,nz, data, cdata, FFTW_ESTIMATE),
+		iplan = fftwf_plan_dft_c2r_3d(nx,ny,nz, cdata, data, FFTW_ESTIMATE),
+		ip11  = fftwf_plan_dft_c2r_3d(nx,ny,nz, cdata_11, data_11, FFTW_ESTIMATE),
+		ip12  = fftwf_plan_dft_c2r_3d(nx,ny,nz, cdata_12, data_12, FFTW_ESTIMATE),
+		ip13  = fftwf_plan_dft_c2r_3d(nx,ny,nz, cdata_13, data_13, FFTW_ESTIMATE),
+		ip22  = fftwf_plan_dft_c2r_3d(nx,ny,nz, cdata_22, data_22, FFTW_ESTIMATE),
+		ip23  = fftwf_plan_dft_c2r_3d(nx,ny,nz, cdata_23, data_23, FFTW_ESTIMATE),
+		ip33  = fftwf_plan_dft_c2r_3d(nx,ny,nz, cdata_33, data_33, FFTW_ESTIMATE);
+	
+	fftwf_execute(plan);
+	
+	#else
+	
 	fftw_plan
 		plan  = fftw_plan_dft_r2c_3d(nx,ny,nz, data, cdata, FFTW_ESTIMATE),
 		iplan = fftw_plan_dft_c2r_3d(nx,ny,nz, cdata, data, FFTW_ESTIMATE),
@@ -222,6 +242,8 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 		ip33  = fftw_plan_dft_c2r_3d(nx,ny,nz, cdata_33, data_33, FFTW_ESTIMATE);
 	
 	fftw_execute(plan);
+	
+	#endif
 	
 	double kfac = 2.0*M_PI;
 	double norm = 1.0/((double)(nx*ny*nz));
@@ -295,6 +317,24 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 	 cdata_23[0][0]	= 0.0; cdata_23[0][1]	= 0.0;
 	 cdata_33[0][0]	= 0.0; cdata_33[0][1]	= 0.0;*/
 	
+	
+#ifdef SINGLE_PRECISION
+	fftwf_execute(ip11);
+	fftwf_execute(ip12);
+	fftwf_execute(ip13);
+	fftwf_execute(ip22);
+	fftwf_execute(ip23);
+	fftwf_execute(ip33);
+	
+	fftwf_destroy_plan(plan);
+	fftwf_destroy_plan(iplan);
+	fftwf_destroy_plan(ip11);
+	fftwf_destroy_plan(ip12);
+	fftwf_destroy_plan(ip13);
+	fftwf_destroy_plan(ip22);
+	fftwf_destroy_plan(ip23);
+	fftwf_destroy_plan(ip33);
+#else
 	fftw_execute(ip11);
 	fftw_execute(ip12);
 	fftw_execute(ip13);
@@ -311,6 +351,7 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 	fftw_destroy_plan(ip23);
 	fftw_destroy_plan(ip33);
 
+#endif
 //#endif
 	
 	

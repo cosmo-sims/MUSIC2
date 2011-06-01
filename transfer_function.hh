@@ -26,8 +26,12 @@
 #include "Numerics.hh"
 #include "config_file.hh"
 
+#if defined(FFTW3) && defined(SINGLE_PRECISION)
+#define fftw_complex fftwf_complex
+#endif
+
 enum tf_type{
-	total, cdm, baryon, vcdm, vbaryon
+	total, cdm, baryon, vcdm, vbaryon, total0
 };
 
 #define GSL_INTEGRATION_ERR 1e-5
@@ -43,12 +47,12 @@ public:
 	config_file *pcf_;		//!< pointer to config_file from which to read parameters
 	bool tf_distinct_;		//!< bool if density transfer function is distinct for baryons and DM
 	bool tf_withvel_;		//!< bool if also have velocity transfer functions
-	
+	bool tf_withtotal0_;
 public:
 	
 	//! constructor
 	transfer_function_plugin( config_file& cf ) 
-	: pcf_( &cf )
+	: pcf_( &cf ), tf_distinct_(false), tf_withvel_(false), tf_withtotal0_(false)
 	{
 		real_t zstart;
 		zstart				= pcf_->getValue<real_t>( "setup", "zstart" );
@@ -80,6 +84,10 @@ public:
 	//! return if we also have velocity transfer functions
 	bool tf_has_velocities( void )
 	{	return tf_withvel_; }
+    
+    //! return if we also have a z=0 transfer function for normalisation
+    bool tf_has_total0( void )
+    {   return tf_withtotal0_; }
 };
 
 
@@ -129,11 +137,11 @@ class TransferFunction_k
 public:
 	static transfer_function *ptf_;
 	static real_t nspec_;
-	double dplus_, pnorm_, sqrtpnorm_;
+	double pnorm_, sqrtpnorm_;
 	static tf_type type_;
 	
-	TransferFunction_k( tf_type type, transfer_function *tf, real_t nspec, real_t pnorm, real_t dplus )
-	: dplus_(dplus), pnorm_(pnorm)
+	TransferFunction_k( tf_type type, transfer_function *tf, real_t nspec, real_t pnorm )
+	: pnorm_(pnorm)
 	{
 		ptf_ = tf;
 		nspec_ = nspec;
@@ -156,7 +164,7 @@ public:
 			{ 
 				double k = pow(10.0,kmin+i*dk);
 				ofs << std::setw(16) << k 
-			    << std::setw(16) << pow(dplus_*sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,type_),2)
+			    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,type_),2)
 			    << std::endl;
 			}
 			
@@ -167,7 +175,7 @@ public:
 	
 	inline real_t compute( real_t k ) const
 	{
-		return dplus_*sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,type_);
+		return sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,type_);
 	}
 };
 
@@ -221,7 +229,7 @@ protected:
 		return krnew;
 	}
 	
-	void transform( real_t pnorm, real_t dplus, unsigned N, real_t q, std::vector<double>& rr, std::vector<double>& TT )
+	void transform( real_t pnorm, unsigned N, real_t q, std::vector<double>& rr, std::vector<double>& TT )
 	{
 		const double mu = 0.5;
 		double qmin = 1.0e-7, qmax = 1.0e+7;
@@ -269,14 +277,14 @@ protected:
 			double T = ptf_->compute( k, type_ );
 #ifdef FFTW3
 			
-			in[i][0] = dplus*sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);
+			in[i][0] = sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);
 			in[i][1] = 0.0;
 			
 			sum_in += in[i][0];	
 			ofsk << std::setw(16) << k <<std::setw(16) << in[i][0] << std::setw(16) << T << std::endl;
 #else
 			
-			in[i].re = dplus*sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);
+			in[i].re = sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);
 			in[i].im = 0.0;
 			
 			sum_in += in[i].re;
@@ -287,10 +295,17 @@ protected:
 		ofsk.close();
 		
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+		fftwf_plan p,ip;
+		p = fftwf_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+		ip = fftwf_plan_dft_1d(N, out, in, FFTW_BACKWARD, FFTW_ESTIMATE);
+		fftwf_execute(p);
+	#else
 		fftw_plan p,ip;
 		p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
 		ip = fftw_plan_dft_1d(N, out, in, FFTW_BACKWARD, FFTW_ESTIMATE);
 		fftw_execute(p);
+	#endif
 #else
 		fftw_plan p,ip;
 		p = fftw_create_plan(N, FFTW_FORWARD, FFTW_ESTIMATE);
@@ -370,7 +385,11 @@ protected:
 		}
 		
 #ifdef FFTW3
+	#ifdef SINGLE_PRECISION
+		fftwf_execute(ip);
+	#else
 		fftw_execute(ip);
+	#endif
 #else
 		fftw_one(ip, out, in);
 #endif
@@ -423,8 +442,14 @@ protected:
 		
 		delete[] in;
 		delete[] out;
+		
+#if defined(FFTW3) && defined(SINGLE_PRECISION)
+		fftwf_destroy_plan(p);
+		fftwf_destroy_plan(ip);
+#else
 		fftw_destroy_plan(p);
 		fftw_destroy_plan(ip);
+#endif
 	}
 	std::vector<real_t> m_xtable,m_ytable,m_dytable;
 	double m_xmin, m_xmax, m_dx, m_rdx;
@@ -434,7 +459,7 @@ protected:
 public:
 	
 	TransferFunction_real( double boxlength, int nfull, tf_type type, transfer_function *tf, 
-						   real_t nspec, real_t pnorm, real_t dplus, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
+						   real_t nspec, real_t pnorm, real_t rmin, real_t rmax, real_t knymax, unsigned nr )
 	{
 		real_t q = 0.8;
 		
@@ -448,7 +473,7 @@ public:
 		//... compute the FFTlog transform of the k^n T(k) kernel
 
 		std::vector<double> r,T;
-		transform( pnorm, dplus, nr, q, r, T );
+		transform( pnorm, nr, q, r, T );
 		
 		gsl_set_error_handler_off ();
 		
@@ -491,7 +516,7 @@ public:
 			//.. get kmin..kmax
 			res -= res2;
 			//.. *8 because we only integrated one octant
-			res *= 8.0*dplus*sqrt(pnorm);
+			res *= 8.0*sqrt(pnorm);
 			Tr0_ = res;
 		}
 		

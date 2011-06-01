@@ -14,7 +14,7 @@
 #include "log.hh"
 
 #include <cassert>
-#include <omp.h>
+#include "omp.h"
 
 #ifdef WITH_MPI
   #ifdef MANNO
@@ -88,6 +88,7 @@ typedef struct cosmology{
     Omega_m,		//!< baryon+dark matter density
     Omega_b,		//!< baryon matter density
     Omega_L,		//!< dark energy density
+    Omega_r,        //!< photon + relativistic particle density
     H0,				//!< Hubble constant
     nspect,			//!< long-wave spectral index (scale free is nspect=1) 
     sigma8,			//!< power spectrum normalization
@@ -110,6 +111,7 @@ typedef struct cosmology{
 		Omega_b		= cf.getValue<double>( "cosmology", "Omega_b" );
 		Omega_m		= cf.getValue<double>( "cosmology", "Omega_m" );
 		Omega_L		= cf.getValue<double>( "cosmology", "Omega_L" );
+        Omega_r     = cf.getValueSafe<double>( "cosmology", "Omega_r", 8.3e-5 );
 		H0			= cf.getValue<double>( "cosmology", "H0" );
 		sigma8		= cf.getValue<double>( "cosmology", "sigma_8" );
 		nspect		= cf.getValue<double>( "cosmology", "nspec" );

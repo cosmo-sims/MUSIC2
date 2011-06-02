@@ -47,12 +47,13 @@ public:
 	config_file *pcf_;		//!< pointer to config_file from which to read parameters
 	bool tf_distinct_;		//!< bool if density transfer function is distinct for baryons and DM
 	bool tf_withvel_;		//!< bool if also have velocity transfer functions
-	bool tf_withtotal0_;
+	bool tf_withtotal0_;	//!< have the z=0 spectrum for normalisation purposes
+	bool tf_velunits_;		//!< velocities are in velocity units (km/s)
 public:
 	
 	//! constructor
 	transfer_function_plugin( config_file& cf ) 
-	: pcf_( &cf ), tf_distinct_(false), tf_withvel_(false), tf_withtotal0_(false)
+	: pcf_( &cf ), tf_distinct_(false), tf_withvel_(false), tf_withtotal0_(false), tf_velunits_(false)
 	{
 		real_t zstart;
 		zstart				= pcf_->getValue<real_t>( "setup", "zstart" );
@@ -88,6 +89,10 @@ public:
     //! return if we also have a z=0 transfer function for normalisation
     bool tf_has_total0( void )
     {   return tf_withtotal0_; }
+	
+	//! return if velocity returned is in velocity or in displacement units
+	bool tf_velocity_units( void )
+	{	return tf_velunits_; }
 };
 
 

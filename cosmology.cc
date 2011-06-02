@@ -253,8 +253,8 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 		for( size_t j=0; j<ny; ++j )	
 			for( size_t l=0; l<nz/2+1; ++l )
 			{
-				int ii = i; if(ii>nx/2) ii-=nx;
-				int jj = j; if(jj>ny/2) jj-=ny;
+				int ii = i; if(ii>(int)nx/2) ii-=nx;
+				int jj = (int)j; if(jj>(int)ny/2) jj-=ny;
 				double ki = (double)ii;
 				double kj = (double)jj;
 				double kk = (double)l;
@@ -287,7 +287,7 @@ void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hi
 				cdata_33[idx][1] = -k[2]*k[2] * cdata[idx][1] * norm;
 				
 				
-				if( i==nx/2||j==ny/2||l==nz/2)
+				if( i==(int)nx/2||j==ny/2||l==nz/2)
 				{
 					cdata_11[idx][0] = 0.0;
 					cdata_11[idx][1] = 0.0;

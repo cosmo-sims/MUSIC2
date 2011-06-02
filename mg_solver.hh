@@ -488,7 +488,7 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 	double err, maxerr = 1e30;
 	unsigned niter = 0;
 	
-	bool fullverbose = true;//false;
+	bool fullverbose = false;
 	
 	m_pu = &uh;
 	

@@ -37,7 +37,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "0.9b"
+#define THE_CODE_VERSION "1.0"
 
 
 namespace music
@@ -386,8 +386,7 @@ int main (int argc, const char * argv[])
 	if( !the_transfer_function_plugin->tf_has_total0() )
 	        cosmo.pnorm *= cosmo.dplus*cosmo.dplus;
 	    
-#warning "using unscaled velocities for music transfer function plugin"
-	if( the_transfer_function_plugin->tf_has_velocities() && do_baryons )
+	if( the_transfer_function_plugin->tf_velocity_units() && do_baryons )
 		cosmo.vfact = 1.0;
 
 	{
@@ -926,14 +925,17 @@ int main (int argc, const char * argv[])
 				if( do_CVM )
 				{
 					uref[icoord] = kickfac * compute_finest_mean(data_forIO);
-					std::cerr << "uref_old[" << icoord << "] = " << uref[icoord] << std::endl;
+					//std::cerr << "uref_old[" << icoord << "] = " << uref[icoord] << std::endl;
 					uref[icoord] = kickfac * compute_finest_mean(data_forIO) - 6./7. * uref_2LPT[icoord];
 					uref_2LPT[icoord] = 6./7. * kickfac_2LPT/kickfac * uref_2LPT[icoord];
 					uref[icoord] += uref_2LPT[icoord];
-					std::cerr << "uref_new[" << icoord << "] = " << uref[icoord] << std::endl;
+					//std::cerr << "uref_new[" << icoord << "] = " << uref[icoord] << std::endl;
 					data_forIO -= uref[icoord];
 				}
 					
+				double sigv = compute_finest_sigma( data_forIO );
+				std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
+				
 				LOGUSER("Writing CDM velocities");
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);					
 				
@@ -1016,6 +1018,9 @@ int main (int argc, const char * argv[])
 					//... velocity kick to keep refined region centered?
 					if( do_CVM )
 						data_forIO -= uref[icoord];
+					
+					double sigv = compute_finest_sigma( data_forIO );
+					std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
 					
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);				

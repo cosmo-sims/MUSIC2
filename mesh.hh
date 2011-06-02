@@ -1335,6 +1335,7 @@ public:
 
 typedef GridHierarchy<real_t> grid_hierarchy;
 typedef MeshvarBnd<real_t> meshvar_bnd;
+typedef MeshvarBnd<double> meshvar_bnd_double;
 typedef Meshvar<real_t> meshvar;
 
 

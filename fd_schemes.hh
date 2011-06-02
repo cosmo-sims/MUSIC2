@@ -213,7 +213,8 @@ public:
 	template< class C >
 	inline real_t apply( const C& c, const int i, const int j, const int k ) const
 	{
-		return c(i-1,j,k)+c(i+1,j,k)+c(i,j-1,k)+c(i,j+1,k)+c(i,j,k-1)+c(i,j,k+1)-6.0*c(i,j,k);
+		//return c(i-1,j,k)+c(i+1,j,k)+c(i,j-1,k)+c(i,j+1,k)+c(i,j,k-1)+c(i,j,k+1)-6.0*c(i,j,k);
+		return (double)c(i-1,j,k)+(double)c(i+1,j,k)+(double)c(i,j-1,k)+(double)c(i,j+1,k)+(double)c(i,j,k-1)+(double)c(i,j,k+1)-6.0*(double)c(i,j,k);
 	}
 	
 	template< class C >

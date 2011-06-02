@@ -11,14 +11,6 @@
 #include "densities.hh"
 #include "convolution_kernel.hh"
 
-//... THIS IS FOR TESTING, TODO: TAKE OUT FOR RELEASE VERSION
-//... uncomment this to have a single peak in the centre and otherwise zeros
-//#define SINGLE_PEAK
-//#define SINGLE_OCT_PEAK
-//#define OFF_OCT_PEAK
-//#define DEGRADE_RAND
-
-
 
 //TODO: this should be a larger number by default, just to maintain consistency with old default
 #define DEF_RAN_CUBE_SIZE	32
@@ -87,42 +79,6 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	
 	//... fill with random numbers
 	rand.load( *top, levelmin );
-	
-#if defined(SINGLE_PEAK)
-	top->zero();
-	(*top)(top->size(0)/2, top->size(1)/2, top->size(2)/2) = 1.0;
-#elif defined(SINGLE_OCT_PEAK)
-	{
-		top->zero();
-		unsigned i0=top->size(0)/2, i1=top->size(1)/2, i2=top->size(2)/2;
-
-		double weight = 1.0;
-		(*top)(i0,i1,i2) = weight/8.0;			
-		(*top)(i0+1,i1,i2) = weight/8.0;			
-		(*top)(i0,i1+1,i2) = weight/8.0;			
-		(*top)(i0,i1,i2+1) = weight/8.0;			
-		(*top)(i0+1,i1+1,i2) = weight/8.0;			
-		(*top)(i0+1,i1,i2+1) = weight/8.0;			
-		(*top)(i0,i1+1,i2+1) = weight/8.0;			
-		(*top)(i0+1,i1+1,i2+1) = weight/8.0;
-	}
-#endif
-	
-#if defined(OFF_OCT_PEAK)
-	{
-		top->zero();
-		unsigned i0=top->size(0)/8, i1=top->size(1)/2, i2=top->size(2)/2;
-		
-		(*top)(i0,i1,i2) = 1.0/8.0;			
-		(*top)(i0+1,i1,i2) = 1.0/8.0;			
-		(*top)(i0,i1+1,i2) = 1.0/8.0;			
-		(*top)(i0,i1,i2+1) = 1.0/8.0;			
-		(*top)(i0+1,i1+1,i2) = 1.0/8.0;			
-		(*top)(i0+1,i1,i2+1) = 1.0/8.0;			
-		(*top)(i0,i1+1,i2+1) = 1.0/8.0;			
-		(*top)(i0+1,i1+1,i2+1) = 1.0/8.0;
-	}
-#endif
 		
 	//... load convolution kernel
 	the_tf_kernel->fetch_kernel( levelmin, false );
@@ -220,43 +176,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		//rand_gen.load( *top, levelmin );
 		rand.load( *top, levelmin );
 
-#if defined(SINGLE_PEAK)
-		top->zero();
-		(*top)(top->size(0)/2, top->size(1)/2, top->size(2)/2) = 1.0;
-#elif defined(SINGLE_OCT_PEAK)
-		{
-			std::cerr << ">>> setting single oct peak <<<\n";
-			top->zero();
-			unsigned i0=top->size(0)/2, i1=top->size(1)/2, i2=top->size(2)/2;
-			
-			(*top)(i0,i1,i2) = 1.0/8.0;			
-			(*top)(i0+1,i1,i2) = 1.0/8.0;			
-			(*top)(i0,i1+1,i2) = 1.0/8.0;			
-			(*top)(i0,i1,i2+1) = 1.0/8.0;			
-			(*top)(i0+1,i1+1,i2) = 1.0/8.0;			
-			(*top)(i0+1,i1,i2+1) = 1.0/8.0;			
-			(*top)(i0,i1+1,i2+1) = 1.0/8.0;			
-			(*top)(i0+1,i1+1,i2+1) = 1.0/8.0;
-		}
 
-#endif
-		
-#if defined(OFF_OCT_PEAK)
-		{
-			top->zero();
-			unsigned i0=top->size(0)/8, i1=top->size(1)/2, i2=top->size(2)/2;
-			
-			(*top)(i0,i1,i2) = 1.0/8.0;			
-			(*top)(i0+1,i1,i2) = 1.0/8.0;			
-			(*top)(i0,i1+1,i2) = 1.0/8.0;			
-			(*top)(i0,i1,i2+1) = 1.0/8.0;			
-			(*top)(i0+1,i1+1,i2) = 1.0/8.0;			
-			(*top)(i0+1,i1,i2+1) = 1.0/8.0;			
-			(*top)(i0,i1+1,i2+1) = 1.0/8.0;			
-			(*top)(i0+1,i1+1,i2+1) = 1.0/8.0;
-		}
-#endif
-				
 		convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmax ), reinterpret_cast<void*>( top->get_data_ptr() ), shift );
 		the_tf_kernel->deallocate();
 		
@@ -296,23 +216,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			LOGUSER("Creating base hierarchy...");
 			delta.create_base_hierarchy(levelmin);
-			
-#if defined(SINGLE_PEAK) || defined(SINGLE_OCT_PEAK)
-			{
-				top->zero();
-				(*top)(top->size(0)/2, top->size(1)/2, top->size(2)/2) = 1.0/pow(2,1.5*(levelmax-levelmin));
-			}
-
-#endif	
-			
-#if defined(OFF_OCT_PEAK)
-			{
-				top->zero();
-				unsigned i0=top->size(0)/8, i1=top->size(1)/2, i2=top->size(2)/2;
-				
-				(*top)(i0,i1,i2) = 1.0/pow(2,1.5*(levelmax-levelmin));
-			}
-#endif
 			
 			DensityGrid<real_t> top_save( *top );
 
@@ -400,6 +303,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			
 			LOGUSER("Injecting long range component");
 			//mg_straight().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
+			
 			mg_cubic().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
 
 			//... 3) the coarse-grid correction
@@ -427,35 +331,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		 \**********************************************************************************************************/ 
 		std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmax << " ..." << std::endl;
 		LOGUSER("Performing noise convolution on level %3d",levelmax);
-		
-#if defined(SINGLE_PEAK) || defined(SINGLE_OCT_PEAK)
-		{
-			coarse->zero();
-			
-			int 
-				i0 = (1<<(levelmax-1)) - refh.offset_abs(levelmax,0) + coarse->nx_/4,
-				i1 = (1<<(levelmax-1)) - refh.offset_abs(levelmax,1) + coarse->nx_/4,
-				i2 = (1<<(levelmax-1)) - refh.offset_abs(levelmax,2) + coarse->nx_/4;
-#if defined(SINGLE_PEAK)
-				(*coarse)(i0,i1,i2) = 1.0;
-#elif defined(SINGLE_OCT_PEAK)
-				(*coarse)(i0,i1,i2) = 1.0/8.0;			
-				(*coarse)(i0+1,i1,i2) = 1.0/8.0;			
-				(*coarse)(i0,i1+1,i2) = 1.0/8.0;			
-				(*coarse)(i0,i1,i2+1) = 1.0/8.0;			
-				(*coarse)(i0+1,i1+1,i2) = 1.0/8.0;			
-				(*coarse)(i0+1,i1,i2+1) = 1.0/8.0;			
-				(*coarse)(i0,i1+1,i2+1) = 1.0/8.0;			
-				(*coarse)(i0+1,i1+1,i2+1) = 1.0/8.0;			
-#endif
-		}
-
-#endif
-		
-#if defined(OFF_OCT_PEAK)
-		coarse->zero();
-#endif
-		
+				
 		//... 1) grid self-contribution
 		LOGUSER("Computing density self-contribution");
 		PaddedDensitySubGrid<real_t> coarse_save( *coarse );
@@ -494,55 +370,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	}
 	
 	delete the_tf_kernel;
-	
-#if 0
-	// NEVER, NEVER ENABLE THE FOLLOWING
-	
-	//... enforce mean condition
-	//for( int i=levelmin; i<(int)levelmax; ++i )
-	//	enforce_mean( (*delta.get_grid(i+1)), (*delta.get_grid(i)) );
-	
-	/*for( unsigned i=levelmax; i>levelmin; --i )
-		enforce_coarse_mean( (*delta.get_grid(i)), (*delta.get_grid(i-1)) );*/
-#endif
-
-#if 0
-	//... subtract the box mean.... this will otherwise add
-	//... a constant curvature term to the potential
-	double sum = 0.0;
-	{
-		int nx,ny,nz;
-		
-		nx = delta.get_grid(levelmin)->size(0);
-		ny = delta.get_grid(levelmin)->size(1);
-		nz = delta.get_grid(levelmin)->size(2);
-		
-		for( int ix=0; ix<nx; ++ix )
-			for( int iy=0; iy<ny; ++iy )
-				for( int iz=0; iz<nz; ++iz )
-					sum += (*delta.get_grid(levelmin))(ix,iy,iz);
-		
-		sum /= (nx*ny*nz);
-	}
-	
-	
-	std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
-	
-	for( unsigned i=levelmin; i<=levelmax; ++i )
-	{		
-		int nx,ny,nz;
-		nx = delta.get_grid(i)->size(0);
-		ny = delta.get_grid(i)->size(1);
-		nz = delta.get_grid(i)->size(2);
-		
-		for( int ix=0; ix<nx; ++ix )
-			for( int iy=0; iy<ny; ++iy )
-				for( int iz=0; iz<nz; ++iz )
-					(*delta.get_grid(i))(ix,iy,iz) -= sum;
-		
-	}
-#endif
-		
+			
 	tend = omp_get_wtime();
 	if( true )//verbosity > 1 )
 		std::cout << " - Density calculation took " << tend-tstart << "s with " << omp_get_max_threads() << " threads." << std::endl;

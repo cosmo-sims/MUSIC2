@@ -271,7 +271,7 @@ public:
 			for( int j=0; j<ny; ++j )
 				for( int k=0; k<nz; ++k )
 					v(i,j,k) += dmean;
-		*/	
+			*/
 	}
 };
 

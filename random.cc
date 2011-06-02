@@ -426,30 +426,23 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		nxc=lx[0]/2, nyc=lx[1]/2, nzc=lx[2]/2;
 		
 		
-		fftw_real 
-		*rcoarse = new fftw_real[nxc*nyc*(nzc+2)], 
-		*rfine = new fftw_real[nx*ny*(nz+2)];
+		fftw_real *rfine = new fftw_real[nx*ny*(nz+2)];
+		fftw_complex *cfine = reinterpret_cast<fftw_complex*> (rfine);
 		
-		fftw_complex
-		*ccoarse = reinterpret_cast<fftw_complex*> (rcoarse),
-		*cfine = reinterpret_cast<fftw_complex*> (rfine);
 #ifdef FFTW3
 	#ifdef SINGLE_PRECISION
 		fftwf_plan
-		pc  = fftwf_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE),
-		pf  = fftwf_plan_dft_r2c_3d( nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
-		ipf	= fftwf_plan_dft_c2r_3d( nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
+			pf  = fftwf_plan_dft_r2c_3d( nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
+			ipf	= fftwf_plan_dft_c2r_3d( nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
 	#else
 		fftw_plan
-		pc  = fftw_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE),
-		pf  = fftw_plan_dft_r2c_3d( nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
-		ipf	= fftw_plan_dft_c2r_3d( nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
+			pf  = fftw_plan_dft_r2c_3d( nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
+			ipf	= fftw_plan_dft_c2r_3d( nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
 	#endif
 #else
 		rfftwnd_plan 
-		pc	= rfftw3d_create_plan( nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-		pf	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-		ipf	= rfftw3d_create_plan( nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+			pf	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+			ipf	= rfftw3d_create_plan( nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 #endif
 		
 #pragma omp parallel for
@@ -460,6 +453,22 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 					size_t q = ((size_t)i*(size_t)ny+(size_t)j)*(size_t)(nz+2)+(size_t)k;
 					rfine[q] = (*this)(x0[0]+i,x0[1]+j,x0[2]+k);
 				}
+		this->free_all_mem();	// temporarily free memory, allocate again later
+		
+		
+		
+		fftw_real *rcoarse = new fftw_real[nxc*nyc*(nzc+2)];
+		fftw_complex *ccoarse = reinterpret_cast<fftw_complex*> (rcoarse);
+		
+#ifdef FFTW3
+#ifdef SINGLE_PRECISION
+		fftwf_plan pc  = fftwf_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE);
+#else
+		fftw_plan pc  = fftw_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE);
+#endif
+#else
+		rfftwnd_plan pc	= rfftw3d_create_plan( nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
+#endif		
 		
 #pragma omp parallel for
 		for( int i=0; i<(int)nxc; i++ )
@@ -489,7 +498,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		
 		double fftnorm = 1.0/((double)nx*(double)ny*(double)nz);
 		
-#pragma omp parallel for
+		#pragma omp parallel for
 		for( int i=0; i<(int)nxc; i++ )
 			for( int j=0; j<(int)nyc; j++ )
 				for( int k=0; k<(int)nzc/2+1; k++ )
@@ -513,7 +522,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		
 		delete[] rcoarse;
 		
-#pragma omp parallel for
+		#pragma omp parallel for
 		for( int i=0; i<(int)nx; i++ )
 			for( int j=0; j<(int)ny; j++ )
 				for( int k=0; k<(int)nz/2+1; k++ )
@@ -542,13 +551,13 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 #endif
 #endif
 		
-#pragma omp parallel for
+		#pragma omp parallel for
 		for( int i=0; i<(int)nx; i++ )
 			for( int j=0; j<(int)ny; j++ )
 				for( int k=0; k<(int)nz; k++ )
 				{
 					size_t q = ((size_t)i*ny+(size_t)j)*(nz+2)+(size_t)k;
-					(*this)(x0[0]+i,x0[1]+j,x0[2]+k) = rfine[q];
+					(*this)(x0[0]+i,x0[1]+j,x0[2]+k,false) = rfine[q];
 				}
 		
 		delete[] rfine;
@@ -962,9 +971,11 @@ void random_number_generator<rng,T>::correct_avg( int icoarse, int ifine )
 					qf[6] = (1*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+0;
 					qf[7] = (1*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+1;
 					
+					double d = 0.0;
 					for( int q=0; q<8; ++q )
-						deg_rand[qc] += fac*fine_rand[qf[q]];
+						d += fac*fine_rand[qf[q]];
 					
+					deg_rand[qc] += d;
 				}
 		}
 		

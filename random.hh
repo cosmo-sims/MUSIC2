@@ -146,8 +146,8 @@ public:
 		rnums_.clear();
 	}
 	
-	//! access a random number
-	inline T& operator()( int i, int j, int k )
+	//! access a random number, this allocates a cube and fills it with consistent random numbers
+	inline T& operator()( int i, int j, int k, bool fillrand=true )
 	{
 		int ic, jc, kc, is, js, ks;
 		
@@ -165,7 +165,9 @@ public:
 		{	
 			//... cube has not been precomputed. fill now with random numbers
 			rnums_[ icube ] = new Meshvar<T>( cubesize_, 0, 0, 0 );
-			fill_cube(ic, jc, kc);
+
+			if( fillrand )
+				fill_cube(ic, jc, kc);
 		}
 		
 		//... determine cell in cube
@@ -174,6 +176,17 @@ public:
 		ks = (k - kc * cubesize_ + cubesize_) % cubesize_;
 		
 		return (*rnums_[ icube ])(is,js,ks);
+	}
+	
+	//! free all cubes
+	void free_all_mem( void )
+	{
+		for( unsigned i=0; i<rnums_.size(); ++i )
+			if( rnums_[i] != NULL )
+			{
+				delete rnums_[i];	
+				rnums_[i] = NULL;
+			}
 	}
 	
 	

@@ -31,6 +31,7 @@ namespace convolution{
 	void perform( kernel * pk, void *pd, bool shift )
 	{
 		//return;
+		
 		parameters cparam_ = pk->cparam_;
 		double fftnorm = pow(2.0*M_PI,1.5)/sqrt(cparam_.lx*cparam_.ly*cparam_.lz)/sqrt((double)cparam_.nx*(double)cparam_.ny*(double)cparam_.nz);
 		

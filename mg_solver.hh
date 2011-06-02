@@ -211,7 +211,8 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 {
 	MeshvarBnd<T> *uf, *uc, *ff, *fc;
 	
-	T 
+	
+	double 
 		h = 1.0/(1<<ilevel),
 		c0 = -1.0/m_scheme.ccoeff(),
 		h2 = h*h; 
@@ -282,9 +283,9 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 	//.................................................................... 
 	
 	int 
-	oxp = uf->offset(0),
-	oyp = uf->offset(1),
-	ozp = uf->offset(2);
+		oxp = uf->offset(0),
+		oyp = uf->offset(1),
+		ozp = uf->offset(2);
 	
 	meshvar_bnd tLu(*uc,false);
 	#pragma omp parallel for
@@ -315,12 +316,12 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 	oj = ff->offset(1);
 	ok = ff->offset(2);
 	
-	#pragma omp parallel for
+	#pragma omp parallel for 
 	for( int ix=oi; ix<oi+(int)ff->size(0)/2; ++ix )
 		for( int iy=oj; iy<oj+(int)ff->size(1)/2; ++iy )
 			for( int iz=ok; iz<ok+(int)ff->size(2)/2; ++iz )
 				(*fc)(ix,iy,iz) += ((tLu( ix, iy, iz ) - (m_scheme.apply( *uc, ix, iy, iz )/(4.0*h2))));
-					
+									
 	tLu.deallocate();
 	
 	meshvar_bnd ucsave(*uc,true);
@@ -336,12 +337,13 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 	
 	meshvar_bnd cc(*uc,false);
 	
+		
 	//... compute correction on coarse grid
 	#pragma omp parallel for
 	for( int ix=0; ix<(int)cc.size(0); ++ix )
 		for( int iy=0; iy<(int)cc.size(1); ++iy )
 			for( int iz=0; iz<(int)cc.size(2); ++iz )
-				cc(ix,iy,iz) = (*uc)(ix,iy,iz) - ucsave(ix,iy,iz);
+				cc(ix,iy,iz) = (*uc)(ix,iy,iz) - ucsave(ix,iy,iz);	
 		
 	ucsave.deallocate();
 
@@ -386,7 +388,7 @@ double solver<S,I,O,T>::compute_error( const MeshvarBnd<T>& u, const MeshvarBnd<
 		nz = u.size(2);
 	
 	double err = 0.0;
-	unsigned count = 0;
+	size_t count = 0;
 	
 	#pragma omp parallel for reduction(+:err,count)
 	for( int ix=0; ix<nx; ++ix )
@@ -394,7 +396,7 @@ double solver<S,I,O,T>::compute_error( const MeshvarBnd<T>& u, const MeshvarBnd<
 			for( int iz=0; iz<nz; ++iz )
 				if( fabs(unew(ix,iy,iz)) > 0.0 )//&& u(ix,iy,iz) != unew(ix,iy,iz) )
 				{
-					err += fabs(1.0 - u(ix,iy,iz)/unew(ix,iy,iz));
+					err += fabs(1.0 - (double)u(ix,iy,iz)/(double)unew(ix,iy,iz));
 					
 					++count;
 				}
@@ -438,32 +440,37 @@ double solver<S,I,O,T>::compute_RMS_resid( const GridHierarchy<T>& uh, const Gri
 		ny = uh.get_grid(ilevel)->size(1), 
 		nz = uh.get_grid(ilevel)->size(2);
 		
-		double h = 1.0/(1<<ilevel), h2=h*h, err;
-		double sum = 0.0;
+		double h = 1.0/(1<<ilevel), h2=h*h;
+		double sum = 0.0, sumd2 = 0.0;
 		size_t count = 0;
 		
-		#pragma omp parallel for reduction(+:sum,count)
+		#pragma omp parallel for reduction(+:sum,sumd2,count)
 		for( int ix=0; ix<nx; ++ix )
 			for( int iy=0; iy<ny; ++iy )
 				for( int iz=0; iz<nz; ++iz )
 				{
-					double r = (m_scheme.apply( *uh.get_grid(ilevel), ix, iy, iz )/h2 + (*fh.get_grid(ilevel))(ix,iy,iz));
+					double d = (double)(*fh.get_grid(ilevel))(ix,iy,iz);
+					sumd2 += d*d;
+					
+					double r = ((double)m_scheme.apply( *uh.get_grid(ilevel), ix, iy, iz )/h2 + (double)(*fh.get_grid(ilevel))(ix,iy,iz));
 					sum += r*r;
+
 					++count;
 				}
 		
 		if( m_is_ini )
 			m_residu_ini[ilevel] =  sqrt(sum)/count;
 		
-		err = sqrt(sum)/count/m_residu_ini[ilevel];
+		double err_abs = sqrt(sum/count);
+		double err_rel = err_abs / sqrt(sumd2/count);
 		
 		if( verbose && !m_is_ini )
-			std::cout << "      Level " << std::setw(6) << ilevel << ",   Error = " << err << std::endl;
+			std::cout << "      Level " << std::setw(6) << ilevel << ",   Error = " << err_rel << std::endl;		
 		
-		LOGDEBUG("[mg]      level %3d,  rms residual %g",ilevel,err);
+		LOGDEBUG("[mg]      level %3d,  rms residual %g,  rel. error %g",ilevel, err_abs, err_rel);
 		
-		if( err > maxerr )
-			maxerr = err;
+		if( err_rel > maxerr )
+			maxerr = err_rel;
 		
 	}
 	
@@ -481,9 +488,11 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 	double err, maxerr = 1e30;
 	unsigned niter = 0;
 	
-	bool fullverbose = false;
+	bool fullverbose = true;//false;
 	
 	m_pu = &uh;
+	
+	//err = compute_RMS_resid( *m_pu, *m_pf, fullverbose );
 	
 	//... iterate ...//
 	while (true)

@@ -140,7 +140,7 @@ public:
 	 */
 	void fill_rand( /*const*/ random_numbers<real_t>* prc, real_t variance, int i0, int j0, int k0, bool setzero=false )
 	{
-		double sum = 0.0;
+		long double sum = 0.0;
 		
 		#pragma omp parallel for reduction(+:sum)
 		for( int i=0; i<nx_; ++i )
@@ -193,7 +193,7 @@ public:
 	 */
 	double subtract_mean( void )
 	{
-		double sum = 0.0;
+		long double sum = 0.0;
 		size_t count = 0;
 		
 		#pragma omp parallel for reduction(+:sum,count)
@@ -517,7 +517,7 @@ public:
 					for( int iz=0; iz<nz_; ++iz )
 						(*this)(ix,iy,iz) = 0.0;
 			
-			std::cerr << oxsub+lxsub << " -> " << nx_ << std::endl;
+			//std::cerr << oxsub+lxsub << " -> " << nx_ << std::endl;
 			for( int ix=oxsub+lxsub; ix<nx_; ++ix )
 				for( int iy=0; iy<ny_; ++iy )
 					for( int iz=0; iz<nz_; ++iz )
@@ -859,7 +859,7 @@ inline void enforce_coarse_mean( M& v, M& V )
 	innersum /= innercount;
 	outersum /= outercount;
 	
-	std::cerr << "***\n";
+	//std::cerr << "***\n";
 	
 	double dcorr = innersum * innercount / outercount;
 	

@@ -426,7 +426,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		nxc=lx[0]/2, nyc=lx[1]/2, nzc=lx[2]/2;
 		
 		
-		fftw_real *rfine = new fftw_real[nx*ny*(nz+2)];
+		fftw_real *rfine = new fftw_real[nx*ny*(nz+2l)];
 		fftw_complex *cfine = reinterpret_cast<fftw_complex*> (rfine);
 		
 #ifdef FFTW3
@@ -453,7 +453,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 					size_t q = ((size_t)i*(size_t)ny+(size_t)j)*(size_t)(nz+2)+(size_t)k;
 					rfine[q] = (*this)(x0[0]+i,x0[1]+j,x0[2]+k);
 				}
-		this->free_all_mem();	// temporarily free memory, allocate again later
+		//this->free_all_mem();	// temporarily free memory, allocate again later
 		
 		
 		
@@ -948,10 +948,10 @@ void random_number_generator<rng,T>::correct_avg( int icoarse, int ifine )
 			throw std::runtime_error("White noise file mismatch. This should not happen. Notify a developer!");
 		
 		int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
-		std::vector<T> deg_rand( nxd*nyd*nzd, 0.0 );
+		std::vector<T> deg_rand( (size_t)nxd*(size_t)nyd*(size_t)nzd, 0.0 );
 		double fac = 1.0/sqrt(8.0);
 		
-		for( int i=0; i<nxf; i+=2 )
+		for( int i=0, ic=0; i<nxf; i+=2, ic++ )
 		{	
 			std::vector<T> fine_rand( 2*nyf*nzf, 0.0 );
 			iffine.read( reinterpret_cast<char*> (&fine_rand[0]), 2*nyf*nzf*sizeof(T) );
@@ -960,7 +960,10 @@ void random_number_generator<rng,T>::correct_avg( int icoarse, int ifine )
 			for( int j=0; j<nyf; j+=2 )
 				for( int k=0; k<nzf; k+=2 )
 				{
-					size_t qc = (((size_t)i/2)*(size_t)nyd+((size_t)j/2))*(size_t)nzd+((size_t)k/2);
+					int jc = j/2, kc = k/2;
+					//size_t qc = (((size_t)i/2)*(size_t)nyd+((size_t)j/2))*(size_t)nzd+((size_t)k/2);
+					size_t qc = ((size_t)(ic*nyd+jc))*(size_t)nzd+(size_t)kc;
+					
 					size_t qf[8];
 					qf[0] = (0*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+0;
 					qf[1] = (0*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+1;
@@ -975,7 +978,8 @@ void random_number_generator<rng,T>::correct_avg( int icoarse, int ifine )
 					for( int q=0; q<8; ++q )
 						d += fac*fine_rand[qf[q]];
 					
-					deg_rand[qc] += d;
+					//deg_rand[qc] += d;
+					deg_rand[qc] = d;
 				}
 		}
 		

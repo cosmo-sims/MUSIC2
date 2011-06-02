@@ -298,6 +298,12 @@ int main (int argc, const char * argv[])
 	LOGUSER("Running with a maximum of %d OpenMP threads", omp_get_max_threads() );
 	LOGUSER("Log is for run started %s",asctime( localtime(&ltime) ));
 	
+#ifdef FFTW3
+	LOGUSER("Code was compiled using FFTW version 3.x");
+#else
+	LOGUSER("Code was compiled using FFTW version 2.x");
+#endif
+	
 #ifdef SINGLETHREAD_FFTW
 	LOGUSER("Code was compiled for single-threaded FFTW");
 #else
@@ -367,8 +373,8 @@ int main (int argc, const char * argv[])
 	//------------------------------------------------------------------------------
 	bool 
 		do_baryons	= cf.getValue<bool>("setup","baryons"),
-		do_2LPT		= cf.getValue<bool>("setup","use_2LPT"),
-		do_LLA		= cf.getValue<bool>("setup","use_LLA"),
+		do_2LPT		= cf.getValueSafe<bool>("setup","use_2LPT",false),
+		do_LLA		= cf.getValueSafe<bool>("setup","use_LLA",false),
 		do_CVM		= cf.getValueSafe<bool>("setup","center_vel",false);
 	
 	transfer_function_plugin *the_transfer_function_plugin

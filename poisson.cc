@@ -510,7 +510,7 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz; ++k )
 			{
-				size_t idx = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
+				size_t idx = (size_t)(i*ny+j)*(size_t)nzp+(size_t)k;
 				data[idx] = (*f.get_grid(f.levelmax()))(i,j,k);
 			}
 	
@@ -548,7 +548,7 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	
 #endif
 	double kfac = 2.0*M_PI;
-	double fac = -1.0/(nx*ny*nz);
+	double fac = -1.0/(double)((size_t)nx*(size_t)ny*(size_t)nz);
 	
 	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
@@ -563,7 +563,7 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 				
 				double kk2 = kfac*kfac*(ki*ki+kj*kj+kk*kk);
 				
-				size_t idx = ((size_t)i*ny+(size_t)j)*nzp/2+(size_t)k;
+				size_t idx = (size_t)(i*ny+j)*(size_t)(nzp/2)+(size_t)k;
 #ifdef FFTW3
 				cdata[idx][0] *= -1.0/kk2*fac;
 				cdata[idx][1] *= -1.0/kk2*fac;
@@ -613,7 +613,7 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz; ++k )
 			{
-				size_t idx = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
+				size_t idx = (size_t)(i*ny+j)*(size_t)nzp+(size_t)k;
 				(*u.get_grid(u.levelmax()))(i,j,k) = data[idx];
 			}
 	
@@ -691,7 +691,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz; ++k )
 			{
-				size_t idx = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
+				size_t idx = (size_t)(i*ny+j)*(size_t)nzp+(size_t)k;
 				data[idx] = (*u.get_grid(u.levelmax()))(i,j,k);
 			}
 	
@@ -727,7 +727,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	
 #endif
 	
-	double fac = -1.0/((size_t)nx*(size_t)ny*(size_t)nz);
+	double fac = -1.0/(double)((size_t)nx*(size_t)ny*(size_t)nz);
 	double kfac = 2.0*M_PI;
 	
 	
@@ -740,20 +740,16 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 		for( int j=0; j<ny; ++j )	
 			for( int k=0; k<nz/2+1; ++k )
 			{
-				size_t idx = (i*(size_t)ny+j)*(size_t)nzp/2+(size_t)k;
+				size_t idx = (size_t)(i*ny+j)*(size_t)(nzp/2)+(size_t)k;
 				int ii = i; if(ii>nx/2) ii-=nx;
 				int jj = j; if(jj>ny/2) jj-=ny;
-				double ki = (double)ii;
-				double kj = (double)jj;
-				double kk = (double)k;
+				const double ki = (double)ii;
+				const double kj = (double)jj;
+				const double kk = (double)k;
 				
-				double kdir;
-				if( dir == 0 )
-					kdir = kfac*ki;
-				else if( dir == 1 )
-					kdir = kfac*kj;
-				else //if( dir == 2 )
-					kdir = kfac*kk;
+				const double kkdir[3] = {kfac*ki,kfac*kj,kfac*kk};
+                const double kdir = kkdir[dir];
+				
 				
 #ifdef FFTW3
 				double re = cdata[idx][0];
@@ -762,7 +758,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				cdata[idx][0] = fac*im*kdir;
 				cdata[idx][1] = -fac*re*kdir;	
 				
-				if( deconvolve_cic )
+				/*if( deconvolve_cic )
 				{
 					double dfx, dfy, dfz;
 					dfx = M_PI*ki/(double)nx; dfx = (i!=0)? sin(dfx)/dfx : 1.0;
@@ -773,7 +769,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 					cdata[idx][0] *= dfx;
 					cdata[idx][1] *= dfx;
 					
-				}
+				}*/
 #else
 				double re = cdata[idx].re;
 				double im = cdata[idx].im;
@@ -781,7 +777,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				cdata[idx].re = fac*im*kdir;
 				cdata[idx].im = -fac*re*kdir;	
 				
-				if( deconvolve_cic )
+				/*if( deconvolve_cic )
 				{
 					double dfx, dfy, dfz;
 					dfx = M_PI*ki/(double)nx; dfx = (i!=0)? sin(dfx)/dfx : 1.0;
@@ -792,7 +788,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 
 					cdata[idx].re *= dfx;
 					cdata[idx].im *= dfx;
-				}
+				}*/
 #endif			
 				
 				/*double ktot = sqrt(ii*ii+jj*jj+k*k);

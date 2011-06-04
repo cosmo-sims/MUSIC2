@@ -44,8 +44,15 @@ hid_t GetDataType( void )
   if( typeid(T) == typeid(double) )
     return H5T_NATIVE_DOUBLE;
   
-	//if( typeid(T) == typeid(long long) )
-	//  return H5T_NATIVE_LLONG;
+	if( typeid(T) == typeid(long long) )
+		return H5T_NATIVE_LLONG;
+	
+	if( typeid(T) == typeid(unsigned long long) )
+		return H5T_NATIVE_ULLONG;
+	
+	if( typeid(T) == typeid(size_t) )
+		return H5T_NATIVE_ULLONG;
+	
   
   std::cerr << " - Error: [HDF_IO] trying to evaluate unsupported type in GetDataType\n\n";
   return -1;
@@ -88,6 +95,8 @@ inline void HDFReadVector( const std::string Filename, const std::string ObjName
 {
   HDFReadDataset( Filename, ObjName, Data );
 }
+
+
 
 
 inline void HDFGetDatasetExtent( const std::string Filename, const std::string ObjName, std::vector<int> &Extent )
@@ -750,6 +759,51 @@ inline void HDFWriteDataset3D( const std::string Filename, const std::string Obj
 
   H5Fclose( HDF_FileID );
 }
+
+
+template< typename T >
+struct HDFHyperslabWriter3Ds
+{
+	hid_t dset_id_, type_id_, file_id_;
+	
+	HDFHyperslabWriter3Ds( const std::string Filename, const std::string ObjName, size_t nd[3] )
+	{
+		hid_t filespace;
+		
+		hsize_t sizes[4] = { 1, nd[0], nd[1], nd[2] };
+		
+		type_id_	= GetDataType<T>();
+		file_id_	= H5Fopen( Filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT );
+		filespace	= H5Screate_simple( 4, sizes, NULL );
+		dset_id_	= H5Dcreate( file_id_, ObjName.c_str(), type_id_, filespace, H5P_DEFAULT );
+		
+		H5Sclose(filespace);
+	}
+	
+	~HDFHyperslabWriter3Ds()
+	{
+		H5Dclose( dset_id_ );
+		H5Fclose( file_id_ );
+	}
+	
+	void write_slab( T* data, size_t* count, size_t* offset )
+	{
+		
+		hsize_t counts[4] = { 1, count[0], count[1], count[2] };
+		hsize_t offsets[4] = { 0, offset[0], offset[1], offset[2] };
+		
+		hid_t filespace = H5Dget_space(dset_id_);
+		hid_t memspace  = H5Screate_simple(4, counts, NULL);
+		H5Sselect_hyperslab( filespace, H5S_SELECT_SET, offsets, NULL, counts, NULL );
+		
+		herr_t status;
+		status = H5Dwrite(dset_id_, type_id_, memspace, filespace, H5P_DEFAULT, reinterpret_cast<void*>(data));
+		H5Sclose(filespace);
+		H5Sclose(memspace);
+	}
+	
+};
+
 
 template< typename T >
 inline void HDFWriteDataset3Ds( const std::string Filename, const std::string ObjName, unsigned nd[3], const std::vector< T > &Data )

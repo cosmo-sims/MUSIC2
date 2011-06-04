@@ -17,13 +17,19 @@
 
 #include "HDF_IO.hh"
 
+//#define MAX_SLAB_SIZE	134217728  // = 128 MBytes
+								   //#define MAX_SLAB_SIZE   33554432   // = 32 Mbytes
+
+#define MAX_SLAB_SIZE   1048576
+
+
 class enzo_output_plugin : public output_plugin
 {
 protected:
 	
 	struct patch_header{
 		int component_rank;
-		int component_size;
+		size_t component_size;
 		std::vector<int> dimensions;
 		int rank;
 		std::vector<int> top_grid_dims;
@@ -88,26 +94,65 @@ protected:
 			
             
 			//... need to copy data because we need to get rid of the ghost zones
-			std::vector<double> data;
-			data.reserve( ng[0]*ng[1]*ng[2] );
+			//... write in slabs if data is more than MAX_SLAB_SIZE (default 128 MB)
 			
-			for( int k=0; k<ng[2]; ++k )
-				for( int j=0; j<ng[1]; ++j )
-					for( int i=0; i<ng[0]; ++i )
-						data.push_back( (add+(*gh.get_grid(ilevel))(i,j,k))*factor );
+			size_t all_data_size = (size_t)ng[0] * (size_t)ng[1] * (size_t)ng[2];
+			size_t max_slab_size = std::min((size_t)MAX_SLAB_SIZE/sizeof(double), all_data_size );
+			size_t slices_in_slab = (size_t)((double)max_slab_size / ((size_t)ng[0] * (size_t)ng[1]));
 			
-			sprintf( enzoname, "%s.%d", fieldname.c_str(), ilevel-levelmin_ );
+			size_t nsz[3] = { ng[2], ng[1], ng[0] };
+				
+			if( levelmin_ != levelmax_ )
+				sprintf( enzoname, "%s.%d", fieldname.c_str(), ilevel-levelmin_ );
+			else
+				sprintf( enzoname, "%s", fieldname.c_str() );
+			
 			sprintf( filename, "%s/%s", fname_.c_str(), enzoname );
 			
 			HDFCreateFile( filename );
 			write_sim_header( filename, the_sim_header );
-			HDFWriteDataset3Ds( filename, enzoname, reinterpret_cast<unsigned*>(&ng_fortran[0]), data );
 			
+			HDFHyperslabWriter3Ds<double> *slab_writer = new HDFHyperslabWriter3Ds<double>( filename, enzoname, nsz );
+			
+			double *data_buf = new double[ slices_in_slab * (size_t)ng[0] * (size_t)ng[1] ];
+			
+			size_t slices_written = 0;
+			while( slices_written < (size_t)ng[2] )
+			{
+				slices_in_slab = std::min( (size_t)ng[2]-slices_written, slices_in_slab );
+				
+				#pragma omp parallel for
+				for( int k=0; k<(int)slices_in_slab; ++k )
+					for( int j=0; j<ng[1]; ++j )
+						for( int i=0; i<ng[0]; ++i )
+							data_buf[ (size_t)(k*ng[1]+j)*(size_t)ng[0]+(size_t)i ] = 
+									(add+(*gh.get_grid(ilevel))(i,j,k+slices_written))*factor;
+				
+				size_t count[3], offset[3];
+				
+				count[0] = slices_in_slab;
+				count[1] = ng[1];
+				count[2] = ng[0];
+				
+				offset[0] = slices_written;;
+				offset[1] = 0;
+				offset[2] = 0;
+				
+				slab_writer->write_slab( data_buf, count, offset );
+				slices_written += slices_in_slab;
+				
+			}
+			
+			delete[] data_buf;
+			
+			delete slab_writer;
+			
+						
 			//... header data for the patch
 			patch_header ph;
 			
 			ph.component_rank	= 1;
-			ph.component_size	= ng[0]*ng[1]*ng[2];
+			ph.component_size	= (size_t)ng[0]*(size_t)ng[1]*(size_t)ng[2];
 			ph.dimensions		= ng;
 			ph.rank				= 3;
 			
@@ -120,7 +165,7 @@ protected:
 			ph.top_grid_start.push_back( (int)(gh.offset_abs(ilevel, 0)*rfac) );
 			ph.top_grid_start.push_back( (int)(gh.offset_abs(ilevel, 1)*rfac) );
 			ph.top_grid_start.push_back( (int)(gh.offset_abs(ilevel, 2)*rfac) );
-			 
+			
 			ph.top_grid_end.push_back( ph.top_grid_start[0] + (int)(ng[0]*rfac) );
 			ph.top_grid_end.push_back( ph.top_grid_start[1] + (int)(ng[1]*rfac) );
 			ph.top_grid_end.push_back( ph.top_grid_start[2] + (int)(ng[2]*rfac) );
@@ -185,7 +230,7 @@ public:
 		
 		sprintf( filename, "%s/parameter_file.txt", fname_.c_str() );
 		
-		std::ofstream ofs( filename, std::ios::trunc );
+		std::ofstream ofs( filename, std::ios::trunc );		
 		
 		ofs
 			<< "#\n"

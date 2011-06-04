@@ -55,6 +55,20 @@
 #endif
 
 
+#ifdef FFTW3
+	#define RE(x) ((x)[0])
+	#define IM(x) ((x)[1])
+#else
+	#define RE(x) ((x).re)
+	#define IM(x) ((x).im)
+#endif
+
+#if defined(FFTW3) && defined(SINGLE_PRECISION)
+#define fftw_complex fftwf_complex
+#endif
+
+
+
 #include <vector>
 
 #include "config_file.hh"

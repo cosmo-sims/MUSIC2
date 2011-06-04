@@ -264,11 +264,7 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 }
 
 
-#if defined(FFTW3) && defined(SINGLE_PRECISION)
-void constraint_set::wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t nz, std::vector<double>& g0, matrix& cinv, fftwf_complex* cw )
-#else
 void constraint_set::wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t nz, std::vector<double>& g0, matrix& cinv, fftw_complex* cw )
-#endif
 {
 	double lsub = nx*dx;
 	double dk = 2.0*M_PI/lsub, d3k=dk*dk*dk;
@@ -339,41 +335,21 @@ void constraint_set::wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t
 							ci = eval_constr(i,iix,iiy,iiz),
 							cj = eval_constr(j,iix,iiy,iiz);
 							
-						#ifdef FFTW3
-							cw[q][0] += (cset_[j].sigma-g0[j])*cinv(i,j) * std::real(ci)*fac;
-							cw[q][1] += (cset_[j].sigma-g0[j])*cinv(i,j) * std::imag(ci)*fac;
+							RE(cw[q]) += (cset_[j].sigma-g0[j])*cinv(i,j) * std::real(ci)*fac;
+							IM(cw[q]) += (cset_[j].sigma-g0[j])*cinv(i,j) * std::imag(ci)*fac;
 							
 							if( i!=j )
 							{
-								cw[q][0] += (cset_[i].sigma-g0[i])*cinv(j,i) * std::real(cj)*fac;
-								cw[q][1] += (cset_[i].sigma-g0[i])*cinv(j,i) * std::imag(cj)*fac;								
+								RE(cw[q]) += (cset_[i].sigma-g0[i])*cinv(j,i) * std::real(cj)*fac;
+								IM(cw[q]) += (cset_[i].sigma-g0[i])*cinv(j,i) * std::imag(cj)*fac;								
 							}
 							else
 							{
 								if( iz>0&&iz<nz/2 )
-									sigma_loc[i] += 2.0*std::real(std::conj(ci)*std::complex<double>(cw[q][0],cw[q][1]))*fac;
+									sigma_loc[i] += 2.0*std::real(std::conj(ci)*std::complex<double>(RE(cw[q]),IM(cw[q])))*fac;
 								else
-									sigma_loc[i] += std::real(std::conj(ci)*std::complex<double>(cw[q][0],cw[q][1]))*fac;
+									sigma_loc[i] += std::real(std::conj(ci)*std::complex<double>(RE(cw[q]),IM(cw[q])))*fac;
 							}
-						#else
-							
-							cw[q].re += (cset_[j].sigma-g0[j])*cinv(i,j) * std::real(ci)*fac;
-							cw[q].im += (cset_[j].sigma-g0[j])*cinv(i,j) * std::imag(ci)*fac;
-							
-							if(i!=j)
-							{
-								cw[q].re += (cset_[i].sigma-g0[i])*cinv(j,i) * std::real(cj)*fac;
-								cw[q].im += (cset_[i].sigma-g0[i])*cinv(j,i) * std::imag(cj)*fac;
-							}
-							else
-							{
-								if( iz>0&&iz<nz/2 )
-									sigma_loc[i] += 2.0*std::real(std::conj(ci)*std::complex<double>(cw[q].re,cw[q].im))*fac;
-								else
-									sigma_loc[i] += std::real(std::conj(ci)*std::complex<double>(cw[q].re,cw[q].im))*fac;
-								
-							}
-						#endif
 						}
 				}
 				
@@ -395,11 +371,7 @@ void constraint_set::wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t
 
 
 
-#if defined(FFTW3) && defined(SINGLE_PRECISION)
-void constraint_set::wnoise_constr_corr( double dx, fftwf_complex* cw, size_t nx, size_t ny, size_t nz, std::vector<double>& g0 )
-#else
 void constraint_set::wnoise_constr_corr( double dx, fftw_complex* cw, size_t nx, size_t ny, size_t nz, std::vector<double>& g0 )
-#endif
 {
 	size_t nconstr = cset_.size();
 	size_t nzp=nz/2+1;
@@ -443,11 +415,9 @@ void constraint_set::wnoise_constr_corr( double dx, fftw_complex* cw, size_t nx,
 						v*=2;
 					
 					size_t q = ((size_t)ix*ny+(size_t)iy)*nzp+(size_t)iz;
-#ifdef FFTW3						
-					std::complex<double> ccw(cw[q][0],cw[q][1]);
-#else
-					std::complex<double> ccw(cw[q].re,cw[q].im);
-#endif
+
+					std::complex<double> ccw(RE(cw[q]),IM(cw[q]));
+
 					gg += std::real(v*ccw);
 					
 				}

@@ -114,20 +114,15 @@ namespace convolution{
 					
 					double arg = (kx+ky+kz)*dstag;
 					std::complex<double> carg( cos(arg), sin(arg) );
-											  
-#ifdef FFTW3
-					std::complex<double> ccdata(cdata[ii][0],cdata[ii][1]), cckernel(ckernel[ii][0],ckernel[ii][1]);
+					
+					std::complex<double> 
+						ccdata(RE(cdata[ii]),IM(cdata[ii])), 
+						cckernel(RE(ckernel[ii]),IM(ckernel[ii]));
+					
 					ccdata = ccdata * cckernel *fftnorm * carg;
 					
-					cdata[ii][0] = ccdata.real();
-					cdata[ii][1] = ccdata.imag();
-#else
-					std::complex<double> ccdata(cdata[ii].re,cdata[ii].im), cckernel(ckernel[ii].re,ckernel[ii].im);
-					ccdata = ccdata * cckernel *fftnorm * carg;
-					
-					cdata[ii].re = ccdata.real();
-					cdata[ii].im = ccdata.imag();
-#endif
+					RE(cdata[ii]) = ccdata.real();
+					IM(cdata[ii]) = ccdata.imag();
 				}
 
 		LOGUSER("Performing backward FFT...");
@@ -240,33 +235,17 @@ namespace convolution{
 					
 					size_t q = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
 					
-					
-#ifdef FFTW3
-					kdata[q][0] = fac*tfk->compute(kfac*sqrt(kx*kx+ky*ky+kz*kz));
-					kdata[q][1] = 0.0;
+					RE(kdata[q]) = fac*tfk->compute(kfac*sqrt(kx*kx+ky*ky+kz*kz));
+					IM(kdata[q]) = 0.0;
 					
 					if( k==0 || k==nz/2 )
 					{
-						ksum  += kdata[q][0];
+						ksum  += RE(kdata[q]);
 						kcount++;
 					}else{
-						ksum  += 2.0*(kdata[q][0]);
+						ksum  += 2.0*(RE(kdata[q]));
 						kcount+=2;
 					}
-#else
-					kdata[q].re = fac*tfk->compute(kfac*sqrt(kx*kx+ky*ky+kz*kz));
-					kdata[q].im = 0.0;
-					
-					if( k==0 || k==nz/2 )
-					{
-						ksum  += kdata[q].re;
-						kcount++;
-					}else{
-						ksum  += 2.0*(kdata[q].re);
-						kcount+=2;
-					}
-					
-#endif
 				}
 		
 		delete tfk;
@@ -713,13 +692,8 @@ namespace convolution{
 									//... Use child average response function to emulate sub-sampling
 									double ipix = cos(kx*kkmax)*cos(ky*kkmax)*cos(kz*kkmax);
 									
-#ifdef FFTW3
-									kkernel[q][0] /= ipix;
-									kkernel[q][1] /= ipix;
-#else
-									kkernel[q].re /= ipix;
-									kkernel[q].im /= ipix;
-#endif
+									RE(kkernel[q]) /= ipix;
+									IM(kkernel[q]) /= ipix;
 									
 								}else{
 									
@@ -734,14 +708,9 @@ namespace convolution{
 									if( k > 0 )
 										ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 									
+									RE(kkernel[q]) *= ipix;
+									IM(kkernel[q]) *= ipix;
 									
-#ifdef FFTW3
-									kkernel[q][0] *= ipix;
-									kkernel[q][1] *= ipix;
-#else
-									kkernel[q].re *= ipix;
-									kkernel[q].im *= ipix;
-#endif
 								}
 								
 							}
@@ -760,41 +729,22 @@ namespace convolution{
 								if( k > 0 )
 									ipix /= sin(kz*2.0*kkmax)/(kz*2.0*kkmax);
 								
-								
-#ifdef FFTW3
-								kkernel[q][0] /= ipix;
-								kkernel[q][1] /= ipix;
-#else
-								kkernel[q].re /= ipix;
-								kkernel[q].im /= ipix;
-#endif	
+								RE(kkernel[q]) /= ipix;
+								IM(kkernel[q]) /= ipix;
+
 							}
 #endif
-							
-							
-							
-							
 							
 							//... store k-space average
-#ifdef FFTW3
 							if( k==0 || k==nz/2 )
 							{
-								ksum  += kkernel[q][0];
+								ksum  += RE(kkernel[q]);
 								kcount++;
 							}else{
-								ksum  += 2.0*(kkernel[q][1]);
+								ksum  += 2.0*(RE(kkernel[q]));
 								kcount+=2;
 							}
-#else
-							if( k==0 || k==nz/2 )
-							{
-								ksum  += kkernel[q].re;
-								kcount++;
-							}else{
-								ksum  += 2.0*(kkernel[q].re);
-								kcount+=2;
-							}
-#endif
+							
 						}
 				
 				double dk;
@@ -816,18 +766,11 @@ namespace convolution{
 						for( int k=0; k<(nz/2+1); ++k )
 						{
 							size_t q  = ((size_t)i*ny+(size_t)j)*(nz/2+1)+(size_t)k;
-#ifdef FFTW3
-							kkernel[q][0] += dk;
 							
-							kkernel[q][0] *= fftnorm;
-							kkernel[q][1] *= fftnorm;
+							RE(kkernel[q]) += dk;
 							
-#else
-							kkernel[q].re += dk;
-							
-							kkernel[q].re *= fftnorm;
-							kkernel[q].im *= fftnorm;
-#endif
+							RE(kkernel[q]) *= fftnorm;
+							IM(kkernel[q]) *= fftnorm;
 						}
 			}		
 			

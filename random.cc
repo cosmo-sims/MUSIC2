@@ -12,11 +12,6 @@
 
 // TODO: move all this into a plugin!!!
 
-//#define DEGRADE_RAND1
-
-#if defined(FFTW3) && defined(SINGLE_PRECISION)
-#define fftw_complex fftwf_complex
-#endif
 
 template< typename T >
 random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long baseseed, int *x0, int *lx )
@@ -264,13 +259,8 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 					qc = ((size_t)i*nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 					qf = ((size_t)ii*ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
 					
-#ifdef FFTW3
-					ccoarse[qc][0] = 1.0/sqrt(8.0)*cfine[qf][0]*fftnorm;
-					ccoarse[qc][1] = 1.0/sqrt(8.0)*cfine[qf][1]*fftnorm;
-#else
-					ccoarse[qc].re = 1.0/sqrt(8.0)*cfine[qf].re*fftnorm;
-					ccoarse[qc].im = 1.0/sqrt(8.0)*cfine[qf].im*fftnorm;
-#endif
+					RE(ccoarse[qc]) = 1.0/sqrt(8.0)*RE(cfine[qf])*fftnorm;
+					IM(ccoarse[qc]) = 1.0/sqrt(8.0)*IM(cfine[qf])*fftnorm;
 				}
 		
 		delete[] rfine;
@@ -511,13 +501,9 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 					size_t qc,qf;
 					qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 					qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
-#ifdef FFTW3
-					cfine[qf][0] = sqrt(8.0)*ccoarse[qc][0];
-					cfine[qf][1] = sqrt(8.0)*ccoarse[qc][1];
-#else
-					cfine[qf].re = sqrt(8.0)*ccoarse[qc].re;
-					cfine[qf].im = sqrt(8.0)*ccoarse[qc].im;
-#endif
+
+					RE(cfine[qf]) = sqrt(8.0)*RE(ccoarse[qc]);
+					IM(cfine[qf]) = sqrt(8.0)*IM(ccoarse[qc]);
 				}
 		
 		delete[] rcoarse;
@@ -528,14 +514,12 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 				for( int k=0; k<(int)nz/2+1; k++ )
 				{
 					size_t q = ((size_t)i*ny+(size_t)j)*(nz/2+1)+(size_t)k;
-#ifdef FFTW3
-					cfine[q][0] *= fftnorm;
-					cfine[q][1] *= fftnorm;
-#else
-					cfine[q].re *= fftnorm;
-					cfine[q].im *= fftnorm;
-#endif
+
+					RE(cfine[q]) *= fftnorm;
+					IM(cfine[q]) *= fftnorm;
 				}
+
+		
 		
 #ifdef FFTW3
 	#ifdef SINGLE_PRECISION

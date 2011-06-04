@@ -13,11 +13,6 @@
 #include "poisson.hh"
 #include "Numerics.hh"
 
-#if defined(FFTW3) && defined(SINGLE_PRECISION)
-#define fftw_complex fftwf_complex
-#endif
-
-
 std::map< std::string, poisson_plugin_creator *>& 
 get_poisson_plugin_map()
 {
@@ -41,8 +36,6 @@ void print_poisson_plugins()
 		
 		++it;
 	}
-	
-	
 }
 
 
@@ -564,22 +557,17 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 				double kk2 = kfac*kfac*(ki*ki+kj*kj+kk*kk);
 				
 				size_t idx = (size_t)(i*ny+j)*(size_t)(nzp/2)+(size_t)k;
-#ifdef FFTW3
-				cdata[idx][0] *= -1.0/kk2*fac;
-				cdata[idx][1] *= -1.0/kk2*fac;
-
-#else
-				cdata[idx].re *= -1.0/kk2*fac;
-				cdata[idx].im *= -1.0/kk2*fac;
-#endif			
+				
+				RE(cdata[idx]) *= -1.0/kk2*fac;
+				IM(cdata[idx]) *= -1.0/kk2*fac;
 			}
 
+	RE(cdata[0]) = 0.0;
+	IM(cdata[0]) = 0.0;
+	
 	LOGUSER("Performing backward transform.");
 	
 #ifdef FFTW3
-	cdata[0][0] = 0.0;
-	cdata[0][1] = 0.0;
-
 	#ifdef SINGLE_PRECISION
 	fftwf_execute(iplan);
 	fftwf_destroy_plan(plan);
@@ -590,9 +578,6 @@ double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	fftw_destroy_plan(iplan);
 	#endif
 #else
-	cdata[0].re = 0.0;
-	cdata[0].im = 0.0;
-	
 	#ifndef SINGLETHREAD_FFTW		
 	rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL );
 	#else
@@ -750,14 +735,14 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				const double kkdir[3] = {kfac*ki,kfac*kj,kfac*kk};
                 const double kdir = kkdir[dir];
 				
+				double re = RE(cdata[idx]);
+				double im = IM(cdata[idx]);
+				
+				RE(cdata[idx]) = fac*im*kdir;
+				IM(cdata[idx]) = -fac*re*kdir;
+				
 				
 #ifdef FFTW3
-				double re = cdata[idx][0];
-				double im = cdata[idx][1];
-				
-				cdata[idx][0] = fac*im*kdir;
-				cdata[idx][1] = -fac*re*kdir;	
-				
 				/*if( deconvolve_cic )
 				{
 					double dfx, dfy, dfz;
@@ -771,12 +756,6 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 					
 				}*/
 #else
-				double re = cdata[idx].re;
-				double im = cdata[idx].im;
-				
-				cdata[idx].re = fac*im*kdir;
-				cdata[idx].im = -fac*re*kdir;	
-				
 				/*if( deconvolve_cic )
 				{
 					double dfx, dfy, dfz;
@@ -799,11 +778,10 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				}*/
 			}
 	
+	RE(cdata[0]) = 0.0;
+	IM(cdata[0]) = 0.0;
 	
 #ifdef FFTW3
-	cdata[0][0] = 0.0;
-	cdata[0][1] = 0.0;
-	
 	#ifdef SINGLE_PRECISION
 	fftwf_execute(iplan);
 	fftwf_destroy_plan(plan);
@@ -815,9 +793,6 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	#endif
 
 #else
-	cdata[0].re = 0.0;
-	cdata[0].im = 0.0;
-	
 	#ifndef SINGLETHREAD_FFTW		
 	rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL );
 	#else
@@ -840,8 +815,6 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 					dmax = fabs(data[idx]);
 			}
 
-	//std::cerr << " - component max. is " << dmax*nx << std::endl;
-	
 	delete[] data;
 	
 	LOGUSER("Done with k-space gradient.\n");
@@ -977,8 +950,6 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 {
 	double fftnorm = 1.0/((double)nxp*(double)nyp*(double)nzp);
 		
-	//fftnorm = 1.0/(nxp*nyp*nzp);
-	
 	fftw_complex	*cdata = reinterpret_cast<fftw_complex*>(data);
 	
 #ifdef FFTW3
@@ -1018,25 +989,15 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 			for( int k=0; k<nzp/2+1; ++k )
 			{
 				size_t ii = (size_t)(i*nyp + j) * (size_t)(nzp/2+1) + (size_t)k;
-#ifdef FFTW3
+				
 				if( k==0 || k==nzp/2 )
 				{
-					ksum  += cdata[ii][0];
+					ksum  += RE(cdata[ii]);
 					kcount++;
 				}else{
-					ksum  += 2.0*(cdata[ii][0]);
+					ksum  += 2.0*(RE(cdata[ii]));
 					kcount+=2;
 				}
-#else
-				if( k==0 || k==nzp/2 )
-				{
-					ksum  += cdata[ii].re;
-					kcount++;
-				}else{
-					ksum  += 2.0*(cdata[ii].re);
-					kcount+=2;
-				}
-#endif
 			}
 	
 	ksum /= kcount;
@@ -1057,34 +1018,27 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 				
 				//... apply hybrid correction
 				double dk = poisson_hybrid_kernel<order>(idir, ki, kj, k, nxp/2 );
-				//cdata[ii].re -= ksum;
+				//RE(cdata[ii]) -= ksum;
 				
-#ifdef FFTW3
-				fftw_real re = cdata[ii][0], im = cdata[ii][1];
+				fftw_real re = RE(cdata[ii]), im = IM(cdata[ii]);
 				
-				cdata[ii][0] = -im*dk*fftnorm;
-				cdata[ii][1] = re*dk*fftnorm;
-#else
-				fftw_real re = cdata[ii].re, im = cdata[ii].im;
+				RE(cdata[ii]) = -im*dk*fftnorm;
+				IM(cdata[ii]) = re*dk*fftnorm;
 				
-				cdata[ii].re = -im*dk*fftnorm;
-				cdata[ii].im = re*dk*fftnorm;
-#endif
-				//cdata[ii].re += ksum*fftnorm;
+
+				//RE(cdata[ii]) += ksum*fftnorm;
 				
 				//if( i==nxp/2||j==nyp/2||k==nzp/2 )
 				//{
-				//	cdata[ii].re = 0.0;
-				//	cdata[ii].im = 0.0;
+				//	RE(cdata[ii]) = 0.0;
+				//	IM(cdata[ii]) = 0.0;
 				//}
-				
-				
-				
 			}
-#ifdef FFTW3
-	cdata[0][0] = 0.0;
-	cdata[0][1] = 0.0;
 	
+	RE(cdata[0]) = 0.0;
+	IM(cdata[0]) = 0.0;
+	
+#ifdef FFTW3
 	#ifdef SINGLE_PRECISION
 	fftwf_execute(iplan);
 	fftwf_destroy_plan(plan);
@@ -1095,9 +1049,6 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 	fftw_destroy_plan(iplan);
 	#endif	
 #else
-	cdata[0].re = 0.0;
-	cdata[0].im = 0.0;
-	
 	#ifndef SINGLETHREAD_FFTW		
 	rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), iplan, cdata, NULL);
 	#else		

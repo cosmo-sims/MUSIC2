@@ -26,9 +26,6 @@
 #include "Numerics.hh"
 #include "config_file.hh"
 
-#if defined(FFTW3) && defined(SINGLE_PRECISION)
-#define fftw_complex fftwf_complex
-#endif
 
 enum tf_type{
 	total, cdm, baryon, vcdm, vbaryon, total0
@@ -280,22 +277,12 @@ protected:
 		{
 			double k = k0*exp(((int)i - (int)N/2+1) * dlnk);
 			double T = ptf_->compute( k, type_ );
-#ifdef FFTW3
+
+			RE(in[i]) = sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);
+			IM(in[i]) = 0.0;
 			
-			in[i][0] = sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);
-			in[i][1] = 0.0;
-			
-			sum_in += in[i][0];	
-			ofsk << std::setw(16) << k <<std::setw(16) << in[i][0] << std::setw(16) << T << std::endl;
-#else
-			
-			in[i].re = sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);
-			in[i].im = 0.0;
-			
-			sum_in += in[i].re;
-			ofsk << std::setw(16) << k <<std::setw(16) << in[i].re << std::setw(16) << T << std::endl;
-#endif
-			
+			sum_in += RE(in[i]);	
+			ofsk << std::setw(16) << k <<std::setw(16) << RE(in[i]) << std::setw(16) << T << std::endl;
 		}
 		ofsk.close();
 		
@@ -368,18 +355,12 @@ protected:
 			U = twotox * g1 / g2;
 			phase = pow(complex(k0r0,0.0),complex(0.0,2.0*M_PI*(double)ii/L));
 			
-#ifdef FFTW3
-			complex cu = complex(out[i][0],out[i][1])*U*phase*fftnorm;
+			complex cu = complex(RE(out[i]),IM(out[i]))*U*phase*fftnorm;
 			
-			out[i][0] = cu.real();
-			out[i][1] = cu.imag();
-#else
-			complex cu = complex(out[i].re,out[i].im)*U*phase*fftnorm;
-			
-			out[i].re = cu.real();
-			out[i].im = cu.imag();
-#endif
-			/*if( (out[i].re != out[i].re)||(out[i].im != out[i].im) )
+			RE(out[i]) = cu.real();
+			IM(out[i]) = cu.imag();
+
+			/*if( (RE(out[i]) != RE(out[i]))||(IM(out[i]) != IM(out[i])) )
 			{	std::cerr << "NaN @ i=" << i << ", U= " << U << ", phase = " << phase << ", g1 = " << g1 << ", g2 = " << g2 << std::endl;
 				std::cerr << "mu+1+q = " << mu+1.0+q << std::endl;
 				//break;
@@ -409,12 +390,9 @@ protected:
 			int ii = i;
 			ii -= N/2-1;
 			double r = r0*exp(-ii*dlnr);
+			
 			rr[N-i-1] = r;
-#ifdef FFTW3
-			TT[N-i-1] = 4.0*M_PI* sqrt(M_PI/2.0) *  in[i][0]*pow(r,-(1.5+q));
-#else
-			TT[N-i-1] = 4.0*M_PI* sqrt(M_PI/2.0) *  in[i].re*pow(r,-(1.5+q));
-#endif
+			TT[N-i-1] = 4.0*M_PI* sqrt(M_PI/2.0) *  RE(in[i]) * pow(r,-(1.5+q));
 		}
 		
 		
@@ -427,7 +405,7 @@ protected:
 			if(type_==vcdm) fname = "transfer_real_vcdm.txt";
 			if(type_==vbaryon) fname = "transfer_real_vbaryon.txt";
 			
-			std::ofstream ofs(fname.c_str());//"transfer_real.txt");
+			std::ofstream ofs(fname.c_str());
 							  
 			for( unsigned i=0; i<N; ++i )
 			{
@@ -435,13 +413,9 @@ protected:
 				ii -= N/2-1;
 				
 				double r = r0*exp(-ii*dlnr);//r0*exp(ii*dlnr);
-#ifdef FFTW3
-				double T = 4.0*M_PI* sqrt(M_PI/2.0) *  in[i][0]*pow(r,-(1.5+q));
-				ofs << r << "\t\t" << T << "\t\t" << in[i][1] << std::endl;				
-#else
-				double T = 4.0*M_PI* sqrt(M_PI/2.0) *  in[i].re*pow(r,-(1.5+q));
-				ofs << r << "\t\t" << T << "\t\t" << in[i].im << std::endl;
-#endif
+
+				double T = 4.0*M_PI* sqrt(M_PI/2.0) *  RE(in[i]) * pow(r,-(1.5+q));
+				ofs << r << "\t\t" << T << "\t\t" << IM(in[i]) << std::endl;				
 			}
 		}
 		

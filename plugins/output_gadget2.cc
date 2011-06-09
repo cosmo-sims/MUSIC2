@@ -61,7 +61,7 @@ protected:
     
     size_t np_fine_gas_, np_fine_dm_, np_coarse_dm_;
 	
-	unsigned block_buf_size_;
+	size_t block_buf_size_;
 	size_t npartmax_;
 	unsigned nfiles_;
 	
@@ -120,7 +120,7 @@ protected:
 		if( blk != npart*(size_t)sizeof(T_store) )
 		{	
 			LOGERR("Internal consistency error in gadget2 output plug-in");
-			LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
+			LOGERR("Expected %ld bytes in temp file but found %ld",npart*(size_t)sizeof(T_store),blk);
 			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 		}
         ifs.seekg( offset, std::ios::cur );
@@ -144,10 +144,10 @@ protected:
 			
 			this->read( (char*)&blk, sizeof(size_t) );
 			
-			if( blk != (size_t)(npart*sizeof(T_store)) )
+			if( blk != npart*sizeof(T_store) )
 			{	
 				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
+				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -172,10 +172,10 @@ protected:
 			
 			this->read( (char*)&blk, sizeof(size_t) );
 			
-			if( blk != (size_t)(npart*sizeof(T_store)) )
+			if( blk != npart*sizeof(T_store) )
 			{	
 				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
+				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -199,10 +199,10 @@ protected:
 			
             this->read( (char*)&blk, sizeof(size_t) );
 			
-			if( blk != (size_t)(npart*sizeof(T_store)) )
+			if( blk != npart*sizeof(T_store) )
 			{	
 				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
+				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -231,10 +231,10 @@ protected:
 			
             this->read( (char*)&blk, sizeof(size_t) );
 			
-			if( blk != (size_t)(npart*sizeof(T_store)) )
+			if( blk != npart*sizeof(T_store) )
 			{	
 				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
+				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -271,8 +271,8 @@ protected:
             iffs1.open( fc, nptot, npfine*sizeof(T_store) );
             iffs2.open( fb, nptot, npfine*sizeof(T_store) );
             
-            long long npleft = npcoarse;
-            long long n2read = std::min((long long)block_buf_size_,npleft);
+            size_t npleft = npcoarse;
+            size_t n2read = std::min((size_t)block_buf_size_,npleft);
             while( n2read > 0 )
             {
                 std::streampos sp = iffs1.tellg();
@@ -288,7 +288,7 @@ protected:
                 iffs1.write( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
                 
                 npleft -= n2read;
-                n2read = std::min( (long long)block_buf_size_,npleft );
+                n2read = std::min( (size_t)block_buf_size_,npleft );
             }
             
             iffs1.close();
@@ -303,7 +303,7 @@ protected:
             iffs2.open( fb, nptot, npfine*sizeof(T_store) );
             
             npleft = npcoarse;
-            n2read = std::min( (long long)block_buf_size_,npleft);
+            n2read = std::min( (size_t)block_buf_size_,npleft);
 
             while( n2read > 0 )
             {
@@ -320,7 +320,7 @@ protected:
                 iffs1.write( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
                 
                 npleft -= n2read;
-                n2read = std::min( (long long)block_buf_size_,npleft );
+                n2read = std::min( (size_t)block_buf_size_,npleft );
             }
 
             iffs1.close();
@@ -414,7 +414,7 @@ protected:
         
         size_t idcount = 0;
         bool bneed_long_ids = false;
-        if( nptot > 1ul<<32 )
+        if( nptot >= 1ul<<32 )
         {
             bneed_long_ids = true;
             LOGWARN("Need long particle IDs, make sure to enable in Gadget!");
@@ -443,10 +443,6 @@ protected:
             this_header.npart[0] = nfgas_per_file[ifile];
             this_header.npart[1] = nfdm_per_file[ifile];
             this_header.npart[5] = nc_per_file[ifile];
-			
-			std::cerr << "File " << ifile << ", numfiles = " << this_header.num_files << std::endl
-			<< "npart      = " <<  this_header.npart[0] << "  " <<  this_header.npart[1] << "  " << this_header.npart[5] << std::endl
-            << "npartTotal = " <<  this_header.npartTotal[0] << "  " <<  this_header.npartTotal[1] << "  " << this_header.npartTotal[5] << std::endl;
 			
 			ofs_.write( (char *)&blksize, sizeof(int) );
 			ofs_.write( (char *)&this_header, sizeof(header) );
@@ -1036,8 +1032,8 @@ public:
 		if( kpcunits_ )
 			vfac /= 1000.0;
 		
-		unsigned npart = npfine+npcoarse;
-		unsigned nwritten = 0;
+		size_t npart = npfine+npcoarse;
+		size_t nwritten = 0;
 		
 		char temp_fname[256];
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
@@ -1116,8 +1112,8 @@ public:
 		if( kpcunits_ )
 			vfac /= 1000.0;
 		
-		unsigned npart = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());;;
-		unsigned nwritten = 0;
+		size_t npart = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());;;
+		size_t nwritten = 0;
 		
 		char temp_fname[256];
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_vel+coord );

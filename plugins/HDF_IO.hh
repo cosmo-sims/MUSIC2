@@ -774,6 +774,8 @@ struct HDFHyperslabWriter3Ds
 		
 		type_id_	= GetDataType<T>();
 		file_id_	= H5Fopen( Filename.c_str(), H5F_ACC_RDWR, H5P_DEFAULT );
+		
+		//std::cerr << "creating filespace : 1 x " << nd[0] << " x " << nd[1] << " x " << nd[2] << std::endl;
 		filespace	= H5Screate_simple( 4, sizes, NULL );
 		dset_id_	= H5Dcreate( file_id_, ObjName.c_str(), type_id_, filespace, H5P_DEFAULT );
 		
@@ -793,6 +795,8 @@ struct HDFHyperslabWriter3Ds
 		hsize_t offsets[4] = { 0, offset[0], offset[1], offset[2] };
 		
 		hid_t filespace = H5Dget_space(dset_id_);
+		
+		//std::cerr << "creating memspace : 1 x " << count[0] << " x " << count[1] << " x " << count[2] << std::endl;
 		hid_t memspace  = H5Screate_simple(4, counts, NULL);
 		H5Sselect_hyperslab( filespace, H5S_SELECT_SET, offsets, NULL, counts, NULL );
 		

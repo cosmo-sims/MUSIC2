@@ -855,17 +855,23 @@ int main (int argc, const char * argv[])
 			coarsen_density(rh_Poisson, f);
 			normalize_density(f);
 			
+			if( dm_only )
+			{
+				the_output_plugin->write_dm_density(f);
+				the_output_plugin->write_dm_mass(f);	
+			}
+			
 			u1 = f;	u1.zero();
 			
-			if(bdefd)
-				f2LPT=f;
-
 			//... compute 1LPT term
 			err = the_poisson_solver->solve(f, u1);
-			//the_output_plugin->write_dm_potential(u1);
+			
 			
 			//... compute 2LPT term
-			u2LPT = f; u2LPT.zero();
+			if(bdefd)
+				f2LPT=f;
+			else
+				f.deallocate();
 		
 			LOGINFO("Computing 2LPT term....");
 			if( !kspace2LPT )
@@ -875,6 +881,7 @@ int main (int argc, const char * argv[])
 				compute_2LPT_source_FFT(cf, u1, f2LPT);
 			}
 			LOGINFO("Solving 2LPT Poisson equation");
+			u2LPT = u1; u2LPT.zero();
 			err = the_poisson_solver->solve(f2LPT, u2LPT);
 			
 			//... if doing the hybrid step, we need a combined source term
@@ -1087,10 +1094,10 @@ int main (int argc, const char * argv[])
 				u2LPT.deallocate();
 			}else{
 				//... reuse prior data
-				f-=f2LPT;
+				/*f-=f2LPT;
 				the_output_plugin->write_dm_density(f);
 				the_output_plugin->write_dm_mass(f);
-				f+=f2LPT;
+				f+=f2LPT;*/
 				
 				u2LPT *= 0.5;
 				u1 -= u2LPT;

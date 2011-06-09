@@ -17,10 +17,7 @@
 
 #include "HDF_IO.hh"
 
-//#define MAX_SLAB_SIZE	134217728  // = 128 MBytes
-								   //#define MAX_SLAB_SIZE   33554432   // = 32 Mbytes
-
-#define MAX_SLAB_SIZE   1048576
+#define MAX_SLAB_SIZE	268435456  // = 256 MBytes
 
 
 class enzo_output_plugin : public output_plugin
@@ -96,8 +93,16 @@ protected:
 			//... need to copy data because we need to get rid of the ghost zones
 			//... write in slabs if data is more than MAX_SLAB_SIZE (default 128 MB)
 			
+			//... full 3D block size
 			size_t all_data_size = (size_t)ng[0] * (size_t)ng[1] * (size_t)ng[2];
+			
+			//... write in slabs of MAX_SLAB_SIZE unless all_data_size is anyway smaller
 			size_t max_slab_size = std::min((size_t)MAX_SLAB_SIZE/sizeof(double), all_data_size );
+			
+			//... but one slab hast to be at least the size of one slice
+			max_slab_size = std::max(((size_t)ng[0] * (size_t)ng[1]), max_slab_size );
+			
+			//... number of slices in one slab
 			size_t slices_in_slab = (size_t)((double)max_slab_size / ((size_t)ng[0] * (size_t)ng[1]));
 			
 			size_t nsz[3] = { ng[2], ng[1], ng[0] };
@@ -112,10 +117,21 @@ protected:
 			HDFCreateFile( filename );
 			write_sim_header( filename, the_sim_header );
 			
+#ifdef SINGLE_PRECISION
+			//... create full array in file
+			HDFHyperslabWriter3Ds<float> *slab_writer = new HDFHyperslabWriter3Ds<float>( filename, enzoname, nsz );
+			
+			//... create buffer
+			float *data_buf = new float[ slices_in_slab * (size_t)ng[0] * (size_t)ng[1] ];
+#else
+			//... create full array in file
 			HDFHyperslabWriter3Ds<double> *slab_writer = new HDFHyperslabWriter3Ds<double>( filename, enzoname, nsz );
 			
+			//... create buffer
 			double *data_buf = new double[ slices_in_slab * (size_t)ng[0] * (size_t)ng[1] ];
+#endif
 			
+			//... write slice by slice
 			size_t slices_written = 0;
 			while( slices_written < (size_t)ng[2] )
 			{
@@ -143,8 +159,10 @@ protected:
 				
 			}
 			
+			//... free buffer
 			delete[] data_buf;
 			
+			//... finalize writing and close dataset
 			delete slab_writer;
 			
 						

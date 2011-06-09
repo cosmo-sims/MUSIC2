@@ -527,6 +527,8 @@ public:
 		for( unsigned i=0; i<m_pgrids.size(); ++i )
 			delete m_pgrids[i];
 		m_pgrids.clear();
+		std::vector< MeshvarBnd<T>* >().swap( m_pgrids );
+		
 		
 		m_xoffabs.clear();
 		m_yoffabs.clear();
@@ -717,7 +719,7 @@ public:
 	}
 	
 	//! multiply (element-wise) two grid hierarchies
-	GridHierarchy<T>& operator*=( const GridHierarchy& gh )
+	GridHierarchy<T>& operator*=( const GridHierarchy<T>& gh )
 	{
 		if( !is_consistent(gh) )
 			throw std::runtime_error("GridHierarchy::operator*= : attempt to operate on incompatible data");
@@ -728,7 +730,7 @@ public:
 	}
 	
 	//! divide (element-wise) two grid hierarchies
-	GridHierarchy<T>& operator/=( const GridHierarchy& gh )
+	GridHierarchy<T>& operator/=( const GridHierarchy<T>& gh )
 	{
 		if( !is_consistent(gh) )
 			throw std::runtime_error("GridHierarchy::operator/= : attempt to operate on incompatible data");
@@ -739,7 +741,7 @@ public:
 	}
 	
 	//! add (element-wise) two grid hierarchies
-	GridHierarchy<T>& operator+=( const GridHierarchy& gh )
+	GridHierarchy<T>& operator+=( const GridHierarchy<T>& gh )
 	{
 		if( !is_consistent(gh) )
 			throw std::runtime_error("GridHierarchy::operator+= : attempt to operate on incompatible data");
@@ -750,7 +752,7 @@ public:
 	}
 	
 	//! subtract (element-wise) two grid hierarchies
-	GridHierarchy<T>& operator-=( const GridHierarchy& gh )
+	GridHierarchy<T>& operator-=( const GridHierarchy<T>& gh )
 	{
 		if( !is_consistent(gh) )
 			throw std::runtime_error("GridHierarchy::operator-= : attempt to operate on incompatible data");
@@ -760,7 +762,54 @@ public:
 		return *this;
 	}
 	
+	//! assign (element-wise) two grid hierarchies
+	GridHierarchy<T>& operator=( const GridHierarchy<T>& gh )
+	{
+		if( !is_consistent(gh) )
+		{
+			for( unsigned i=0; i<m_pgrids.size(); ++i )
+				delete m_pgrids[i];
+			m_pgrids.clear();
+			
+			for( unsigned i=0; i<=gh.levelmax(); ++i )
+				m_pgrids.push_back( new MeshvarBnd<T>( *gh.get_grid(i) ) );
+			m_levelmin = gh.levelmin();
+			m_nbnd = gh.m_nbnd;
+			
+			m_xoffabs = gh.m_xoffabs;
+			m_yoffabs = gh.m_yoffabs;
+			m_zoffabs = gh.m_zoffabs;
+			
+			
+			return *this;
+		}//throw std::runtime_error("GridHierarchy::operator= : attempt to operate on incompatible data");
+		
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			(*m_pgrids[i]) = *gh.get_grid(i);
+		return *this;
+	}
 	
+	/*
+	//! assignment operator
+	GridHierarchy& operator=( const GridHierarchy<T>& gh )
+	{
+		for( unsigned i=0; i<m_pgrids.size(); ++i )
+			delete m_pgrids[i];
+		m_pgrids.clear();
+		
+		for( unsigned i=0; i<=gh.levelmax(); ++i )
+			m_pgrids.push_back( new MeshvarBnd<T>( *gh.get_grid(i) ) );
+		m_levelmin = gh.levelmin();
+		m_nbnd = gh.m_nbnd;
+		
+		m_xoffabs = gh.m_xoffabs;
+		m_yoffabs = gh.m_yoffabs;
+		m_zoffabs = gh.m_zoffabs;
+		
+		
+		return *this;
+	}
+	*/
 	
 	/*! add a new refinement patch to the so-far finest level
 	 * @param xoff x-offset in units of the coarser grid (finest grid before adding new patch)
@@ -856,25 +905,7 @@ public:
 		return m_levelmin;
 	}
 	
-	//! assignment operator
-	GridHierarchy& operator=( const GridHierarchy<T>& gh )
-	{
-		for( unsigned i=0; i<m_pgrids.size(); ++i )
-			delete m_pgrids[i];
-		m_pgrids.clear();
-		
-		for( unsigned i=0; i<=gh.levelmax(); ++i )
-			m_pgrids.push_back( new MeshvarBnd<T>( *gh.get_grid(i) ) );
-		m_levelmin = gh.levelmin();
-		m_nbnd = gh.m_nbnd;
-		
-		m_xoffabs = gh.m_xoffabs;
-		m_yoffabs = gh.m_yoffabs;
-		m_zoffabs = gh.m_zoffabs;
-		
-		
-		return *this;
-	}
+	
 };
 
 //! class that computes the refinement structure given parameters

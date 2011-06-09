@@ -89,7 +89,7 @@ namespace convolution{
 			int lmax = pk->pcf_->getValue<int>("setup","levelmax");	
 			double dxmax = boxlength/(1<<lmax);
 			double dxcur = cparam_.lx/cparam_.nx;
-			std::cerr << "Performing staggering shift for SPH\n";
+			//std::cerr << "Performing staggering shift for SPH\n";
 			LOGUSER("Performing staggering shift for SPH");
 			dstag = M_PI/cparam_.nx * dxmax/dxcur;
 		}

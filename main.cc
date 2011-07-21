@@ -1273,7 +1273,7 @@ int main (int argc, const char * argv[])
 	delete the_transfer_function_plugin;
 	delete the_poisson_solver;
 
-#ifdef FFTW3
+#if defined(FFTW3) and not defined(SINGLETHREAD_FFTW)
 	#ifdef SINGLE_PRECISION
 	fftwf_cleanup_threads();
 	#else

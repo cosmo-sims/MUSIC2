@@ -918,7 +918,7 @@ public:
 		//... determine if we need to shift the coordinates back
 		double *shift = NULL;
 		
-		if( cf_.getValueSafe<bool>("output","shift_back",false ) )
+/*		if( cf_.getValueSafe<bool>("output","shift_back",false ) )
 		{
 			if( coord == 0 )
 				std::cout << " - gadget2 output plug-in will shift particle positions back...\n";
@@ -929,7 +929,7 @@ public:
 			shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;
 			shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
 		}
-		
+*/		
         size_t npart = npfine+npcoarse;
 		size_t nwritten = 0;
 		
@@ -1171,7 +1171,7 @@ public:
 		//... determine if we need to shift the coordinates back
 		double *shift = NULL;
 		
-		if( cf_.getValueSafe<bool>("output","shift_back",false ) )
+		/*if( cf_.getValueSafe<bool>("output","shift_back",false ) )
 		{
 			if( coord == 0 )
 				std::cout << " - gadget2 output plug-in will shift particle positions back...\n";
@@ -1181,7 +1181,7 @@ public:
 			shift[0] = -(double)cf_.getValue<int>( "setup", "shift_x" )*h;
 			shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;
 			shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
-		}
+		}*/
 		
 		size_t npart = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());;
         size_t nwritten = 0;

@@ -271,8 +271,6 @@ protected:
 		std::ofstream ofsk("transfer_k.txt");
 		double sum_in = 0.0;
 		
-
-		
 		for( unsigned i=0; i<N; ++i )
 		{
 			double k = k0*exp(((int)i - (int)N/2+1) * dlnk);
@@ -319,9 +317,14 @@ protected:
 			gsl_sf_lngamma_complex_e(zp.real(), zp.imag(), &g_a, &g_p);
 			
 			double arg = 2.0*(log(2.0/k0r0)*y+g_p.val);
-			complex cu = complex(out[i].re,out[i].im)*std::polar(1.0,arg);
-			out[i].re = cu.real()*fftnorm;
-			out[i].im = cu.imag()*fftnorm;
+			//complex cu = complex(out[i].re,out[i].im)*std::polar(1.0,arg);
+			//out[i].re = cu.real()*fftnorm;
+			//out[i].im = cu.imag()*fftnorm;
+			
+			complex cu = complex( RE(out[i]), IM(out[i]) ) * std::polar(1.0,arg);
+			RE(out[i]) = cu.real()*fftnorm;
+			IM(out[i]) = cu.imag()*fftnorm;
+			
 			
 #else		
 			complex x(dir*q, (double)ii*2.0*M_PI/L);

@@ -10,7 +10,7 @@
 
 #include "transfer_function.hh"
 
-class transfer_MUSIC_plugin : public transfer_function_plugin
+class transfer_LINGERpp_plugin : public transfer_function_plugin
 {
 	
 private:
@@ -114,7 +114,7 @@ private:
 	}
 	
 public:
-	transfer_MUSIC_plugin( config_file& cf )
+	transfer_LINGERpp_plugin( config_file& cf )
 	: transfer_function_plugin( cf )
 	{
 		m_filename_Tk = pcf_->getValue<std::string>("cosmology","transfer_file");
@@ -150,7 +150,7 @@ public:
 		tf_velunits_   = true;
 	}
 	
-	~transfer_MUSIC_plugin()
+	~transfer_LINGERpp_plugin()
 	{
 		gsl_spline_free (spline_dtot);
 		gsl_spline_free (spline_dcdm);
@@ -306,7 +306,7 @@ public:
 };
 
 namespace{
-	transfer_function_plugin_creator_concrete< transfer_MUSIC_plugin > creator("linger++");
+	transfer_function_plugin_creator_concrete< transfer_LINGERpp_plugin > creator("linger++");
 }
 
 

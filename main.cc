@@ -388,7 +388,7 @@ int main (int argc, const char * argv[])
 	cosmo.pnorm	= ccalc.ComputePNorm( 2.0*M_PI/boxlength );
 	cosmo.dplus	= ccalc.CalcGrowthFactor( cosmo.astart )/ccalc.CalcGrowthFactor( 1.0 );
 	cosmo.vfact = ccalc.ComputeVFact( cosmo.astart );
-
+	
 	if( !the_transfer_function_plugin->tf_has_total0() )
 	        cosmo.pnorm *= cosmo.dplus*cosmo.dplus;
 	    

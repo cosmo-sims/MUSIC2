@@ -42,7 +42,7 @@ private:
 			m_tab_Tvk_cdm.clear();
 			m_tab_Tvk_baryon.clear();
 			
-			const double zero = 1e-10;
+			const double zero = 1e-100;
 			
 			while( !ifs.eof() ){
 				getline(ifs,line);

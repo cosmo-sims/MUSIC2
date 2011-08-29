@@ -13,7 +13,8 @@
 #include "convolution_kernel.hh"
 
 #if defined(FFTW3) && defined( SINGLE_PRECISION)
-#define fftw_complex fftwf_complex
+//#define fftw_complex fftwf_complex
+typedef fftw_complex fftwf_complex;
 #endif
 
 double T0 = 1.0;
@@ -353,11 +354,11 @@ namespace convolution{
 														  FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
 		
 		
-#ifndef SINGLETHREAD_FFTW		
+	#ifndef SINGLETHREAD_FFTW		
 		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), plan, rkernel, NULL );
-#else
+	#else
 		rfftwnd_one_real_to_complex( plan, rkernel, NULL );
-#endif
+	#endif
 		
 		rfftwnd_destroy_plan( plan );
 #endif

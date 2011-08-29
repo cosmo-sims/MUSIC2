@@ -1,6 +1,6 @@
 ##############################################################################
 ### compile time configuration options
-FFTW3		= yes
+FFTW3		= no
 MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
 HAVEHDF5        = yes
@@ -11,8 +11,8 @@ CC      = g++
 OPT     = -Wall -O3 -g -msse2
 CFLAGS  = -fopenmp 
 LFLAGS  = -fopenmp -lgsl -lgslcblas 
-CPATHS  = -I. -I$(HOME)/local/fftw-3.2.2_single -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
-LPATHS  = -L$(HOME)/local/fftw-3.2.2_single -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
+CPATHS  = -I. -I$(HOME)/local/fftw-3.2.2_double -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
+LPATHS  = -L$(HOME)/local/fftw-3.2.2_double -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
 
 ##############################################################################
 # if you have FFTW 2.1.5 or 3.x with multi-thread support, you can enable the 

@@ -125,7 +125,7 @@ typedef struct cosmology{
 		Omega_b		= cf.getValue<double>( "cosmology", "Omega_b" );
 		Omega_m		= cf.getValue<double>( "cosmology", "Omega_m" );
 		Omega_L		= cf.getValue<double>( "cosmology", "Omega_L" );
-        Omega_r     = cf.getValueSafe<double>( "cosmology", "Omega_r", 8.3e-5 );
+        Omega_r     = cf.getValueSafe<double>( "cosmology", "Omega_r", 0.0 ); // no longer default to nonzero (8.3e-5)
 		H0			= cf.getValue<double>( "cosmology", "H0" );
 		sigma8		= cf.getValue<double>( "cosmology", "sigma_8" );
 		nspect		= cf.getValue<double>( "cosmology", "nspec" );

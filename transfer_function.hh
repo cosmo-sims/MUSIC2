@@ -267,20 +267,40 @@ protected:
 		
 		//... perform anti-ringing correction from Hamilton (2000)
 		k0r0 = krgood( mu, q, dlnr, k0r0 );
-
-		std::ofstream ofsk("transfer_k.txt");
+		
+		std::string ofname;
+		switch( type_ )
+		{
+			case cdm:		
+				ofname = "input_powerspec_cdm.txt"; break;
+			case baryon:	
+				ofname = "input_powerspec_baryon.txt"; break;
+			case total:		
+				ofname = "input_powerspec_total.txt"; break;
+			case vcdm:		
+				ofname = "input_powerspec_vcdm.txt"; break;
+			case vbaryon:	
+				ofname = "input_powerspec_vbaryon.txt"; break;
+			default:
+				throw std::runtime_error("Unknown transfer function type in TransferFunction_real::transform");
+		}
+			
+		
+		std::ofstream ofsk(ofname.c_str());
 		double sum_in = 0.0;
 		
 		for( unsigned i=0; i<N; ++i )
 		{
 			double k = k0*exp(((int)i - (int)N/2+1) * dlnk);
 			double T = ptf_->compute( k, type_ );
-
-			RE(in[i]) = sqrtpnorm*T*pow(k,0.5*nspec_)*pow(k,1.5-q);
+			double del = sqrtpnorm*T*pow(k,0.5*nspec_);
+			
+			RE(in[i]) = del*pow(k,1.5-q);
 			IM(in[i]) = 0.0;
 			
 			sum_in += RE(in[i]);	
-			ofsk << std::setw(16) << k <<std::setw(16) << RE(in[i]) << std::setw(16) << T << std::endl;
+			
+			ofsk << std::setw(16) << k <<std::setw(16) << del*del << std::setw(16) << T << std::endl;
 		}
 		ofsk.close();
 		

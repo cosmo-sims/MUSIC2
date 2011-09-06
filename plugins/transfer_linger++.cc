@@ -20,6 +20,7 @@ private:
 	gsl_spline *spline_dtot, *spline_dcdm, *spline_dbaryon, *spline_vcdm, *spline_vbaryon, *spline_dtot0;
 	
 	bool m_bnovrel;	
+	bool m_bz0norm;
 	
 	void read_table( void ){
 #ifdef WITH_MPI
@@ -117,9 +118,27 @@ public:
 	transfer_LINGERpp_plugin( config_file& cf )
 	: transfer_function_plugin( cf )
 	{
-		m_filename_Tk = pcf_->getValue<std::string>("cosmology","transfer_file");
-		m_bnovrel = pcf_->getValueSafe<bool>("cosmology","no_vrel",false);
+		m_filename_Tk	= pcf_->getValue<std::string>("cosmology","transfer_file");
+		
+		//.. disable the baryon-CDM relative velocity (both follow the total matter potential)
+		m_bnovrel		= pcf_->getValueSafe<bool>("cosmology","no_vrel",false);
+		
+		//.. normalize at z=0 rather than using the linearly scaled zini spectrum
+		//.. this can be different due to radiation still being non-negligible at
+		//.. high redshifts
+		m_bz0norm		= pcf_->getValueSafe<bool>("cosmology","z0norm",true);
+		
+		tf_distinct_   = true;
+		tf_withvel_    = true;
+		tf_velunits_   = true;
 
+		//.. normalize with z=0 spectrum rather than zini spectrum?
+		if( m_bz0norm )
+			tf_withtotal0_ = true;
+		else
+			tf_withtotal0_ = false;
+		
+		
 		read_table( );
 		
 		acc_dtot = gsl_interp_accel_alloc();
@@ -141,13 +160,11 @@ public:
 		gsl_spline_init (spline_dbaryon, &m_tab_k[0], &m_tab_Tk_baryon[0], m_tab_k.size() );
 		gsl_spline_init (spline_vcdm, &m_tab_k[0], &m_tab_Tvk_cdm[0], m_tab_k.size() );
 		gsl_spline_init (spline_vbaryon, &m_tab_k[0], &m_tab_Tvk_baryon[0], m_tab_k.size() );
-		gsl_spline_init (spline_dtot0, &m_tab_k[0], &m_tab_Tk_tot0[0], m_tab_k.size() );
 		
-        
-		tf_distinct_   = true;
-		tf_withvel_    = true;
-        tf_withtotal0_ = true;
-		tf_velunits_   = true;
+		if( tf_withtotal0_ )
+			gsl_spline_init (spline_dtot0, &m_tab_k[0], &m_tab_Tk_tot0[0], m_tab_k.size() );
+		else
+			gsl_spline_init (spline_dtot0, &m_tab_k[0], &m_tab_Tk_tot[0], m_tab_k.size() );
 	}
 	
 	~transfer_LINGERpp_plugin()

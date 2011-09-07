@@ -273,13 +273,13 @@ protected:
             
             size_t npleft = npcoarse;
             size_t n2read = std::min((size_t)block_buf_size_,npleft);
-            while( n2read > 0 )
+            while( n2read > 0ul )
             {
                 std::streampos sp = iffs1.tellg();
                 iffs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
                 iffs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
                 
-                for( unsigned i=0; i<n2read; ++i )
+                for( size_t i=0; i<n2read; ++i )
                 {
                     tmp1[i] = facc*tmp1[i] + facb*tmp2[i];
                 }
@@ -305,13 +305,13 @@ protected:
             npleft = npcoarse;
             n2read = std::min( (size_t)block_buf_size_,npleft);
 
-            while( n2read > 0 )
+            while( n2read > 0ul )
             {
                 std::streampos sp = iffs1.tellg();
                 iffs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
                 iffs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
                 
-                for( unsigned i=0; i<n2read; ++i )
+                for( size_t i=0; i<n2read; ++i )
                 {
                     tmp1[i] = facc*tmp1[i] + facb*tmp2[i];
                 }
@@ -362,9 +362,10 @@ protected:
 		pistream iffs1, iffs2, iffs3;
 		
 		const size_t 
-            nptot = np_fine_gas_+np_fine_dm_+np_coarse_dm_,//header_.npart[0]+header_.npart[1]+header_.npart[5],
-			npgas = header_.npart[0],
-            npcdm = nptot-npgas;
+            nptot = np_fine_gas_+np_fine_dm_+np_coarse_dm_,
+		//npgas = np_fine_gas_,
+			npcdm = np_fine_dm_+np_coarse_dm_;
+		
         size_t
             wrote_coarse = 0,
             wrote_gas  = 0,
@@ -419,7 +420,7 @@ protected:
             bneed_long_ids = true;
             LOGWARN("Need long particle IDs, make sure to enable in Gadget!");
         }   
-            
+		
 		for( unsigned ifile=0; ifile<nfiles_; ++ifile )
         {
                         
@@ -450,10 +451,10 @@ protected:
 			
 			
 			//... particle positions ..................................................
-			blksize = 3*np_this_file*sizeof(T_store);
+			blksize = 3ul*np_this_file*sizeof(T_store);
 			ofs_.write( (char *)&blksize, sizeof(int) );
 			
-			if( bbaryons && nfgas_per_file[ifile] > 0 )
+			if( bbaryons && nfgas_per_file[ifile] > 0ul )
 			{
 				
 				iffs1.open( fnbx, npcdm, wrote_gas*sizeof(T_store) );
@@ -462,13 +463,13 @@ protected:
 				
 				npleft = nfgas_per_file[ifile];
 				n2read = std::min(curr_block_buf_size,npleft);
-				while( n2read > 0 )
+				while( n2read > 0ul )
 				{
 					iffs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
 					iffs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
 					iffs3.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
 					
-					for( unsigned i=0; i<n2read; ++i )
+					for( size_t i=0; i<n2read; ++i )
 					{
 						adata3.push_back( fmod(tmp1[i]+header_.BoxSize,header_.BoxSize) );
 						adata3.push_back( fmod(tmp2[i]+header_.BoxSize,header_.BoxSize) );
@@ -494,13 +495,13 @@ protected:
 			iffs2.open( fny, npcdm, wrote_dm*sizeof(T_store) );
 			iffs3.open( fnz, npcdm, wrote_dm*sizeof(T_store) );
 			
-			while( n2read > 0 )
+			while( n2read > 0ul )
 			{
 				iffs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
 				iffs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
 				iffs3.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
 				
-				for( unsigned i=0; i<n2read; ++i )
+				for( size_t i=0; i<n2read; ++i )
 				{
 					adata3.push_back( fmod(tmp1[i]+header_.BoxSize,header_.BoxSize) );
 					adata3.push_back( fmod(tmp2[i]+header_.BoxSize,header_.BoxSize) );
@@ -520,11 +521,11 @@ protected:
 			
 			
 			//... particle velocities ..................................................
-			blksize = 3*np_this_file*sizeof(T_store);
+			blksize = 3ul*np_this_file*sizeof(T_store);
 			ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
 			
 			
-			if( bbaryons && nfgas_per_file[ifile] > 0 )
+			if( bbaryons && nfgas_per_file[ifile] > 0ul )
 			{
 				iffs1.open( fnbvx, npcdm, wrote_gas*sizeof(T_store) );
 				iffs2.open( fnbvy, npcdm, wrote_gas*sizeof(T_store) );
@@ -532,13 +533,13 @@ protected:
 				
 				npleft = nfgas_per_file[ifile];
 				n2read = std::min(curr_block_buf_size,npleft);
-				while( n2read > 0 )
+				while( n2read > 0ul )
 				{
 					iffs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
 					iffs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
 					iffs3.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
 					
-					for( unsigned i=0; i<n2read; ++i )
+					for( size_t i=0; i<n2read; ++i )
 					{
 						adata3.push_back( tmp1[i] );
 						adata3.push_back( tmp2[i] );
@@ -565,13 +566,13 @@ protected:
 			
 			npleft = nfdm_per_file[ifile]+nc_per_file[ifile];
 			n2read = std::min(curr_block_buf_size,npleft);
-			while( n2read > 0 )
+			while( n2read > 0ul )
 			{
 				iffs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
 				iffs2.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
 				iffs3.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
 				
-				for( unsigned i=0; i<n2read; ++i )
+				for( size_t i=0; i<n2read; ++i )
 				{
 					adata3.push_back( tmp1[i] );
 					adata3.push_back( tmp2[i] );
@@ -609,15 +610,15 @@ protected:
 			
 			//... generate contiguous IDs and store in file ..
 			ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-			while( n2read > 0 )
+			while( n2read > 0ul )
 			{
                 if( bneed_long_ids )
                 {
-                   for( unsigned i=0; i<n2read; ++i )
+                   for( size_t i=0; i<n2read; ++i )
                        long_ids[i] = idcount++;
                    ofs_.write( reinterpret_cast<char*>(&long_ids[0]), n2read*sizeof(size_t) );
                 }else{
-                   for( unsigned i=0; i<n2read; ++i )
+                   for( size_t i=0; i<n2read; ++i )
                        short_ids[i] = idcount++;
                    ofs_.write( reinterpret_cast<char*>(&short_ids[0]), n2read*sizeof(unsigned) );
                 }
@@ -631,7 +632,7 @@ protected:
 			
 			
 			//... particle masses .......................................................
-			if( bmultimass_ && bmorethan2bnd_ && nc_per_file[ifile] > 0)
+			if( bmultimass_ && bmorethan2bnd_ && nc_per_file[ifile] > 0ul)
 			{
 				unsigned npcoarse = nc_per_file[ifile];//header_.npart[5];
 				iffs1.open( fnm, np_coarse_dm_, wrote_coarse*sizeof(T_store) );
@@ -641,7 +642,7 @@ protected:
 				blksize = npcoarse*sizeof(T_store);
 				
 				ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-				while( n2read > 0 )
+				while( n2read > 0ul )
 				{
 					iffs1.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
 					ofs_.write( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
@@ -658,7 +659,7 @@ protected:
 			
 			
 			//... initial internal energy for gas particles
-			if( bbaryons && nfgas_per_file[ifile] > 0 )
+			if( bbaryons && nfgas_per_file[ifile] > 0ul )
 			{
 				
 				std::vector<T_store> eint(curr_block_buf_size,0.0);
@@ -678,9 +679,9 @@ protected:
 				blksize = sizeof(T_store)*nfgas_per_file[ifile]; //*npgas
 				
 				ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
-				while( n2read > 0 )
+				while( n2read > 0ul )
 				{
-					for( unsigned i=0; i<n2read; ++i )
+					for( size_t i=0; i<n2read; ++i )
 						eint[i] = ceint;
 					ofs_.write( reinterpret_cast<char*>(&eint[0]), n2read*sizeof(T_store) );
 					npleft -= n2read;

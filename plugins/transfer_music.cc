@@ -42,8 +42,9 @@ private:
 			m_tab_Tvk_cdm.clear();
 			m_tab_Tvk_baryon.clear();
 			
-			const double zero = 1e-100;
-			
+            double Tktotmin = 1e30, Tkcmin = 1e30, Tkbmin = 1e30, Tkvcmin = 1e30, Tkvbmin = 1e30;
+			double ktotmin = 1e30, kcmin = 1e30, kbmin = 1e30, kvcmin = 1e30, kvbmin = 1e30;
+            
 			while( !ifs.eof() ){
 				getline(ifs,line);
 				
@@ -58,21 +59,36 @@ private:
 				ss >> Tkb;
 				ss >> Tkvc;
 				ss >> Tkvb;
-				
-				Tktot = std::max(zero,Tktot);
-				Tkc   = std::max(zero,Tkc);
-				Tkb   = std::max(zero,Tkb);
-				Tkvc  = std::max(zero,Tkvc);
-				Tkvb  = std::max(zero,Tkvb);
-				
-				m_tab_k.push_back( log10(k) );
-				
-				m_tab_Tk_tot.push_back( log10(Tktot) );
-				m_tab_Tk_baryon.push_back( log10(Tkb) );
-				m_tab_Tk_cdm.push_back( log10(Tkc) );
-				m_tab_Tvk_cdm.push_back( log10(Tkvc) );
-				m_tab_Tvk_baryon.push_back( log10(Tkvb) );
+                
+                // store log(k)
+                m_tab_k.push_back( log10(k) );
+                
+                // store linear TF values now, will take logs later
+				m_tab_Tk_tot.push_back( Tktot );
+				m_tab_Tk_baryon.push_back( Tkb );
+				m_tab_Tk_cdm.push_back( Tkc );
+				m_tab_Tvk_cdm.push_back( Tkvc );
+				m_tab_Tvk_baryon.push_back( Tkvb );
+                
+                // save point where the function was last positive in case
+                if( Tktot > 0.0 && Tktot < Tktotmin ){ Tktotmin = Tktot; ktotmin = k; }
+                if( Tkc > 0.0 && Tkc < Tkcmin ){ Tkcmin = Tkc; kcmin = k; }
+                if( Tkb > 0.0 && Tkb < Tkbmin ){ Tkbmin = Tkb; kbmin = k; }
+                if( Tkvc > 0.0 && Tkvc < Tkvcmin ){ Tkvcmin = Tkvc; kvcmin = k; }
+                if( Tkvb > 0.0 && Tkvb < Tkvbmin ){ Tkvbmin = Tkvb; kvbmin = k; }
 			}
+            
+            for( size_t i=0; i<m_tab_k.size(); ++i )
+            {
+                double ik2 = 1.0/pow(10.0,2.0*m_tab_k[i]);
+                // take logarithms, if TF negative, extrapolate from smallest positive point with k**(-2)...
+                // this should disappear again upon integration with linger++
+                m_tab_Tk_tot[i]     = log10( (m_tab_Tk_tot[i]>0.0)? m_tab_Tk_tot[i] : Tktotmin*ktotmin*ik2 );
+                m_tab_Tk_cdm[i]     = log10( (m_tab_Tk_cdm[i]>0.0)? m_tab_Tk_cdm[i] : Tkcmin*kcmin*ik2 );
+                m_tab_Tk_baryon[i]  = log10( (m_tab_Tk_baryon[i]>0.0)? m_tab_Tk_baryon[i] : Tkbmin*kbmin*ik2 );
+                m_tab_Tvk_cdm[i]    = log10( (m_tab_Tvk_cdm[i]>0.0)? m_tab_Tvk_cdm[i] : Tkvcmin*kvcmin*ik2 );
+                m_tab_Tvk_baryon[i] = log10( (m_tab_Tvk_baryon[i]>0.0)? m_tab_Tvk_baryon[i] : Tkvbmin*kvbmin*ik2);
+            }
 			
 			ifs.close();			
 #ifdef WITH_MPI

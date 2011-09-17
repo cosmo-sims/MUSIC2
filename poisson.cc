@@ -718,7 +718,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	
 	
 	bool do_glass = cf_.getValueSafe<bool>("output","glass",false);
-	bool deconvolve_cic = do_glass;
+	bool deconvolve_cic = do_glass & cf_.getValueSafe<bool>("output","glass_cicdeconvolve",false);
 	
 	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )
@@ -743,7 +743,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				
 				
 #ifdef FFTW3
-				/*if( deconvolve_cic )
+				if( deconvolve_cic )
 				{
 					double dfx, dfy, dfz;
 					dfx = M_PI*ki/(double)nx; dfx = (i!=0)? sin(dfx)/dfx : 1.0;
@@ -754,9 +754,9 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 					cdata[idx][0] *= dfx;
 					cdata[idx][1] *= dfx;
 					
-				}*/
+				}
 #else
-				/*if( deconvolve_cic )
+				if( deconvolve_cic )
 				{
 					double dfx, dfy, dfz;
 					dfx = M_PI*ki/(double)nx; dfx = (i!=0)? sin(dfx)/dfx : 1.0;
@@ -767,7 +767,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 
 					cdata[idx].re *= dfx;
 					cdata[idx].im *= dfx;
-				}*/
+				}
 #endif			
 				
 				/*double ktot = sqrt(ii*ii+jj*jj+k*k);

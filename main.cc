@@ -391,10 +391,17 @@ int main (int argc, const char * argv[])
 	
 	if( !the_transfer_function_plugin->tf_has_total0() )
 	        cosmo.pnorm *= cosmo.dplus*cosmo.dplus;
-	    
-	if( the_transfer_function_plugin->tf_velocity_units() && do_baryons )
-		cosmo.vfact = 1.0;
 
+	double vfac2lpt = 1.0;
+	
+	if( the_transfer_function_plugin->tf_velocity_units() && do_baryons )
+	{
+		vfac2lpt = cosmo.vfact; // if the velocities are in velocity units, we need to divide by vfact for the 2lPT term
+		cosmo.vfact = 1.0;
+	}
+
+	
+	//
 	{
 		char tmpstr[128];
 		sprintf(tmpstr,"%.12g",cosmo.pnorm);
@@ -887,7 +894,7 @@ int main (int argc, const char * argv[])
 			//... if doing the hybrid step, we need a combined source term
 			if( bdefd )
 			{
-				f2LPT*=6.0/7.0;
+				f2LPT*=6.0/7.0/vfac2lpt;
 				f+=f2LPT;
 				
 				if( !dm_only )
@@ -895,7 +902,7 @@ int main (int argc, const char * argv[])
 			}
 			
 			//... add the 2LPT contribution
-			u2LPT *= 6.0/7.0;
+			u2LPT *= 6.0/7.0/vfac2lpt;
 			u1 += u2LPT;
 			
 			double uref_2LPT[3];
@@ -926,7 +933,7 @@ int main (int argc, const char * argv[])
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
 								   data_forIO.levelmin()==data_forIO.levelmax());					
-					*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
+					*data_forIO.get_grid(data_forIO.levelmax()) /= (1<<f.levelmax());
 					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 				}
 				else 
@@ -999,14 +1006,14 @@ int main (int argc, const char * argv[])
 				//... if doing the hybrid step, we need a combined source term
 				if( bdefd )
 				{
-					f2LPT*=6.0/7.0;
+					f2LPT*=6.0/7.0/vfac2lpt;
 					f+=f2LPT;
 					
 					f2LPT.deallocate();
 				}
 				
 				//... add the 2LPT contribution
-				u2LPT *= 6.0/7.0;
+				u2LPT *= 6.0/7.0/vfac2lpt;
 				u1 += u2LPT;
 				u2LPT.deallocate();
 				
@@ -1020,7 +1027,7 @@ int main (int argc, const char * argv[])
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
 									   data_forIO.levelmin()==data_forIO.levelmax());					
-						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
+						*data_forIO.get_grid(data_forIO.levelmax()) /= (1<<f.levelmax());
 						the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 					}
 					else 

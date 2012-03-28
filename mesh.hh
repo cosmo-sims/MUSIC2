@@ -1051,9 +1051,9 @@ public:
 		il = (int)(x0ref_[0] * nresmax);
 		jl = (int)(x0ref_[1] * nresmax);
 		kl = (int)(x0ref_[2] * nresmax);
-		ir = (int)((x0ref_[0]+lxref_[0]) * nresmax + 1.0);
-		jr = (int)((x0ref_[1]+lxref_[1]) * nresmax + 1.0);
-		kr = (int)((x0ref_[2]+lxref_[2]) * nresmax + 1.0);
+		ir = (int)((x0ref_[0]+lxref_[0]) * nresmax );//+ 1.0);
+		jr = (int)((x0ref_[1]+lxref_[1]) * nresmax );//+ 1.0);
+		kr = (int)((x0ref_[2]+lxref_[2]) * nresmax );//+ 1.0);
 		
 		//... align with coarser grids ...
 		if( align_top_ )
@@ -1065,9 +1065,25 @@ public:
 			jl = (int)((double)jl/nref)*nref;
 			kl = (int)((double)kl/nref)*nref;
 			
-			ir = (int)((double)ir/nref+1.0)*nref;
-			jr = (int)((double)jr/nref+1.0)*nref;
-			kr = (int)((double)kr/nref+1.0)*nref;
+			int irr = (int)((double)ir/nref)*nref;
+			int jrr = (int)((double)jr/nref)*nref;
+			int krr = (int)((double)kr/nref)*nref;
+			
+			if( irr < ir )
+				ir = (int)((double)ir/nref + 1.0)*nref;
+			else
+				ir = irr;
+			
+			if( jrr < jr )
+				jr = (int)((double)jr/nref + 1.0)*nref;
+			else
+				jr = jrr;
+			
+			if( krr < kr )
+				kr = (int)((double)kr/nref + 1.0)*nref;
+			else
+				kr = krr;
+			
 			
 		}else{
 			//... require alignment with coarser grid

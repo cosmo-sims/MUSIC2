@@ -9,8 +9,8 @@ HAVEHDF5        = yes
 ### compiler and path settings
 CC      = g++ 
 OPT     = -Wall -O3 -g -msse2
-CFLAGS  = -fopenmp 
-LFLAGS  = -fopenmp -lgsl -lgslcblas 
+CFLAGS  =  
+LFLAGS  = -lgsl -lgslcblas 
 CPATHS  = -I. -I$(HOME)/local/fftw-3.2.2_double -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
 LPATHS  = -L$(HOME)/local/fftw-3.2.2_double -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
 
@@ -18,6 +18,8 @@ LPATHS  = -L$(HOME)/local/fftw-3.2.2_double -L$(HOME)/local/lib -L/opt/local/lib
 # if you have FFTW 2.1.5 or 3.x with multi-thread support, you can enable the 
 # option MULTITHREADFFTW
 ifeq ($(MULTITHREADFFTW), yes)
+  CFLAGS += -fopenmp
+  LFLAGS += -fopenmp
   ifeq ($(FFTW3),yes)
 	ifeq ($(SINGLEPRECISION), yes)
 		LFLAGS  +=  -lfftw3f_threads

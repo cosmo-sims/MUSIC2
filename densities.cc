@@ -114,8 +114,12 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	bool						kspaceTF;
 	
 	double tstart, tend;
+
+#ifndef SINGLETHREAD_FFTW
 	tstart = omp_get_wtime();
-	
+#else
+	tstart = (double)clock() / CLOCKS_PER_SEC;
+#endif
 	
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
 	levelmin		= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
@@ -371,9 +375,16 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	
 	delete the_tf_kernel;
 			
+#ifndef SINGLETHREAD_FFTW
 	tend = omp_get_wtime();
-	if( true )//verbosity > 1 )
+	if( true ) //verbosity > 1 )
 		std::cout << " - Density calculation took " << tend-tstart << "s with " << omp_get_max_threads() << " threads." << std::endl;
+#else
+	tend = (double)clock() / CLOCKS_PER_SEC;
+	if( true )//verbosity > 1 )
+		std::cout << " - Density calculation took " << tend-tstart << "s." << std::endl;
+#endif
+	
 	LOGUSER("Finished computing the density field in %fs",tend-tstart);
 }
 

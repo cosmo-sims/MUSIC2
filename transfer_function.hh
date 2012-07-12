@@ -242,8 +242,8 @@ protected:
 		N = 1<<12;
 		
 #ifdef NZERO_Q
-		//q=0.4;
 		q=0.4;
+		//q=-0.1;
 #endif
 		
 		double kmin = qmin, kmax=qmax;

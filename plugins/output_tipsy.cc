@@ -3,6 +3,7 @@
 //  MUSIC
 //
 //  Created by Oliver Hahn on 4/6/11.
+//  Credits go to Kyle Stewart and Shea Garrison-Kimmel.
 //  Copyright 2011 KIPAC/SLAC. All rights reserved.
 //
 
@@ -30,7 +31,7 @@ protected:
 		Real vel[3];
 		Real rho;
 		Real temp;
-		Real hsmooth;
+		Real hsmooth; // force softening
 		Real metals ;
 		Real phi ;
 	};
@@ -41,7 +42,7 @@ protected:
 		Real mass;
 		Real pos[3];
 		Real vel[3];
-		Real eps;
+		Real eps;     // force softening
 		Real phi ;
 	};
 	

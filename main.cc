@@ -391,6 +391,10 @@ int main (int argc, const char * argv[])
 	
 	if( !the_transfer_function_plugin->tf_has_total0() )
 	        cosmo.pnorm *= cosmo.dplus*cosmo.dplus;
+	
+	//... directly use the normalisation via a parameter rather than the calculated one
+	cosmo.pnorm = cf.getValueSafe<double>("setup","force_pnorm",cosmo.pnorm);
+	
 
 	double vfac2lpt = 1.0;
 	

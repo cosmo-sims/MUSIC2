@@ -971,7 +971,12 @@ public:
 								xx[coord] += shift[coord];
 							
 							//xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k))*xfac + header_.BoxSize, header_.BoxSize );
+							
+							
 							xx[coord] = (xx[coord]+(*gh.get_grid(ilevel))(i,j,k))*xfac;
+							//xx[coord] *= xfac;
+							
+							
 							
 							if( temp_data.size() < block_buf_size_ )
 								temp_data.push_back( xx[coord] );

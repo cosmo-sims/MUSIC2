@@ -109,7 +109,12 @@ double multigrid_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	
 	
 	double tstart, tend;
+	
+#ifndef SINGLETHREAD_FFTW
 	tstart = omp_get_wtime();
+#else
+	tstart = (double)clock() / CLOCKS_PER_SEC;
+#endif
 	
 	
 	//----- run Poisson solver -----//
@@ -139,9 +144,17 @@ double multigrid_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
 	
 	//------------------------------//
 	
+#ifndef SINGLETHREAD_FFTW
 	tend = omp_get_wtime();
 	if( verbosity > 1 )
 		std::cout << " - Poisson solver took " << tend-tstart << "s with " << omp_get_max_threads() << " threads." << std::endl;
+#else
+	tend = (double)clock() / CLOCKS_PER_SEC;
+	if( verbosity > 1 )
+		std::cout << " - Poisson solver took " << tend-tstart << "s." << std::endl;
+	
+#endif
+	
 	
 	return err;
 }

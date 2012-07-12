@@ -211,6 +211,7 @@ protected:
 	std::vector<std::string>		rngfnames_;
 	
 	bool							disk_cached_;
+	bool							restart_;
 	std::vector< std::vector<T>* >	mem_cache_;
 	
 	unsigned						ran_cube_size_;
@@ -246,6 +247,9 @@ public:
 	template< typename array >
 	void load( array& A, int ilevel )
 	{
+		if( restart_ )
+			LOGINFO("Attempting to restart using random numbers for level %d\n     from file \'wnoise_%04d.bin\'.",ilevel,ilevel);
+		
 		if( disk_cached_ )
 		{
 			char fname[128];
@@ -257,7 +261,7 @@ public:
 			if( !ifs.good() )
 			{	
 				LOGERR("White noise file \'%s\'was not found.",fname);
-				throw std::runtime_error("A white noise file was not found. This is an internal inconsistency. Inform a developer!");
+				throw std::runtime_error("A white noise file was not found. This is an internal inconsistency and bad.");
 				
 			}
 			
@@ -269,7 +273,7 @@ public:
 			if( nx!=(int)A.size(0) || ny!=(int)A.size(1) || nz!=(int)A.size(2) )
 			{	
 				LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",nx,ny,nz,A.size(0),A.size(1),A.size(2));
-				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");
+				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency and bad.");
 			}
 			
 			for( int i=0; i<nx; ++i )
@@ -297,7 +301,7 @@ public:
 			if ( (size_t)nx*(size_t)ny*(size_t)nz != mem_cache_[ilevel-levelmin_]->size() )
 			{
 				LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",nx,ny,nz,A.size(0),A.size(1),A.size(2));
-				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency. Inform a developer!");
+				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency and bad");
 			}
 			
 			#pragma omp parallel for

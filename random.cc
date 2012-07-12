@@ -770,17 +770,24 @@ random_number_generator<rng,T>::random_number_generator( config_file& cf, refine
 	levelmax_ = prefh_->levelmax();
 	
 	ran_cube_size_	= pcf_->getValueSafe<unsigned>("random","cubesize",DEF_RAN_CUBE_SIZE);
-	disk_cached_ = pcf_->getValueSafe<bool>("random","disk_cached",true);
+	disk_cached_	= pcf_->getValueSafe<bool>("random","disk_cached",true);
+	restart_		= pcf_->getValueSafe<bool>("random","restart",false);
+	
 	mem_cache_.assign(levelmax_-levelmin_+1, (std::vector<T>*)NULL);
 	
-	
+	if( restart_ && !disk_cached_ )
+		throw std::runtime_error("Cannot restart from mem cached random numbers.");
+
 	////disk_cached_ = false;
 	
 	//... determine seed/white noise file data to be applied
 	parse_rand_parameters();
 	
-	//... compute the actual random numbers
-	compute_random_numbers();
+	if( !restart_ )
+	{
+		//... compute the actual random numbers
+		compute_random_numbers();		
+	}
 }
 
 
@@ -802,7 +809,7 @@ random_number_generator<rng,T>::~random_number_generator()
 		{
 			char fname[128];
 			sprintf(fname,"wnoise_%04d.bin",ilevel);
-			unlink(fname);
+			//			unlink(fname);
 		}
 	}
 }

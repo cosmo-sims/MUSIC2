@@ -37,7 +37,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "1.01"
+#define THE_CODE_VERSION "1.02b"
 
 
 namespace music
@@ -295,7 +295,6 @@ int main (int argc, const char * argv[])
 	time_t ltime=time(NULL);
 	LOGINFO("Opening log file \'%s\'.",logfname);
 	LOGUSER("Running %s, version %s",THE_CODE_NAME,THE_CODE_VERSION);
-	LOGUSER("Running with a maximum of %d OpenMP threads", omp_get_max_threads() );
 	LOGUSER("Log is for run started %s",asctime( localtime(&ltime) ));
 	
 #ifdef FFTW3
@@ -308,6 +307,7 @@ int main (int argc, const char * argv[])
 	LOGUSER("Code was compiled for single-threaded FFTW");
 #else
 	LOGUSER("Code was compiled for multi-threaded FFTW");
+	LOGUSER("Running with a maximum of %d OpenMP threads", omp_get_max_threads() );
 #endif
 	
 #ifdef SINGLE_PRECISION

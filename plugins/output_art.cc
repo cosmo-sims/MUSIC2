@@ -44,7 +44,7 @@ protected:
 	        int Nseed; // random number used ( 0 for MUSIC? or set the random number used in the lowest level?)
         	float Om0; //Omega_m
 	        float Oml0; //Omega_L
-        	float hubble; //hubble parameter
+        	float hubble; //hubble constant h=H/100
 	        float Wp5; // 
         	float Ocurv; //Omega_k
 	        //float Omb0; // this parameter only appears in header in hydro runs
@@ -57,10 +57,10 @@ protected:
                      //extras[12]=LevLarge ->0 in IC
                      //extras[13]=Omegab  ->0 in IC; fix it?
                      //extras[14]=sig8    ->0 in IC; fix it?
-                     //extras[15]=Spslope ->0 in IC
-                     //extras[16]=iDEswtch ->0 in IC
-                     //extras[17]=DEw0    ->0 in IC
-                     //extras[18]=DEwprime ->0 in IC
+                     //extras[15]=Spslope ->0 in IC; fix it? Slope of the Power spectrum
+                     //extras[16]=iDEswtch ->0 in IC; DE Flag=0:LCDM 1:w 2:RP 3:SUGRA
+                     //extras[17]=DEw0    ->0 in IC; w0 for DE z=0
+                     //extras[18]=DEwprime ->0 in IC; DE parameter
 		     //extras[59]= 0 or 1; is used as switch for random numbers generators [do not apply in music use 0?]
 		     //extras[60]= lux - level of luxury  [do not apply in music use 0?]
 		     //extras[79]=Lbox (Mpc/h)
@@ -140,6 +140,9 @@ public:
 		// There are NO Fortran size blocks pre or after these blocks!!
 		//// Contradiction with documentation?? one file for each type of particle
 		// however Daniel sent me just one file for a zoom. 
+		//coordinates are in the range 1 - (NGRID+1)
+C               //velocities are P = a_expansion*V_pec/(x_0H_0) where x_0 = comoving cell_size=Box/Ngrid;H_0 = Hubble at z=0
+
 	}
 
 	void finalize( void )

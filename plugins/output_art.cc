@@ -48,8 +48,11 @@ protected:
 	        float Wp5; // 
         	float Ocurv; //Omega_k
 	        //float Omb0; // this parameter only appears in header in hydro runs
-		float wpart[10]; // extras[0-9] particle masses (normalized to low res particle)
-		int lpart[10]; // extras[10-19] number of particles of each type
+		float wpart[10]; // extras[0-9] particle masses from high res to low res (normalized to low res particle)
+		//  Mass of smallest particle=wpart[0]*0m0*2.746e+11*(Box/NGRID)**3 -> Msun/h
+		//  Mass of largest  particle=wpart[nspecies-1]*0m0*2.746e+11*(Box/NGRID)**3 -> Msun/h
+		int lpart[10]; // extras[10-19] number of particles from high res to low res cumulative!!! 
+		//(i.e., lpart[0]=Nhigh res particles; lpart[1]=lpart[0]+N_this_level; etc) so lpart[nspecies-1]=N total
 	        float extras[80]; //extras[20-99] 
 		     //extras[9]=iLblock ->0 in IC 
                      //extras[10]=LevMin  ->0 in IC
@@ -137,11 +140,16 @@ public:
 		// which has the structure: X(Npage),Y(Npage),Z(Npage),
 		// Vx(Npage),Vy(Npage),Vz(Npage). 
 		///The number of particles in each page (Npage) is Npage = Nrow**2
+		// Npages = (N_particles -1)/NPAGE +1
+		// so in last page sometimes can be tricky
+	        // N_in_last=N_particles -NPAGE*(Npages-1)
 		// There are NO Fortran size blocks pre or after these blocks!!
-		//// Contradiction with documentation?? one file for each type of particle
-		// however Daniel sent me just one file for a zoom. 
 		//coordinates are in the range 1 - (NGRID+1)
-C               //velocities are P = a_expansion*V_pec/(x_0H_0) where x_0 = comoving cell_size=Box/Ngrid;H_0 = Hubble at z=0
+		// so scale factor is  scaleX = Box/NGRID -> to Mpc/h (Box in Mpc/h) 
+                //velocities are P = a_expansion*V_pec/(x_0H_0) where x_0 = comoving cell_size=Box/Ngrid;H_0 = Hubble at z=0
+		// so scale factor is scaleV = BoxV/AEXPN/NGRID -> to km/s (BoxV is Box*100; aexpn=current expansion factor)
+		// Contradiction with documentation?? one file for each type of particle
+		// however Daniel sent me just one file for a zoom all particle info together. 
 
 	}
 

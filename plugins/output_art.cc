@@ -130,11 +130,17 @@ public:
 		
 	}
 
-	void write_dm_position()
-	{}
-
-	void write_dm_velocity()
-	{}
+	void write_dm_pages()
+	{
+		//The direct format write the particle data in pages.
+		// Each page of particles is read into a common block,
+		// which has the structure: X(Npage),Y(Npage),Z(Npage),
+		// Vx(Npage),Vy(Npage),Vz(Npage). 
+		///The number of particles in each page (Npage) is Npage = Nrow**2
+		// There are NO Fortran size blocks pre or after these blocks!!
+		//// Contradiction with documentation?? one file for each type of particle
+		// however Daniel sent me just one file for a zoom. 
+	}
 
 	void finalize( void )
 	{ 	}

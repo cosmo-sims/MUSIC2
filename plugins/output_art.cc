@@ -24,14 +24,14 @@ protected:
 	typedef struct io_header
 	{
 		char head[45];
-		float aexpN // current expansion factor
-	        float aexp0 // initial expansion factor
-		float amplt // Amplitude of density fluctuations
-		float astep // Delta a -> time step. 
+		float aexpN; // current expansion factor
+        float aexp0; // initial expansion factor
+		float amplt; // Amplitude of density fluctuations
+		float astep; // Delta a -> time step. 
 				// This value is also stored in pt.dat (binary 1 float)
 				// It is recalculated by art so just a small value should work
-		int istep // step (=0 in IC)
-		int partw // mass of highest res particle.
+		int istep; // step (=0 in IC)
+		int partw; // mass of highest res particle.
         	float TINTG; //=0 in IC
         	float EKIN; //SUM 0.5 * m_i*(v_i**2) in code units
         	float EKIN1; //=0 in IC
@@ -72,7 +72,7 @@ protected:
 
 	typedef struct io_ptf
 	{
-		float astep
+		float astep;
 	}ptf;
 	
 	header header_;
@@ -81,6 +81,8 @@ protected:
 	size_t np_fine_gas_, np_fine_dm_, np_coarse_dm_;
 	size_t block_buf_size_;
 	size_t npartmax_;
+    
+    double YHe_;
 
 public:
 
@@ -101,16 +103,18 @@ public:
 		YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
                 gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
 		//... set time ......................................................
-                header_.aexpn = 1.0/(1.0+header_.redshift);
-                header_.aexp0 = header_.aexpn;
+        header_.aexpN = cf.getValue<double>("cosmology","astart");//1.0/(1.0+header_.redshift);
+        header_.aexp0 = header_.aexpN;
 		//etc, etc
 
 	}
 
 	void write_header_file() //PMcrd.DAT
 	{
+        char filename[256];
 		sprintf( filename, "%s/PMcrd.DAT", fname_.c_str() );
-		ofs_.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
+        std::ofstream ofs_;
+        ofs_.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 		header this_header(header_);
 		int blksize = sizeof(header); //529 in a dm only run; 533 in a baryon run
 		ofs_.write( (char *)&blksize, sizeof(int) );
@@ -122,8 +126,10 @@ public:
 
 	void write_pt_file() //pt.dat
 	{
+		char filename[256];
 		sprintf( filename, "%s/pt.dat", fname_.c_str() );
-		ofs_.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
+        std::ofstream ofs_;
+        ofs_.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 		ptf this_ptf(ptf_);
 		int blksize = sizeof(ptf); //4
 		ofs_.write( (char *)&blksize, sizeof(int) );
@@ -152,6 +158,47 @@ public:
 		// however Daniel sent me just one file for a zoom all particle info together. 
 
 	}
+    
+    void write_dm_mass( const grid_hierarchy& gh )
+	{
+        
+    }
+    
+    void write_dm_position( int coord, const grid_hierarchy& gh )
+	{
+        
+    }
+    
+    void write_dm_velocity( int coord, const grid_hierarchy& gh )
+	{
+        
+    }
+    
+    void write_dm_density( const grid_hierarchy& gh )
+	{
+		//... we don't care about DM density for art
+	}
+    
+    void write_dm_potential( const grid_hierarchy& gh )
+	{ }
+	
+	void write_gas_potential( const grid_hierarchy& gh )
+	{ }
+	
+	void write_gas_velocity( int coord, const grid_hierarchy& gh )
+	{
+        
+    }
+	
+    void write_gas_position( int coord, const grid_hierarchy& gh )
+	{
+        //... we don't care about gas positions in art
+    }
+    
+    void write_gas_density( const grid_hierarchy& gh )
+	{
+        
+    }
 
 	void finalize( void )
 	{ 	}

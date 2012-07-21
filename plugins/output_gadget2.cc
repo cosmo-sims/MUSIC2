@@ -1214,7 +1214,7 @@ public:
 		
 		double xfac = header_.BoxSize;
 		
-		double h = 1.0/(1<<gh.levelmax());
+		double h = 1.0/(1ul<<gh.levelmax());
         
         for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
 		{	

@@ -4,22 +4,29 @@
  a code to generate multi-scale initial conditions 
  for cosmological simulations 
  
- Copyright (C) 2010  Oliver Hahn
+ Copyright (C) 2012  Jose Onorbe & Oliver Hahn
  
  */
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <vector>
 
 #include "output.hh"
 
-
+template< typename T_store=float >
 class art_output_plugin : public output_plugin
 {
 public:
 	bool do_baryons_;
-	double omegab_;
+	double omegab_, omegam_;
 	double gamma_;
+    double astart_;
+    
 protected:
+    
+    enum iofields {
+		id_dm_mass, id_dm_vel, id_dm_pos
+	};
 	
 	typedef struct io_header
 	{
@@ -87,7 +94,7 @@ protected:
 public:
 
 
-	art_output_plugin ( config_file& cf )
+	explicit art_output_plugin ( config_file& cf )
 	: output_plugin( cf )
 	{
 		
@@ -98,14 +105,19 @@ public:
                 }
 
 		do_baryons_ = cf.getValueSafe<bool>("setup","baryons",false);
-		omegab_ = cf.getValueSafe<double>("cosmology","Omega_b",0.045);
+		omegab_  = cf.getValueSafe<double>("cosmology","Omega_b",0.045);
+        omegam_  = cf.getValue<double>("cosmology","Omega_m");
+        astart_  = cf.getValue<double>("cosmology","astart");
 
 		YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
                 gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
 		//... set time ......................................................
-        header_.aexpN = cf.getValue<double>("cosmology","astart");//1.0/(1.0+header_.redshift);
+        header_.aexpN = astart_;//1.0/(1.0+header_.redshift);
         header_.aexp0 = header_.aexpN;
 		//etc, etc
+        
+        
+        
 
 	}
 
@@ -161,17 +173,171 @@ public:
     
     void write_dm_mass( const grid_hierarchy& gh )
 	{
+        //... write data for dark matter......
+		size_t nptot = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
+		
+		std::vector<T_store> temp_dat;
+		temp_dat.reserve(block_buf_size_);
+		
+		char temp_fname[256];
+		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_mass );
+		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+		
+		
+		size_t blksize = sizeof(T_store)*nptot;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		size_t nwritten = 0;
+		for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
+		{
+            double pmass = omegam_/(1ul<<(3*ilevel)); // this needs to be adjusted to have the right units
+            
+            if( do_baryons_ )
+                pmass *= (omegam_-omegab_)/omegam_;
+			
+			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
+				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
+					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
+						if( ! gh.is_refined(ilevel,i,j,k) )
+						{
+							if( temp_dat.size() <  block_buf_size_ )
+								temp_dat.push_back( pmass );	
+							else
+							{
+								ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );	
+								nwritten += block_buf_size_;
+								temp_dat.clear();
+								temp_dat.push_back( pmass );	
+							}
+						}
+		}
+		
+		if( temp_dat.size() > 0 )
+		{	
+			ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*temp_dat.size() );		
+			nwritten+=temp_dat.size();
+		}
+		
+		if( nwritten != nptot )
+			throw std::runtime_error("Internal consistency error while writing temporary file for DM masses");
+		
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		if( ofs_temp.bad() )
+			throw std::runtime_error("I/O error while writing temporary file for DM masses");
         
+        
+        ofs_temp.close();
     }
     
     void write_dm_position( int coord, const grid_hierarchy& gh )
 	{
-        
+        size_t nptot = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
+		
+		std::vector<T_store> temp_data;
+		temp_data.reserve( block_buf_size_ );
+		
+		
+		char temp_fname[256];
+		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
+		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+		
+		size_t blksize = sizeof(T_store)*nptot;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		size_t nwritten = 0;
+		for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
+			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
+				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
+					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
+						if( ! gh.is_refined(ilevel,i,j,k) )
+						{
+							double xx[3];
+							gh.cell_pos(ilevel, i, j, k, xx);
+							
+							//xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) + 1.0, 1.0 ) - 0.5;
+							xx[coord] = (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) - 0.5;
+							
+							if( temp_data.size() < block_buf_size_ )
+								temp_data.push_back( xx[coord] );
+							else
+							{
+								ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*block_buf_size_ );
+								nwritten += block_buf_size_;
+								temp_data.clear();
+								temp_data.push_back( xx[coord] );
+							}
+						}
+		
+		if( temp_data.size() > 0 )
+		{	
+			ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*temp_data.size() );
+			nwritten += temp_data.size();
+		}
+		
+		if( nwritten != nptot )
+			throw std::runtime_error("Internal consistency error while writing temporary file for positions");
+		
+		//... dump to temporary file
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		if( ofs_temp.bad() )
+			throw std::runtime_error("I/O error while writing temporary file for positions");
+		
+		ofs_temp.close();
     }
     
     void write_dm_velocity( int coord, const grid_hierarchy& gh )
 	{
+        size_t nptot = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
+		
+		std::vector<T_store> temp_data;
+		temp_data.reserve( block_buf_size_ );
+		
+		double vfac = 2.894405/(100.0 * astart_); 
         
+		char temp_fname[256];
+		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
+		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+		
+		size_t blksize = sizeof(T_store)*nptot;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		size_t nwritten = 0;
+		for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
+			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
+				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
+					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
+						if( ! gh.is_refined(ilevel,i,j,k) )
+						{
+							if( temp_data.size() < block_buf_size_ )
+								temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
+							else 
+							{
+								ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*block_buf_size_ );
+								nwritten += block_buf_size_;
+								temp_data.clear();
+								temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
+							}
+							
+						}
+		
+		if( temp_data.size() > 0 )
+		{	
+			ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*temp_data.size() );
+			nwritten += temp_data.size();
+		}
+		
+		if( nwritten != nptot )
+			throw std::runtime_error("Internal consistency error while writing temporary file for DM velocities");
+		
+		//... dump to temporary file
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		if( ofs_temp.bad() )
+			throw std::runtime_error("I/O error while writing temporary file for DM velocities");
+		
+		ofs_temp.close();
     }
     
     void write_dm_density( const grid_hierarchy& gh )
@@ -205,5 +371,5 @@ public:
 };
 
 namespace{
-	output_plugin_creator_concrete<art_output_plugin> creator("art");
+	output_plugin_creator_concrete<art_output_plugin<float> > creator("art");
 }

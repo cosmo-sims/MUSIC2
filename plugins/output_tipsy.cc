@@ -24,6 +24,8 @@ protected:
 	std::ofstream ofs_;
 	
 	typedef T_store Real;
+    
+    bool with_baryons_;
 	
 	struct gas_particle {
 		Real mass;
@@ -70,7 +72,7 @@ protected:
 	};
 	
 	enum iofields {
-		id_dm_mass, id_dm_vel, id_dm_pos, id_gas_vel, id_gas_rho, id_gas_temp, id_gas_pos
+		id_dm_mass, id_dm_vel, id_dm_pos, id_gas_vel, id_gas_rho, id_gas_temp, id_gas_pos, id_gas_mass
 	};
 	
 	dump header_;
@@ -82,7 +84,10 @@ protected:
 	double boxsize_;
 	double astart_;
 	double omegam_;
+    double omegab_;
     double H0_;
+    double YHe_;
+    double gamma_;
 	double BoxSize_;
 
 	class pistream : public std::ifstream
@@ -168,7 +173,7 @@ protected:
 		//... copy from the temporary files, interleave the data and save ............
 		
 		char fnx[256],fny[256],fnz[256],fnvx[256],fnvy[256],fnvz[256],fnm[256];
-		char fnbx[256], fnby[256], fnbz[256], fnbvx[256], fnbvy[256], fnbvz[256];
+		char fnbx[256], fnby[256], fnbz[256], fnbvx[256], fnbvy[256], fnbvz[256], fnbm[256];
 		
 		sprintf( fnx,  "___ic_temp_%05d.bin", 100*id_dm_pos+0 );
 		sprintf( fny,  "___ic_temp_%05d.bin", 100*id_dm_pos+1 );
@@ -184,6 +189,7 @@ protected:
 		sprintf( fnbvx, "___ic_temp_%05d.bin", 100*id_gas_vel+0 );
 		sprintf( fnbvy, "___ic_temp_%05d.bin", 100*id_gas_vel+1 );
 		sprintf( fnbvz, "___ic_temp_%05d.bin", 100*id_gas_vel+2 );
+		sprintf( fnbm,  "___ic_temp_%05d.bin", 100*id_gas_mass  );
 		
 		
 		pistream ifs_x, ifs_y, ifs_z, ifs_vx, ifs_vy, ifs_vz, ifs_m;
@@ -192,7 +198,7 @@ protected:
 		
 		const unsigned 
 			nptot = header_.nbodies,
-		//npgas = header_.nsph ,
+            npgas = header_.nsph ,
 			npcdm = header_.ndark ;
 		
 		unsigned
@@ -215,26 +221,104 @@ protected:
 		tmp6 = new T_store[block_buf_size_];
 		tmp7 = new T_store[block_buf_size_];
 		
-		ifs_x.open( fnx, npcdm );
-		ifs_y.open( fny, npcdm );
-		ifs_z.open( fnz, npcdm );
-		ifs_vx.open( fnvx, npcdm );
-		ifs_vy.open( fnvy, npcdm );
-		ifs_vz.open( fnvz, npcdm );
-		ifs_m.open( fnm, npcdm );
 		
 		T_store zero = (T_store)0.0;
 		
 		while( true )
 		{
-			
-			//... write the header .......................................................
+            //... write the header .......................................................
 			XDR xdrs;
 			xdrstdio_create(&xdrs, fp_, XDR_ENCODE);
 			convert_header_XDR( &xdrs, &header_ );
 			
 			std::vector<T_store> dump_store ( 9*block_buf_size_, (T_store)0.0 );
 			
+            //... sph particles ..................................................
+            if( with_baryons_ )
+            {
+                // compute gas temperature
+                
+                const double astart = astart_;
+				//const double npol  = (fabs(1.0-gamma_)>1e-7)? 1.0/(gamma_-1.) : 1.0;
+				//const double unitv = 1e5;
+				const double h2    = H0_ * H0_ * 0.0001;
+				const double adec  = 1.0/(160.*pow(omegab_*h2/0.022,2.0/5.0));
+				const double Tcmb0 = 2.726;
+				const double Tini  = astart<adec? Tcmb0/astart : Tcmb0/astart/astart*adec;
+                const double mu    = (Tini>1.e4) ? 4.0/(8.-5.*YHe_) : 4.0/(1.+3.*(1.-YHe_));
+				//const double ceint = 1.3806e-16/1.6726e-24 * Tini * npol / mu / unitv / unitv;
+				
+                T_store temperature = (T_store) Tini;
+                LOGINFO("TIPSY : set initial gas temperature to %.2f K (mu = %.2f)",Tini,mu);
+                
+                
+                // write
+                ifs_x.open( fnbx, npgas );
+                ifs_y.open( fnby, npgas );
+                ifs_z.open( fnbz, npgas );
+                ifs_vx.open( fnbvx, npgas );
+                ifs_vy.open( fnbvy, npgas );
+                ifs_vz.open( fnbvz, npgas );
+                ifs_m.open( fnbm, npgas );
+                
+                npleft = npgas;
+                n2read = std::min(block_buf_size_,npleft);
+                while( n2read > 0 )
+                {
+                    ifs_x.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
+                    ifs_y.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
+                    ifs_z.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
+                    ifs_vx.read( reinterpret_cast<char*>(&tmp4[0]), n2read*sizeof(T_store) );
+                    ifs_vy.read( reinterpret_cast<char*>(&tmp5[0]), n2read*sizeof(T_store) );
+                    ifs_vz.read( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
+                    ifs_m.read( reinterpret_cast<char*>(&tmp7[0]), n2read*sizeof(T_store) );
+                    
+                    for( size_t i=0; i<n2read; ++i )
+                    {                        
+                        xdr_dump(&xdrs,&tmp7[i]); // mass
+                        xdr_dump(&xdrs,&tmp1[i]); // x
+                        xdr_dump(&xdrs,&tmp2[i]); // y
+                        xdr_dump(&xdrs,&tmp3[i]); // z
+                        xdr_dump(&xdrs,&tmp4[i]); // vx
+                        xdr_dump(&xdrs,&tmp5[i]); // vy
+                        xdr_dump(&xdrs,&tmp6[i]); // vz
+                        xdr_dump(&xdrs, &zero );  // rho
+                        xdr_dump(&xdrs, &temperature );  // temp
+                        
+                        T_store eps = mass2eps( tmp7[i] );
+                        
+                        xdr_dump(&xdrs, &eps );   // epsilon / hsmooth
+                        xdr_dump(&xdrs, &zero );  // metals
+                        xdr_dump(&xdrs, &zero );  //potential
+                    }
+                    
+                    
+                    
+                    npleft -= n2read;
+                    n2read = std::min( block_buf_size_,npleft );
+                }
+                
+                ifs_x.close();
+                ifs_y.close();
+                ifs_z.close();
+                ifs_vx.close();
+                ifs_vy.close();
+                ifs_vz.close();
+                ifs_m.close();
+                
+            }
+			
+
+            
+			//... dark matter particles ..................................................
+            ifs_x.open( fnx, npcdm );
+            ifs_y.open( fny, npcdm );
+            ifs_z.open( fnz, npcdm );
+            ifs_vx.open( fnvx, npcdm );
+            ifs_vy.open( fnvy, npcdm );
+            ifs_vz.open( fnvz, npcdm );
+            ifs_m.open( fnm, npcdm );
+            
 			npleft = npcdm;
 			n2read = std::min(block_buf_size_,npleft);
 			while( n2read > 0 )
@@ -278,6 +362,15 @@ protected:
 				npleft -= n2read;
 				n2read = std::min( block_buf_size_,npleft );
 			}
+            
+            ifs_x.close();
+            ifs_y.close();
+            ifs_z.close();
+            ifs_vx.close();
+            ifs_vy.close();
+            ifs_vz.close();
+            ifs_m.close();
+            
 			
 			break;
 		}
@@ -297,6 +390,7 @@ public:
 		
 		//... ensure that everyone knows we want to do SPH
 		cf.insertValue("setup","do_SPH","yes");
+        with_baryons_ = cf_.getValue<bool>("setup","baryons");
 		
 		//bbndparticles_  = !cf_.getValueSafe<bool>("output","gadget_nobndpart",false);
 		npartmax_ = 1<<30;
@@ -311,9 +405,13 @@ public:
 		double zstart = cf.getValue<double>("setup","zstart");
 		astart_ = 1.0/(1.0+zstart);
 		omegam_  = cf.getValue<double>("cosmology","Omega_m");
+        omegab_  = cf.getValue<double>("cosmology","Omega_b");
 		boxsize_ = cf.getValue<double>("setup","boxlength");
 		epsfac_ = cf.getValueSafe<double>("output","tipsy_eps",0.05);
         H0_ = cf.getValue<double>("cosmology","H0");
+        YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
+        gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
+        
 
 	}
 	
@@ -322,13 +420,23 @@ public:
 		//.. store header data
 		header_.nbodies = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
 		header_.nsph	= 0;
-		header_.ndark	= header_.nbodies;
+        
+        if( with_baryons_ )
+        {
+            header_.nsph	= gh.count_leaf_cells(gh.levelmax(), gh.levelmax());
+            header_.nbodies += header_.nsph;
+        }
+        
+		header_.ndark	= gh.count_leaf_cells(gh.levelmin(), gh.levelmax());;
 		header_.nstar	= 0;
 		header_.ndim	= 3;
 		header_.time	= astart_;
+        
+        LOGINFO("TIPSY output plugin will write:\n      DM particles   : %d\n      SPH particles  : %d",header_.ndark, header_.nsph);
+        
 		
-		//... write data
-		size_t nptot = header_.nbodies;
+		//... write data for dark matter......
+		size_t nptot = header_.ndark;
 		
 		std::vector<T_store> temp_dat;
 		temp_dat.reserve(block_buf_size_);
@@ -345,6 +453,9 @@ public:
 		for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
 		{
 		  double pmass = omegam_/(1ul<<(3*ilevel));
+            
+            if( with_baryons_ && ilevel == (int)gh.levelmax() )
+                pmass *= (omegam_-omegab_)/omegam_;
 			
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
@@ -370,12 +481,67 @@ public:
 		}
 		
 		if( nwritten != nptot )
-			throw std::runtime_error("Internal consistency error while writing temporary file for masses");
+			throw std::runtime_error("Internal consistency error while writing temporary file for DM masses");
 		
 		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 		
 		if( ofs_temp.bad() )
-			throw std::runtime_error("I/O error while writing temporary file for masses");
+			throw std::runtime_error("I/O error while writing temporary file for DM masses");
+        
+        
+        ofs_temp.close();
+        
+        //... write data for baryons......
+        if( with_baryons_ )
+        {
+            nptot = header_.nsph;
+            
+            temp_dat.clear();
+            temp_dat.reserve(block_buf_size_);
+            
+            char temp_fname[256];
+            sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_mass );
+            ofs_temp.open( temp_fname, std::ios::binary|std::ios::trunc );
+            
+            
+            blksize = sizeof(T_store)*nptot;
+            ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+            
+            nwritten = 0;
+            int ilevel=gh.levelmax();
+                double pmass = omegam_/(1ul<<(3*ilevel));
+                
+                pmass *= omegab_/omegam_;
+                
+            for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
+                for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
+                    for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
+                    {
+                        if( temp_dat.size() <  block_buf_size_ )
+                            temp_dat.push_back( pmass );	
+                        else
+                        {
+                            ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );	
+                            nwritten += block_buf_size_;
+                            temp_dat.clear();
+                            temp_dat.push_back( pmass );	
+                        }
+                    }
+            
+            if( temp_dat.size() > 0 )
+            {	
+                ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*temp_dat.size() );		
+                nwritten+=temp_dat.size();
+            }
+            
+            if( nwritten != nptot )
+                throw std::runtime_error("Internal consistency error while writing temporary file for baryon masses");
+            
+            ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+            
+            if( ofs_temp.bad() )
+                throw std::runtime_error("I/O error while writing temporary file for baryon masses");
+        }
 		
 	}
 	
@@ -479,39 +645,154 @@ public:
 		}
 		
 		if( nwritten != nptot )
-			throw std::runtime_error("Internal consistency error while writing temporary file for positions");
+			throw std::runtime_error("Internal consistency error while writing temporary file for DM velocities");
 		
 		//... dump to temporary file
 		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 		
 		if( ofs_temp.bad() )
-			throw std::runtime_error("I/O error while writing temporary file for positions");
+			throw std::runtime_error("I/O error while writing temporary file for DM velocities");
 		
 		ofs_temp.close();
 	}
 	
 	void write_dm_density( const grid_hierarchy& gh )
 	{
-		//... we don't care about DM density for Gadget
+		//... we don't care about DM density for TIPSY
 	}
 	
 	void write_dm_potential( const grid_hierarchy& gh )
-	{ }
+	{
+        //... we don't care about DM potential for TIPSY
+    }
 	
 	void write_gas_potential( const grid_hierarchy& gh )
-	{ }
+	{
+        //... we don't care about baryon potential for TIPSY
+    }
 	
 	//... write data for gas -- don't do this
 	void write_gas_velocity( int coord, const grid_hierarchy& gh )
-	{ }
+	{
+        size_t npgas = gh.count_leaf_cells(gh.levelmax(), gh.levelmax());
+		
+		std::vector<T_store> temp_data;
+		temp_data.reserve( block_buf_size_ );
+		
+		double vfac = 2.894405/(100.0 * astart_); 
+        
+		char temp_fname[256];
+		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_vel+coord );
+		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+		
+		size_t blksize = sizeof(T_store)*npgas;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		size_t nwritten = 0;
+		int ilevel=gh.levelmax(); 
+        for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
+            for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
+                for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
+                {
+                    if( temp_data.size() < block_buf_size_ )
+                        temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
+                    else 
+                    {
+                        ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*block_buf_size_ );
+                        nwritten += block_buf_size_;
+                        temp_data.clear();
+                        temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
+                    }
+                        
+                }
+		
+		if( temp_data.size() > 0 )
+		{	
+			ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*temp_data.size() );
+			nwritten += temp_data.size();
+		}
+		
+		if( nwritten != npgas )
+			throw std::runtime_error("Internal consistency error while writing temporary file for baryon velocities");
+		
+		//... dump to temporary file
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		if( ofs_temp.bad() )
+			throw std::runtime_error("I/O error while writing temporary file for baryon velocities");
+		
+		ofs_temp.close();
+    }
 	
 	
 	//... write only for fine level
 	void write_gas_position( int coord, const grid_hierarchy& gh )
-	{ }
+	{ 
+        size_t npgas = gh.count_leaf_cells(gh.levelmax(), gh.levelmax());
+		
+		std::vector<T_store> temp_data;
+		temp_data.reserve( block_buf_size_ );
+		
+		
+		char temp_fname[256];
+		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_pos+coord );
+		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+		
+		size_t blksize = sizeof(T_store)*npgas;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+        double h = 1.0/(1ul<<gh.levelmax());
+        
+        
+		size_t nwritten = 0;
+		int ilevel=gh.levelmax(); 
+        for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
+            for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
+                for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
+                {
+                    double xx[3];
+                    gh.cell_pos(ilevel, i, j, k, xx);
+                    
+                    //... shift particle positions (this has to be done as the same shift
+                    //... is used when computing the convolution kernel for SPH baryons)
+                    xx[coord] += 0.5*h;
+                    
+                    //xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) + 1.0, 1.0 ) - 0.5;
+                    xx[coord] = (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) - 0.5;
+                    
+                    if( temp_data.size() < block_buf_size_ )
+                        temp_data.push_back( xx[coord] );
+                    else
+                    {
+                        ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*block_buf_size_ );
+                        nwritten += block_buf_size_;
+                        temp_data.clear();
+                        temp_data.push_back( xx[coord] );
+                    }
+                }
+		
+		if( temp_data.size() > 0 )
+		{	
+			ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*temp_data.size() );
+			nwritten += temp_data.size();
+		}
+		
+		if( nwritten != npgas )
+			throw std::runtime_error("Internal consistency error while writing temporary file for baryon positions");
+		
+		//... dump to temporary file
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		if( ofs_temp.bad() )
+			throw std::runtime_error("I/O error while writing temporary file for baryon positions");
+		
+		ofs_temp.close();
+    }
 	
 	void write_gas_density( const grid_hierarchy& gh )
-	{ }
+	{ 
+        //... we don't care about gas density for TIPSY
+    }
 	
 	void finalize( void )
 	{	

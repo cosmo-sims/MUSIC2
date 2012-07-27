@@ -21,6 +21,7 @@ public:
 	double omegab_, omegam_;
 	double gamma_;
     double astart_;
+	size_t npcdm_;
     
 protected:
     
@@ -90,6 +91,158 @@ protected:
 	size_t npartmax_;
     
     double YHe_;
+	
+	
+	// helper class to read temp files
+	class pistream : public std::ifstream
+	{
+	public:
+		pistream (std::string fname, size_t npart )
+		: std::ifstream( fname.c_str(), std::ios::binary )
+		{
+			size_t blk;
+			
+			if( !this->good() )
+			{	
+				LOGERR("Could not open buffer file in ART output plug-in");
+				throw std::runtime_error("Could not open buffer file in ART output plug-in");
+			}
+			
+			this->read( (char*)&blk, sizeof(size_t) );
+			
+			if( blk != (size_t)(npart*sizeof(T_store)) )
+			{	
+				LOGERR("Internal consistency error in ART output plug-in");
+				LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
+				throw std::runtime_error("Internal consistency error in ART output plug-in");
+			}
+		}
+		
+		pistream ()
+		{
+			
+		}
+		
+		void open(std::string fname, size_t npart )
+		{
+			std::ifstream::open( fname.c_str(), std::ios::binary );
+			size_t blk;
+			
+			if( !this->good() )
+			{	
+				LOGERR("Could not open buffer file \'%s\' in ART output plug-in",fname.c_str());
+				throw std::runtime_error("Could not open buffer file in ART output plug-in");
+			}
+			
+			this->read( (char*)&blk, sizeof(size_t) );
+			
+			if( blk != (size_t)(npart*sizeof(T_store)) )
+			{	
+				LOGERR("Internal consistency error in ART output plug-in");
+				LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
+				throw std::runtime_error("Internal consistency error in ART output plug-in");
+			}
+		}
+	};
+	
+	
+	// non-public member functions
+	void assemble_DM_file( void )
+	{
+		// have to fix file name
+		std::string partfname = fname_ + "/somefilename.dat";
+		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
+		
+		// generate all temp file names
+		char fnx[256],fny[256],fnz[256],fnvx[256],fnvy[256],fnvz[256],fnm[256];
+		sprintf( fnx,  "___ic_temp_%05d.bin", 100*id_dm_pos+0 );
+		sprintf( fny,  "___ic_temp_%05d.bin", 100*id_dm_pos+1 );
+		sprintf( fnz,  "___ic_temp_%05d.bin", 100*id_dm_pos+2 );
+		sprintf( fnvx, "___ic_temp_%05d.bin", 100*id_dm_vel+0 );
+		sprintf( fnvy, "___ic_temp_%05d.bin", 100*id_dm_vel+1 );
+		sprintf( fnvz, "___ic_temp_%05d.bin", 100*id_dm_vel+2 );
+		sprintf( fnm,  "___ic_temp_%05d.bin", 100*id_dm_mass  );
+		
+		// create buffers for temporary data
+		T_store *tmp1, *tmp2, *tmp3, *tmp4, *tmp5, *tmp6, *tmp7;
+		
+		tmp1 = new T_store[block_buf_size_];
+		tmp2 = new T_store[block_buf_size_];
+		tmp3 = new T_store[block_buf_size_];
+		tmp4 = new T_store[block_buf_size_];
+		tmp5 = new T_store[block_buf_size_];
+		tmp6 = new T_store[block_buf_size_];
+		tmp7 = new T_store[block_buf_size_];
+		
+		
+		// read in the data from the temporary files in slabs and write it to the output file
+		size_t npleft, n2read;
+		size_t npcdm = npcdm_;
+		
+		LOGINFO("writing DM data to ART format file");
+		pistream ifs_x, ifs_y, ifs_z, ifs_vx, ifs_vy, ifs_vz, ifs_m;
+		
+		ifs_x.open( fnx, npcdm );
+		ifs_y.open( fny, npcdm );
+		ifs_z.open( fnz, npcdm );
+		ifs_vx.open( fnvx, npcdm );
+		ifs_vy.open( fnvy, npcdm );
+		ifs_vz.open( fnvz, npcdm );
+		ifs_m.open( fnm, npcdm );
+		
+		npleft = npcdm;
+		n2read = std::min(block_buf_size_,npleft);
+		while( n2read > 0 )
+		{
+			ifs_x.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
+			ifs_y.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
+			ifs_z.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
+			ifs_vx.read( reinterpret_cast<char*>(&tmp4[0]), n2read*sizeof(T_store) );
+			ifs_vy.read( reinterpret_cast<char*>(&tmp5[0]), n2read*sizeof(T_store) );
+			ifs_vz.read( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
+			ifs_m.read( reinterpret_cast<char*>(&tmp7[0]), n2read*sizeof(T_store) );
+			
+			for( size_t i=0; i<n2read; ++i )
+			{
+				float x,y,z,vx,vy,vz,m;
+				
+				m = tmp7[i];
+				x = tmp1[i];
+				y = tmp2[i];
+				z = tmp3[i];
+				vx = tmp4[i];
+				vy = tmp5[i];
+				vz = tmp6[i];								
+			}
+
+			npleft -= n2read;
+			n2read = std::min( block_buf_size_,npleft );
+		}
+		
+		ifs_x.close();
+		ifs_y.close();
+		ifs_z.close();
+		ifs_vx.close();
+		ifs_vy.close();
+		ifs_vz.close();
+		ifs_m.close();
+		
+		// clean up temp files
+		unlink(fnx);
+		unlink(fny);
+		unlink(fnz);
+		unlink(fnvx);
+		unlink(fnvy);
+		unlink(fnvz);
+		unlink(fnm);
+		
+		LOGINFO("ART : done writing DM file.");
+		
+	}
+	
+	
+	
+	
 
 public:
 
@@ -111,6 +264,12 @@ public:
 			omegab_  = cf.getValueSafe<double>("cosmology","Omega_b",0.0);
 	        omegam_  = cf.getValue<double>("cosmology","Omega_m");
         	astart_  = cf.getValue<double>("cosmology","astart");
+		
+		
+		int levelmin = cf.getValue<unsigned>("setup","levelmin");
+		int levelmax = cf.getValue<unsigned>("setup","levelmax");
+		
+		
 
 		YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
                 gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
@@ -127,10 +286,10 @@ public:
         	header_.EKIN2 = 0; //=0 in IC
         	header_.AU0 = 0; //=0 in IC
         	header_.AEU0 = 0; //=0 in IC
-        	header_.NROWC = XX; // Number of particles in 1 dim (number of particles per page = NROW**2) 
-	        header_.NGRIDC = XX; // Number of cells in 1 dim
+		header_.NROWC = 0; //XX; // Number of particles in 1 dim (number of particles per page = NROW**2) 
+		header_.NGRIDC = 0; //XX; // Number of cells in 1 dim
         	header_.nspecies = 0; // number of dm species
-		for( int ilevel=levelmax_; ilevel>=(int)levelmin_; --ilevel )
+		for( int ilevel=levelmax; ilevel>=(int)levelmin; --ilevel )
 		{
         		header_.nspecies+=1; 
 		}
@@ -141,7 +300,7 @@ public:
 	        header_.Oml0 = cf.getValue<double>("cosmology","Omega_L"); //Omega_L
         	header_.hubble = cf.getValue<double>("cosmology","H0"); //hubble constant h=H/100
 	        header_.Wp5 = cf.getValueSafe<double>("cosmology","Wp5",0.0); // 
-        	header_.Ocurv = cf.getValueSafe<double>("cosmology","Omega_k",0.0); //Omega_k
+		header_.Ocurv = 1.0 - header_.Oml0 - header_.Om0; //cf.getValueSafe<double>("cosmology","Omega_k",0.0); //Omega_k (does not exist in cf)
 	        //header_.Omb0 = cf.getValue<double>("cosmology","Omega_b");; // this parameter only appears in header in hydro runs
 		for (int i=0;i<10;i++)
 		{
@@ -151,10 +310,10 @@ public:
 		for (int i=0;i<header_.nspecies;i++)
 		{
 			if (!do_baryons_)
-				header_.wpart[i] = 1.0/(8.0**(header_.nspecies-i-1)); //from high res to lo res // 8 should be changed for internal variable?
+				header_.wpart[i] = 1.0/pow(8.0,(header_.nspecies-i-1)); //from high res to lo res // 8 should be changed for internal variable?
 			else
-				header_.wpart[i] = ((header_.Om0-omegab_)/header_Om0)/(8.0**(header_.nspecies-i-1)); 
-			header_.lpart[i] = gh.count_leaf_cells(gh.levelmax()-i, gh.levelmax()); //cumulative!!
+				header_.wpart[i] = ((header_.Om0-omegab_)/header_.Om0)/pow(8.0,(header_.nspecies-i-1)); 
+			//header_.lpart[i] = gh.count_leaf_cells(gh.levelmax()-i, gh.levelmax()); //cumulative!!, this won't work, you don't have gh in the constructor!
 		}
 		for (int i=0;i<80;i++)
 		{
@@ -222,6 +381,12 @@ public:
     
     void write_dm_mass( const grid_hierarchy& gh )
 	{
+		//... store all the meta data about the grid hierarchy in header variables
+		npcdm_ = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
+		
+		
+		
+		
         //... write data for dark matter......
 		size_t nptot = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
 		
@@ -416,7 +581,9 @@ public:
     }
 
 	void finalize( void )
-	{ 	}
+	{ 	
+		this->assemble_DM_file();
+	}
 };
 
 namespace{

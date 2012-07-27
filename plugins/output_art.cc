@@ -32,11 +32,11 @@ protected:
 	{
 		char head[45];
 		float aexpN; // current expansion factor
-        float aexp0; // initial expansion factor
+        	float aexp0; // initial expansion factor
 		float amplt; // Amplitude of density fluctuations
 		float astep; // Delta a -> time step. 
 				// This value is also stored in pt.dat (binary 1 float)
-				// It is recalculated by art so just a small value should work
+				// It is recalculated by art for the next steps so just a small value should work
 		int istep; // step (=0 in IC)
 		int partw; // mass of highest res particle.
         	float TINTG; //=0 in IC
@@ -105,20 +105,69 @@ public:
                 }
 
 		do_baryons_ = cf.getValueSafe<bool>("setup","baryons",false);
-		omegab_  = cf.getValueSafe<double>("cosmology","Omega_b",0.045);
-        omegam_  = cf.getValue<double>("cosmology","Omega_m");
-        astart_  = cf.getValue<double>("cosmology","astart");
+		if (!do_baryons_)
+			omegab_ = 0.0;
+		else
+			omegab_  = cf.getValueSafe<double>("cosmology","Omega_b",0.0);
+	        omegam_  = cf.getValue<double>("cosmology","Omega_m");
+        	astart_  = cf.getValue<double>("cosmology","astart");
 
 		YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
                 gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
-		//... set time ......................................................
-        header_.aexpN = astart_;//1.0/(1.0+header_.redshift);
-        header_.aexp0 = header_.aexpN;
-		//etc, etc
-        
-        
-        
+		// Set header
+	        header_.aexpN = astart_;//1.0/(1.0+header_.redshift);
+        	header_.aexp0 = header_.aexpN;
+		header_.amplt = 0.0; // Amplitude of density fluctuations
+		header_.astep = 0.0001; // Delta a -> time step. With this value we make sure that the integration problem is not big
+		header_.istep = 0; // step (=0 in IC)
+		header_.partw = 0.0; // mass of highest res particle. SEE BELOW
+        	header_.TINTG = 0; //=0 in IC
+        	header_.EKIN = 0.0; //SUM 0.5 * m_i*(v_i**2) in code units
+        	header_.EKIN1 = 0; //=0 in IC
+        	header_.EKIN2 = 0; //=0 in IC
+        	header_.AU0 = 0; //=0 in IC
+        	header_.AEU0 = 0; //=0 in IC
+        	header_.NROWC = XX; // Number of particles in 1 dim (number of particles per page = NROW**2) 
+	        header_.NGRIDC = XX; // Number of cells in 1 dim
+        	header_.nspecies = 0; // number of dm species
+		for( int ilevel=levelmax_; ilevel>=(int)levelmin_; --ilevel )
+		{
+        		header_.nspecies+=1; 
+		}
+		//header_.partw  SEE BELOW
+			
+	        header_.Nseed = 0; // random number used ( 0 for MUSIC? or set the random number used in the lowest level?)
+        	header_.Om0 = cf.getValue<double>("cosmology","Omega_m"); //Omega_m
+	        header_.Oml0 = cf.getValue<double>("cosmology","Omega_L"); //Omega_L
+        	header_.hubble = cf.getValue<double>("cosmology","H0"); //hubble constant h=H/100
+	        header_.Wp5 = cf.getValueSafe<double>("cosmology","Wp5",0.0); // 
+        	header_.Ocurv = cf.getValueSafe<double>("cosmology","Omega_k",0.0); //Omega_k
+	        //header_.Omb0 = cf.getValue<double>("cosmology","Omega_b");; // this parameter only appears in header in hydro runs
+		for (int i=0;i<10;i++)
+		{
+			header_.wpart[i] = 0.0; // extras[0-9] part. masses from high res to low res (normalized to low res particle)
+			header_.lpart[i] = 0; // extras[10-19] # particles from high res to low res cumulative!!! 
+		}
+		for (int i=0;i<header_.nspecies;i++)
+		{
+			if (!do_baryons_)
+				header_.wpart[i] = 1.0/(8.0**(header_.nspecies-i-1)); //from high res to lo res // 8 should be changed for internal variable?
+			else
+				header_.wpart[i] = ((header_.Om0-omegab_)/header_Om0)/(8.0**(header_.nspecies-i-1)); 
+			header_.lpart[i] = gh.count_leaf_cells(gh.levelmax()-i, gh.levelmax()); //cumulative!!
+		}
+		for (int i=0;i<80;i++)
+		{
+	        	header_.extras[i] = 0.0; //extras[20-99] 
+		}
+                header_.extras[13] = cf.getValueSafe<double>("cosmology","Omega_b",0.0); //->0 in IC; fix it?
+                header_.extras[14] = cf.getValue<double>("cosmology","sigma_8"); //->0 in IC; fix it?
+                header_.extras[15] = cf.getValue<double>("cosmology","nspec"); //->0 in IC; fix it? Slope of the Power spectrum
+                header_.extras[79] = cf.getValue<double>("setup","boxlength"); 
+		header_.partw = header_.wpart[0]; // mass of highest res particle. 8 should be changed for internal variable?
 
+		ptf_.astep=header_.astep;
+        
 	}
 
 	void write_header_file() //PMcrd.DAT

@@ -7,6 +7,8 @@
  Copyright (C) 2012  Jose Onorbe & Oliver Hahn
  
  */
+#include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <vector>
@@ -21,57 +23,59 @@ public:
 	double omegab_, omegam_;
 	double gamma_;
     double astart_;
+    double zstart_;
 	size_t npcdm_;
+    int hsize_;
     
 protected:
     
     enum iofields {
 		id_dm_mass, id_dm_vel, id_dm_pos
-	};
-	
+    };
+
 	typedef struct io_header
 	{
 		char head[45];
 		float aexpN; // current expansion factor
-        	float aexp0; // initial expansion factor
+       	float aexp0; // initial expansion factor
 		float amplt; // Amplitude of density fluctuations
 		float astep; // Delta a -> time step. 
 				// This value is also stored in pt.dat (binary 1 float)
 				// It is recalculated by art for the next steps so just a small value should work
 		int istep; // step (=0 in IC)
-		int partw; // mass of highest res particle.
-        	float TINTG; //=0 in IC
-        	float EKIN; //SUM 0.5 * m_i*(v_i**2) in code units
-        	float EKIN1; //=0 in IC
-        	float EKIN2; //=0 in IC
-        	float AU0; //=0 in IC
-        	float AEU0; //=0 in IC
-        	int NROWC; // Number of particles in 1 dim (number of particles per page = NROW**2) 
-	        int NGRIDC; // Number of cells in 1 dim
-        	int nspecies; // number of dm species
-	        int Nseed; // random number used ( 0 for MUSIC? or set the random number used in the lowest level?)
-        	float Om0; //Omega_m
-	        float Oml0; //Omega_L
-        	float hubble; //hubble constant h=H/100
-	        float Wp5; // 
-        	float Ocurv; //Omega_k
-	        //float Omb0; // this parameter only appears in header in hydro runs
+		float partw; // mass of highest res particle.
+        float TINTG; //=0 in IC
+        float EKIN; //SUM 0.5 * m_i*(v_i**2) in code units
+        float EKIN1; //=0 in IC
+        float EKIN2; //=0 in IC
+        float AU0; //=0 in IC
+        float AEU0; //=0 in IC
+        int NROWC; // Number of particles in 1 dim (number of particles per page = NROW**2) 
+	    int NGRIDC; // Number of cells in 1 dim
+        int nspecies; // number of dm species
+	    int Nseed; // random number used ( 0 for MUSIC? or set the random number used in the lowest level?)
+        float Om0; //Omega_m
+	    float Oml0; //Omega_L
+        float hubble; //hubble constant h=H/100
+	    float Wp5; // 
+        float Ocurv; //Omega_k
+	    float Omb0; // this parameter only appears in header in hydro runs
 		float wpart[10]; // extras[0-9] particle masses from high res to low res (normalized to low res particle)
-		//  Mass of smallest particle=wpart[0]*0m0*2.746e+11*(Box/NGRID)**3 -> Msun/h
-		//  Mass of largest  particle=wpart[nspecies-1]*0m0*2.746e+11*(Box/NGRID)**3 -> Msun/h
+		    //  Mass of smallest particle=wpart[0]*0m0*2.746e+11*(Box/NGRID)**3 -> Msun/h
+		    //  Mass of largest  particle=wpart[nspecies-1]*0m0*2.746e+11*(Box/NGRID)**3 -> Msun/h
 		int lpart[10]; // extras[10-19] number of particles from high res to low res cumulative!!! 
-		//(i.e., lpart[0]=Nhigh res particles; lpart[1]=lpart[0]+N_this_level; etc) so lpart[nspecies-1]=N total
-	        float extras[80]; //extras[20-99] 
+		    //(i.e., lpart[0]=Nhigh res particles; lpart[1]=lpart[0]+N_this_level; etc) so lpart[nspecies-1]=N total
+	    float extras[80]; //extras[20-99] 
 		     //extras[9]=iLblock ->0 in IC 
-                     //extras[10]=LevMin  ->0 in IC
-                     //extras[11]=LevSmall ->0 in IC
-                     //extras[12]=LevLarge ->0 in IC
-                     //extras[13]=Omegab  ->0 in IC; fix it?
-                     //extras[14]=sig8    ->0 in IC; fix it?
-                     //extras[15]=Spslope ->0 in IC; fix it? Slope of the Power spectrum
-                     //extras[16]=iDEswtch ->0 in IC; DE Flag=0:LCDM 1:w 2:RP 3:SUGRA
-                     //extras[17]=DEw0    ->0 in IC; w0 for DE z=0
-                     //extras[18]=DEwprime ->0 in IC; DE parameter
+             //extras[10]=LevMin  ->0 in IC
+             //extras[11]=LevSmall ->0 in IC
+             //extras[12]=LevLarge ->0 in IC
+             //extras[13]=Omegab  ->0 in IC; fix it?
+             //extras[14]=sig8    ->0 in IC; fix it?
+             //extras[15]=Spslope ->0 in IC; fix it? Slope of the Power spectrum
+             //extras[16]=iDEswtch ->0 in IC; DE Flag=0:LCDM 1:w 2:RP 3:SUGRA
+             //extras[17]=DEw0    ->0 in IC; w0 for DE z=0
+             //extras[18]=DEwprime ->0 in IC; DE parameter
 		     //extras[59]= 0 or 1; is used as switch for random numbers generators [do not apply in music use 0?]
 		     //extras[60]= lux - level of luxury  [do not apply in music use 0?]
 		     //extras[79]=Lbox (Mpc/h)
@@ -147,10 +151,80 @@ protected:
 	
 	
 	// non-public member functions
-	void assemble_DM_file( void )
+	void write_header_file( void ) //PMcrd.DAT
+	{
+        std::string partfname = fname_ + "/PMcrd.dat";
+        std::ofstream ofs( partfname.c_str(), std::ios::trunc );
+        //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
+		header this_header(header_);
+		//int blksize = sizeof(header); 
+        //Should be 529 in a dm only run; 533 in a baryon run
+        //but not working for alignment so:
+        int blksize = hsize_;
+		ofs.write( (char *)&blksize, sizeof(int) );
+		//ofs.write( (char *)&this_header,sizeof(header));  //Not working because struct aligment, so:
+		ofs.write( (char *)&this_header.head,sizeof(this_header.head));   
+		ofs.write( (char *)&this_header.aexpN,sizeof(this_header.aexpN));   
+		ofs.write( (char *)&this_header.aexp0,sizeof(this_header.aexp0));   
+		ofs.write( (char *)&this_header.amplt,sizeof(this_header.amplt));   
+		ofs.write( (char *)&this_header.astep,sizeof(this_header.astep));   
+		ofs.write( (char *)&this_header.istep,sizeof(this_header.istep));   
+		ofs.write( (char *)&this_header.partw,sizeof(this_header.partw));   
+		ofs.write( (char *)&this_header.TINTG,sizeof(this_header.TINTG));   
+		ofs.write( (char *)&this_header.EKIN,sizeof(this_header.EKIN));   
+		ofs.write( (char *)&this_header.EKIN1,sizeof(this_header.EKIN1));   
+		ofs.write( (char *)&this_header.EKIN2,sizeof(this_header.EKIN2));   
+		ofs.write( (char *)&this_header.AU0,sizeof(this_header.AU0));   
+		ofs.write( (char *)&this_header.AEU0,sizeof(this_header.AEU0));   
+		ofs.write( (char *)&this_header.NROWC,sizeof(this_header.NROWC));   
+		ofs.write( (char *)&this_header.NGRIDC,sizeof(this_header.NGRIDC));   
+		ofs.write( (char *)&this_header.nspecies,sizeof(this_header.nspecies));   
+		ofs.write( (char *)&this_header.Nseed,sizeof(this_header.Nseed));   
+		ofs.write( (char *)&this_header.Om0,sizeof(this_header.Om0));   
+		ofs.write( (char *)&this_header.Oml0,sizeof(this_header.Oml0));   
+		ofs.write( (char *)&this_header.hubble,sizeof(this_header.hubble));   
+		ofs.write( (char *)&this_header.Wp5,sizeof(this_header.Wp5));   
+		ofs.write( (char *)&this_header.Ocurv,sizeof(this_header.Ocurv));   
+		if (do_baryons_) {
+		    ofs.write( (char *)&this_header.Omb0,sizeof(this_header.Omb0));   
+        }
+		ofs.write( (char *)&this_header.wpart,sizeof(this_header.wpart));   
+		ofs.write( (char *)&this_header.lpart,sizeof(this_header.lpart));   
+		ofs.write( (char *)&this_header.extras,sizeof(this_header.extras));   
+		ofs.write( (char *)&blksize, sizeof(int) );
+		ofs.close();
+		LOGINFO("ART : done writing header file.");
+	}
+
+	void write_pt_file( void ) //pt.dat
+	{
+        std::string partfname = fname_ + "/pt.dat";
+        std::ofstream ofs( partfname.c_str(), std::ios::trunc );
+        //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
+		ptf this_ptf(ptf_);
+		int blksize = sizeof(ptf); //4
+		ofs.write( (char *)&blksize, sizeof(int) );
+		ofs.write( (char *)&this_ptf,sizeof(ptf));
+		ofs.write( (char *)&blksize, sizeof(int) );
+		ofs.close();
+		LOGINFO("ART : done writing pt file.");
+	}
+
+	/*
+     The direct format write the particle data in pages. Each page of particles is read into a common block,
+	 which has the structure: X(Npage),Y(Npage),Z(Npage),Vx(Npage),Vy(Npage),Vz(Npage). 
+	 The number of particles in each page (Npage) is Npage = Nrow**2; Npages = (N_particles -1)/NPAGE +1
+	 so in last page sometimes can be tricky: N_in_last=N_particles -NPAGE*(Npages-1)
+
+	 There are NO Fortran size blocks pre or after these blocks!!
+
+	 Contradiction with documentation?? one file for each type of particle
+     however Daniel sent me just one file for a zoom all particle info together. 
+    */
+	void assemble_DM_file( void ) //PMcrs0.dat
 	{
 		// have to fix file name
-		std::string partfname = fname_ + "/somefilename.dat";
+		std::string partfname = fname_ + "/PMcrs0.dat";
 		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 		
 		// generate all temp file names
@@ -180,6 +254,8 @@ protected:
 		size_t npcdm = npcdm_;
 		
 		LOGINFO("writing DM data to ART format file");
+        //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
+
 		pistream ifs_x, ifs_y, ifs_z, ifs_vx, ifs_vy, ifs_vz, ifs_m;
 		
 		ifs_x.open( fnx, npcdm );
@@ -201,19 +277,13 @@ protected:
 			ifs_vy.read( reinterpret_cast<char*>(&tmp5[0]), n2read*sizeof(T_store) );
 			ifs_vz.read( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
 			ifs_m.read( reinterpret_cast<char*>(&tmp7[0]), n2read*sizeof(T_store) );
-			
-			for( size_t i=0; i<n2read; ++i )
-			{
-				float x,y,z,vx,vy,vz,m;
-				
-				m = tmp7[i];
-				x = tmp1[i];
-				y = tmp2[i];
-				z = tmp3[i];
-				vx = tmp4[i];
-				vy = tmp5[i];
-				vz = tmp6[i];								
-			}
+		
+            ofs.write( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp4[0]), n2read*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp5[0]), n2read*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
 
 			npleft -= n2read;
 			n2read = std::min( block_buf_size_,npleft );
@@ -226,21 +296,28 @@ protected:
 		ifs_vy.close();
 		ifs_vz.close();
 		ifs_m.close();
+		ofs.close();
 		
 		// clean up temp files
-		unlink(fnx);
+        unlink(fnx);
 		unlink(fny);
 		unlink(fnz);
 		unlink(fnvx);
 		unlink(fnvy);
 		unlink(fnvz);
 		unlink(fnm);
+
+        delete[] tmp1;
+        delete[] tmp2;
+        delete[] tmp3;
+        delete[] tmp4;
+        delete[] tmp5;
+        delete[] tmp6;
+        delete[] tmp7;
 		
 		LOGINFO("ART : done writing DM file.");
 		
 	}
-	
-	
 	
 	
 
@@ -250,7 +327,6 @@ public:
 	explicit art_output_plugin ( config_file& cf )
 	: output_plugin( cf )
 	{
-		
 		if( mkdir( fname_.c_str(), 0777 ) )
                 {
                         perror( fname_.c_str() );
@@ -258,24 +334,27 @@ public:
                 }
 
 		do_baryons_ = cf.getValueSafe<bool>("setup","baryons",false);
+        // fix to header size (alignment problem)
 		if (!do_baryons_)
-			omegab_ = 0.0;
+            hsize_ = 529; // dm run
 		else
-			omegab_  = cf.getValueSafe<double>("cosmology","Omega_b",0.0);
-	        omegam_  = cf.getValue<double>("cosmology","Omega_m");
-        	astart_  = cf.getValue<double>("cosmology","astart");
-		
+            hsize_ = 533; // hydro run
+
+		omegab_  = cf.getValueSafe<double>("cosmology","Omega_b",0.0);
+	    omegam_  = cf.getValue<double>("cosmology","Omega_m");
+        zstart_  = cf.getValue<double>("setup","zstart");
+        astart_ = 1.0/(1.0+zstart_);
 		
 		int levelmin = cf.getValue<unsigned>("setup","levelmin");
 		int levelmax = cf.getValue<unsigned>("setup","levelmax");
+        block_buf_size_ = pow(pow(2,levelmin),2); //Npage=nrow^2; Number of particles in each page
 		
-		
-
 		YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
-                gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
+        gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
 		// Set header
-	        header_.aexpN = astart_;//1.0/(1.0+header_.redshift);
-        	header_.aexp0 = header_.aexpN;
+        strcpy(header_.head,"test"); // text for the header; probably a getValue would be the best option 
+	    header_.aexpN = astart_;//1.0/(1.0+header_.redshift);
+        header_.aexp0 = header_.aexpN;
 		header_.amplt = 0.0; // Amplitude of density fluctuations
 		header_.astep = 0.0001; // Delta a -> time step. With this value we make sure that the integration problem is not big
 		header_.istep = 0; // step (=0 in IC)
@@ -286,8 +365,8 @@ public:
         	header_.EKIN2 = 0; //=0 in IC
         	header_.AU0 = 0; //=0 in IC
         	header_.AEU0 = 0; //=0 in IC
-		header_.NROWC = 0; //XX; // Number of particles in 1 dim (number of particles per page = NROW**2) 
-		header_.NGRIDC = 0; //XX; // Number of cells in 1 dim
+		header_.NROWC = pow(2,levelmin); // Number of particles in 1 dim (number of particles per page = NROW**2) 
+		header_.NGRIDC = pow(2,levelmin); // Number of cells in 1 dim
         	header_.nspecies = 0; // number of dm species
 		for( int ilevel=levelmax; ilevel>=(int)levelmin; --ilevel )
 		{
@@ -299,9 +378,9 @@ public:
         	header_.Om0 = cf.getValue<double>("cosmology","Omega_m"); //Omega_m
 	        header_.Oml0 = cf.getValue<double>("cosmology","Omega_L"); //Omega_L
         	header_.hubble = cf.getValue<double>("cosmology","H0"); //hubble constant h=H/100
-	        header_.Wp5 = cf.getValueSafe<double>("cosmology","Wp5",0.0); // 
-		header_.Ocurv = 1.0 - header_.Oml0 - header_.Om0; //cf.getValueSafe<double>("cosmology","Omega_k",0.0); //Omega_k (does not exist in cf)
-	        //header_.Omb0 = cf.getValue<double>("cosmology","Omega_b");; // this parameter only appears in header in hydro runs
+	        header_.Wp5 = 0.0; // 0.0
+		header_.Ocurv = 1.0 - header_.Oml0 - header_.Om0; //
+	        header_.Omb0 = cf.getValue<double>("cosmology","Omega_b");; // this parameter only appears in header in hydro runs
 		for (int i=0;i<10;i++)
 		{
 			header_.wpart[i] = 0.0; // extras[0-9] part. masses from high res to low res (normalized to low res particle)
@@ -313,79 +392,32 @@ public:
 				header_.wpart[i] = 1.0/pow(8.0,(header_.nspecies-i-1)); //from high res to lo res // 8 should be changed for internal variable?
 			else
 				header_.wpart[i] = ((header_.Om0-omegab_)/header_.Om0)/pow(8.0,(header_.nspecies-i-1)); 
-			//header_.lpart[i] = gh.count_leaf_cells(gh.levelmax()-i, gh.levelmax()); //cumulative!!, this won't work, you don't have gh in the constructor!
 		}
 		for (int i=0;i<80;i++)
 		{
 	        	header_.extras[i] = 0.0; //extras[20-99] 
 		}
-                header_.extras[13] = cf.getValueSafe<double>("cosmology","Omega_b",0.0); //->0 in IC; fix it?
-                header_.extras[14] = cf.getValue<double>("cosmology","sigma_8"); //->0 in IC; fix it?
-                header_.extras[15] = cf.getValue<double>("cosmology","nspec"); //->0 in IC; fix it? Slope of the Power spectrum
-                header_.extras[79] = cf.getValue<double>("setup","boxlength"); 
+        header_.extras[13] = cf.getValueSafe<double>("cosmology","Omega_b",0.0); //->0 in IC; fix it?
+        header_.extras[14] = cf.getValue<double>("cosmology","sigma_8"); //->0 in IC; fix it?
+        header_.extras[15] = cf.getValue<double>("cosmology","nspec"); //->0 in IC; fix it? Slope of the Power spectrum
+        header_.extras[79] = cf.getValue<double>("setup","boxlength"); 
 		header_.partw = header_.wpart[0]; // mass of highest res particle. 8 should be changed for internal variable?
 
 		ptf_.astep=header_.astep;
+		LOGINFO("ART : done header info.");
         
 	}
 
-	void write_header_file() //PMcrd.DAT
-	{
-        char filename[256];
-		sprintf( filename, "%s/PMcrd.DAT", fname_.c_str() );
-        std::ofstream ofs_;
-        ofs_.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
-		header this_header(header_);
-		int blksize = sizeof(header); //529 in a dm only run; 533 in a baryon run
-		ofs_.write( (char *)&blksize, sizeof(int) );
-		ofs_.write( (char *)&this_header,sizeof(header));
-		ofs_.write( (char *)&blksize, sizeof(int) );
-		ofs_.close();
-		
-	}
 
-	void write_pt_file() //pt.dat
-	{
-		char filename[256];
-		sprintf( filename, "%s/pt.dat", fname_.c_str() );
-        std::ofstream ofs_;
-        ofs_.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
-		ptf this_ptf(ptf_);
-		int blksize = sizeof(ptf); //4
-		ofs_.write( (char *)&blksize, sizeof(int) );
-		ofs_.write( (char *)&this_ptf,sizeof(ptf));
-		ofs_.write( (char *)&blksize, sizeof(int) );
-		ofs_.close();
-		
-	}
-
-	void write_dm_pages()
-	{
-		//The direct format write the particle data in pages.
-		// Each page of particles is read into a common block,
-		// which has the structure: X(Npage),Y(Npage),Z(Npage),
-		// Vx(Npage),Vy(Npage),Vz(Npage). 
-		///The number of particles in each page (Npage) is Npage = Nrow**2
-		// Npages = (N_particles -1)/NPAGE +1
-		// so in last page sometimes can be tricky
-	        // N_in_last=N_particles -NPAGE*(Npages-1)
-		// There are NO Fortran size blocks pre or after these blocks!!
-		//coordinates are in the range 1 - (NGRID+1)
-		// so scale factor is  scaleX = Box/NGRID -> to Mpc/h (Box in Mpc/h) 
-                //velocities are P = a_expansion*V_pec/(x_0H_0) where x_0 = comoving cell_size=Box/Ngrid;H_0 = Hubble at z=0
-		// so scale factor is scaleV = BoxV/AEXPN/NGRID -> to km/s (BoxV is Box*100; aexpn=current expansion factor)
-		// Contradiction with documentation?? one file for each type of particle
-		// however Daniel sent me just one file for a zoom all particle info together. 
-
-	}
     
     void write_dm_mass( const grid_hierarchy& gh )
 	{
 		//... store all the meta data about the grid hierarchy in header variables
 		npcdm_ = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
-		
-		
-		
+		for (int i=0;i<header_.nspecies;i++)
+		{
+			header_.lpart[i] = gh.count_leaf_cells(gh.levelmax()-i, gh.levelmax()); //cumulative!!
+		}
 		
         //... write data for dark matter......
 		size_t nptot = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
@@ -442,6 +474,7 @@ public:
         
         
         ofs_temp.close();
+		LOGINFO("ART : done write dm masses info.");
     }
     
     void write_dm_position( int coord, const grid_hierarchy& gh )
@@ -452,6 +485,10 @@ public:
 		temp_data.reserve( block_buf_size_ );
 		
 		
+	    //coordinates are in the range 1 - (NGRID+1)
+    	// so scale factor is  scaleX = Box/NGRID -> to Mpc/h (Box in Mpc/h) 
+		double xfac = header_.NGRIDC; 
+
 		char temp_fname[256];
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
 		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
@@ -470,7 +507,7 @@ public:
 							gh.cell_pos(ilevel, i, j, k, xx);
 							
 							//xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) + 1.0, 1.0 ) - 0.5;
-							xx[coord] = (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) - 0.5;
+							xx[coord] = (xx[coord]+(*gh.get_grid(ilevel))(i,j,k))*xfac+1.0; 
 							
 							if( temp_data.size() < block_buf_size_ )
 								temp_data.push_back( xx[coord] );
@@ -508,7 +545,11 @@ public:
 		std::vector<T_store> temp_data;
 		temp_data.reserve( block_buf_size_ );
 		
-		double vfac = 2.894405/(100.0 * astart_); 
+        //velocities are P = a_expansion*V_pec/(x_0H_0) where x_0 = comoving cell_size=Box/Ngrid;H_0 = Hubble at z=0
+	    //so scale factor is scaleV = BoxV/AEXPN/NGRID -> to km/s (BoxV is Box*100; aexpn=current expansion factor)
+                //internal units of MUSIC??
+		//double vfac = 2.894405/(100.0 * header_.aexpN); //?? 
+		double vfac =  (header_.aexpN*header_.NGRIDC)/(header_.extras[79]*100); //this is assuming internal units of MUSIC are km/s 
         
 		char temp_fname[256];
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
@@ -581,7 +622,9 @@ public:
     }
 
 	void finalize( void )
-	{ 	
+	{ 
+        this->write_header_file();
+        this->write_pt_file();    
 		this->assemble_DM_file();
 	}
 };

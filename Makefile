@@ -1,6 +1,6 @@
 ##############################################################################
 ### compile time configuration options
-FFTW3		= no
+FFTW3		= yes
 MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
 HAVEHDF5        = yes

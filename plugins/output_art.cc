@@ -352,11 +352,18 @@ public:
 		YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
         gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
 		// Set header
-        strcpy(header_.head,"test"); // text for the header; probably a getValue would be the best option 
-	    header_.aexpN = astart_;//1.0/(1.0+header_.redshift);
+        std::string thead;
+        thead=cf.getValueSafe<std::string>("output","header","ICs generated using MUSIC");
+        strcpy(header_.head,thead.c_str()); // text for the header; any easy way to add also the version?
+        std::string ws = " "; // Filling with blanks. Any better way?
+        for (int i=thead.size(); i<45;i++) 
+        {
+            header_.head[i]=ws[0]; 
+        }
+        header_.aexpN = astart_;
         header_.aexp0 = header_.aexpN;
 		header_.amplt = 0.0; // Amplitude of density fluctuations
-		header_.astep = 0.0001; // Delta a -> time step. With this value we make sure that the integration problem is not big
+		header_.astep = cf.getValue<double>("output","astep"); // Seems that this must also be in the config file 
 		header_.istep = 0; // step (=0 in IC)
 		header_.partw = 0.0; // mass of highest res particle. SEE BELOW
         	header_.TINTG = 0; //=0 in IC
@@ -545,11 +552,12 @@ public:
 		std::vector<T_store> temp_data;
 		temp_data.reserve( block_buf_size_ );
 		
-        //velocities are P = a_expansion*V_pec/(x_0H_0) where x_0 = comoving cell_size=Box/Ngrid;H_0 = Hubble at z=0
-	    //so scale factor is scaleV = BoxV/AEXPN/NGRID -> to km/s (BoxV is Box*100; aexpn=current expansion factor)
-                //internal units of MUSIC??
-		//double vfac = 2.894405/(100.0 * header_.aexpN); //?? 
-		double vfac =  (header_.aexpN*header_.NGRIDC)/(header_.extras[79]*100); //this is assuming internal units of MUSIC are km/s 
+                //In ART velocities are P = a_expansion*V_pec/(x_0H_0) 
+		// where x_0 = comoving cell_size=Box/Ngrid;H_0 = Hubble at z=0
+		// so scale factor to physical km/s is convV= BoxV/AEXPN/NGRID 
+		// (BoxV is Box*100; aexpn=current expansion factor)
+                //internal units of MUSIC: To km/s just multiply by Lbox
+		double vfac =  (header_.aexpN*header_.NGRIDC)/(100.0);  
         
 		char temp_fname[256];
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );

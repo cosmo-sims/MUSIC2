@@ -15,11 +15,24 @@
 
 #include "output.hh"
 
+template<typename T>
+inline T bytereorder(T v )
+{
+	T rval;
+	(reinterpret_cast<unsigned char*>(&rval))[3] = (reinterpret_cast<unsigned char*>(&v))[0];
+	(reinterpret_cast<unsigned char*>(&rval))[2] = (reinterpret_cast<unsigned char*>(&v))[1];
+	(reinterpret_cast<unsigned char*>(&rval))[1] = (reinterpret_cast<unsigned char*>(&v))[2];
+	(reinterpret_cast<unsigned char*>(&rval))[0] = (reinterpret_cast<unsigned char*>(&v))[3];
+	return rval;
+}
+
+
 template< typename T_store=float >
 class art_output_plugin : public output_plugin
 {
 public:
 	bool do_baryons_;
+    bool swap_endianness_;
 	double omegab_, omegam_;
 	double gamma_;
     double astart_;
@@ -209,6 +222,16 @@ protected:
 		ofs.close();
 		LOGINFO("ART : done writing pt file.");
 	}
+    
+    
+    void adjust_buf_endianness( T_store* buf )
+    {
+        if( swap_endianness_ )
+        {
+            for( size_t i=0; i<block_buf_size_; ++i )
+                buf[i] = bytereorder<T_store>( buf[i] );
+        }
+    }
 
 	/*
      The direct format write the particle data in pages. Each page of particles is read into a common block,
@@ -277,6 +300,14 @@ protected:
 			ifs_vy.read( reinterpret_cast<char*>(&tmp5[0]), n2read*sizeof(T_store) );
 			ifs_vz.read( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
 			ifs_m.read( reinterpret_cast<char*>(&tmp7[0]), n2read*sizeof(T_store) );
+            
+            adjust_buf_endianness( tmp1 );
+            adjust_buf_endianness( tmp2 );
+            adjust_buf_endianness( tmp3 );
+            adjust_buf_endianness( tmp4 );
+            adjust_buf_endianness( tmp5 );
+            adjust_buf_endianness( tmp6 );
+            adjust_buf_endianness( tmp7 );
 		
             ofs.write( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
             ofs.write( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
@@ -344,6 +375,9 @@ public:
 	    omegam_  = cf.getValue<double>("cosmology","Omega_m");
         zstart_  = cf.getValue<double>("setup","zstart");
         astart_ = 1.0/(1.0+zstart_);
+        
+        
+        swap_endianness_ = cf.getValueSafe<bool>("output","art_swap_endian");
 		
 		int levelmin = cf.getValue<unsigned>("setup","levelmin");
 		int levelmax = cf.getValue<unsigned>("setup","levelmax");

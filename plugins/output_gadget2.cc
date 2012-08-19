@@ -68,6 +68,8 @@ protected:
 	//bool bbndparticles_;
 	bool bmorethan2bnd_;
 	bool kpcunits_;
+    bool msolunits_;
+    unsigned bndparticletype_;
 	double YHe_;
     
     void distribute_particles( unsigned nfiles, size_t nfine_dm, size_t nfine_gas, size_t ncoarse, 
@@ -378,7 +380,7 @@ protected:
 		std::cout << " - Gadget2 : writing " << nptot << " particles to file...\n"
 			<< "      type   0 : " << std::setw(12) << np_fine_gas_ << "\n"
 			<< "      type   1 : " << std::setw(12) << np_fine_dm_ << "\n"
-			<< "      type   5 : " << std::setw(12) << np_coarse_dm_ << "\n";
+			<< "      type   " << bndparticletype_ << " : " << std::setw(12) << np_coarse_dm_ << "\n";
 		
 		bool bbaryons = np_fine_gas_ > 0;
 				
@@ -401,7 +403,7 @@ protected:
 		if( nfiles_ > 1 )
 		{
 			std::cout << " - Gadget2 : distributing particles to " << nfiles_ << " files\n"
-			<< "                 " << std::setw(12) << "type 0" << "," << std::setw(12) << "type 1" << "," << std::setw(12) << "type 5" << std::endl;
+			<< "                 " << std::setw(12) << "type 0" << "," << std::setw(12) << "type 1" << "," << std::setw(12) << "type " << bndparticletype_ << std::endl;
 			for( unsigned i=0; i<nfiles_; ++i )
 			{
 				std::cout << "      file " << std::setw(3) << i << " : " 
@@ -443,7 +445,7 @@ protected:
 			header this_header( header_ );
             this_header.npart[0] = nfgas_per_file[ifile];
             this_header.npart[1] = nfdm_per_file[ifile];
-            this_header.npart[5] = nc_per_file[ifile];
+            this_header.npart[bndparticletype_] = nc_per_file[ifile];
 			
 			ofs_.write( (char *)&blksize, sizeof(int) );
 			ofs_.write( (char *)&this_header, sizeof(header) );
@@ -667,7 +669,7 @@ protected:
 				const double astart = 1./(1.+header_.redshift);
 				const double npol  = (fabs(1.0-gamma_)>1e-7)? 1.0/(gamma_-1.) : 1.0;
 				const double unitv = 1e5;
-				const double h2    = header_.HubbleParam*header_.HubbleParam*0.0001;
+				const double h2    = header_.HubbleParam*header_.HubbleParam;//*0.0001;
 				const double adec  = 1.0/(160.*pow(omegab_*h2/0.022,2.0/5.0));
 				const double Tcmb0 = 2.726;
 				const double Tini  = astart<adec? Tcmb0/astart : Tcmb0/astart/astart*adec;
@@ -800,8 +802,16 @@ public:
 		
 		//... write displacements in kpc/h rather than Mpc/h?
 		kpcunits_ = cf.getValueSafe<bool>("output","gadget_usekpc",false);
+        msolunits_ = cf.getValueSafe<bool>("output","gadget_usemsol",false);
+        bndparticletype_ = cf.getValueSafe<unsigned>("output","gadget_coarsetype",5);
         
-        		
+        if( bndparticletype_ == 0 || bndparticletype_ == 1 || bndparticletype_ == 4 ||
+           bndparticletype_ > 5 )
+        {
+            LOGERR("Coarse particles cannot be of Gadget particle type %d in output plugin.", bndparticletype_);
+            throw std::runtime_error("Specified illegal Gadget particle type for coarse particles");
+        }
+        
 		//... set time ......................................................
 		header_.redshift = cf.getValue<double>("setup","zstart");
 		header_.time = 1.0/(1.0+header_.redshift);
@@ -816,7 +826,7 @@ public:
 		header_.BoxSize = cf.getValue<double>("setup","boxlength");
 		header_.Omega0 = cf.getValue<double>("cosmology","Omega_m");
 		header_.OmegaLambda = cf.getValue<double>("cosmology","Omega_L");
-		header_.HubbleParam = cf.getValue<double>("cosmology","H0");
+		header_.HubbleParam = cf.getValue<double>("cosmology","H0")/100.0;
 		
 		header_.flag_stellarage = 0;
 		header_.flag_metals = 0;
@@ -826,6 +836,8 @@ public:
 		
 		if( kpcunits_ )
 			header_.BoxSize *= 1000.0;
+        
+        
 	}
 	
 	
@@ -834,7 +846,13 @@ public:
 		double rhoc = 27.7519737; // in h^2 1e10 M_sol / Mpc^3
 		
 		if( kpcunits_ )
-			rhoc *= 10.0; // in h^2 M_sol / kpc^3
+            rhoc *= 1e-9; // in h^2 1e10 M_sol / kpc^3
+        
+        
+		//	rhoc *= 10.0; // in h^2 M_sol / kpc^3
+        
+        if( msolunits_ )
+            rhoc *= 1e10;
 		
 		// only type 1 are baryons
 		if( !do_baryons_ )
@@ -898,7 +916,7 @@ public:
 		}
 		else if( gh.levelmax() != gh.levelmin() )
 		{
-			header_.mass[5] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmin_);
+			header_.mass[bndparticletype_] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmin_);
 		}
 	}
 	
@@ -936,11 +954,11 @@ public:
 		
 		//...
 		header_.npart[1] = npfine;
-		header_.npart[5] = npcoarse;
+		header_.npart[bndparticletype_] = npcoarse;
 		header_.npartTotal[1] = (unsigned)npfine;
-		header_.npartTotal[5] = (unsigned)npcoarse;
+		header_.npartTotal[bndparticletype_] = (unsigned)npcoarse;
 		header_.npartTotalHighWord[1] = (unsigned)(npfine>>32);
-		header_.npartTotalHighWord[5] = (unsigned)(npfine>>32);
+		header_.npartTotalHighWord[bndparticletype_] = (unsigned)(npfine>>32);
 		
 		
 		
@@ -1021,11 +1039,11 @@ public:
 			npcoarse = gh.count_leaf_cells(gh.levelmin(), gh.levelmax()-1);
 		
 		header_.npart[1] = npfine;
-		header_.npart[5] = npcoarse;
+		header_.npart[bndparticletype_] = npcoarse;
 		header_.npartTotal[1] = (unsigned)npfine;
-		header_.npartTotal[5] = (unsigned)npcoarse;
+		header_.npartTotal[bndparticletype_] = (unsigned)npcoarse;
 		header_.npartTotalHighWord[1] = (unsigned)(npfine>>32);
-		header_.npartTotalHighWord[5] = (unsigned)(npfine>>32);
+		header_.npartTotalHighWord[bndparticletype_] = (unsigned)(npfine>>32);
 		
 		//... collect displacements and convert to absolute coordinates with correct
 		//... units
@@ -1275,7 +1293,10 @@ public:
 		double rhoc = 27.7519737; // h^2 1e10 M_sol / Mpc^3
 		
 		if( kpcunits_ )
-			rhoc *= 10.0; // in h^2 M_sol / kpc^3
+         rhoc *= 1e-9; // in h^2 1e10 M_sol / kpc^3
+        
+        if( msolunits_ )
+            rhoc *= 1e10;
 		
 		if( do_baryons_ )
 			header_.mass[0] = omegab_ * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmax_);

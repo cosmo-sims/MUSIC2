@@ -166,14 +166,49 @@ protected:
 	// non-public member functions
 	void write_header_file( void ) //PMcrd.DAT
 	{
-        std::string partfname = fname_ + "/PMcrd.dat";
+	    std::string partfname = fname_ + "/PMcrd.dat";
         std::ofstream ofs( partfname.c_str(), std::ios::trunc );
-        //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
+	    //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 		header this_header(header_);
-		//int blksize = sizeof(header); 
         //Should be 529 in a dm only run; 533 in a baryon run
-        //but not working for alignment so:
+	    //but not working for alignment so it must be written one by one:
         int blksize = hsize_;
+        if( swap_endianness_ ) 
+        {
+		    LOGINFO("ART : swap_endianness option enabled");
+            blksize = bytereorder( blksize );
+            this_header.aexpN = bytereorder( this_header.aexpN );
+            this_header.aexp0 = bytereorder( this_header.aexp0 );
+            this_header.amplt = bytereorder( this_header.amplt );
+            this_header.astep = bytereorder( this_header.astep );
+            this_header.istep = bytereorder( this_header.istep );
+            this_header.partw = bytereorder( this_header.partw );
+            this_header.TINTG = bytereorder( this_header.TINTG );
+            this_header.EKIN = bytereorder( this_header.EKIN );
+            this_header.EKIN1 = bytereorder( this_header.EKIN1 );
+            this_header.EKIN2 = bytereorder( this_header.EKIN2 );
+            this_header.AEU0 = bytereorder( this_header.AEU0 );
+            this_header.AEU0 = bytereorder( this_header.AEU0 );
+            this_header.NROWC = bytereorder( this_header.NROWC );
+           	this_header.NGRIDC = bytereorder( this_header.NGRIDC );
+       	    this_header.nspecies = bytereorder( this_header.nspecies );
+           	this_header.Nseed = bytereorder( this_header.Nseed );
+           	this_header.Om0 = bytereorder( this_header.Om0);
+       	    this_header.Oml0 = bytereorder( this_header.Oml0 );
+           	this_header.hubble = bytereorder( this_header.hubble );
+            this_header.Wp5 = bytereorder( this_header.Wp5 );
+            this_header.Ocurv = bytereorder( this_header.Ocurv );
+            this_header.Omb0 = bytereorder( this_header.Omb0 );
+            for( int i=0; i<10; ++i )
+		    {
+            		this_header.wpart[i] = bytereorder( this_header.wpart[i] );
+            		this_header.lpart[i] = bytereorder( this_header.lpart[i] );
+		    }
+       	    for( int i=0; i<80; ++i )
+		    {
+            		this_header.extras[i] = bytereorder( this_header.extras[i] );
+		    }
+        }
 		ofs.write( (char *)&blksize, sizeof(int) );
 		//ofs.write( (char *)&this_header,sizeof(header));  //Not working because struct aligment, so:
 		ofs.write( (char *)&this_header.head,sizeof(this_header.head));   
@@ -187,7 +222,7 @@ protected:
 		ofs.write( (char *)&this_header.EKIN,sizeof(this_header.EKIN));   
 		ofs.write( (char *)&this_header.EKIN1,sizeof(this_header.EKIN1));   
 		ofs.write( (char *)&this_header.EKIN2,sizeof(this_header.EKIN2));   
-		ofs.write( (char *)&this_header.AU0,sizeof(this_header.AU0));   
+		ofs.write( (char *)&this_header.AEU0,sizeof(this_header.AEU0));   
 		ofs.write( (char *)&this_header.AEU0,sizeof(this_header.AEU0));   
 		ofs.write( (char *)&this_header.NROWC,sizeof(this_header.NROWC));   
 		ofs.write( (char *)&this_header.NGRIDC,sizeof(this_header.NGRIDC));   
@@ -216,6 +251,11 @@ protected:
         //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 		ptf this_ptf(ptf_);
 		int blksize = sizeof(ptf); //4
+        if( swap_endianness_ ) 
+        {
+            blksize = bytereorder( blksize );
+            this_ptf = bytereorder( this_ptf );
+        }
 		ofs.write( (char *)&blksize, sizeof(int) );
 		ofs.write( (char *)&this_ptf,sizeof(ptf));
 		ofs.write( (char *)&blksize, sizeof(int) );
@@ -246,7 +286,7 @@ protected:
     */
 	void assemble_DM_file( void ) //PMcrs0.dat
 	{
-		// have to fix file name
+		// file name
 		std::string partfname = fname_ + "/PMcrs0.dat";
 		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 		
@@ -377,7 +417,7 @@ public:
         astart_ = 1.0/(1.0+zstart_);
         
         
-        swap_endianness_ = cf.getValueSafe<bool>("output","art_swap_endian");
+        swap_endianness_ = cf.getValueSafe<bool>("output","art_swap_endian",true);
 		
 		int levelmin = cf.getValue<unsigned>("setup","levelmin");
 		int levelmax = cf.getValue<unsigned>("setup","levelmax");
@@ -415,13 +455,13 @@ public:
 		}
 		//header_.partw  SEE BELOW
 			
-	        header_.Nseed = 0; // random number used ( 0 for MUSIC? or set the random number used in the lowest level?)
-        	header_.Om0 = cf.getValue<double>("cosmology","Omega_m"); //Omega_m
-	        header_.Oml0 = cf.getValue<double>("cosmology","Omega_L"); //Omega_L
-        	header_.hubble = cf.getValue<double>("cosmology","H0"); //hubble constant h=H/100
-	        header_.Wp5 = 0.0; // 0.0
+	    header_.Nseed = 0; // random number used ( 0 for MUSIC? or set the random number used in the lowest level?)
+        header_.Om0 = cf.getValue<double>("cosmology","Omega_m"); //Omega_m
+	    header_.Oml0 = cf.getValue<double>("cosmology","Omega_L"); //Omega_L
+        header_.hubble = cf.getValue<double>("cosmology","H0"); //hubble constant h=H/100
+	    header_.Wp5 = 0.0; // 0.0
 		header_.Ocurv = 1.0 - header_.Oml0 - header_.Om0; //
-	        header_.Omb0 = cf.getValue<double>("cosmology","Omega_b");; // this parameter only appears in header in hydro runs
+	    header_.Omb0 = cf.getValue<double>("cosmology","Omega_b");; // this parameter only appears in header in hydro runs
 		for (int i=0;i<10;i++)
 		{
 			header_.wpart[i] = 0.0; // extras[0-9] part. masses from high res to low res (normalized to low res particle)

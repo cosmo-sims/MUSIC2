@@ -207,8 +207,11 @@ public:
 		bool align_top			= cf.getValueSafe<bool>( "setup", "align_top", true );
 		
 		if( !align_top )
-			throw std::runtime_error("ENZO output plug-in requires that \'align_top=true\'!");
-		
+		{
+            LOGERR("ENZO output plug-in requires that \'align_top=true\'!");
+            throw std::runtime_error("ENZO output plug-in requires that \'align_top=true\'!");
+		}
+        
 		the_sim_header.dimensions.push_back( 1<<levelmin_ );
 		the_sim_header.dimensions.push_back( 1<<levelmin_ );
 		the_sim_header.dimensions.push_back( 1<<levelmin_ );
@@ -350,6 +353,83 @@ public:
                     << std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmax_, 1)+gh.size( levelmax_, 1 )) << " "
                     << std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmax_, 2)+gh.size( levelmax_, 2 )) << "\n";
         }
+        
+        
+        // determine density maximum and minimum location
+        real_t rhomax = -1e30, rhomin = 1e30;
+        double loc_rhomax[3] = {0.0,0.0,0.0}, loc_rhomin[3] = {0.0,0.0,0.0};
+        int lvl_rhomax = 0, lvl_rhomin = 0;
+        real_t rhomax_lm = -1e30, rhomin_lm = 1e30;
+        double loc_rhomax_lm[3] = {0.0,0.0,0.0}, loc_rhomin_lm[3] = {0.0,0.0,0.0};
+        
+        
+        for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
+			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
+				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
+					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
+						if( ! gh.is_refined(ilevel,i,j,k) )
+						{
+							real_t rho = (*gh.get_grid(ilevel))(i,j,k);
+                            
+                            if( rho > rhomax )
+                            {
+                                rhomax = rho;
+                                lvl_rhomax = ilevel;
+                                gh.cell_pos(ilevel, i, j, k, loc_rhomax);
+                            }
+                            
+                            if( rho < rhomin )
+                            {
+                                rhomin = rho;
+                                lvl_rhomin = ilevel;
+                                gh.cell_pos(ilevel, i, j, k, loc_rhomin);
+                            }
+                            
+                            if( ilevel == (int)gh.levelmax() )
+                            {
+                                if( rho > rhomax_lm )
+                                {
+                                    rhomax_lm = rho;
+                                    gh.cell_pos(ilevel, i, j, k, loc_rhomax_lm);
+                                }
+                                
+                                if( rho < rhomin_lm )
+                                {
+                                    rhomin_lm = rho;
+                                    gh.cell_pos(ilevel, i, j, k, loc_rhomin_lm);
+                                }
+                            }
+                        }
+        
+        double h = 1.0/(1<<levelmin_);
+        double shift[3];
+        shift[0] = -(double)cf_.getValue<int>( "setup", "shift_x" )*h;
+        shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;
+        shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
+        
+        if( gh.levelmin() != gh.levelmax() )
+        {
+            LOGINFO("Global density extrema: ");
+            LOGINFO("  minimum: delta=%f at (%.6f,%.6f,%.6f) (level=%d)",rhomin,loc_rhomin[0],loc_rhomin[1],loc_rhomin[2],lvl_rhomin);
+            LOGINFO("       shifted back at (%.6f,%.6f,%.6f)",loc_rhomin[0]+shift[0],loc_rhomin[1]+shift[1],loc_rhomin[2]+shift[2]);
+            LOGINFO("  maximum: delta=%f at (%.6f,%.6f,%.6f) (level=%d)",rhomax,loc_rhomax[0],loc_rhomax[1],loc_rhomax[2],lvl_rhomax);
+            LOGINFO("       shifted back at (%.6f,%.6f,%.6f)",loc_rhomax[0]+shift[0],loc_rhomax[1]+shift[1],loc_rhomax[2]+shift[2]);
+            
+            LOGINFO("Density extrema on finest level: ");
+            LOGINFO("  minimum: delta=%f at (%.6f,%.6f,%.6f)",rhomin_lm,loc_rhomin_lm[0],loc_rhomin_lm[1],loc_rhomin_lm[2]);
+            LOGINFO("       shifted back at (%.6f,%.6f,%.6f)",loc_rhomin_lm[0]+shift[0],loc_rhomin_lm[1]+shift[1],loc_rhomin_lm[2]+shift[2]);
+            LOGINFO("  maximum: delta=%f at (%.6f,%.6f,%.6f)",rhomax_lm,loc_rhomax_lm[0],loc_rhomax_lm[1],loc_rhomax_lm[2]);
+            LOGINFO("       shifted back at (%.6f,%.6f,%.6f)",loc_rhomax_lm[0]+shift[0],loc_rhomax_lm[1]+shift[1],loc_rhomax_lm[2]+shift[2]);
+            
+        }else{
+            LOGINFO("Global density extrema: ");
+            LOGINFO("  minimum: delta=%f at (%.6f,%.6f,%.6f)",rhomin,loc_rhomin[0],loc_rhomin[1],loc_rhomin[2]);
+            LOGINFO("       shifted back at (%.6f,%.6f,%.6f)",loc_rhomin[0]+shift[0],loc_rhomin[1]+shift[1],loc_rhomin[2]+shift[2]);
+            LOGINFO("  maximum: delta=%f at (%.6f,%.6f,%.6f)",rhomax,loc_rhomax[0],loc_rhomax[1],loc_rhomax[2]);
+            LOGINFO("       shifted back at (%.6f,%.6f,%.6f)",loc_rhomax[0]+shift[0],loc_rhomax[1]+shift[1],loc_rhomax[2]+shift[2]);
+            
+        }
+        
 	}
 	
 	

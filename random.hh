@@ -131,7 +131,7 @@ public:
 	
 	
 	//! constructor to read white noise from file
-	random_numbers( unsigned res, std::string randfname );
+	random_numbers( unsigned res, std::string randfname, bool rndsign );
 	
 
 	//! copy constructor for averaged field (not copying) hence explicit!

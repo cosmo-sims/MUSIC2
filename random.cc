@@ -53,7 +53,7 @@ random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long basesee
 }
 
 template< typename T >
-random_numbers<T>::random_numbers( unsigned res, std::string randfname )
+random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool randsign )
 : res_( res ), cubesize_( res ), ncubes_(1)
 {
 	rnums_.push_back( new Meshvar<T>( res, 0, 0, 0 ) );
@@ -66,6 +66,18 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname )
 	unsigned nx,ny,nz,blksz;
 	int iseed;
 	long seed;
+    
+    float sign4 = -1.0f;
+    double sign8 = -1.0;
+    
+    if( randsign ) // use grafic2 sign convention
+    {
+        sign4 = 1.0f;
+        sign8 = 1.0;
+    }
+    
+    
+    
 	//ifs.read( (char*)&vartype, sizeof(unsigned) );
 	
 	//... read header .../
@@ -128,7 +140,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname )
 					sum2 += in_float[q]*in_float[q];
 					++count;
 					
-					(*rnums_[0])(kk,jj,ii) = -in_float[q++];
+					(*rnums_[0])(kk,jj,ii) = sign4 * in_float[q++];
 				}
 			ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
 			if( blksz != nx*ny*sizeof(float) )
@@ -153,7 +165,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname )
 					sum += in_double[q];
 					sum2 += in_double[q]*in_double[q];
 					++count;
-					(*rnums_[0])(kk,jj,ii) = -in_double[q++];
+					(*rnums_[0])(kk,jj,ii) = sign8 * in_double[q++];
 				}
 			ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
 			if( blksz != nx*ny*sizeof(double) )
@@ -1062,6 +1074,7 @@ template< typename rng, typename T >
 void random_number_generator<rng,T>::compute_random_numbers( void )
 {
 	bool kavg = pcf_->getValueSafe<bool>("random","kaveraging",true);
+    bool rndsign = pcf_->getValueSafe<bool>("random","grafic_sign",false);
 	
 	std::vector< rng* > randc(std::max(levelmax_,levelmin_seed_)+1,(rng*)NULL);
 	
@@ -1072,7 +1085,7 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	{
 		if( rngfnames_[levelmin_seed_].size() > 0 )
 			randc[levelmin_seed_] 
-			= new rng( 1<<levelmin_seed_, rngfnames_[levelmin_seed_] );
+			= new rng( 1<<levelmin_seed_, rngfnames_[levelmin_seed_], rndsign );
 		else
 			randc[levelmin_seed_]
 			= new rng( 1<<levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_], true );
@@ -1097,8 +1110,6 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 				<< "            consistency requires that it is obtained by restriction from level " << levelmin_seed_ << std::endl;
 			
 			
-			
-			//if( levelmin_ == levelmax_ )
 			if( ilevel >= levelmax_ )
 				randc[ilevel] = new rng( *randc[ilevel+1], kavg );
 			else
@@ -1119,7 +1130,7 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	if( randc[levelmin_] == NULL )
 	{
         if( rngfnames_[levelmin_].size() > 0 )
-			randc[levelmin_] = new rng( 1<<levelmin_, rngfnames_[levelmin_] );
+			randc[levelmin_] = new rng( 1<<levelmin_, rngfnames_[levelmin_], rndsign );
 		else
 			randc[levelmin_] = new rng( 1<<levelmin_, ran_cube_size_, rngseeds_[levelmin_], true );
 	}

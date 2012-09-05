@@ -166,7 +166,7 @@ protected:
 	// non-public member functions
 	void write_header_file( void ) //PMcrd.DAT
 	{
-	    std::string partfname = fname_ + "/PMcrd.dat";
+	    std::string partfname = fname_ + "/PMcrd.DAT";
         std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 	    //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 		header this_header(header_);
@@ -284,10 +284,10 @@ protected:
 	 Contradiction with documentation?? one file for each type of particle
      however Daniel sent me just one file for a zoom all particle info together. 
     */
-	void assemble_DM_file( void ) //PMcrs0.dat
+	void assemble_DM_file( void ) //PMcrs0.DAT
 	{
 		// file name
-		std::string partfname = fname_ + "/PMcrs0.dat";
+		std::string partfname = fname_ + "/PMcrs0.DAT";
 		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 		
 		// generate all temp file names
@@ -333,6 +333,18 @@ protected:
 		n2read = std::min(block_buf_size_,npleft);
 		while( n2read > 0 )
 		{
+            // To make sure last page in zooms have 0s in non-relevant values
+            // NOT MANDATORY. Can be commented if makes things slow 
+            // but I do not like the idea of writting data in the file
+            //  that could be interpreted as real.
+            if(n2read<block_buf_size_)
+            {
+                for (int i = 0; i < block_buf_size_; i++)
+                {
+                    tmp1[i]=0.0;tmp2[i]=0.0;tmp3[i]=0.0;tmp4[i]=0.0;
+                    tmp5[i]=0.0;tmp6[i]=0.0;tmp7[i]=0.0;
+                }
+            }
 			ifs_x.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
 			ifs_y.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
 			ifs_z.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
@@ -349,12 +361,12 @@ protected:
             adjust_buf_endianness( tmp6 );
             adjust_buf_endianness( tmp7 );
 		
-            ofs.write( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
-            ofs.write( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
-            ofs.write( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
-            ofs.write( reinterpret_cast<char*>(&tmp4[0]), n2read*sizeof(T_store) );
-            ofs.write( reinterpret_cast<char*>(&tmp5[0]), n2read*sizeof(T_store) );
-            ofs.write( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp1[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp2[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp3[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp4[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp5[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp6[0]), block_buf_size_*sizeof(T_store) );
 
 			npleft -= n2read;
 			n2read = std::min( block_buf_size_,npleft );
@@ -421,7 +433,7 @@ public:
 		
 		int levelmin = cf.getValue<unsigned>("setup","levelmin");
 		int levelmax = cf.getValue<unsigned>("setup","levelmax");
-        block_buf_size_ = pow(pow(2,levelmin),2); //Npage=nrow^2; Number of particles in each page
+        block_buf_size_ = (size_t) (pow(pow(2,levelmax),2)); //Npage=nrow^2; Number of particles in each page
 		
 		YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
         gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
@@ -446,8 +458,8 @@ public:
         	header_.EKIN2 = 0; //=0 in IC
         	header_.AU0 = 0; //=0 in IC
         	header_.AEU0 = 0; //=0 in IC
-		header_.NROWC = pow(2,levelmin); // Number of particles in 1 dim (number of particles per page = NROW**2) 
-		header_.NGRIDC = pow(2,levelmin); // Number of cells in 1 dim
+		header_.NROWC = (int) pow(2,levelmax); // Number of particles in 1 dim (number of particles per page = NROW**2) 
+		header_.NGRIDC = (int) pow(2,levelmin); // Number of cells in 1 dim
         	header_.nspecies = 0; // number of dm species
 		for( int ilevel=levelmax; ilevel>=(int)levelmin; --ilevel )
 		{
@@ -568,7 +580,7 @@ public:
 		
 	    //coordinates are in the range 1 - (NGRID+1)
     	// so scale factor is  scaleX = Box/NGRID -> to Mpc/h (Box in Mpc/h) 
-		double xfac = header_.NGRIDC; 
+		double xfac = (double) header_.NGRIDC; 
 
 		char temp_fname[256];
 		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
@@ -587,8 +599,9 @@ public:
 							double xx[3];
 							gh.cell_pos(ilevel, i, j, k, xx);
 							
-							//xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) + 1.0, 1.0 ) - 0.5;
-							xx[coord] = (xx[coord]+(*gh.get_grid(ilevel))(i,j,k))*xfac+1.0; 
+							xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) + 1.0, 1.0 ) ;
+							xx[coord] = (xx[coord]*xfac)+1.0; 
+							//xx[coord] = ((xx[coord]+(*gh.get_grid(ilevel))(i,j,k))); 
 							
 							if( temp_data.size() < block_buf_size_ )
 								temp_data.push_back( xx[coord] );

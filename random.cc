@@ -957,7 +957,8 @@ void random_number_generator<rng,T>::parse_rand_parameters( void )
 		if( levelmin_seed_ < 0 && (rngfnames_[ilevel].size() > 0 || rngseeds_[ilevel] > 0) )
 			levelmin_seed_ = ilevel;
 	}
-	
+
+	LOGUSER(">>>>>>> found a seed levelmin of %d",levelmin_seed_);
 }
 
 
@@ -1178,7 +1179,10 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	//... seeds are given for a level finer than levelmin, obtain by averaging
 	if( levelmin_seed_ > levelmin_ )
 	{
-		randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_], true );//, x0, lx );
+		if( rngfnames_[levelmin_seed_].size() > 0 )
+			randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, rngfnames_[levelmin_seed_], rndsign );
+		else
+			randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_], true );//, x0, lx );
 		
 		for( int ilevel = levelmin_seed_-1; ilevel >= (int)levelmin_; --ilevel ){
 			if( rngseeds_[ilevel-levelmin_] > 0 )

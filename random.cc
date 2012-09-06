@@ -63,12 +63,15 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 		throw std::runtime_error(std::string("Could not open random number file \'")+randfname+std::string("\'!"));
 	
 	unsigned vartype;
-	unsigned nx,ny,nz,blksz;
+	unsigned nx,ny,nz,blksz32;
+    size_t blksz64;
 	int iseed;
 	long seed;
     
     float sign4 = -1.0f;
     double sign8 = -1.0;
+    
+    int addrtype = 32;
     
     if( randsign ) // use grafic2 sign convention
     {
@@ -76,16 +79,30 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
         sign8 = 1.0;
     }
     
+	//... read header and check if 32bit or 64bit block size .../
+	ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
+	ifs.read( reinterpret_cast<char*> (&nx), sizeof(unsigned) );
+	if( blksz32 != 4*sizeof(int) || nx != res_ )
+    {
+        addrtype = 64;
+        
+        ifs.seekg( 0 );
+        ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
+        ifs.read( reinterpret_cast<char*> (&nx), sizeof(unsigned) );
+        
+        if( blksz64 != 4*sizeof(int) || nx != res_ )
+            addrtype = -1;
+    }
+    ifs.seekg( 0 );
     
-    
-	//ifs.read( (char*)&vartype, sizeof(unsigned) );
-	
-	//... read header .../
-	ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
-	
-	if( blksz != 4*sizeof(int) )
+    if( addrtype < 0 )
 		throw std::runtime_error("corrupt random number file");
 	
+    if( addrtype == 32 )
+        ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
+    else
+        ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
+    
 	ifs.read( reinterpret_cast<char*> (&nx), sizeof(unsigned) );
 	ifs.read( reinterpret_cast<char*> (&ny), sizeof(unsigned) );
 	ifs.read( reinterpret_cast<char*> (&nz), sizeof(unsigned) );
@@ -100,25 +117,44 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 		
 	}
 	
-	ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
+    if( addrtype == 32 )
+        ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
+    else
+        ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
 	
 	//... read data ...//
 	
-	ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
-	if( blksz == nx*ny*sizeof(float) )
-		vartype = 4;
-	else if( blksz == nx*ny*sizeof(double) )
-		vartype = 8;
-	else
-		throw std::runtime_error("corrupt random number file");
+    if( addrtype == 32 )
+    {
+        ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
+        if( blksz32 == nx*ny*sizeof(float) )
+            vartype = 4;
+        else if( blksz32 == nx*ny*sizeof(double) )
+            vartype = 8;
+        else
+            throw std::runtime_error("corrupt random number file");
+    }else{
+    
+        ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
+        if( blksz64 == nx*ny*sizeof(float) )
+            vartype = 4;
+        else if( blksz64 == nx*ny*sizeof(double) )
+            vartype = 8;
+        else
+            throw std::runtime_error("corrupt random number file");
+    }
+    
 	
-	ifs.seekg(-sizeof(int),std::ios::cur);
+    if( addrtype == 32 )
+        ifs.seekg(-sizeof(int),std::ios::cur);
+    else
+        ifs.seekg(-sizeof(size_t),std::ios::cur);
 	
 	std::vector<float> in_float;
 	std::vector<double> in_double;
 	
 	std::cout << " - Random number file \'" << randfname << "\'\n"
-	<< "   contains " << nx*ny*nz << " numbers. Reading..." << std::endl;
+            << "   contains " << nx*ny*nz << " numbers. Reading..." << std::endl;
 	
 	double sum = 0.0, sum2 = 0.0;
 	unsigned count = 0;
@@ -127,9 +163,19 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 	{
 		for( int ii=0; ii<(int)nz; ++ii )
 		{
-			ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
-			if( blksz != nx*ny*sizeof(float) )
-				throw std::runtime_error("corrupt random number file");
+            
+            if( addrtype == 32 )
+            {
+                ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
+                if( blksz32 != nx*ny*sizeof(float) )
+                    throw std::runtime_error("corrupt random number file");
+            }
+            else
+            {
+                ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
+                if( blksz64 != nx*ny*sizeof(float) )
+                    throw std::runtime_error("corrupt random number file");
+            }
 			
 			in_float.assign(nx*ny,0.0f);
 			ifs.read( (char*)&in_float[0], nx*ny*sizeof(float) );
@@ -142,9 +188,19 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 					
 					(*rnums_[0])(kk,jj,ii) = sign4 * in_float[q++];
 				}
-			ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
-			if( blksz != nx*ny*sizeof(float) )
-				throw std::runtime_error("corrupt random number file");
+            
+            if( addrtype == 32 )
+            {
+                ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
+                if( blksz32 != nx*ny*sizeof(float) )
+                    throw std::runtime_error("corrupt random number file");
+            }
+            else
+            {
+                ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
+                if( blksz64 != nx*ny*sizeof(float) )
+                    throw std::runtime_error("corrupt random number file");
+            }
 			
 		}
 	}
@@ -152,10 +208,21 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 	{
 		for( int ii=0; ii<(int)nz; ++ii )
 		{
-			ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
-			if( blksz != nx*ny*sizeof(double) )
-				throw std::runtime_error("corrupt random number file");
 			
+            if( addrtype == 32 )
+            {
+                ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
+                if( blksz32 != nx*ny*sizeof(double) )
+                    throw std::runtime_error("corrupt random number file");
+            }
+            else
+            {
+                ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
+                if( blksz64 != nx*ny*sizeof(double) )
+                    throw std::runtime_error("corrupt random number file");
+            }
+            
+            
 			in_double.assign(nx*ny,0.0f);				
 			ifs.read( (char*)&in_double[0], nx*ny*sizeof(double) );
 			
@@ -167,9 +234,19 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 					++count;
 					(*rnums_[0])(kk,jj,ii) = sign8 * in_double[q++];
 				}
-			ifs.read( reinterpret_cast<char*> (&blksz), sizeof(int) );
-			if( blksz != nx*ny*sizeof(double) )
-				throw std::runtime_error("corrupt random number file");
+            
+            if( addrtype == 32 )
+            {
+                ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
+                if( blksz32 != nx*ny*sizeof(double) )
+                        throw std::runtime_error("corrupt random number file");
+            }
+            else
+            {
+                ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
+                if( blksz64 != nx*ny*sizeof(double) )
+                        throw std::runtime_error("corrupt random number file");
+            }
 			
 		}
 	}
@@ -179,8 +256,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 	var = sum2/count-mean*mean;
 	
 	std::cout << " - Random numbers in file have \n"
-	<< "     mean = " << mean << " and var = " << var << std::endl;
-	
+            << "     mean = " << mean << " and var = " << var << std::endl;	
 }
 
 //... copy construct by averaging down

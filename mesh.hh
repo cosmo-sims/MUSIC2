@@ -145,11 +145,25 @@ public:
 	
 	//! 3D random access to the data block via index 3-tuples
 	inline real_t& operator()(const int ix, const int iy, const int iz )
-	{	return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];	}
+	{
+#ifdef DEBUG
+        if( ix<0||ix>=(int)m_nx||iy<0||iy>=(int)m_ny||iz<0||iz>=(int)m_nz)
+            LOGERR("Array index (%d,%d,%d) out of bounds",ix,iy,iz);
+#endif
+        
+        return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];
+    }
 	
 	//! 3D random access to the data block via index 3-tuples (const)
 	inline const real_t& operator()(const int ix, const int iy, const int iz ) const
-	{	return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];	}
+	{
+#ifdef DEBUG
+        if( ix<0||ix>=(int)m_nx||iy<0||iy>=(int)m_ny||iz<0||iz>=(int)m_nz)
+            LOGERR("Array index (%d,%d,%d) out of bounds",ix,iy,iz);
+#endif
+        
+        return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];
+    }
 	
 	//! direct multiplication of the whole data block with a number
 	Meshvar<real_t>& operator*=( real_t x )
@@ -993,6 +1007,18 @@ public:
 			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
 		}
 		
+        
+        // if not doing any refinement levels, set extent to full box
+        if( levelmin_ == levelmax_ )
+        {
+            x0ref_[0] = 0.0;
+            x0ref_[1] = 0.0;
+            x0ref_[2] = 0.0;
+            
+            lxref_[0] = 1.0;
+            lxref_[1] = 1.0;
+            lxref_[2] = 1.0;
+        }
 		
 		unsigned 
 			ncoarse = 1<<levelmin_;
@@ -1090,6 +1116,13 @@ public:
 			il -= il%2; jl -= jl%2; kl -= kl%2;
 			ir += ir%2; jr += jr%2; kr += kr%2; 
 		}
+        
+        // if doing unigrid, set region to whole box
+        if( levelmin_ == levelmax_ )
+        {
+            il = jl = kl = 0;
+            ir = jr = kr = nresmax-1;
+        }
 		
 		//... make sure bounding box lies in domain
 		il = (il+nresmax)%nresmax; ir = (ir+nresmax)%nresmax;
@@ -1097,7 +1130,7 @@ public:
 		kl = (kl+nresmax)%nresmax; kr = (kr+nresmax)%nresmax;
 		
 		if( il>=ir || jl>=jr || kl>=kr )
-			LOGERR("Internal refinement bounding box error: (%d,%d,%d),(%d,%d,%d)",il,ir,jl,jr,kl,kr);
+			LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]",il,ir,jl,jr,kl,kr);
 		
 		//... determine offsets
 		if( levelmin_ != levelmax_ )
@@ -1159,7 +1192,7 @@ public:
 			}
 			
 			if( il>=ir || jl>=jr || kl>=kr || il < 0 || jl < 0 || kl < 0)
-				LOGERR("Internal refinement bounding box error: (%d,%d,%d),(%d,%d,%d)",il,ir,jl,jr,kl,kr);
+				LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]",il,ir,jl,jr,kl,kr);
 
 			oax_[ilevel] = il;		oay_[ilevel] = jl;		oaz_[ilevel] = kl;
 			nx_[ilevel]  = ir-il;	ny_[ilevel]  = jr-jl;	nz_[ilevel]  = kr-kl;

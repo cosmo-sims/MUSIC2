@@ -20,6 +20,7 @@
 
 #include <fstream>
 #include <algorithm>
+#include <map>
 #include <omp.h>
 
 #include <gsl/gsl_rng.h>
@@ -44,10 +45,20 @@ public:
 		ncubes_;	//!< number of random number cubes to cover the full mesh
 	long baseseed_;	//!< base seed from which cube seeds are computed 
 	
+    
+protected:
 	//! vector of 3D meshes (the random number cubes) with random numbers
-	std::vector< Meshvar<T>* > rnums_;	
+	std::vector< Meshvar<T>* > rnums_;
+    
+    //! map of 3D indices to cube index
+    std::map<size_t,size_t> cubemap_;
+    
+    typedef std::map<size_t,size_t>::iterator cubemap_iterator;
 	
 protected:
+    
+    //! register a cube with the hash map
+    void register_cube( int i, int j, int k);
 	
 	//! fills a subcube with random numbers
 	double fill_cube( int i, int j, int k);
@@ -70,11 +81,20 @@ protected:
 		k = (k+ncubes_)%ncubes_;
 		
 		size_t icube = (i*ncubes_+j)*ncubes_+k;
+        cubemap_iterator it = cubemap_.find( icube );
+        
+        if( it == cubemap_.end() )
+        {
+            LOGERR("attempting to copy data from non-existing RND cube %d,%d,%d",i,j,k);
+            throw std::runtime_error("attempting to copy data from non-existing RND cube");
+        }
+        
+        size_t cubeidx = it->second;
 		
 		for( int ii=0; ii<(int)cubesize_; ++ii )
 			for( int jj=0; jj<(int)cubesize_; ++jj )
 				for( int kk=0; kk<(int)cubesize_; ++kk )
-					dat(offi+ii,offj+jj,offk+kk) = (*rnums_[icube])(ii,jj,kk);
+					dat(offi+ii,offj+jj,offk+kk) = (*rnums_[cubeidx])(ii,jj,kk);
 	}
 	
 	//! free the memory associated with a subcube
@@ -95,6 +115,14 @@ protected:
 	{
 		double sum = 0.0;
 		
+        for( int i=0; i<(int)ncubes_; ++i )
+			for( int j=0; j<(int)ncubes_; ++j )
+				for( int k=0; k<(int)ncubes_; ++k )
+				{
+					int ii(i),jj(j),kk(k);
+                    register_cube(ii,jj,kk);
+                }
+        
 		#pragma omp parallel for reduction(+:sum)
 		for( int i=0; i<(int)ncubes_; ++i )
 			for( int j=0; j<(int)ncubes_; ++j )
@@ -159,15 +187,23 @@ public:
 		jc = (int)((double)j/cubesize_ + ncubes_) % ncubes_;
 		kc = (int)((double)k/cubesize_ + ncubes_) % ncubes_;
 		
-		long icube = (ic*ncubes_+jc)*ncubes_+kc;
+		size_t icube = ((size_t)ic*ncubes_+(size_t)jc)*ncubes_+(size_t)kc;
 		
-		if( rnums_[ icube ] == NULL )
-		{	
-			//... cube has not been precomputed. fill now with random numbers
-			rnums_[ icube ] = new Meshvar<T>( cubesize_, 0, 0, 0 );
-
-			if( fillrand )
-				fill_cube(ic, jc, kc);
+        cubemap_iterator it = cubemap_.find( icube );
+        
+        if( it == cubemap_.end() )
+        {
+            LOGERR("Attempting to copy data from non-existing RND cube %d,%d,%d @ %d,%d,%d",ic,jc,kc,i,j,k);
+            throw std::runtime_error("attempting to copy data from non-existing RND cube");
+            
+        }
+        
+        size_t cubeidx = it->second;
+        
+		if( rnums_[ cubeidx ] == NULL )
+		{
+            LOGERR("Attempting to access data from non-allocated RND cube %d,%d,%d",ic,jc,kc);
+            throw std::runtime_error("attempting to access data from non-allocated RND cube");
 		}
 		
 		//... determine cell in cube
@@ -175,7 +211,7 @@ public:
 		js = (j - jc * cubesize_ + cubesize_) % cubesize_;
 		ks = (k - kc * cubesize_ + cubesize_) % cubesize_;
 		
-		return (*rnums_[ icube ])(is,js,ks);
+        return (*rnums_[ cubeidx ])(is,js,ks);
 	}
 	
 	//! free all cubes

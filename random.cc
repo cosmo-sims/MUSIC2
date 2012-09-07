@@ -17,7 +17,8 @@ template< typename T >
 random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long baseseed, int *x0, int *lx )
 : res_( res ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
 {
-	std::cout << " - Generating random numbers (1) with seed " << baseseed << std::endl;
+	LOGINFO("Generating random numbers (1) with seed %ld", baseseed);
+    
 	initialize();
 	fill_subvolume( x0, lx );
 }
@@ -26,7 +27,8 @@ template< typename T >
 random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long baseseed, bool zeromean )
 : res_( res ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
 {
-	std::cout << " - Generating random numbers (2) with seed " << baseseed << std::endl;
+	LOGINFO("Generating random numbers (2) with seed %ld", baseseed);
+    
 	double mean = 0.0;
 	initialize();
 	mean = fill_all();
@@ -60,8 +62,11 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 	
 	std::ifstream ifs(randfname.c_str(), std::ios::binary);
 	if( !ifs )
-		throw std::runtime_error(std::string("Could not open random number file \'")+randfname+std::string("\'!"));
-	
+	{
+        LOGERR("Could not open random number file \'%s\'!",randfname.c_str());
+        throw std::runtime_error(std::string("Could not open random number file \'")+randfname+std::string("\'!"));
+	}
+    
 	unsigned vartype;
 	unsigned nx,ny,nz,blksz32;
     size_t blksz64;
@@ -80,7 +85,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
     }
     
 	//... read header and check if 32bit or 64bit block size .../
-	ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
+    ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
 	ifs.read( reinterpret_cast<char*> (&nx), sizeof(unsigned) );
 	if( blksz32 != 4*sizeof(int) || nx != res_ )
     {
@@ -116,14 +121,14 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 		throw std::runtime_error(errmsg);
 		
 	}
-	
+    
     if( addrtype == 32 )
         ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
     else
         ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
 	
 	//... read data ...//
-	
+    //check whether random numbers are single or double precision numbers
     if( addrtype == 32 )
     {
         ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
@@ -144,7 +149,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
             throw std::runtime_error("corrupt random number file");
     }
     
-	
+	//rewind to beginning of block
     if( addrtype == 32 )
         ifs.seekg(-sizeof(int),std::ios::cur);
     else
@@ -153,18 +158,18 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 	std::vector<float> in_float;
 	std::vector<double> in_double;
 	
-	std::cout << " - Random number file \'" << randfname << "\'\n"
-            << "   contains " << nx*ny*nz << " numbers. Reading..." << std::endl;
+	LOGINFO("Random number file \'%s\'\n   contains %ld numbers. Reading...",randfname.c_str(),nx*ny*nz);
 	
 	double sum = 0.0, sum2 = 0.0;
 	unsigned count = 0;
 	
+    //perform actual reading
 	if( vartype == 4 )
 	{
 		for( int ii=0; ii<(int)nz; ++ii )
 		{
-            
-            if( addrtype == 32 )
+
+			if( addrtype == 32 )
             {
                 ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
                 if( blksz32 != nx*ny*sizeof(float) )
@@ -188,7 +193,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 					
 					(*rnums_[0])(kk,jj,ii) = sign4 * in_float[q++];
 				}
-            
+			
             if( addrtype == 32 )
             {
                 ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
@@ -201,15 +206,13 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
                 if( blksz64 != nx*ny*sizeof(float) )
                     throw std::runtime_error("corrupt random number file");
             }
-			
 		}
 	}
 	else if( vartype == 8 )
 	{
 		for( int ii=0; ii<(int)nz; ++ii )
 		{
-			
-            if( addrtype == 32 )
+			if( addrtype == 32 )
             {
                 ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
                 if( blksz32 != nx*ny*sizeof(double) )
@@ -221,8 +224,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
                 if( blksz64 != nx*ny*sizeof(double) )
                     throw std::runtime_error("corrupt random number file");
             }
-            
-            
+
 			in_double.assign(nx*ny,0.0f);				
 			ifs.read( (char*)&in_double[0], nx*ny*sizeof(double) );
 			
@@ -234,20 +236,19 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 					++count;
 					(*rnums_[0])(kk,jj,ii) = sign8 * in_double[q++];
 				}
-            
+
             if( addrtype == 32 )
             {
                 ifs.read( reinterpret_cast<char*> (&blksz32), sizeof(int) );
                 if( blksz32 != nx*ny*sizeof(double) )
-                        throw std::runtime_error("corrupt random number file");
+                    throw std::runtime_error("corrupt random number file");
             }
             else
             {
                 ifs.read( reinterpret_cast<char*> (&blksz64), sizeof(size_t) );
                 if( blksz64 != nx*ny*sizeof(double) )
-                        throw std::runtime_error("corrupt random number file");
+                    throw std::runtime_error("corrupt random number file");
             }
-			
 		}
 	}
 	
@@ -255,8 +256,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 	mean = sum/count;
 	var = sum2/count-mean*mean;
 	
-	std::cout << " - Random numbers in file have \n"
-            << "     mean = " << mean << " and var = " << var << std::endl;	
+	LOGINFO("Random numbers in file have \n     mean = %f and var = %f", mean, var);
 }
 
 //... copy construct by averaging down
@@ -271,7 +271,7 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 	
 	if( kdegrade )
 	{
-		std::cout << " - Generating a coarse white noise field by k-space degrading\n";
+		LOGINFO("Generating a coarse white noise field by k-space degrading");
 		//... initialize properties of container		
 		res_		= rc.res_/2;
 		cubesize_	= res_;
@@ -279,8 +279,11 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 		baseseed_	= -2;
 		
 		if( sizeof(fftw_real)!=sizeof(T) )
-			throw std::runtime_error("type mismatch with fftw_real in k-space averaging");
-		
+		{
+            LOGERR("type mismatch with fftw_real in k-space averaging");
+            throw std::runtime_error("type mismatch with fftw_real in k-space averaging");
+		}
+            
 		fftw_real 
 		*rfine = new fftw_real[(size_t)rc.res_*(size_t)rc.res_*2*((size_t)rc.res_/2+1)],
 		*rcoarse = new fftw_real[(size_t)res_*(size_t)res_*2*((size_t)res_/2+1)];
@@ -397,7 +400,7 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 	}
 	else
 	{
-		std::cout << " - Generating a coarse white noise field by averaging\n";
+		LOGINFO("Generating a coarse white noise field by averaging");
 		if( rc.rnums_.size() == 1 )
 		{
 			//... initialize properties of container
@@ -457,8 +460,7 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 	rmean = sum/count;
 	rvar = sum2/count-rmean*rmean;
 	
-	std::cout << " - Restricted random numbers have\n"
-	<< "       mean = " << rmean << ", var = " << rvar << std::endl;
+	LOGINFO("Restricted random numbers have\n       mean = %f, var = %f", rmean, rvar);
 }
 
 
@@ -467,10 +469,6 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 								   bool kspace, int *x0_, int *lx_, bool zeromean )
 : res_( 2*rc.res_ ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
 {
-	
-	
-	//double mean = 0.0;
-	
 	initialize();
 	
 	int x0[3],lx[3];
@@ -481,7 +479,6 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 			lx[i]=res_;
 		}
 		fill_all();
-		
 	}
 	else
 	{
@@ -497,8 +494,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 	if( kspace )
 	{
 		
-		std::cout << " - Generating a constrained random number set with seed " << baseseed << "\n"
-		<< "    using coarse mode replacement...\n";
+		LOGINFO("Generating a constrained random number set with seed %ld\n    using coarse mode replacement...",baseseed);
 		
 		size_t nx=lx[0], ny=lx[1], nz=lx[2],
 		nxc=lx[0]/2, nyc=lx[1]/2, nzc=lx[2]/2;
@@ -653,8 +649,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 	}
 	else
 	{
-		std::cout << " - Generating a constrained random number set with seed " << baseseed << "\n"
-		<< "    using Hoffman-Ribak constraints...\n";
+		LOGINFO("Generating a constrained random number set with seed %ld\n    using Hoffman-Ribak constraints...", baseseed);
 		
 		double fac = 1./sqrt(8.0);
 		
@@ -680,6 +675,25 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 	}
 }
 
+template< typename T >
+void random_numbers<T>::register_cube( int i, int j, int k)
+{
+	i = (i+ncubes_)%ncubes_;
+	j = (j+ncubes_)%ncubes_;
+	k = (k+ncubes_)%ncubes_;
+    size_t icube = ((size_t)i*ncubes_+(size_t)j)*ncubes_+(size_t)k;
+    
+    cubemap_iterator it = cubemap_.find( icube );
+    
+    if( it == cubemap_.end() )
+    {
+        rnums_.push_back( NULL );
+        cubemap_[icube] = rnums_.size()-1;
+#ifdef DEBUG
+        LOGDEBUG("registering new cube %d,%d,%d . ID = %ld, memloc = %ld",i,j,k,icube,cubemap_[icube]);
+#endif
+    }
+}
 
 
 template< typename T >
@@ -692,22 +706,32 @@ double random_numbers<T>::fill_cube( int i, int j, int k)
 	j = (j+ncubes_)%ncubes_;
 	k = (k+ncubes_)%ncubes_;
 	
-	long icube = (i*ncubes_+j)*ncubes_+k;
+	size_t icube = ((size_t)i*ncubes_+(size_t)j)*ncubes_+(size_t)k;
 	long cubeseed = baseseed_+icube; //... each cube gets its unique seed
 	
 	gsl_rng_set( RNG, cubeseed );
+    
+    cubemap_iterator it = cubemap_.find( icube );
+    
+    if( it == cubemap_.end() )
+    {
+        LOGERR("Attempt to access non-registered random number cube!");
+        throw std::runtime_error("Attempt to access non-registered random number cube!");
+    }
+    
+    size_t cubeidx = it->second;
 	
-	if( rnums_[icube] == NULL )
-		rnums_[icube] =  new Meshvar<T>( cubesize_, 0, 0, 0 );
-	
+	if( rnums_[cubeidx] == NULL )
+		rnums_[cubeidx] =  new Meshvar<T>( cubesize_, 0, 0, 0 );
+    
 	double mean = 0.0;
 	
 	for( int ii=0; ii<(int)cubesize_; ++ii )
 		for( int jj=0; jj<(int)cubesize_; ++jj )
 			for( int kk=0; kk<(int)cubesize_; ++kk )
 			{	
-				(*rnums_[icube])(ii,jj,kk) = gsl_ran_ugaussian_ratio_method( RNG );
-				mean += (*rnums_[icube])(ii,jj,kk);
+				(*rnums_[cubeidx])(ii,jj,kk) = gsl_ran_ugaussian_ratio_method( RNG );
+				mean += (*rnums_[cubeidx])(ii,jj,kk);
 			}
 	
 	gsl_rng_free( RNG );
@@ -722,12 +746,22 @@ void random_numbers<T>::subtract_from_cube( int i, int j, int k, double val )
 	j = (j+ncubes_)%ncubes_;
 	k = (k+ncubes_)%ncubes_;
 	
-	long icube = (i*ncubes_+j)*ncubes_+k;
+	size_t icube = ((size_t)i*ncubes_+(size_t)j)*ncubes_+(size_t)k;
+    
+    cubemap_iterator it = cubemap_.find( icube );
+    
+    if( it == cubemap_.end() )
+    {
+        LOGERR("Attempt to access unallocated RND cube %d,%d,%d in random_numbers::subtract_from_cube",i,j,k);
+        throw std::runtime_error("Attempt to access unallocated RND cube in random_numbers::subtract_from_cube");
+    }
+    
+    size_t cubeidx = it->second;
 	
 	for( int ii=0; ii<(int)cubesize_; ++ii )
 		for( int jj=0; jj<(int)cubesize_; ++jj )
 			for( int kk=0; kk<(int)cubesize_; ++kk )
-				(*rnums_[icube])(ii,jj,kk) -= val;
+				(*rnums_[cubeidx])(ii,jj,kk) -= val;
 	
 }
 
@@ -738,12 +772,23 @@ void random_numbers<T>::free_cube( int i, int j, int k )
 	i = (i+ncubes_)%ncubes_;
 	j = (j+ncubes_)%ncubes_;
 	k = (k+ncubes_)%ncubes_;
+    
 	size_t icube = ((size_t)i*(size_t)ncubes_+(size_t)j)*(size_t)ncubes_+(size_t)k;
+    
+    cubemap_iterator it = cubemap_.find( icube );
+    
+    if( it == cubemap_.end() )
+    {
+        LOGERR("Attempt to access unallocated RND cube %d,%d,%d in random_numbers::free_cube",i,j,k);
+        throw std::runtime_error("Attempt to access unallocated RND cube in random_numbers::free_cube");
+    }
+    
+    size_t cubeidx = it->second;
 	
-	if( rnums_[icube] != NULL )
+	if( rnums_[cubeidx] != NULL )
 	{
-		delete rnums_[icube];
-		rnums_[icube] = NULL;
+		delete rnums_[cubeidx];
+		rnums_[cubeidx] = NULL;
 	}
 }
 
@@ -758,9 +803,7 @@ void random_numbers<T>::initialize( void )
 		cubesize_ = res_;
 	}
 	
-	std::cout << " - Generating random numbers w/ sample cube size of " << cubesize_ << std::endl;
-	
-	rnums_.assign( ncubes_*ncubes_*ncubes_, NULL );
+	LOGINFO("Generating random numbers w/ sample cube size of %d", cubesize_ );
 }
 
 template< typename T >
@@ -768,15 +811,33 @@ double random_numbers<T>::fill_subvolume( int *i0, int *n )
 {
 	int i0cube[3], ncube[3];
 	
-	i0cube[0] = (int)((double)i0[0]/cubesize_);
-	i0cube[1] = (int)((double)i0[1]/cubesize_);
-	i0cube[2] = (int)((double)i0[2]/cubesize_);
+	i0cube[0] = (int)((double)(res_+i0[0])/cubesize_);
+	i0cube[1] = (int)((double)(res_+i0[1])/cubesize_);
+	i0cube[2] = (int)((double)(res_+i0[2])/cubesize_);
 	
-	ncube[0] = (int)((double)(i0[0]+n[0])/cubesize_+1.0)-i0cube[0];
-	ncube[1] = (int)((double)(i0[1]+n[1])/cubesize_+1.0)-i0cube[1];
-	ncube[2] = (int)((double)(i0[2]+n[2])/cubesize_+1.0)-i0cube[2];
-	
+	ncube[0] = (int)(n[0]/cubesize_) + 2;
+	ncube[1] = (int)(n[1]/cubesize_) + 2;
+	ncube[2] = (int)(n[2]/cubesize_) + 2;
+    
+#ifdef DEBUG
+    LOGDEBUG("random numbers needed for region %d,%d,%d ..+ %d,%d,%d",i0[0],i0[1],i0[2],n[0],n[1],n[2]);
+    LOGDEBUG("filling cubes %d,%d,%d ..+ %d,%d,%d",i0cube[0],i0cube[1],i0cube[2],ncube[0],ncube[1],ncube[2]);
+#endif
+
 	double mean = 0.0;
+    
+    for( int i=i0cube[0]; i<i0cube[0]+ncube[0]; ++i )
+		for( int j=i0cube[1]; j<i0cube[1]+ncube[1]; ++j )
+			for( int k=i0cube[2]; k<i0cube[2]+ncube[2]; ++k )
+			{
+                int ii(i),jj(j),kk(k);
+				
+				ii = (ii+ncubes_)%ncubes_;
+				jj = (jj+ncubes_)%ncubes_;
+				kk = (kk+ncubes_)%ncubes_;
+                
+                register_cube( ii,jj,kk );
+            }
 	
 #pragma omp parallel for reduction(+:mean)
 	for( int i=i0cube[0]; i<i0cube[0]+ncube[0]; ++i )
@@ -798,6 +859,19 @@ template< typename T >
 double random_numbers<T>::fill_all( void )
 {
 	double sum = 0.0;
+    
+    for( int i=0; i<(int)ncubes_; ++i )
+		for( int j=0; j<(int)ncubes_; ++j )
+			for( int k=0; k<(int)ncubes_; ++k )
+			{
+				int ii(i),jj(j),kk(k);
+
+                                ii = (ii+ncubes_)%ncubes_;
+                                jj = (jj+ncubes_)%ncubes_;
+                                kk = (kk+ncubes_)%ncubes_;
+
+                register_cube(ii,jj,kk);
+            }
 	
 #pragma omp parallel for reduction(+:sum)
 	for( int i=0; i<(int)ncubes_; ++i )
@@ -838,7 +912,7 @@ void random_numbers<T>:: print_allocated( void )
 	for( size_t i=0; i<rnums_.size(); ++i )
 		if( rnums_[i]!=NULL ) ncount++;
 	
-	std::cerr << " -> " << ncount << " of " << ntot << " random number cubes currently allocated\n";
+	LOGINFO(" -> %d of %d random number cubes currently allocated",ncount,ntot);
 }
 
 
@@ -864,8 +938,10 @@ random_number_generator<rng,T>::random_number_generator( config_file& cf, refine
 	mem_cache_.assign(levelmax_-levelmin_+1, (std::vector<T>*)NULL);
 	
 	if( restart_ && !disk_cached_ )
-		throw std::runtime_error("Cannot restart from mem cached random numbers.");
-
+	{
+        LOGERR("Cannot restart from mem cached random numbers.");
+        throw std::runtime_error("Cannot restart from mem cached random numbers.");
+    }
 	////disk_cached_ = false;
 	
 	//... determine seed/white noise file data to be applied
@@ -945,7 +1021,7 @@ void random_number_generator<rng,T>::parse_rand_parameters( void )
 		}else{
 			rngfnames_.push_back( tempstr );
 			rngseeds_.push_back(-1);
-			std::cout << " - Random numbers for level " << std::setw(3) << i << " will be read from file.\n";
+			LOGINFO("Random numbers for level %3d will be read from file.",i);
 		}
 		
 	}
@@ -957,8 +1033,6 @@ void random_number_generator<rng,T>::parse_rand_parameters( void )
 		if( levelmin_seed_ < 0 && (rngfnames_[ilevel].size() > 0 || rngseeds_[ilevel] > 0) )
 			levelmin_seed_ = ilevel;
 	}
-
-	LOGUSER(">>>>>>> found a seed levelmin of %d",levelmin_seed_);
 }
 
 
@@ -1025,8 +1099,10 @@ void random_number_generator<rng,T>::correct_avg( int icoarse, int ifine )
 		ifcoarse.read( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
 		
 		if( nxf!=nf[0] || nyf!=nf[1] || nzf!=nf[2] || nxc!=nc[0] || nyc!=nc[1] || nzc!=nc[2] )
-			throw std::runtime_error("White noise file mismatch. This should not happen. Notify a developer!");
-		
+		{
+            LOGERR("White noise file mismatch. This should not happen. Notify a developer!");
+            throw std::runtime_error("White noise file mismatch. This should not happen. Notify a developer!");
+        }
 		int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
 		std::vector<T> deg_rand( (size_t)nxd*(size_t)nyd*(size_t)nzd, 0.0 );
 		double fac = 1.0/sqrt(8.0);
@@ -1169,7 +1245,11 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 		
 		for( int i=levelmin_seed_+1; i<=levelmin_; ++i )
 		{
-#warning add possibility to read noise from file also here!
+//#warning add possibility to read noise from file also here!
+            
+            if( rngfnames_[i].size() > 0 )
+                LOGINFO("Warning: Cannot use filenames for higher levels currently! Ignoring!");
+            
 			randc[i] = new rng( *randc[i-1], ran_cube_size_, rngseeds_[i], kavg );
 			delete randc[i-1];
 			randc[i-1] = NULL;
@@ -1179,15 +1259,15 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	//... seeds are given for a level finer than levelmin, obtain by averaging
 	if( levelmin_seed_ > levelmin_ )
 	{
-		if( rngfnames_[levelmin_seed_].size() > 0 )
-			randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, rngfnames_[levelmin_seed_], rndsign );
-		else
-			randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_], true );//, x0, lx );
+        if( rngfnames_[levelmin_seed_].size() > 0 )
+            randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, rngfnames_[levelmin_seed_], rndsign );
+        else
+            randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_], true );//, x0, lx );
 		
 		for( int ilevel = levelmin_seed_-1; ilevel >= (int)levelmin_; --ilevel ){
 			if( rngseeds_[ilevel-levelmin_] > 0 )
-				std::cerr << " - Warning: random seed for level " << ilevel << " will be ignored.\n"
-				<< "            consistency requires that it is obtained by restriction from level " << levelmin_seed_ << std::endl;
+				LOGINFO("Warning: random seed for level %d will be ignored.\n" \
+                        "            consistency requires that it is obtained by restriction from level %d", ilevel, levelmin_seed_ );
 			
 			
 			if( ilevel >= levelmax_ )
@@ -1363,6 +1443,7 @@ void random_number_generator<rng,T>:: store_rnd( int ilevel, rng* prng )
 			sprintf(fname,"grafic_wnoise_%04d.bin",ilevel);
 			
 			LOGUSER("Storing white noise field for grafic in file \'%s\'...", fname );
+            LOGDEBUG("(%d,%d,%d) -- (%d,%d,%d) -- lfac = %d",nx,ny,nz,i0,j0,k0,lfac);
 			
 			std::ofstream ofs(fname,std::ios::binary|std::ios::trunc);
 			data.assign( nx*ny, 0.0 );
@@ -1440,8 +1521,8 @@ void random_number_generator<rng,T>:: store_rnd( int ilevel, rng* prng )
 			ny = 2*prefh_->size(ilevel, 1);
 			nz = 2*prefh_->size(ilevel, 2);
 			i0 = prefh_->offset_abs(ilevel, 0) - lfac*shift[0] - nx/4;
-			j0 = prefh_->offset_abs(ilevel, 1) - lfac*shift[1] - nx/4;
-			k0 = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - nx/4;
+			j0 = prefh_->offset_abs(ilevel, 1) - lfac*shift[1] - ny/4; // was nx/4
+			k0 = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - nz/4; // was nx/4
 			
 			char fname[128];
 			sprintf(fname,"wnoise_%04d.bin",ilevel);
@@ -1488,8 +1569,8 @@ void random_number_generator<rng,T>:: store_rnd( int ilevel, rng* prng )
 			ny = 2*prefh_->size(ilevel, 1);
 			nz = 2*prefh_->size(ilevel, 2);
 			i0 = prefh_->offset_abs(ilevel, 0) - lfac*shift[0] - nx/4;
-			j0 = prefh_->offset_abs(ilevel, 1) - lfac*shift[1] - nx/4;
-			k0 = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - nx/4;
+			j0 = prefh_->offset_abs(ilevel, 1) - lfac*shift[1] - ny/4; // was nx/4
+			k0 = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - nz/4; // was nx/4
 		}
 		
 		mem_cache_[ilevel-levelmin_] = new std::vector<T>(nx*ny*nz,0.0);

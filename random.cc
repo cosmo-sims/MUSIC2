@@ -370,6 +370,7 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 #endif
 #endif
 		rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
+        cubemap_[0] = 0; // map all to single array
 		
 #pragma omp parallel for reduction(+:sum,sum2,count)
 		for( int i=0; i<nxc; i++ )
@@ -412,7 +413,8 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 			
 			//... use restriction to get consistent random numbers on coarser grid
 			mg_straight gop;
-			rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );		
+			rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
+            cubemap_[0] = 0; // map all to single array
 			gop.restrict( *rc.rnums_[0], *rnums_[0] );
 			
 #pragma omp parallel for reduction(+:sum,sum2,count)
@@ -435,6 +437,7 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 			baseseed_	= -2;
 			
 			rnums_.push_back( new Meshvar<T>( res_, 0, 0, 0 ) );
+            cubemap_[0] = 0;
 			double fac = 1.0/sqrt(8);
 			
 #pragma omp parallel for reduction(+:sum,sum2,count)
@@ -723,8 +726,8 @@ double random_numbers<T>::fill_cube( int i, int j, int k)
     size_t cubeidx = it->second;
 	
 	if( rnums_[cubeidx] == NULL )
-		rnums_[cubeidx] =  new Meshvar<T>( cubesize_, 0, 0, 0 );
-    
+        rnums_[cubeidx] =  new Meshvar<T>( cubesize_, 0, 0, 0 );
+
 	double mean = 0.0;
 	
 	for( int ii=0; ii<(int)cubesize_; ++ii )

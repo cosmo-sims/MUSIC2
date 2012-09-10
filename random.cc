@@ -59,6 +59,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 : res_( res ), cubesize_( res ), ncubes_(1)
 {
 	rnums_.push_back( new Meshvar<T>( res, 0, 0, 0 ) );
+    cubemap_[0] = 0; // create dummy map index
 	
 	std::ifstream ifs(randfname.c_str(), std::ios::binary);
 	if( !ifs )

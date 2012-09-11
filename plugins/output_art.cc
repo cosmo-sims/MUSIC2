@@ -43,7 +43,7 @@ public:
 protected:
     
     enum iofields {
-		id_dm_mass, id_dm_vel, id_dm_pos
+		id_dm_pos, id_dm_vel, id_gas_pos, id_gas_vel
     };
 
 	typedef struct io_header
@@ -233,9 +233,6 @@ protected:
 		ofs.write( (char *)&this_header.hubble,sizeof(this_header.hubble));   
 		ofs.write( (char *)&this_header.Wp5,sizeof(this_header.Wp5));   
 		ofs.write( (char *)&this_header.Ocurv,sizeof(this_header.Ocurv));   
-		if (do_baryons_) {
-		    ofs.write( (char *)&this_header.Omb0,sizeof(this_header.Omb0));   
-        }
 		ofs.write( (char *)&this_header.wpart,sizeof(this_header.wpart));   
 		ofs.write( (char *)&this_header.lpart,sizeof(this_header.lpart));   
 		ofs.write( (char *)&this_header.extras,sizeof(this_header.extras));   
@@ -276,13 +273,13 @@ protected:
 	/*
      The direct format write the particle data in pages. Each page of particles is read into a common block,
 	 which has the structure: X(Npage),Y(Npage),Z(Npage),Vx(Npage),Vy(Npage),Vz(Npage). 
-	 The number of particles in each page (Npage) is Npage = Nrow**2; Npages = (N_particles -1)/NPAGE +1
-	 so in last page sometimes can be tricky: N_in_last=N_particles -NPAGE*(Npages-1)
-
 	 There are NO Fortran size blocks pre or after these blocks!!
 
-	 Contradiction with documentation?? one file for each type of particle
-     however Daniel sent me just one file for a zoom all particle info together. 
+	 The number of particles in each page (Npage) is Npage = Nrow**2; Npages = (N_particles -1)/NPAGE +1
+	 so in last page sometimes can be tricky (zooms): N_in_last=N_particles -NPAGE*(Npages-1)
+     But keep in mind that ART expects all pages to be written in full regarding of the actual number of particles
+     you care about.
+
     */
 	void assemble_DM_file( void ) //PMcrs0.DAT
 	{
@@ -291,17 +288,16 @@ protected:
 		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 		
 		// generate all temp file names
-		char fnx[256],fny[256],fnz[256],fnvx[256],fnvy[256],fnvz[256],fnm[256];
+		char fnx[256],fny[256],fnz[256],fnvx[256],fnvy[256],fnvz[256];
 		sprintf( fnx,  "___ic_temp_%05d.bin", 100*id_dm_pos+0 );
 		sprintf( fny,  "___ic_temp_%05d.bin", 100*id_dm_pos+1 );
 		sprintf( fnz,  "___ic_temp_%05d.bin", 100*id_dm_pos+2 );
 		sprintf( fnvx, "___ic_temp_%05d.bin", 100*id_dm_vel+0 );
 		sprintf( fnvy, "___ic_temp_%05d.bin", 100*id_dm_vel+1 );
 		sprintf( fnvz, "___ic_temp_%05d.bin", 100*id_dm_vel+2 );
-		sprintf( fnm,  "___ic_temp_%05d.bin", 100*id_dm_mass  );
 		
 		// create buffers for temporary data
-		T_store *tmp1, *tmp2, *tmp3, *tmp4, *tmp5, *tmp6, *tmp7;
+		T_store *tmp1, *tmp2, *tmp3, *tmp4, *tmp5, *tmp6;
 		
 		tmp1 = new T_store[block_buf_size_];
 		tmp2 = new T_store[block_buf_size_];
@@ -309,7 +305,6 @@ protected:
 		tmp4 = new T_store[block_buf_size_];
 		tmp5 = new T_store[block_buf_size_];
 		tmp6 = new T_store[block_buf_size_];
-		tmp7 = new T_store[block_buf_size_];
 		
 		
 		// read in the data from the temporary files in slabs and write it to the output file
@@ -319,7 +314,7 @@ protected:
 		LOGINFO("writing DM data to ART format file");
         //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 
-		pistream ifs_x, ifs_y, ifs_z, ifs_vx, ifs_vy, ifs_vz, ifs_m;
+		pistream ifs_x, ifs_y, ifs_z, ifs_vx, ifs_vy, ifs_vz;
 		
 		ifs_x.open( fnx, npcdm );
 		ifs_y.open( fny, npcdm );
@@ -327,7 +322,6 @@ protected:
 		ifs_vx.open( fnvx, npcdm );
 		ifs_vy.open( fnvy, npcdm );
 		ifs_vz.open( fnvz, npcdm );
-		ifs_m.open( fnm, npcdm );
 		
 		npleft = npcdm;
 		n2read = std::min(block_buf_size_,npleft);
@@ -342,7 +336,7 @@ protected:
                 for (int i = 0; i < block_buf_size_; i++)
                 {
                     tmp1[i]=0.0;tmp2[i]=0.0;tmp3[i]=0.0;tmp4[i]=0.0;
-                    tmp5[i]=0.0;tmp6[i]=0.0;tmp7[i]=0.0;
+                    tmp5[i]=0.0;tmp6[i]=0.0;
                 }
             }
 			ifs_x.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
@@ -351,7 +345,6 @@ protected:
 			ifs_vx.read( reinterpret_cast<char*>(&tmp4[0]), n2read*sizeof(T_store) );
 			ifs_vy.read( reinterpret_cast<char*>(&tmp5[0]), n2read*sizeof(T_store) );
 			ifs_vz.read( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
-			ifs_m.read( reinterpret_cast<char*>(&tmp7[0]), n2read*sizeof(T_store) );
             
             adjust_buf_endianness( tmp1 );
             adjust_buf_endianness( tmp2 );
@@ -359,7 +352,6 @@ protected:
             adjust_buf_endianness( tmp4 );
             adjust_buf_endianness( tmp5 );
             adjust_buf_endianness( tmp6 );
-            adjust_buf_endianness( tmp7 );
 		
             ofs.write( reinterpret_cast<char*>(&tmp1[0]), block_buf_size_*sizeof(T_store) );
             ofs.write( reinterpret_cast<char*>(&tmp2[0]), block_buf_size_*sizeof(T_store) );
@@ -378,7 +370,6 @@ protected:
 		ifs_vx.close();
 		ifs_vy.close();
 		ifs_vz.close();
-		ifs_m.close();
 		ofs.close();
 		
 		// clean up temp files
@@ -388,7 +379,6 @@ protected:
 		unlink(fnvx);
 		unlink(fnvy);
 		unlink(fnvz);
-		unlink(fnm);
 
         delete[] tmp1;
         delete[] tmp2;
@@ -396,13 +386,130 @@ protected:
         delete[] tmp4;
         delete[] tmp5;
         delete[] tmp6;
-        delete[] tmp7;
 		
 		LOGINFO("ART : done writing DM file.");
 		
 	}
 	
 	
+	/*
+     ART users currently create the baryon grid structure from the dark matter data file. 
+     Therefore they have decided that the best way to implement baryons for ART in MUSIC was
+     by creating a file with the same dm format but using the baryon displacements and velocities. 
+     From this file they will create the actual grid suign their tools.
+     
+     So here we have just to re-create the dark matter file format but using the baryon data.
+    */
+	void assemble_gas_file( void ) //PMcrs0IC.DAT
+	{
+		// file name
+		std::string partfname = fname_ + "/PMcrs0IC.DAT";
+		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
+		
+		// generate all temp file names
+		char fnx[256],fny[256],fnz[256],fnvx[256],fnvy[256],fnvz[256];
+		sprintf( fnx,  "___ic_temp_%05d.bin", 100*id_gas_pos+0 );
+		sprintf( fny,  "___ic_temp_%05d.bin", 100*id_gas_pos+1 );
+		sprintf( fnz,  "___ic_temp_%05d.bin", 100*id_gas_pos+2 );
+		sprintf( fnvx, "___ic_temp_%05d.bin", 100*id_gas_vel+0 );
+		sprintf( fnvy, "___ic_temp_%05d.bin", 100*id_gas_vel+1 );
+		sprintf( fnvz, "___ic_temp_%05d.bin", 100*id_gas_vel+2 );
+		
+		// create buffers for temporary data
+		T_store *tmp1, *tmp2, *tmp3, *tmp4, *tmp5, *tmp6;
+		
+		tmp1 = new T_store[block_buf_size_];
+		tmp2 = new T_store[block_buf_size_];
+		tmp3 = new T_store[block_buf_size_];
+		tmp4 = new T_store[block_buf_size_];
+		tmp5 = new T_store[block_buf_size_];
+		tmp6 = new T_store[block_buf_size_];
+		
+		
+		// read in the data from the temporary files in slabs and write it to the output file
+		size_t npleft, n2read;
+		size_t npcgas = npcdm_; // # of gas elemets should be equal to # of dm elements
+		
+		LOGINFO("writing gas data to ART format file");
+        //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
+
+		pistream ifs_x, ifs_y, ifs_z, ifs_vx, ifs_vy, ifs_vz;
+
+		
+		ifs_x.open( fnx, npcgas );
+		ifs_y.open( fny, npcgas );
+		ifs_z.open( fnz, npcgas );
+		ifs_vx.open( fnvx, npcgas );
+		ifs_vy.open( fnvy, npcgas );
+		ifs_vz.open( fnvz, npcgas );
+		
+		npleft = npcgas;
+		n2read = std::min(block_buf_size_,npleft);
+		while( n2read > 0 )
+		{
+            // To make sure last page in zooms have 0s in non-relevant values
+            // NOT MANDATORY. Can be commented if makes things slow 
+            // but I do not like the idea of writting data in the file
+            //  that could be interpreted as real.
+            if(n2read<block_buf_size_)
+            {
+                for (int i = 0; i < block_buf_size_; i++)
+                {
+                    tmp1[i]=0.0;tmp2[i]=0.0;tmp3[i]=0.0;tmp4[i]=0.0;
+                    tmp5[i]=0.0;tmp6[i]=0.0;
+                }
+            }
+			ifs_x.read( reinterpret_cast<char*>(&tmp1[0]), n2read*sizeof(T_store) );
+			ifs_y.read( reinterpret_cast<char*>(&tmp2[0]), n2read*sizeof(T_store) );
+			ifs_z.read( reinterpret_cast<char*>(&tmp3[0]), n2read*sizeof(T_store) );
+			ifs_vx.read( reinterpret_cast<char*>(&tmp4[0]), n2read*sizeof(T_store) );
+			ifs_vy.read( reinterpret_cast<char*>(&tmp5[0]), n2read*sizeof(T_store) );
+			ifs_vz.read( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
+            
+            adjust_buf_endianness( tmp1 );
+            adjust_buf_endianness( tmp2 );
+            adjust_buf_endianness( tmp3 );
+            adjust_buf_endianness( tmp4 );
+            adjust_buf_endianness( tmp5 );
+            adjust_buf_endianness( tmp6 );
+		
+            ofs.write( reinterpret_cast<char*>(&tmp1[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp2[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp3[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp4[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp5[0]), block_buf_size_*sizeof(T_store) );
+            ofs.write( reinterpret_cast<char*>(&tmp6[0]), block_buf_size_*sizeof(T_store) );
+
+			npleft -= n2read;
+			n2read = std::min( block_buf_size_,npleft );
+		}
+		
+		ifs_x.close();
+		ifs_y.close();
+		ifs_z.close();
+		ifs_vx.close();
+		ifs_vy.close();
+		ifs_vz.close();
+		ofs.close();
+		
+		// clean up temp files
+        unlink(fnx);
+		unlink(fny);
+		unlink(fnz);
+		unlink(fnvx);
+		unlink(fnvy);
+		unlink(fnvz);
+
+        delete[] tmp1;
+        delete[] tmp2;
+        delete[] tmp3;
+        delete[] tmp4;
+        delete[] tmp5;
+        delete[] tmp6;
+		
+		LOGINFO("ART : done writing gas file.");
+		
+	}
 
 public:
 
@@ -417,11 +524,11 @@ public:
                 }
 
 		do_baryons_ = cf.getValueSafe<bool>("setup","baryons",false);
-        // fix to header size (alignment problem)
-		if (!do_baryons_)
-            hsize_ = 529; // dm run
-		else
-            hsize_ = 533; // hydro run
+        // We need to say that we want to do SPH for baryons 
+        // because if not MUSIC does not calculate/write gas positions
+        cf.insertValue("setup","do_SPH","yes");
+        // header size (alignment problem)
+        hsize_ = 529; // dm & hydro run
 
 		omegab_  = cf.getValueSafe<double>("cosmology","Omega_b",0.0);
 	    omegam_  = cf.getValue<double>("cosmology","Omega_m");
@@ -450,17 +557,18 @@ public:
         header_.aexp0 = header_.aexpN;
 		header_.amplt = 0.0; // Amplitude of density fluctuations
 		header_.astep = cf.getValue<double>("output","astep"); // Seems that this must also be in the config file 
+		ptf_.astep=header_.astep; // to write pt file
 		header_.istep = 0; // step (=0 in IC)
 		header_.partw = 0.0; // mass of highest res particle. SEE BELOW
-        	header_.TINTG = 0; //=0 in IC
-        	header_.EKIN = 0.0; //SUM 0.5 * m_i*(v_i**2) in code units
-        	header_.EKIN1 = 0; //=0 in IC
-        	header_.EKIN2 = 0; //=0 in IC
-        	header_.AU0 = 0; //=0 in IC
-        	header_.AEU0 = 0; //=0 in IC
+       	header_.TINTG = 0; //=0 in IC
+       	header_.EKIN = 0.0; //SUM 0.5 * m_i*(v_i**2) in code units. Seems that 0 is ok for ICs
+       	header_.EKIN1 = 0; //=0 in IC
+       	header_.EKIN2 = 0; //=0 in IC
+       	header_.AU0 = 0; //=0 in IC
+       	header_.AEU0 = 0; //=0 in IC
 		header_.NROWC = (int) pow(2,levelmax); // Number of particles in 1 dim (number of particles per page = NROW**2) 
 		header_.NGRIDC = (int) pow(2,levelmin); // Number of cells in 1 dim
-        	header_.nspecies = 0; // number of dm species
+       	header_.nspecies = 0; // number of dm species
 		for( int ilevel=levelmax; ilevel>=(int)levelmin; --ilevel )
 		{
         		header_.nspecies+=1; 
@@ -481,22 +589,18 @@ public:
 		}
 		for (int i=0;i<header_.nspecies;i++)
 		{
-			if (!do_baryons_)
-				header_.wpart[i] = 1.0/pow(8.0,(header_.nspecies-i-1)); //from high res to lo res // 8 should be changed for internal variable?
-			else
-				header_.wpart[i] = ((header_.Om0-omegab_)/header_.Om0)/pow(8.0,(header_.nspecies-i-1)); 
+		    header_.wpart[i] = 1.0/pow(8.0,(header_.nspecies-i-1)); //from high res to lo res // 8 should be changed for internal variable?
 		}
+		header_.partw = header_.wpart[0]; // mass of highest res particle. 
 		for (int i=0;i<80;i++)
 		{
 	        	header_.extras[i] = 0.0; //extras[20-99] 
 		}
-        header_.extras[13] = cf.getValueSafe<double>("cosmology","Omega_b",0.0); //->0 in IC; fix it?
-        header_.extras[14] = cf.getValue<double>("cosmology","sigma_8"); //->0 in IC; fix it?
-        header_.extras[15] = cf.getValue<double>("cosmology","nspec"); //->0 in IC; fix it? Slope of the Power spectrum
+        header_.extras[13] = cf.getValueSafe<double>("cosmology","Omega_b",0.0); 
+        header_.extras[14] = cf.getValue<double>("cosmology","sigma_8"); 
+        header_.extras[15] = cf.getValue<double>("cosmology","nspec"); //Slope of the Power spectrum
         header_.extras[79] = cf.getValue<double>("setup","boxlength"); 
-		header_.partw = header_.wpart[0]; // mass of highest res particle. 8 should be changed for internal variable?
 
-		ptf_.astep=header_.astep;
 		LOGINFO("ART : done header info.");
         
 	}
@@ -505,75 +609,22 @@ public:
     
     void write_dm_mass( const grid_hierarchy& gh )
 	{
-		//... store all the meta data about the grid hierarchy in header variables
-		npcdm_ = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
-		for (int i=0;i<header_.nspecies;i++)
-		{
-			header_.lpart[i] = gh.count_leaf_cells(gh.levelmax()-i, gh.levelmax()); //cumulative!!
-		}
 		
-        //... write data for dark matter......
-		size_t nptot = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
-		
-		std::vector<T_store> temp_dat;
-		temp_dat.reserve(block_buf_size_);
-		
-		char temp_fname[256];
-		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_mass );
-		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
-		
-		
-		size_t blksize = sizeof(T_store)*nptot;
-		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
-		
-		size_t nwritten = 0;
-		for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
-		{
-            double pmass = omegam_/(1ul<<(3*ilevel)); // this needs to be adjusted to have the right units
-            
-            if( do_baryons_ )
-                pmass *= (omegam_-omegab_)/omegam_;
-			
-			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
-				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
-					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-						if( ! gh.is_refined(ilevel,i,j,k) )
-						{
-							if( temp_dat.size() <  block_buf_size_ )
-								temp_dat.push_back( pmass );	
-							else
-							{
-								ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );	
-								nwritten += block_buf_size_;
-								temp_dat.clear();
-								temp_dat.push_back( pmass );	
-							}
-						}
-		}
-		
-		if( temp_dat.size() > 0 )
-		{	
-			ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*temp_dat.size() );		
-			nwritten+=temp_dat.size();
-		}
-		
-		if( nwritten != nptot )
-			throw std::runtime_error("Internal consistency error while writing temporary file for DM masses");
-		
-		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
-		
-		if( ofs_temp.bad() )
-			throw std::runtime_error("I/O error while writing temporary file for DM masses");
-        
-        
-        ofs_temp.close();
-		LOGINFO("ART : done write dm masses info.");
+        //... write data for dark matter mass......
+        // This is not needed for ART
     }
     
     void write_dm_position( int coord, const grid_hierarchy& gh )
 	{
         size_t nptot = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
-		
+		//... store all the meta data about the grid hierarchy in header variables
+        npcdm_ = nptot;
+		for (int i=0;i<header_.nspecies;i++)
+		{
+			header_.lpart[i] = gh.count_leaf_cells(gh.levelmax()-i, gh.levelmax()); //cumulative!!
+		}
+
+	    // Now, let us write the dm particle info	
 		std::vector<T_store> temp_data;
 		temp_data.reserve( block_buf_size_ );
 		
@@ -698,29 +749,143 @@ public:
     void write_dm_potential( const grid_hierarchy& gh )
 	{ }
 	
-	void write_gas_potential( const grid_hierarchy& gh )
-	{ }
 	
-	void write_gas_velocity( int coord, const grid_hierarchy& gh )
-	{
-        
-    }
 	
     void write_gas_position( int coord, const grid_hierarchy& gh )
 	{
-        //... we don't care about gas positions in art
+        
+        size_t nptot = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
+		
+		std::vector<T_store> temp_data;
+		temp_data.reserve( block_buf_size_ );
+		
+		
+	    //ART coordinates are in the range 1 - (NGRID+1)
+		double xfac = (double) header_.NGRIDC; 
+
+		char temp_fname[256];
+		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_pos+coord );
+		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+		
+		size_t blksize = sizeof(T_store)*nptot;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		size_t nwritten = 0;
+		for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
+			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
+				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
+					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
+						if( ! gh.is_refined(ilevel,i,j,k) )
+						{
+							double xx[3];
+							gh.cell_pos(ilevel, i, j, k, xx);
+							
+							xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) + 1.0, 1.0 ) ;
+							xx[coord] = (xx[coord]*xfac)+1.0; 
+							
+							if( temp_data.size() < block_buf_size_ )
+								temp_data.push_back( xx[coord] );
+							else
+							{
+								ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*block_buf_size_ );
+								nwritten += block_buf_size_;
+								temp_data.clear();
+								temp_data.push_back( xx[coord] );
+							}
+						}
+		
+		if( temp_data.size() > 0 )
+		{	
+			ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*temp_data.size() );
+			nwritten += temp_data.size();
+		}
+		
+		if( nwritten != nptot )
+			throw std::runtime_error("Internal consistency error while writing temporary file for gas positions");
+		
+		//... dump to temporary file
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		if( ofs_temp.bad() )
+			throw std::runtime_error("I/O error while writing temporary file for gas positions");
+		
+		ofs_temp.close();
+    
+    }
+
+	void write_gas_velocity( int coord, const grid_hierarchy& gh )
+	{
+        
+        size_t nptot = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());
+		
+		std::vector<T_store> temp_data;
+		temp_data.reserve( block_buf_size_ );
+		
+                //In ART velocities are P = a_expansion*V_pec/(x_0H_0) 
+		// where x_0 = comoving cell_size=Box/Ngrid;H_0 = Hubble at z=0
+		// so scale factor to physical km/s is convV= BoxV/AEXPN/NGRID 
+		// (BoxV is Box*100; aexpn=current expansion factor)
+                //internal units of MUSIC: To km/s just multiply by Lbox
+		double vfac =  (header_.aexpN*header_.NGRIDC)/(100.0);  
+        
+		char temp_fname[256];
+		sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_vel+coord );
+		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
+		
+		size_t blksize = sizeof(T_store)*nptot;
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		size_t nwritten = 0;
+		for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
+			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
+				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
+					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
+						if( ! gh.is_refined(ilevel,i,j,k) )
+						{
+							if( temp_data.size() < block_buf_size_ )
+								temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
+							else 
+							{
+								ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*block_buf_size_ );
+								nwritten += block_buf_size_;
+								temp_data.clear();
+								temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
+							}
+							
+						}
+		
+		if( temp_data.size() > 0 )
+		{	
+			ofs_temp.write( (char*)&temp_data[0], sizeof(T_store)*temp_data.size() );
+			nwritten += temp_data.size();
+		}
+		
+		if( nwritten != nptot )
+			throw std::runtime_error("Internal consistency error while writing temporary file for gas velocities");
+		
+		//... dump to temporary file
+		ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+		
+		if( ofs_temp.bad() )
+			throw std::runtime_error("I/O error while writing temporary file for gas velocities");
+		
+		ofs_temp.close();
     }
     
     void write_gas_density( const grid_hierarchy& gh )
-	{
-        
-    }
+	{ }
+	void write_gas_potential( const grid_hierarchy& gh )
+	{ }
 
 	void finalize( void )
 	{ 
         this->write_header_file();
         this->write_pt_file();    
 		this->assemble_DM_file();
+        if(do_baryons_)
+        {
+            this->assemble_gas_file();
+        }
 	}
 };
 

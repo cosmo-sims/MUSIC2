@@ -184,6 +184,14 @@ void print_hierarchy_stats( config_file& cf, const refinement_hierarchy& rh )
 		{
 			std::cout << "-------------------------------------------------------------\n";
 			std::cout << " - Finest level :\n";
+
+			if( dx*rfac > 0.1 )	
+			  std::cout << "                   extent =  " << dx*rfac*rh.size(ilevel,0) << " x " << dx*rfac*rh.size(ilevel,1) << " x " << dx*rfac * rh.size(ilevel,2) << " h-3 Mpc**3\n";
+			else if( dx*rfac > 1e-4 )
+			  std::cout << "                   extent =  " << dx*rfac*1000.0*rh.size(ilevel,0) << " x " << dx*rfac*1000.0*rh.size(ilevel,1) << " x " << dx*rfac*1000.0*rh.size(ilevel,2) << " h-3 kpc**3\n";
+			else
+			  std::cout << "                   extent =  " << dx*rfac*1.e6*rh.size(ilevel,0) << " x " << dx*rfac*1.e6*rh.size(ilevel,1) << " x " << dx*rfac*1.e6 * rh.size(ilevel,2) << " h-3 pc**3\n";
+
 			std::cout << "                 mtotgrid =  " << mtotgrid << " h-1 M_o\n";
 			std::cout << "            particle mass =  " << cmass*rfac3 << " h-1 M_o\n";
 			if( bbaryons )

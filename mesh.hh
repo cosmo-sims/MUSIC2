@@ -609,6 +609,26 @@ public:
 		if( ppos[0] >= 1.0 || ppos[1] >= 1.0 || ppos[2] >= 1.0 )
 			std::cerr << " - Cell seems outside domain! : (" << ppos[0] << ", " << ppos[1] << ", " << ppos[2] << "\n";
 	}
+    
+    
+    //! get the bounding box of a grid in code units
+    /*! returns the bounding box of a grid at specified level in code units
+     *  @param ilevel the refinement level of the grid
+     *  @param left pointer to a double[3] array to which the left corner is written
+     *  @param right pointer to a double[3] array to which the right corner is written
+     *  @return none
+     */
+    void grid_bbox( unsigned ilevel, double *left, double *right ) const
+    {
+        double h = 1.0/(1<<ilevel);//, htop = h*2.0;
+		left[0] = h*((double)offset_abs(ilevel,0));
+		left[1] = h*((double)offset_abs(ilevel,1));
+		left[2] = h*((double)offset_abs(ilevel,2));
+        
+        right[0] = left[0] + h*((double)size(ilevel,0));
+        right[1] = left[1] + h*((double)size(ilevel,1));
+        right[2] = left[2] + h*((double)size(ilevel,2));
+    }
 	
 	//! checks whether a given grid cell is refined
 	/*! a grid cell counts as refined if it is divided into 8 cells at the next higher level

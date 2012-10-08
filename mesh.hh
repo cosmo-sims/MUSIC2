@@ -1003,7 +1003,7 @@ public:
 		  temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
 		  sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
 		  bhave_nref = false;
-		}else{
+		}else if( cf_.containsKey("setup","ref_dims") ){
 		    temp = cf_.getValue<std::string>("setup","ref_dims");
 		    sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
 		    bhave_nref = true;

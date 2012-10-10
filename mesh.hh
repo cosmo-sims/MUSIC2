@@ -1018,20 +1018,29 @@ public:
 		if( cf_.containsKey("setup","ref_extent") && cf_.containsKey("setup","ref_dims") )
 		  throw std::runtime_error("Found both ref_extent and ref_dims. You can only specify one.");
 
+        if( levelmin_ != levelmax_ )
+        {
+            if( !cf_.containsKey("setup","ref_offset") && !cf_.containsKey("setup","ref_center") )
+                throw std::runtime_error("Found levelmin!=levelmax but neither ref_offset nor ref_center was specified.");
+            if( !cf_.containsKey("setup","ref_extent") && !cf_.containsKey("setup","ref_dims") )
+                throw std::runtime_error("Found levelmin!=levelmax but neither ref_extent nor ref_dims was specified.");
+        }
+        
+        
 		if( cf_.containsKey("setup","ref_extent") )
 		{
-		  temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
-		  sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
-		  bhave_nref = false;
-		}else{
-		    temp = cf_.getValue<std::string>("setup","ref_dims");
-		    sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
-		    bhave_nref = true;
+            temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
+                sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
+            bhave_nref = false;
+		}else if( cf_.containsKey("setup","ref_dims") ){
+            temp = cf_.getValue<std::string>("setup","ref_dims");
+            sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
+            bhave_nref = true;
 
-		    lxref_[0] = lnref_[0] * 1.0/(double)(1<<levelmax_);
-		    lxref_[1] = lnref_[1] * 1.0/(double)(1<<levelmax_);
-		    lxref_[2] = lnref_[2] * 1.0/(double)(1<<levelmax_);
-  	        }
+            lxref_[0] = lnref_[0] * 1.0/(double)(1<<levelmax_);
+            lxref_[1] = lnref_[1] * 1.0/(double)(1<<levelmax_);
+            lxref_[2] = lnref_[2] * 1.0/(double)(1<<levelmax_);
+        }
 
 		
 		if( cf_.containsKey("setup","ref_center") )
@@ -1041,7 +1050,7 @@ public:
 			x0ref_[0] = fmod( x0ref_[0]-0.5*lxref_[0]+1.0,1.0);
 			x0ref_[1] = fmod( x0ref_[1]-0.5*lxref_[1]+1.0,1.0);
 			x0ref_[2] = fmod( x0ref_[2]-0.5*lxref_[2]+1.0,1.0);			
-		}else{
+		}else if( cf_.containsKey("setup","ref_offset") ){
 			temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
 			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
 		}

@@ -7,7 +7,7 @@
 //  Copyright 2011 KIPAC/SLAC. All rights reserved.
 //
 
-
+#include <unistd.h>
 #include <stdio.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>

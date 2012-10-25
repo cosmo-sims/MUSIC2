@@ -145,11 +145,25 @@ public:
 	
 	//! 3D random access to the data block via index 3-tuples
 	inline real_t& operator()(const int ix, const int iy, const int iz )
-	{	return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];	}
+	{
+#ifdef DEBUG
+        if( ix<0||ix>=(int)m_nx||iy<0||iy>=(int)m_ny||iz<0||iz>=(int)m_nz)
+            LOGERR("Array index (%d,%d,%d) out of bounds",ix,iy,iz);
+#endif
+        
+        return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];
+    }
 	
 	//! 3D random access to the data block via index 3-tuples (const)
 	inline const real_t& operator()(const int ix, const int iy, const int iz ) const
-	{	return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];	}
+	{
+#ifdef DEBUG
+        if( ix<0||ix>=(int)m_nx||iy<0||iy>=(int)m_ny||iz<0||iz>=(int)m_nz)
+            LOGERR("Array index (%d,%d,%d) out of bounds",ix,iy,iz);
+#endif
+        
+        return m_pdata[ ((size_t)ix*m_ny+(size_t)iy)*m_nz + (size_t)iz ];
+    }
 	
 	//! direct multiplication of the whole data block with a number
 	Meshvar<real_t>& operator*=( real_t x )
@@ -595,6 +609,26 @@ public:
 		if( ppos[0] >= 1.0 || ppos[1] >= 1.0 || ppos[2] >= 1.0 )
 			std::cerr << " - Cell seems outside domain! : (" << ppos[0] << ", " << ppos[1] << ", " << ppos[2] << "\n";
 	}
+    
+    
+    //! get the bounding box of a grid in code units
+    /*! returns the bounding box of a grid at specified level in code units
+     *  @param ilevel the refinement level of the grid
+     *  @param left pointer to a double[3] array to which the left corner is written
+     *  @param right pointer to a double[3] array to which the right corner is written
+     *  @return none
+     */
+    void grid_bbox( unsigned ilevel, double *left, double *right ) const
+    {
+        double h = 1.0/(1<<ilevel);//, htop = h*2.0;
+		left[0] = h*((double)offset_abs(ilevel,0));
+		left[1] = h*((double)offset_abs(ilevel,1));
+		left[2] = h*((double)offset_abs(ilevel,2));
+        
+        right[0] = left[0] + h*((double)size(ilevel,0));
+        right[1] = left[1] + h*((double)size(ilevel,1));
+        right[2] = left[2] + h*((double)size(ilevel,2));
+    }
 	
 	//! checks whether a given grid cell is refined
 	/*! a grid cell counts as refined if it is divided into 8 cells at the next higher level
@@ -945,6 +979,9 @@ class refinement_hierarchy
 	double 
 		x0ref_[3],	//!< coordinates of refinement region origin (in [0..1[)
 		lxref_[3];	//!< extent of refinement region (int [0..1[)
+
+        size_t lnref_[3];
+  bool   bhave_nref;
 	
 	int xshift_[3];	//!< shift of refinement region in coarse cells (in order to center it in the domain)
 	
@@ -978,8 +1015,33 @@ public:
 		if( cf_.containsKey("setup","ref_offset") && cf_.containsKey("setup","ref_center") )
 			throw std::runtime_error("Found both ref_offset and ref_center. You can only specify one.");
 		
-		temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
-		sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
+		if( cf_.containsKey("setup","ref_extent") && cf_.containsKey("setup","ref_dims") )
+		  throw std::runtime_error("Found both ref_extent and ref_dims. You can only specify one.");
+
+        if( levelmin_ != levelmax_ )
+        {
+            if( !cf_.containsKey("setup","ref_offset") && !cf_.containsKey("setup","ref_center") )
+                throw std::runtime_error("Found levelmin!=levelmax but neither ref_offset nor ref_center was specified.");
+            if( !cf_.containsKey("setup","ref_extent") && !cf_.containsKey("setup","ref_dims") )
+                throw std::runtime_error("Found levelmin!=levelmax but neither ref_extent nor ref_dims was specified.");
+        }
+        
+        
+		if( cf_.containsKey("setup","ref_extent") )
+		{
+            temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
+                sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
+            bhave_nref = false;
+		}else if( cf_.containsKey("setup","ref_dims") ){
+            temp = cf_.getValue<std::string>("setup","ref_dims");
+            sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
+            bhave_nref = true;
+
+            lxref_[0] = lnref_[0] * 1.0/(double)(1<<levelmax_);
+            lxref_[1] = lnref_[1] * 1.0/(double)(1<<levelmax_);
+            lxref_[2] = lnref_[2] * 1.0/(double)(1<<levelmax_);
+        }
+
 		
 		if( cf_.containsKey("setup","ref_center") )
 		{
@@ -988,11 +1050,25 @@ public:
 			x0ref_[0] = fmod( x0ref_[0]-0.5*lxref_[0]+1.0,1.0);
 			x0ref_[1] = fmod( x0ref_[1]-0.5*lxref_[1]+1.0,1.0);
 			x0ref_[2] = fmod( x0ref_[2]-0.5*lxref_[2]+1.0,1.0);			
-		}else{
+		}else if( cf_.containsKey("setup","ref_offset") ){
 			temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
 			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
 		}
+
+
 		
+        
+        // if not doing any refinement levels, set extent to full box
+        if( levelmin_ == levelmax_ )
+        {
+            x0ref_[0] = 0.0;
+            x0ref_[1] = 0.0;
+            x0ref_[2] = 0.0;
+            
+            lxref_[0] = 1.0;
+            lxref_[1] = 1.0;
+            lxref_[2] = 1.0;
+        }
 		
 		unsigned 
 			ncoarse = 1<<levelmin_;
@@ -1060,6 +1136,16 @@ public:
 		{
 			//... require alignment with top grid
 			unsigned nref = 1<<(levelmax_-levelmin_+1);
+
+			if( bhave_nref )
+			  {
+			    if( lnref_[0] % (1ul<<(levelmax_-levelmin_)) != 0 ||
+				lnref_[1] % (1ul<<(levelmax_-levelmin_)) != 0 ||
+				lnref_[2] % (1ul<<(levelmax_-levelmin_)) != 0 )
+			      throw std::runtime_error("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
+
+			  }
+
 			
 			il = (int)((double)il/nref)*nref;
 			jl = (int)((double)jl/nref)*nref;
@@ -1090,6 +1176,20 @@ public:
 			il -= il%2; jl -= jl%2; kl -= kl%2;
 			ir += ir%2; jr += jr%2; kr += kr%2; 
 		}
+        
+        // if doing unigrid, set region to whole box
+        if( levelmin_ == levelmax_ )
+        {
+            il = jl = kl = 0;
+            ir = jr = kr = nresmax-1;
+        }
+		  if( bhave_nref )
+		    {
+		      ir = il+lnref_[0];
+		      jr = jl+lnref_[1];
+		      kr = kl+lnref_[2];
+
+		    }
 		
 		//... make sure bounding box lies in domain
 		il = (il+nresmax)%nresmax; ir = (ir+nresmax)%nresmax;
@@ -1097,7 +1197,7 @@ public:
 		kl = (kl+nresmax)%nresmax; kr = (kr+nresmax)%nresmax;
 		
 		if( il>=ir || jl>=jr || kl>=kr )
-			LOGERR("Internal refinement bounding box error: (%d,%d,%d),(%d,%d,%d)",il,ir,jl,jr,kl,kr);
+			LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]",il,ir,jl,jr,kl,kr);
 		
 		//... determine offsets
 		if( levelmin_ != levelmax_ )
@@ -1112,6 +1212,10 @@ public:
 			
 			if( equal_extent_ )
 			{
+
+			  if( bhave_nref && (lnref_[0]!=lnref_[1]||lnref_[0]!=lnref_[2]) )
+			    throw std::runtime_error("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
+			    
 				size_t ilevel = levelmax_;
 				size_t nmax = std::max( nx_[ilevel], std::max( ny_[ilevel], nz_[ilevel] ) );				
 				int dx = (int)((double)(nmax-nx_[ilevel])*0.5);
@@ -1159,7 +1263,7 @@ public:
 			}
 			
 			if( il>=ir || jl>=jr || kl>=kr || il < 0 || jl < 0 || kl < 0)
-				LOGERR("Internal refinement bounding box error: (%d,%d,%d),(%d,%d,%d)",il,ir,jl,jr,kl,kr);
+				LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]",il,ir,jl,jr,kl,kr);
 
 			oax_[ilevel] = il;		oay_[ilevel] = jl;		oaz_[ilevel] = kl;
 			nx_[ilevel]  = ir-il;	ny_[ilevel]  = jr-jl;	nz_[ilevel]  = kr-kl;

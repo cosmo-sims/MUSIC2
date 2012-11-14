@@ -166,7 +166,12 @@ protected:
 	// non-public member functions
 	void write_header_file( void ) //PMcrd.DAT
 	{
-	    std::string partfname = fname_ + "/PMcrd.DAT";
+        char* fout;
+        if(do_baryons_){
+            fout = "/PMcrdIC.DAT";}
+        else{
+	        fout = "/PMcrd.DAT";}
+	    std::string partfname = fname_ + fout;
         std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 	    //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 		header this_header(header_);
@@ -284,7 +289,12 @@ protected:
 	void assemble_DM_file( void ) //PMcrs0.DAT
 	{
 		// file name
-		std::string partfname = fname_ + "/PMcrs0.DAT";
+        char* fout;
+        if(do_baryons_) {
+	        fout = "/PMcrs0IC.DAT";}
+        else {
+		    fout = "/PMcrs0.DAT";}
+		std::string partfname = fname_ + fout;
 		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 		
 		// generate all temp file names
@@ -333,7 +343,7 @@ protected:
             //  that could be interpreted as real.
             if(n2read<block_buf_size_)
             {
-                for (int i = 0; i < block_buf_size_; i++)
+                for (int i = 0; i < int(block_buf_size_); i++)
                 {
                     tmp1[i]=0.0;tmp2[i]=0.0;tmp3[i]=0.0;tmp4[i]=0.0;
                     tmp5[i]=0.0;tmp6[i]=0.0;
@@ -400,10 +410,10 @@ protected:
      
      So here we have just to re-create the dark matter file format but using the baryon data.
     */
-	void assemble_gas_file( void ) //PMcrs0IC.DAT
+	void assemble_gas_file( void ) //PMcrs0_GAS.DAT
 	{
 		// file name
-		std::string partfname = fname_ + "/PMcrs0IC.DAT";
+		std::string partfname = fname_ + "/PMcrs0_GAS.DAT";
 		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 		
 		// generate all temp file names
@@ -453,7 +463,7 @@ protected:
             //  that could be interpreted as real.
             if(n2read<block_buf_size_)
             {
-                for (int i = 0; i < block_buf_size_; i++)
+                for (int i = 0; i < int(block_buf_size_); i++)
                 {
                     tmp1[i]=0.0;tmp2[i]=0.0;tmp3[i]=0.0;tmp4[i]=0.0;
                     tmp5[i]=0.0;tmp6[i]=0.0;
@@ -506,8 +516,16 @@ protected:
         delete[] tmp4;
         delete[] tmp5;
         delete[] tmp6;
-		
+
 		LOGINFO("ART : done writing gas file.");
+        // Temperature
+        const double Tcmb0 = 2.726;
+        const double h2    = header_.hubble*header_.hubble;
+        const double adec  = 1.0/(160.*pow(omegab_*h2/0.022,2.0/5.0));
+        const double Tini  = astart_<adec? Tcmb0/astart_ : Tcmb0/astart_/astart_*adec;
+        const double mu    = (Tini>1.e4) ? 4.0/(8.-5.*YHe_) : 4.0/(1.+3.*(1.-YHe_));
+		LOGINFO("ART : set initial gas temperature to %.3f K (%.3f K/mu)",Tini, Tini/mu);
+
 		
 	}
 
@@ -578,7 +596,7 @@ public:
 	    header_.Nseed = 0; // random number used ( 0 for MUSIC? or set the random number used in the lowest level?)
         header_.Om0 = cf.getValue<double>("cosmology","Omega_m"); //Omega_m
 	    header_.Oml0 = cf.getValue<double>("cosmology","Omega_L"); //Omega_L
-        header_.hubble = cf.getValue<double>("cosmology","H0"); //hubble constant h=H/100
+        header_.hubble = cf.getValue<double>("cosmology","H0")/100; //hubble constant h=H/100
 	    header_.Wp5 = 0.0; // 0.0
 		header_.Ocurv = 1.0 - header_.Oml0 - header_.Om0; //
 	    header_.Omb0 = cf.getValue<double>("cosmology","Omega_b");; // this parameter only appears in header in hydro runs

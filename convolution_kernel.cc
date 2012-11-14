@@ -621,7 +621,7 @@ namespace convolution{
 		{
 				
 			LOGUSER("Deconvolving fine kernel...");
-			std::cout << " - Deconvoling density kernel...\n";
+			std::cout << " - Deconvolving density kernel...\n";
 			
 			
 			

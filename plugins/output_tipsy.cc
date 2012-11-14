@@ -67,6 +67,7 @@ protected:
 	int nsph ;
 	int ndark ;
 	int nstar ;
+	int pad ; // add the pad to make it 8-byte aligned
     };
     
     enum iofields {
@@ -92,6 +93,7 @@ protected:
     bool with_baryons_;
     size_t np_fine_gas_, np_fine_dm_, np_coarse_dm_;
     
+    bool native_;
     
     class pistream : public std::ifstream
     {
@@ -209,15 +211,13 @@ protected:
     
     int convert_header_XDR( XDR *pxdrs, struct dump* ph )
     {
-	int pad = 0;
-	
 	if (!xdr_double(pxdrs,&ph->time)) return 0;
 	if (!xdr_int(pxdrs,&ph->nbodies)) return 0;
 	if (!xdr_int(pxdrs,&ph->ndim)) return 0;
 	if (!xdr_int(pxdrs,&ph->nsph)) return 0;
 	if (!xdr_int(pxdrs,&ph->ndark)) return 0;
 	if (!xdr_int(pxdrs,&ph->nstar)) return 0;
-	if (!xdr_int(pxdrs,&pad)) return 0;
+	if (!xdr_int(pxdrs,&ph->pad)) return 0;
 	return 1;
 	
     }
@@ -383,11 +383,19 @@ protected:
 	{
             //... write the header .......................................................
 	    XDR xdrs;
-	    xdrstdio_create(&xdrs, fp_, XDR_ENCODE);
-	    convert_header_XDR( &xdrs, &header_ );
 	    
-	    std::vector<T_store> dump_store ( 9*block_buf_size_, (T_store)0.0 );
-	    
+	    if( native_ ) {
+
+		fwrite( &header_, sizeof(dump), 1, fp_ );
+
+	    } else {
+
+		xdrstdio_create(&xdrs, fp_, XDR_ENCODE);
+		convert_header_XDR( &xdrs, &header_ );
+		
+		std::vector<T_store> dump_store ( 9*block_buf_size_, (T_store)0.0 );
+	    }
+
             //... sph particles ..................................................
             if( with_baryons_ )
             {
@@ -431,25 +439,49 @@ protected:
                     ifs_vz.read( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
                     ifs_m.read( reinterpret_cast<char*>(&tmp7[0]), n2read*sizeof(T_store) );
 		    
-                    for( size_t i=0; i<n2read; ++i )
-                    {                        
-                        xdr_dump(&xdrs,&tmp7[i]); // mass
-                        xdr_dump(&xdrs,&tmp1[i]); // x
-                        xdr_dump(&xdrs,&tmp2[i]); // y
-                        xdr_dump(&xdrs,&tmp3[i]); // z
-                        xdr_dump(&xdrs,&tmp4[i]); // vx
-                        xdr_dump(&xdrs,&tmp5[i]); // vy
-                        xdr_dump(&xdrs,&tmp6[i]); // vz
-                        xdr_dump(&xdrs, &zero );  // rho
-                        xdr_dump(&xdrs, &temperature );  // temp
-			
-                        T_store eps = mass2eps( tmp7[i] );
-			
-                        xdr_dump(&xdrs, &eps );   // epsilon / hsmooth
-                        xdr_dump(&xdrs, &zero );  // metals
-                        xdr_dump(&xdrs, &zero );  //potential
-                    }
+		    if( native_ ) {
+
+			for( size_t i=0; i<n2read; ++i )
+			{                        
+			    fwrite( &tmp7[i], sizeof(tmp7[i]), 1, fp_); // mass
+			    fwrite( &tmp1[i], sizeof(tmp1[i]), 1, fp_); // x
+			    fwrite( &tmp2[i], sizeof(tmp2[i]), 1, fp_); // y
+			    fwrite( &tmp3[i], sizeof(tmp3[i]), 1, fp_); // z
+			    fwrite( &tmp4[i], sizeof(tmp4[i]), 1, fp_); // vx
+			    fwrite( &tmp5[i], sizeof(tmp5[i]), 1, fp_); // vy
+			    fwrite( &tmp6[i], sizeof(tmp6[i]), 1, fp_); // vz
+			    fwrite( &zero, sizeof(zero), 1, fp_);       // rho
+			    fwrite( &temperature, sizeof(temperature), 1, fp_); // temp
+			    
+			    T_store eps = mass2eps( tmp7[i] );
+			    
+			    fwrite( &eps, sizeof(eps), 1, fp_);
+			    fwrite( &zero, sizeof(zero), 1, fp_);
+			    fwrite( &zero, sizeof(zero), 1, fp_);
+			}
+
+		    } else {
+
+			for( size_t i=0; i<n2read; ++i )
+			{                        
+			    xdr_dump(&xdrs,&tmp7[i]); // mass
+			    xdr_dump(&xdrs,&tmp1[i]); // x
+			    xdr_dump(&xdrs,&tmp2[i]); // y
+			    xdr_dump(&xdrs,&tmp3[i]); // z
+			    xdr_dump(&xdrs,&tmp4[i]); // vx
+			    xdr_dump(&xdrs,&tmp5[i]); // vy
+			    xdr_dump(&xdrs,&tmp6[i]); // vz
+			    xdr_dump(&xdrs, &zero );  // rho
+			    xdr_dump(&xdrs, &temperature );  // temp
+			    
+			    T_store eps = mass2eps( tmp7[i] );
+			    
+			    xdr_dump(&xdrs, &eps );   // epsilon / hsmooth
+			    xdr_dump(&xdrs, &zero );  // metals
+			    xdr_dump(&xdrs, &zero );  //potential
+			}
 		    
+		    }
 		    
 		    
                     npleft -= n2read;
@@ -490,25 +522,47 @@ protected:
 		ifs_vy.read( reinterpret_cast<char*>(&tmp5[0]), n2read*sizeof(T_store) );
 		ifs_vz.read( reinterpret_cast<char*>(&tmp6[0]), n2read*sizeof(T_store) );
 		ifs_m.read( reinterpret_cast<char*>(&tmp7[0]), n2read*sizeof(T_store) );
+
 		
-		for( size_t i=0; i<n2read; ++i )
-		{
-		    xdr_dump(&xdrs,&tmp7[i]); // mass
-		    xdr_dump(&xdrs,&tmp1[i]); // x
-		    xdr_dump(&xdrs,&tmp2[i]); // y
-		    xdr_dump(&xdrs,&tmp3[i]); // z
-		    xdr_dump(&xdrs,&tmp4[i]); // vx
-		    xdr_dump(&xdrs,&tmp5[i]); // vy
-		    xdr_dump(&xdrs,&tmp6[i]); // vz
+		if( native_ ) {
 		    
-		    T_store eps = mass2eps( tmp7[i] );
+		    for( size_t i=0; i<n2read; ++i )
+		    {                        
+			fwrite( &tmp7[i], sizeof(tmp7[i]), 1, fp_); // mass
+			fwrite( &tmp1[i], sizeof(tmp1[i]), 1, fp_); // x
+			fwrite( &tmp2[i], sizeof(tmp2[i]), 1, fp_); // y
+			fwrite( &tmp3[i], sizeof(tmp3[i]), 1, fp_); // z
+			fwrite( &tmp4[i], sizeof(tmp4[i]), 1, fp_); // vx
+			fwrite( &tmp5[i], sizeof(tmp5[i]), 1, fp_); // vy
+			fwrite( &tmp6[i], sizeof(tmp6[i]), 1, fp_); // vz
+
+			T_store eps = mass2eps( tmp7[i] );
+			
+			fwrite( &eps, sizeof(eps), 1, fp_);
+			fwrite( &zero, sizeof(zero), 1, fp_);
+		    }
 		    
-		    xdr_dump(&xdrs, &eps ); // epsilon
-		    xdr_dump(&xdrs, &zero ); //potential
+		} else {
 		    
-		}
-		
-		
+		    
+		    for( size_t i=0; i<n2read; ++i )
+		    {
+			xdr_dump(&xdrs,&tmp7[i]); // mass
+			xdr_dump(&xdrs,&tmp1[i]); // x
+			xdr_dump(&xdrs,&tmp2[i]); // y
+			xdr_dump(&xdrs,&tmp3[i]); // z
+			xdr_dump(&xdrs,&tmp4[i]); // vx
+			xdr_dump(&xdrs,&tmp5[i]); // vy
+			xdr_dump(&xdrs,&tmp6[i]); // vz
+			
+			T_store eps = mass2eps( tmp7[i] );
+			
+			xdr_dump(&xdrs, &eps ); // epsilon
+			xdr_dump(&xdrs, &zero ); //potential
+			
+		    }
+
+		}		
 		
 		npleft -= n2read;
 		n2read = std::min( block_buf_size_,npleft );
@@ -586,8 +640,9 @@ public:
         H0_ = cf.getValue<double>("cosmology","H0");
         YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
         gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
-	
-	
+		
+	native_ = cf.getValueSafe<bool>("output","tipsy_native",false);
+
 	
     }
     

@@ -25,13 +25,10 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 							refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool smooth, bool shift )
 {
 	unsigned    levelmin,levelmax,levelminPoisson;
-	real_t		boxlength;
-	
 	
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
 	levelmin	= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
 	levelmax	= cf.getValue<unsigned>("setup","levelmax");
-	boxlength   = cf.getValue<real_t>( "setup", "boxlength" );
 	
 	bool kspace = cf.getValueSafe<unsigned>("setup","kspace_TF",false);
 	
@@ -108,7 +105,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 							  refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool smooth, bool shift )
 {
 	unsigned					levelmin,levelmax,levelminPoisson;
-	real_t						boxlength;
 	std::vector<long>			rngseeds;
 	std::vector<std::string>	rngfnames;
 	bool						kspaceTF;
@@ -124,7 +120,6 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
 	levelmin		= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
 	levelmax		= cf.getValue<unsigned>("setup","levelmax");
-	boxlength		= cf.getValue<real_t>( "setup", "boxlength" );
 	kspaceTF		= cf.getValueSafe<bool>("setup", "kspace_TF", false);
 	
 	

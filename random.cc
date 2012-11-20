@@ -72,7 +72,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 	unsigned nx,ny,nz,blksz32;
     size_t blksz64;
 	int iseed;
-	long seed;
+	//long seed;
     
     float sign4 = -1.0f;
     double sign8 = -1.0;
@@ -113,7 +113,7 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 	ifs.read( reinterpret_cast<char*> (&ny), sizeof(unsigned) );
 	ifs.read( reinterpret_cast<char*> (&nz), sizeof(unsigned) );
 	ifs.read( reinterpret_cast<char*> (&iseed), sizeof(int) );
-	seed = (long)iseed;
+	//seed = (long)iseed;
 	
 	if( nx!=res_ || ny!=res_ || nz!=res_ )
 	{	

@@ -307,17 +307,19 @@ namespace convolution{
 		}
 		
 		unsigned nx,ny,nz;
+		size_t nread = 0;
 		
-		fread(	reinterpret_cast<void*> (&nx), sizeof(unsigned), 1, fp );
-		fread(	reinterpret_cast<void*> (&ny), sizeof(unsigned), 1, fp );
-		fread(	reinterpret_cast<void*> (&nz), sizeof(unsigned), 1, fp );
+		nread = fread(	reinterpret_cast<void*> (&nx), sizeof(unsigned), 1, fp );
+		nread = fread(	reinterpret_cast<void*> (&ny), sizeof(unsigned), 1, fp );
+		nread = fread(	reinterpret_cast<void*> (&nz), sizeof(unsigned), 1, fp );
 		
 		kdata_.assign((size_t)nx*(size_t)ny*(size_t)nz,0.0);
 		
 		for( size_t ix=0;ix<nx; ++ix )
 		{	
 			const size_t sz = ny*nz;
-			fread( reinterpret_cast<void*>(&kdata_[(size_t)ix * sz]), sizeof(fftw_real), sz, fp );			
+			nread = fread( reinterpret_cast<void*>(&kdata_[(size_t)ix * sz]), sizeof(fftw_real), sz, fp );
+			assert( nread == sz*sizeof(fftw_real) );
 		}
 
 		fclose(fp);

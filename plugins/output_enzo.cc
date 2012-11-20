@@ -208,8 +208,9 @@ public:
 		
 		if( !align_top )
 		{
-            LOGERR("ENZO output plug-in requires that \'align_top=true\'!");
-            throw std::runtime_error("ENZO output plug-in requires that \'align_top=true\'!");
+		  //LOGWARN("ENZO output plug-in requires that \'align_top=true\'!");
+		  LOGERR("ENZO output plug-in requires that \'align_top=true\'!");
+		  throw std::runtime_error("ENZO output plug-in requires that \'align_top=true\'!");
 		}
         
 		the_sim_header.dimensions.push_back( 1<<levelmin_ );
@@ -309,6 +310,12 @@ public:
             << "ParallelParticleIO                       = 1\n"
             << "PartitionNestedGrids                     = 1\n"
 			<< "CosmologySimulationNumberOfInitialGrids  = " << 1+levelmax_-levelmin_ << "\n";
+
+
+		int num_prec = 10;
+
+		if( levelmax_ > 15 )
+		  num_prec = 17;
 		
 		//... only for additionally refined grids
 		for( unsigned ilevel = 0; ilevel< levelmax_-levelmin_; ++ilevel )
@@ -323,14 +330,14 @@ public:
 				<< std::setw(16) << gh.size( levelmin_+ilevel+1, 2 ) << "\n"
 			
 			<< "CosmologySimulationGridLeftEdge[" << 1+ilevel << "]       = "
-				<< std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmin_+ilevel+1, 0) << " "
-				<< std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmin_+ilevel+1, 1) << " "
-				<< std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmin_+ilevel+1, 2) << "\n"
+				<< std::setw(num_prec+6) << std::setprecision(num_prec) << h*gh.offset_abs(levelmin_+ilevel+1, 0) << " "
+				<< std::setw(num_prec+6) << std::setprecision(num_prec) << h*gh.offset_abs(levelmin_+ilevel+1, 1) << " "
+				<< std::setw(num_prec+6) << std::setprecision(num_prec) << h*gh.offset_abs(levelmin_+ilevel+1, 2) << "\n"
 			
 			<< "CosmologySimulationGridRightEdge[" << 1+ilevel << "]      = "
-				<< std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmin_+ilevel+1, 0)+gh.size( levelmin_+ilevel+1, 0 )) << " "
-				<< std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmin_+ilevel+1, 1)+gh.size( levelmin_+ilevel+1, 1 )) << " "
-				<< std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmin_+ilevel+1, 2)+gh.size( levelmin_+ilevel+1, 2 )) << "\n"
+				<< std::setw(num_prec+6) << std::setprecision(num_prec) << h*(gh.offset_abs(levelmin_+ilevel+1, 0)+gh.size( levelmin_+ilevel+1, 0 )) << " "
+				<< std::setw(num_prec+6) << std::setprecision(num_prec) << h*(gh.offset_abs(levelmin_+ilevel+1, 1)+gh.size( levelmin_+ilevel+1, 1 )) << " "
+				<< std::setw(num_prec+6) << std::setprecision(num_prec) << h*(gh.offset_abs(levelmin_+ilevel+1, 2)+gh.size( levelmin_+ilevel+1, 2 )) << "\n"
 			
 			<< "CosmologySimulationGridLevel[" << 1+ilevel << "]          = " << 1+ilevel << "\n";
 		}
@@ -345,13 +352,13 @@ public:
                 << "#\n"
                 << "RefineRegionAutoAdjust                   = 1\n"
                 << "RefineRegionLeftEdge                     = "
-                    << std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmax_, 0)
-                    << std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmax_, 1)
-                    << std::setw(16) << std::setprecision(10) << h*gh.offset_abs(levelmax_, 2) << "\n"
+                    << std::setw(num_prec+6) << std::setprecision(num_prec) << h*gh.offset_abs(levelmax_, 0)
+                    << std::setw(num_prec+6) << std::setprecision(num_prec) << h*gh.offset_abs(levelmax_, 1)
+                    << std::setw(num_prec+6) << std::setprecision(num_prec) << h*gh.offset_abs(levelmax_, 2) << "\n"
                 << "RefineRegionRightEdge                     = "
-                    << std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmax_, 0)+gh.size( levelmax_, 0 )) << " "
-                    << std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmax_, 1)+gh.size( levelmax_, 1 )) << " "
-                    << std::setw(16) << std::setprecision(10) << h*(gh.offset_abs(levelmax_, 2)+gh.size( levelmax_, 2 )) << "\n";
+                    << std::setw(num_prec+6) << std::setprecision(num_prec) << h*(gh.offset_abs(levelmax_, 0)+gh.size( levelmax_, 0 )) << " "
+                    << std::setw(num_prec+6) << std::setprecision(num_prec) << h*(gh.offset_abs(levelmax_, 1)+gh.size( levelmax_, 1 )) << " "
+		    << std::setw(num_prec+6) << std::setprecision(num_prec) << h*(gh.offset_abs(levelmax_, 2)+gh.size( levelmax_, 2 )) << "\n";
         }
         
         

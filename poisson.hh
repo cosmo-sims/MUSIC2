@@ -175,7 +175,7 @@ public:
 #pragma mark -
 
 template< typename T >
-void poisson_hybrid( T& f, int idir, int order, bool periodic );
+void poisson_hybrid( T& f, int idir, int order, bool periodic, bool deconvolve_cic );
 
 
 

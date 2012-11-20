@@ -609,6 +609,26 @@ public:
 		if( ppos[0] >= 1.0 || ppos[1] >= 1.0 || ppos[2] >= 1.0 )
 			std::cerr << " - Cell seems outside domain! : (" << ppos[0] << ", " << ppos[1] << ", " << ppos[2] << "\n";
 	}
+    
+    
+    //! get the bounding box of a grid in code units
+    /*! returns the bounding box of a grid at specified level in code units
+     *  @param ilevel the refinement level of the grid
+     *  @param left pointer to a double[3] array to which the left corner is written
+     *  @param right pointer to a double[3] array to which the right corner is written
+     *  @return none
+     */
+    void grid_bbox( unsigned ilevel, double *left, double *right ) const
+    {
+        double h = 1.0/(1<<ilevel);//, htop = h*2.0;
+		left[0] = h*((double)offset_abs(ilevel,0));
+		left[1] = h*((double)offset_abs(ilevel,1));
+		left[2] = h*((double)offset_abs(ilevel,2));
+        
+        right[0] = left[0] + h*((double)size(ilevel,0));
+        right[1] = left[1] + h*((double)size(ilevel,1));
+        right[2] = left[2] + h*((double)size(ilevel,2));
+    }
 	
 	//! checks whether a given grid cell is refined
 	/*! a grid cell counts as refined if it is divided into 8 cells at the next higher level
@@ -998,20 +1018,29 @@ public:
 		if( cf_.containsKey("setup","ref_extent") && cf_.containsKey("setup","ref_dims") )
 		  throw std::runtime_error("Found both ref_extent and ref_dims. You can only specify one.");
 
+        if( levelmin_ != levelmax_ )
+        {
+            if( !cf_.containsKey("setup","ref_offset") && !cf_.containsKey("setup","ref_center") )
+                throw std::runtime_error("Found levelmin!=levelmax but neither ref_offset nor ref_center was specified.");
+            if( !cf_.containsKey("setup","ref_extent") && !cf_.containsKey("setup","ref_dims") )
+                throw std::runtime_error("Found levelmin!=levelmax but neither ref_extent nor ref_dims was specified.");
+        }
+        
+        
 		if( cf_.containsKey("setup","ref_extent") )
 		{
-		  temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
-		  sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
-		  bhave_nref = false;
+            temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
+                sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
+            bhave_nref = false;
 		}else if( cf_.containsKey("setup","ref_dims") ){
-		    temp = cf_.getValue<std::string>("setup","ref_dims");
-		    sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
-		    bhave_nref = true;
+            temp = cf_.getValue<std::string>("setup","ref_dims");
+            sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
+            bhave_nref = true;
 
-		    lxref_[0] = lnref_[0] * 1.0/(double)(1<<levelmax_);
-		    lxref_[1] = lnref_[1] * 1.0/(double)(1<<levelmax_);
-		    lxref_[2] = lnref_[2] * 1.0/(double)(1<<levelmax_);
-  	        }
+            lxref_[0] = lnref_[0] * 1.0/(double)(1<<levelmax_);
+            lxref_[1] = lnref_[1] * 1.0/(double)(1<<levelmax_);
+            lxref_[2] = lnref_[2] * 1.0/(double)(1<<levelmax_);
+        }
 
 		
 		if( cf_.containsKey("setup","ref_center") )
@@ -1021,7 +1050,7 @@ public:
 			x0ref_[0] = fmod( x0ref_[0]-0.5*lxref_[0]+1.0,1.0);
 			x0ref_[1] = fmod( x0ref_[1]-0.5*lxref_[1]+1.0,1.0);
 			x0ref_[2] = fmod( x0ref_[2]-0.5*lxref_[2]+1.0,1.0);			
-		}else{
+		}else if( cf_.containsKey("setup","ref_offset") ){
 			temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
 			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
 		}

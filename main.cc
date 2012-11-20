@@ -276,7 +276,7 @@ int main (int argc, const char * argv[])
 	const unsigned nbnd = 4;
 	
 	unsigned lbase, lmax, lbaseTF;
-	double   err;
+	double   err = 1.0;
 	
 	//------------------------------------------------------------------------------
 	//... parse command line options
@@ -498,6 +498,9 @@ int main (int argc, const char * argv[])
 	bool kspace	= cf.getValueSafe<bool>( "poisson", "kspace", false );
         bool kspace2LPT = kspace;
 
+	bool decic_DM = cf.getValueSafe<bool>( "output", "glass_cicdeconvolve", false );
+	bool decic_baryons = cf.getValueSafe<bool>( "output", "glass_cicdeconvolve", false ) & bsph;
+
 	//... if in unigrid mode, use k-space instead of hybrid
 	if(bdefd && (lbase==lmax))
 	{
@@ -576,7 +579,7 @@ int main (int argc, const char * argv[])
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
-									   data_forIO.levelmin()==data_forIO.levelmax());					
+							       data_forIO.levelmin()==data_forIO.levelmax(), decic_DM );					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 						
@@ -629,7 +632,7 @@ int main (int argc, const char * argv[])
 							data_forIO.zero();
 							*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 							poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
-										   data_forIO.levelmin()==data_forIO.levelmax());					
+								       data_forIO.levelmin()==data_forIO.levelmax(), decic_baryons);					
 							*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 							the_poisson_solver->gradient_add(icoord, u, data_forIO );
 							
@@ -695,7 +698,7 @@ int main (int argc, const char * argv[])
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
-									   data_forIO.levelmin()==data_forIO.levelmax());					
+							       data_forIO.levelmin()==data_forIO.levelmax(), decic_baryons );					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 					}
@@ -710,6 +713,7 @@ int main (int argc, const char * argv[])
 					//... velocity kick to keep refined region centered?
 					if(do_CVM)
 					{	
+					  kickfac = 1.0;
 						double ukick = kickfac * compute_finest_mean(data_forIO);
 						data_forIO -= ukick;
 					}
@@ -764,7 +768,7 @@ int main (int argc, const char * argv[])
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
-									   data_forIO.levelmin()==data_forIO.levelmax());					
+							       data_forIO.levelmin()==data_forIO.levelmax(), decic_DM );					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 					}
@@ -777,6 +781,7 @@ int main (int argc, const char * argv[])
 					//... velocity kick to keep refined region centered?
 					if(do_CVM)
 					{
+ 					        kickfac = 1.0;
 						uref[icoord] = kickfac*compute_finest_mean(data_forIO);
 						data_forIO -= uref[icoord];
 					}
@@ -817,7 +822,7 @@ int main (int argc, const char * argv[])
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
-									   data_forIO.levelmin()==data_forIO.levelmax());					
+							       data_forIO.levelmin()==data_forIO.levelmax(), decic_baryons );					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
 					}
@@ -944,7 +949,7 @@ int main (int argc, const char * argv[])
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
-								   data_forIO.levelmin()==data_forIO.levelmax());					
+						       data_forIO.levelmin()==data_forIO.levelmax(), decic_DM );
 					*data_forIO.get_grid(data_forIO.levelmax()) /= (1<<f.levelmax());
 					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 				}
@@ -962,6 +967,9 @@ int main (int argc, const char * argv[])
 					uref_2LPT[icoord] = 6./7. * kickfac_2LPT/kickfac * uref_2LPT[icoord];
 					uref[icoord] += uref_2LPT[icoord];
 					//std::cerr << "uref_new[" << icoord << "] = " << uref[icoord] << std::endl;
+
+					uref[icoord] = compute_finest_mean(data_forIO);
+
 					data_forIO -= uref[icoord];
 				}
 					
@@ -1038,7 +1046,7 @@ int main (int argc, const char * argv[])
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
-									   data_forIO.levelmin()==data_forIO.levelmax());					
+							       data_forIO.levelmin()==data_forIO.levelmax(), decic_baryons );					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= (1<<f.levelmax());
 						the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 					}
@@ -1140,7 +1148,7 @@ int main (int argc, const char * argv[])
 					data_forIO.zero();
 					*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 					poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
-								   data_forIO.levelmin()==data_forIO.levelmax());					
+						       data_forIO.levelmin()==data_forIO.levelmax(), decic_DM );
 					*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 					the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 				}
@@ -1247,7 +1255,7 @@ int main (int argc, const char * argv[])
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
 						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
-									   data_forIO.levelmin()==data_forIO.levelmax());					
+							       data_forIO.levelmin()==data_forIO.levelmax(), decic_baryons );
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u1, data_forIO );
 					}

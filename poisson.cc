@@ -712,9 +712,9 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 #else
 	rfftwnd_plan 
 		plan = rfftw3d_create_plan( nx,ny,nz,
-								   FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+					    FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
 		iplan = rfftw3d_create_plan( nx,ny,nz,
-									FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+					     FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
 	
 	
 	#ifndef SINGLETHREAD_FFTW		
@@ -746,7 +746,7 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 				const double kk = (double)k;
 				
 				const double kkdir[3] = {kfac*ki,kfac*kj,kfac*kk};
-                const double kdir = kkdir[dir];
+				const double kdir = kkdir[dir];
 				
 				double re = RE(cdata[idx]);
 				double im = IM(cdata[idx]);
@@ -959,12 +959,15 @@ inline double poisson_hybrid_kernel<6>(int idir, int i, int j, int k, int n )
 	   
 	   
 template<int order>
-void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bool periodic )
+void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bool periodic, bool deconvolve_cic )
 {
 	double fftnorm = 1.0/((double)nxp*(double)nyp*(double)nzp);
 		
 	fftw_complex	*cdata = reinterpret_cast<fftw_complex*>(data);
 	
+	if( deconvolve_cic )
+	  LOGINFO("CIC deconvolution step is enabled.");
+
 #ifdef FFTW3
 	#ifdef SINGLE_PRECISION
 	fftwf_plan iplan, plan;
@@ -1025,7 +1028,7 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 			
 				size_t ii = (size_t)(i*nyp + j) * (size_t)(nzp/2+1) + (size_t)k;
 	
-				int ki(i), kj(j);
+				int ki(i), kj(j), kk(k);
 				if( ki > nxp/2 ) ki-=nxp;
 				if( kj > nyp/2 ) kj-=nyp;
 				
@@ -1037,6 +1040,20 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 				
 				RE(cdata[ii]) = -im*dk*fftnorm;
 				IM(cdata[ii]) = re*dk*fftnorm;
+
+				if( deconvolve_cic )
+				{
+					double dfx, dfy, dfz;
+					dfx = M_PI*ki/(double)nxp; dfx = (i!=0)? sin(dfx)/dfx : 1.0;
+					dfy = M_PI*kj/(double)nyp; dfy = (j!=0)? sin(dfy)/dfy : 1.0;
+					dfz = M_PI*kk/(double)nzp; dfz = (k!=0)? sin(dfz)/dfz : 1.0;
+					
+					dfx = 1.0/(dfx*dfy*dfz); dfx = dfx*dfx;
+					RE(cdata[ii]) *= dfx;
+					IM(cdata[ii]) *= dfx;
+					
+				}
+
 				
 
 				//RE(cdata[ii]) += ksum*fftnorm;
@@ -1075,7 +1092,7 @@ void do_poisson_hybrid( fftw_real* data, int idir, int nxp, int nyp, int nzp, bo
 }
    
 template< typename T >
-void poisson_hybrid( T& f, int idir, int order, bool periodic )
+void poisson_hybrid( T& f, int idir, int order, bool periodic, bool deconvolve_cic )
 
 {
 	int nx=f.size(0), ny=f.size(1), nz=f.size(2), nxp, nyp, nzp;
@@ -1133,14 +1150,14 @@ void poisson_hybrid( T& f, int idir, int order, bool periodic )
 	
 	switch (order) {
 		case 2:
-			do_poisson_hybrid<2>(data, idir, nxp, nyp, nzp, periodic);
-			break;
+		  do_poisson_hybrid<2>(data, idir, nxp, nyp, nzp, periodic, deconvolve_cic );
+		  break;
 		case 4:
-			do_poisson_hybrid<4>(data, idir, nxp, nyp, nzp, periodic);
-			break;
+		  do_poisson_hybrid<4>(data, idir, nxp, nyp, nzp, periodic, deconvolve_cic );
+		  break;
 		case 6:
-			do_poisson_hybrid<6>(data, idir, nxp, nyp, nzp, periodic);
-			break;
+		  do_poisson_hybrid<6>(data, idir, nxp, nyp, nzp, periodic, deconvolve_cic );
+		  break;
 		default:
 			std::cerr << " - ERROR: invalid operator order specified in deconvolution.";
 			LOGERR("Invalid operator order specified in deconvolution.");
@@ -1168,8 +1185,8 @@ void poisson_hybrid( T& f, int idir, int order, bool periodic )
 /**************************************************************************************/
 #pragma mark -
 
-template void poisson_hybrid< MeshvarBnd<double> >( MeshvarBnd<double>& f, int idir, int order, bool periodic );
-template void poisson_hybrid< MeshvarBnd<float> >( MeshvarBnd<float>& f, int idir, int order, bool periodic );
+template void poisson_hybrid< MeshvarBnd<double> >( MeshvarBnd<double>& f, int idir, int order, bool periodic, bool deconvolve_cic );
+template void poisson_hybrid< MeshvarBnd<float> >( MeshvarBnd<float>& f, int idir, int order, bool periodic, bool deconvolve_cic );
 
 namespace{
 	poisson_plugin_creator_concrete<multigrid_poisson_plugin> multigrid_poisson_creator("mg_poisson");

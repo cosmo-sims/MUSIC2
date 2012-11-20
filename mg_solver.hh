@@ -59,7 +59,7 @@ protected:
 	const MeshvarBnd<T> *m_pubnd;
 	
 	//! compute residual for a level
-	double compute_error( const MeshvarBnd<T>& u, const MeshvarBnd<T>& unew );
+  double compute_error( const MeshvarBnd<T>& u, const MeshvarBnd<T>& unew, int ilevel );
 	
 	//! compute residuals for entire grid hierarchy
 	double compute_error( const GridHierarchy<T>& uh, const GridHierarchy<T>& uhnew, bool verbose );
@@ -377,48 +377,85 @@ void solver<S,I,O,T>::twoGrid( unsigned ilevel )
 			make_periodic( uf );
 
 	}
+
 }
 
 template< class S, class I, class O, typename T >
-double solver<S,I,O,T>::compute_error( const MeshvarBnd<T>& u, const MeshvarBnd<T>& unew )
+double solver<S,I,O,T>::compute_error( const MeshvarBnd<T>& u, const MeshvarBnd<T>& f, int ilevel )
 {
 	int 
 		nx = u.size(0), 
 		ny = u.size(1), 
 		nz = u.size(2);
 	
-	double err = 0.0;
+	double err = 0.0, err2 = 0.0;
 	size_t count = 0;
+
+	double h = 1.0/(1ul<<ilevel), h2=h*h;
 	
 	#pragma omp parallel for reduction(+:err,count)
 	for( int ix=0; ix<nx; ++ix )
 		for( int iy=0; iy<ny; ++iy )
 			for( int iz=0; iz<nz; ++iz )
-				if( fabs(unew(ix,iy,iz)) > 0.0 )//&& u(ix,iy,iz) != unew(ix,iy,iz) )
+			  if( true )//fabs(unew(ix,iy,iz)) > 0.0 )//&& u(ix,iy,iz) != unew(ix,iy,iz) )
 				{
-					err += fabs(1.0 - (double)u(ix,iy,iz)/(double)unew(ix,iy,iz));
-					
+				  //err += fabs(1.0 - (double)u(ix,iy,iz)/(double)unew(ix,iy,iz));
+				  /*err += fabs(((double)m_scheme.apply( u, ix, iy, iz )/h2 + (double)(f(ix,iy,iz)) ));
+				    err2 += fabs((double)f(ix,iy,iz));*/
+
+				  err += fabs( (double)m_scheme.apply( u, ix, iy, iz )/h2/(double)(f(ix,iy,iz)) + 1.0 );
 					++count;
 				}
 	
-	if( count != 0 )
-		err /= count;
-	
+	  if( count != 0 )
+	    err /= count; 
+	  
 	return err;
 }
 
 template< class S, class I, class O, typename T >
-double solver<S,I,O,T>::compute_error( const GridHierarchy<T>& uh, const GridHierarchy<T>& uhnew, bool verbose )
+double solver<S,I,O,T>::compute_error( const GridHierarchy<T>& uh, const GridHierarchy<T>& fh, bool verbose )
 {
 	double maxerr = 0.0;
-	
+
 	for( unsigned ilevel=uh.levelmin(); ilevel <= uh.levelmax(); ++ilevel )
 	{
-		double err = 0.0;
-		err = compute_error( *uh.get_grid(ilevel), *uhnew.get_grid(ilevel) );
-		
+		int 
+		  nx = uh.get_grid(ilevel)->size(0), 
+		  ny = uh.get_grid(ilevel)->size(1), 
+		  nz = uh.get_grid(ilevel)->size(2);
+	
+		double err = 0.0, mean_res = 0.0;
+		size_t count = 0;
+
+		double h = 1.0/(1ul<<ilevel), h2=h*h;
+	
+                #pragma omp parallel for reduction(+:err,count)
+		for( int ix=0; ix<nx; ++ix )
+		  for( int iy=0; iy<ny; ++iy )
+		    for( int iz=0; iz<nz; ++iz )
+			{
+			  double res =  (double)m_scheme.apply( *uh.get_grid(ilevel), ix, iy, iz ) + h2 * (double)((*fh.get_grid(ilevel))(ix,iy,iz));
+			  double val = (*uh.get_grid(ilevel))( ix, iy, iz );
+
+			  if( fabs(val) > 0.0 )
+			    {
+			      err += fabs( res/val );
+			      mean_res += fabs(res);
+			      ++count;
+			    }
+			}
+	
+		if( count != 0 )
+		  {
+		    err /= count; 
+		    mean_res /= count;
+		  }
 		if( verbose )
 			std::cout << "      Level " << std::setw(6) << ilevel << ",   Error = " << err << std::endl;
+
+		LOGDEBUG("[mg]      level %3d,  residual %g,  rel. error %g",ilevel, mean_res, err);
+		
 		maxerr = std::max(maxerr,err);
 		
 	}
@@ -501,7 +538,8 @@ double solver<S,I,O,T>::solve( GridHierarchy<T>& uh, double acc, double h, bool 
 		LOGUSER("Performing multi-grid V-cycle...");
 		twoGrid( uh.levelmax() );
 		
-		err = compute_RMS_resid( *m_pu, *m_pf, fullverbose );
+		//err = compute_RMS_resid( *m_pu, *m_pf, fullverbose );
+		err = compute_error( *m_pu, *m_pf, fullverbose );
 		++niter;
 		
 		if( fullverbose ){

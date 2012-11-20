@@ -731,7 +731,10 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 	
 	
 	bool do_glass = cf_.getValueSafe<bool>("output","glass",false);
-	bool deconvolve_cic = do_glass & cf_.getValueSafe<bool>("output","glass_cicdeconvolve",false);
+	bool deconvolve_cic = do_glass | cf_.getValueSafe<bool>("output","glass_cicdeconvolve",false);
+    
+    if( deconvolve_cic )
+        LOGINFO("CIC deconvolution is enabled for kernel!");
 	
 	#pragma omp parallel for
 	for( int i=0; i<nx; ++i )

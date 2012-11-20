@@ -87,12 +87,13 @@ namespace convolution{
 		if( shift )
 		{	
 			double boxlength = pk->pcf_->getValue<double>("setup","boxlength");
+            double stagfact  = pk->pcf_->getValueSafe<double>("setup","baryon_staggering",0.5);
 			int lmax = pk->pcf_->getValue<int>("setup","levelmax");	
 			double dxmax = boxlength/(1<<lmax);
 			double dxcur = cparam_.lx/cparam_.nx;
 			//std::cerr << "Performing staggering shift for SPH\n";
 			LOGUSER("Performing staggering shift for SPH");
-			dstag = M_PI/cparam_.nx * dxmax/dxcur;
+			dstag = stagfact * 2.0 * M_PI/cparam_.nx * dxmax/dxcur;
 		}
 		
 		//.............................................
@@ -622,7 +623,7 @@ namespace convolution{
 		{
 				
 			LOGUSER("Deconvolving fine kernel...");
-			std::cout << " - Deconvoling density kernel...\n";
+			std::cout << " - Deconvolving density kernel...\n";
 			
 			
 			

@@ -320,7 +320,7 @@ namespace convolution{
 		{	
 			const size_t sz = ny*nz;
 			nread = fread( reinterpret_cast<void*>(&kdata_[(size_t)ix * sz]), sizeof(fftw_real), sz, fp );
-			assert( nread == sz*sizeof(fftw_real) );
+			assert( nread == sz );
 		}
 
 		fclose(fp);

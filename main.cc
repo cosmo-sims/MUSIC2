@@ -160,8 +160,6 @@ void print_hierarchy_stats( config_file& cf, const refinement_hierarchy& rh )
 	}else
 		cmass = omegam*rhom*dx3;
 	
-	
-	
 	std::cout << "-------------------------------------------------------------\n";
 	
 	if( rh.get_shift(0)!=0||rh.get_shift(1)!=0||rh.get_shift(2)!=0 )
@@ -177,7 +175,7 @@ void print_hierarchy_stats( config_file& cf, const refinement_hierarchy& rh )
 		
 		mtotgrid = omegam*rhom*dx3*rfac3*rh.size(ilevel, 0)*rh.size(ilevel, 1)*rh.size(ilevel, 2);
 		std::cout 
-		<< "     Level " << std::setw(3) << ilevel << " :   offset = (" << std::setw(5) << rh.offset(ilevel,0) << ", " << std::setw(5) << rh.offset(ilevel,0) << ", " << std::setw(5) << rh.offset(ilevel,0) << ")\n"
+		<< "     Level " << std::setw(3) << ilevel << " :   offset = (" << std::setw(5) << rh.offset(ilevel,0) << ", " << std::setw(5) << rh.offset(ilevel,1) << ", " << std::setw(5) << rh.offset(ilevel,2) << ")\n"
 		<< "                     size = (" << std::setw(5) << rh.size(ilevel,0) << ", " << std::setw(5) << rh.size(ilevel,1) << ", " << std::setw(5) << rh.size(ilevel,2) << ")\n";
 		
 		if( ilevel == rh.levelmax() )

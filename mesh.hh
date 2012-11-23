@@ -1228,6 +1228,13 @@ public:
 				nx_[ilevel] = nmax;
 				ny_[ilevel] = nmax;
 				nz_[ilevel] = nmax;
+
+				il = oax_[ilevel];
+				jl = oay_[ilevel];
+				kl = oaz_[ilevel];
+				ir = il + nmax;
+				jr = jl + nmax;
+				kr = kl + nmax;
 			}
 		}
 		
@@ -1281,6 +1288,13 @@ public:
 				nx_[ilevel] = nmax;
 				ny_[ilevel] = nmax;
 				nz_[ilevel] = nmax;
+
+				il = oax_[ilevel];
+				jl = oay_[ilevel];
+				kl = oaz_[ilevel];
+				ir = il + nmax;
+				jr = jl + nmax;
+				kr = kl + nmax;
 			}
 
 		}
@@ -1291,6 +1305,14 @@ public:
 			ox_[ilevel] = (oax_[ilevel]/2 - oax_[ilevel-1]);
 			oy_[ilevel] = (oay_[ilevel]/2 - oay_[ilevel-1]);
 			oz_[ilevel] = (oaz_[ilevel]/2 - oaz_[ilevel-1]);
+		}
+
+		//... do a forward sweep to ensure that absolute offsets are also correct now
+		for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
+		{
+		  oax_[ilevel] = 2*oax_[ilevel-1]+2*ox_[ilevel];
+		  oay_[ilevel] = 2*oay_[ilevel-1]+2*oy_[ilevel];
+		  oaz_[ilevel] = 2*oaz_[ilevel-1]+2*oz_[ilevel];
 		}
 		
 		for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
@@ -1453,7 +1475,7 @@ public:
 	{	return xshift_[idim];  }
 	
 	//! write refinement hierarchy to stdout
-	void output( void )
+	void output( void ) const
 	{
 		std::cout << "-------------------------------------------------------------\n";
 		
@@ -1466,12 +1488,13 @@ public:
 		{
 			std::cout 
 			<< "     Level " << std::setw(3) << ilevel << " :   offset = (" << std::setw(5) << ox_[ilevel] << ", " << std::setw(5) << oy_[ilevel] << ", " << std::setw(5) << oz_[ilevel] << ")\n"
+			<< "               offset_abs = (" << std::setw(5) << oax_[ilevel] << ", " << std::setw(5) << oay_[ilevel] << ", " << std::setw(5) << oaz_[ilevel] << ")\n"
 			<< "                   size   = (" << std::setw(5) << nx_[ilevel] << ", " << std::setw(5) << ny_[ilevel] << ", " << std::setw(5) << nz_[ilevel] << ")\n";
 		}
 		std::cout << "-------------------------------------------------------------\n";
 	}
 	
-	void output_log( void )
+	void output_log( void ) const
 	{
 		LOGUSER("   Domain shifted by      (%5d,%5d,%5d)",xshift_[0],xshift_[1],xshift_[2]);		
 		for( unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )

@@ -1,8 +1,8 @@
 /*
- This file is part of FROLIC -
+ This file is part of MUSIC -
  a tool to generate initial conditions for cosmological simulations
  
- Copyright (C) 2008-09  Oliver Hahn, ojha@gmx.de
+ Copyright (C) 2008-12  Oliver Hahn, ojha@gmx.de
  
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by

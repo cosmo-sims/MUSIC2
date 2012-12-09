@@ -46,7 +46,7 @@ protected:
 		id_dm_pos, id_dm_vel, id_gas_pos, id_gas_vel
     };
 
-	typedef struct io_header
+	struct header
 	{
 		char head[45];
 		float aexpN; // current expansion factor
@@ -93,12 +93,12 @@ protected:
 		     //extras[60]= lux - level of luxury  [do not apply in music use 0?]
 		     //extras[79]=Lbox (Mpc/h)
 
-	}header;
+	};
 
-	typedef struct io_ptf
+	struct ptf
 	{
 		float astep;
-	}ptf;
+	};
 	
 	header header_;
 	ptf ptf_;
@@ -166,11 +166,11 @@ protected:
 	// non-public member functions
 	void write_header_file( void ) //PMcrd.DAT
 	{
-        char* fout;
-        if(do_baryons_){
-            fout = "/PMcrdIC.DAT";}
-        else{
-	        fout = "/PMcrd.DAT";}
+        std::string fout;
+        if(do_baryons_)
+            fout = "/PMcrdIC.DAT";
+        else
+	        fout = "/PMcrd.DAT";
 	    std::string partfname = fname_ + fout;
         std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 	    //ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
@@ -289,11 +289,11 @@ protected:
 	void assemble_DM_file( void ) //PMcrs0.DAT
 	{
 		// file name
-        char* fout;
-        if(do_baryons_) {
-	        fout = "/PMcrs0IC.DAT";}
-        else {
-		    fout = "/PMcrs0.DAT";}
+        std::string fout;
+        if(do_baryons_)
+	        fout = "/PMcrs0IC.DAT";
+        else
+		    fout = "/PMcrs0.DAT";
 		std::string partfname = fname_ + fout;
 		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 		

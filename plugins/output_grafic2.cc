@@ -338,7 +338,7 @@ public:
 		{
 			
 			char ff[256];
-			sprintf(ff,"%s/level_%03d/ic_refmask",fname_.c_str(), ilevel );
+			sprintf(ff,"%s/level_%03d/ic_refmap",fname_.c_str(), ilevel );
 			
 			std::ofstream ofs(ff,std::ios::binary|std::ios::trunc);
 			

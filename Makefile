@@ -8,7 +8,7 @@ HAVEHDF5        = yes
 ##############################################################################
 ### compiler and path settings
 CC      = g++ 
-OPT     = -Wall -Wno-unknown-pragmas -O0 -g -msse2
+OPT     = -Wall -Wno-unknown-pragmas -O3 -g -msse2
 CFLAGS  =  
 LFLAGS  = -lgsl -lgslcblas 
 CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include

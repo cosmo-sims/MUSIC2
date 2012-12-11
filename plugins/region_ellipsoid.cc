@@ -453,14 +453,34 @@ private:
             }
         }
     }
-        
+    
+    void apply_shift( size_t Np, float *p, int *shift, int levelmin )
+    {
+        double dx = 1.0/(1<<levelmin);
+        for( size_t i3=0; i3<Np; i3+=3 )
+            for( size_t j=0; j<3; ++j )
+                p[i3+j] -= shift[j]*dx;
+    }
+    
 public:
     explicit region_ellipsoid_plugin( config_file& cf )
     : region_generator_plugin( cf )
     {
         std::vector<float> pp;
+        int shift[3];
+        
         std::string point_file = cf.getValue<std::string>("setup","region_point_file");
         read_points_from_file( point_file, pp );
+        
+        if( cf.containsKey("setup","region_point_shift") )
+        {
+            std::string point_shift = cf.getValue<std::string>("setup","region_point_shift");
+            sscanf( point_shift.c_str(), "%d,%d,%d", &shift[0],&shift[1],&shift[2] );
+            unsigned point_levelmin = cf.getValue<unsigned>("setup","region_point_levelmin");
+        
+            apply_shift( pp.size()/3, &pp[0], shift, point_levelmin );
+        }
+        
         pellip_ = new min_ellipsoid( pp.size()/3, &pp[0] );
 
     }

@@ -22,6 +22,81 @@
 #include "log.hh"
 
 
+#include "region_generator.hh"
+
+class refinement_mask
+{
+protected:
+    std::vector<short> mask_;
+    size_t nx_, ny_, nz_;
+    
+public:
+    
+    refinement_mask( void )
+    : nx_( 0 ), ny_ ( 0 ), nz_( 0 )
+    { }
+    
+    refinement_mask( size_t nx, size_t ny, size_t nz )
+    : nx_( nx ), ny_( ny ), nz_( nz )
+    {
+        mask_.assign( nx_*ny_*nz_, 0 );
+    }
+    
+    refinement_mask( const refinement_mask& r )
+    {
+        nx_ = r.nx_;
+        ny_ = r.ny_;
+        nz_ = r.nz_;
+        mask_ = r.mask_;
+    }
+    
+    refinement_mask& operator=( const refinement_mask& r )
+    {
+        nx_ = r.nx_;
+        ny_ = r.ny_;
+        nz_ = r.nz_;
+        mask_ = r.mask_;
+        
+        return *this;
+    }
+    
+    void init( size_t nx, size_t ny, size_t nz )
+    {
+        nx_ = nx;
+        ny_ = ny;
+        nz_ = nz;
+        mask_.assign( nx_*ny_*nz_, 0 );
+    }
+    
+    const short& operator()( size_t i, size_t j, size_t k ) const
+    {
+        return mask_[ (i*ny_+j)*nz_+k ];
+    }
+    
+    short& operator()( size_t i, size_t j, size_t k )
+    {
+        return mask_[ (i*ny_+j)*nz_+k ];
+    }
+    
+    size_t count_flagged( void )
+    {
+        size_t count = 0;
+        for( size_t i=0; i<mask_.size(); ++i )
+            if( mask_[i] )
+                ++count;
+        return count;
+    }
+    
+    size_t count_notflagged( void )
+    {
+        size_t count = 0;
+        for( size_t i=0; i<mask_.size(); ++i )
+            if( !mask_[i] )
+                ++count;
+        return count;
+    }
+};
+
 //! base class for all things that have rectangular mesh structure
 template<typename T>
 class Meshvar{
@@ -452,6 +527,9 @@ public:
 		m_xoffabs,		//!< vector of x-offsets of a level mesh relative to the coarser level
 		m_yoffabs,		//!< vector of x-offsets of a level mesh relative to the coarser level
 		m_zoffabs;		//!< vector of x-offsets of a level mesh relative to the coarser level
+    
+    refinement_mask ref_mask;
+    bool bhave_refmask;
 	
 protected:
 	
@@ -509,7 +587,7 @@ public:
 	 * @param nbnd number of ghost zones added at the boundary
 	 */
 	explicit GridHierarchy( size_t nbnd )
-	: m_nbnd( nbnd ), m_levelmin( 0 )
+	: m_nbnd( nbnd ), m_levelmin( 0 ), bhave_refmask( false )
 	{
 		m_pgrids.clear();
 	}
@@ -526,6 +604,9 @@ public:
 		m_xoffabs = gh.m_xoffabs;
 		m_yoffabs = gh.m_yoffabs;
 		m_zoffabs = gh.m_zoffabs;
+        
+        ref_mask   = gh.ref_mask;
+        bhave_refmask = gh.bhave_refmask;
 	}
 	
 	//! destructor
@@ -549,6 +630,38 @@ public:
 		m_zoffabs.clear();
 		m_levelmin = 0;
 	}
+    
+    void add_refinement_mask( const double *shift )
+    {
+        bhave_refmask = false;
+        
+        //! generate a mask
+        if( m_levelmin != levelmax() )
+        {
+            int ilevel = levelmax() - 1;
+            double xq[3], dx = 1.0/(1ul<<(levelmax()-1));
+            
+            ref_mask.init( size(ilevel,0), size(ilevel,1), size(ilevel,2) );
+            
+            for( size_t i=0; i<size(ilevel,0); i++ )
+            {
+                xq[0] = (offset_abs(ilevel,0) + i)*dx + 0.5*dx + shift[0];
+                for( size_t j=0; j<size(ilevel,1); ++j )
+                {
+                    xq[1] = (offset_abs(ilevel,1) + j)*dx + 0.5*dx + shift[1];
+                    for( size_t k=0; k<size(ilevel,2); ++k )
+                    {
+                        xq[2] = (offset_abs(ilevel,2) + k)*dx + 0.5*dx + shift[2];
+                        
+                        if( the_region_generator->query_point( xq ) )
+                            ref_mask(i,j,k) = true;
+                    }
+                }
+            }
+            
+            bhave_refmask = true;
+        }
+    }
 	
 	
 	//! get offset of a grid at specified refinement level
@@ -640,7 +753,15 @@ public:
 	 */
 	bool is_refined( unsigned ilevel, int i, int j, int k ) const
 	{
-		if( ilevel == levelmax() ) return false;
+		if( ilevel == levelmax() )
+            if( !bhave_refmask ) return false;
+            else if( ref_mask(offset(levelmax(),0)+i/2,offset(levelmax(),1)+j/2,offset(levelmax(),2)+k/2) )
+                return false;
+            else
+                return true;
+        
+        if( ilevel == levelmax()-1 && bhave_refmask )
+            return ref_mask(i,j,k);
 		
 		if( i < offset(ilevel+1,0) || i >= offset(ilevel+1, 0)+(int)size(ilevel+1,0)/2 ||
 		    j < offset(ilevel+1,1) || j >= offset(ilevel+1, 1)+(int)size(ilevel+1,1)/2 ||
@@ -939,13 +1060,14 @@ public:
 		return m_levelmin;
 	}
 	
-	
 };
+
+
 
 //! class that computes the refinement structure given parameters
 class refinement_hierarchy
 {
-	std::vector<double> 
+	std::vector<double>
 		x0_,	//!< x-coordinates of grid origins (in [0..1[)
 		y0_,	//!< y-coordinates of grid origins (in [0..1[)
 		z0_,	//!< z-coordinates of grid origins (in [0..1[)
@@ -984,6 +1106,7 @@ class refinement_hierarchy
   bool   bhave_nref;
 	
 	int xshift_[3];	//!< shift of refinement region in coarse cells (in order to center it in the domain)
+    double rshift_[3];
 	
 public:
 	
@@ -998,6 +1121,19 @@ public:
 	explicit refinement_hierarchy( config_file& cf )
 	: cf_( cf )
 	{
+        //... call the region generator
+        double x1ref[3];
+        the_region_generator->get_AABB(x0ref_,x1ref);
+        for( int i=0; i<3; ++i )
+            lxref_[i] = x1ref[i]-x0ref_[i];
+        bhave_nref = false;
+        
+        std::string region_type = cf.getValueSafe<std::string>("setup","region","box");
+        
+        LOGINFO("refinement region is \'%s\', w/ bounding box\n        left = [%f,%f,%f]\n       right = [%f,%f,%f]",
+                region_type.c_str(),x0ref_[0],x0ref_[1],x0ref_[2],x1ref[0],x1ref[1],x1ref[2]);
+        
+        
 		//... query the parameter data we need
 		levelmin_	= cf_.getValue<unsigned>("setup","levelmin");
 		levelmax_	= cf_.getValue<unsigned>("setup","levelmax");
@@ -1010,7 +1146,7 @@ public:
 		bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
 		bool force_shift = cf_.getValueSafe<bool>("setup","force_shift",false);
 		
-		std::string temp;
+		/*std::string temp;
 		
 		if( cf_.containsKey("setup","ref_offset") && cf_.containsKey("setup","ref_center") )
 			throw std::runtime_error("Found both ref_offset and ref_center. You can only specify one.");
@@ -1054,7 +1190,7 @@ public:
 			temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
 			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
 		}
-
+         */
 
 		
         
@@ -1095,8 +1231,11 @@ public:
 		sprintf( strtmp, "%d", xshift_[0] );	cf_.insertValue( "setup", "shift_x", strtmp );
 		sprintf( strtmp, "%d", xshift_[1] );	cf_.insertValue( "setup", "shift_y", strtmp );
 		sprintf( strtmp, "%d", xshift_[2] );	cf_.insertValue( "setup", "shift_z", strtmp );
-		
-		
+        
+        rshift_[0] = -(double)xshift_[0]/ncoarse;
+        rshift_[1] = -(double)xshift_[1]/ncoarse;
+        rshift_[2] = -(double)xshift_[2]/ncoarse;
+        
 		x0ref_[0] += (double)xshift_[0]/ncoarse;
 		x0ref_[1] += (double)xshift_[1]/ncoarse;
 		x0ref_[2] += (double)xshift_[2]/ncoarse;
@@ -1350,6 +1489,7 @@ public:
 			x0ref_[i] = o.x0ref_[i];
 			lxref_[i] = o.lxref_[i];
 			xshift_[i] = o.xshift_[i];
+            rshift_[i] = o.rshift_[i];
 		}
 		
 		x0_ = o.x0_; y0_ = o.y0_; z0_ = o.z0_;
@@ -1470,10 +1610,14 @@ public:
 	unsigned levelmax( void ) const
 	{	return levelmax_;	}
 	
-	//! get the total shift of the coordinate system
+	//! get the total shift of the coordinate system in units of coarse cells
 	int get_shift( int idim ) const
 	{	return xshift_[idim];  }
 	
+    //! get the total shift of the coordinate system in box coordinates
+    const double* get_coord_shift( void ) const
+    {   return rshift_; }
+    
 	//! write refinement hierarchy to stdout
 	void output( void ) const
 	{
@@ -1503,7 +1647,8 @@ public:
 			LOGUSER("                   size = (%5d,%5d,%5d)",nx_[ilevel],ny_[ilevel],nz_[ilevel]);
 		}
 	}
-	
+    
+    
 };
 
 

@@ -10,6 +10,7 @@
 
 #include <fstream>
 #include "log.hh"
+#include "region_generator.hh"
 #include "output.hh"
 #include "mg_interp.hh"
 #include "mesh.hh"
@@ -71,6 +72,8 @@ protected:
     bool msolunits_;
     unsigned bndparticletype_;
 	double YHe_;
+    
+    refinement_mask refmask;
     
     void distribute_particles( unsigned nfiles, size_t nfine_dm, size_t nfine_gas, size_t ncoarse, 
                               std::vector<unsigned>& nfdm_pf, std::vector<unsigned>& nfgas_pf, std::vector<unsigned>& nc_pf )
@@ -736,7 +739,7 @@ public:
 	
 	
 	gadget2_output_plugin( config_file& cf )
-	: output_plugin( cf )	
+	: output_plugin( cf )
 	{
 		block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",1048576);
 		
@@ -774,9 +777,7 @@ public:
 			}
 			ofs_.close();
 		}
-		
-		
-		
+        
 		bmorethan2bnd_ = false;
 		if( levelmax_ > levelmin_ +1)
 			bmorethan2bnd_ = true;
@@ -839,15 +840,13 @@ public:
         
         
 	}
-	
-	
+    
 	void write_dm_mass( const grid_hierarchy& gh )
 	{
 		double rhoc = 27.7519737; // in h^2 1e10 M_sol / Mpc^3
 		
 		if( kpcunits_ )
             rhoc *= 1e-9; // in h^2 1e10 M_sol / kpc^3
-        
         
 		//	rhoc *= 10.0; // in h^2 M_sol / kpc^3
         

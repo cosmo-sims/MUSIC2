@@ -258,6 +258,8 @@ protected:
                 }
             }
             
+            //std::cerr << "max(M) = " << Mmax << std::endl;
+            
             float step_size = (Mmax-4.0f)/(4.0f*(Mmax-1.0f)), step_size1 = 1.0f-step_size;
             for( size_t i=0; i<N; ++i )
                 unew[i] = u[i] * step_size1;
@@ -271,6 +273,8 @@ protected:
             }
             err = sqrt(err);
             ++count;
+            
+            //std::cerr << "i = " << count << "  err = " << err << std::endl;
         }
         
         if( count >= maxit )
@@ -292,8 +296,9 @@ public:
         for( size_t i=0; i<N; ++i )
         {
             int i4=4*i;
+            //insert and scale to -5..5 for floating point precision reasons
             for( size_t j=0,i3=3*i; j<3; ++j,++i3,++i4 )
-                Q[i4] = P[i3];
+                Q[i4] = (P[i3]-0.5)*10.0;
             Q[i4] = 1.0f;
         }
         
@@ -330,6 +335,10 @@ public:
         
         Inverse_3x3( Ainv, A );
         for( size_t i=0; i<9; ++i ) A[i] *= 0.333333333;
+        
+        // undo the scaling for floating point precision reasons
+        //for( int i=0; i<3; ++i ) c[i] = c[i]/10.0 + 0.5;
+        //for( int i=0; i<9; ++i ) A[i] *= 100.0;
     }
     
     ~min_ellipsoid()
@@ -348,12 +357,25 @@ public:
             for( int j=0; j<3; ++j )
                 r += q[i]*A[3*j+i]*q[j];
         
+        if( r<= 1.0 )
+        std::cerr << "q = (" << q[0] << ", " << q[1] << ", " << q[2] << ") r = " << r << std::endl;
+        
         return r <= 1.0;
     }
     
     template<typename T>
     void get_AABB( T *left, T *right )
     {
+        std::cout << "A = \n";
+        for( int i=0; i<9; ++i )
+        {
+            if( i%3==0 ) std::cout << std::endl;
+            std::cout << A[i] << "   ";
+        }
+        std::cout << std::endl;
+        std::cout << "c = (" << c[0] << ", " << c[1] << ", " << c[2] << ")\n";
+        
+        
         for( int i=0; i<3; ++i )
         {
             left[i]  = c[i] - 1.0/sqrt(A[3*i+i]);
@@ -412,13 +434,40 @@ private:
                 p.push_back( strtod(s.c_str(),NULL) );
             }
         }
+        
+        if( p.size()%3 != 0 )
+        {
+            LOGERR("Region point file \'%s\' does not contain triplets",fname.c_str());
+            throw std::runtime_error("region_ellipsoid_plugin::read_points_from_file : file does not contain triplets.");
+        }
+        
+        /*for( size_t i=0; i<p.size(); ++i )
+        {
+            if( i%3==0 ) std::cout << std::endl;
+            std::cout << p[i] << "  ";
+        }
+        std::cout << std::endl;
+        */
+        
+        double x0[3] = { p[0],p[1],p[2] }, dx;
+        for( size_t i=3; i<p.size(); i+=3 )
+        {
+            for( size_t j=0; j<3; ++j )
+            {
+                dx = p[i+j]-x0[j];
+                if( dx < -0.5 ) dx += 1.0;
+                else if( dx > 0.5 ) dx -= 1.0;
+                p[i+j] = x0[j] + dx;
+            }
+        }
     }
+        
 public:
     explicit region_ellipsoid_plugin( config_file& cf )
     : region_generator_plugin( cf )
     {
         std::vector<float> pp;
-        std::string point_file = cf.getValueSafe<std::string>("setup","region_point_file");
+        std::string point_file = cf.getValue<std::string>("setup","region_point_file");
         read_points_from_file( point_file, pp );
         pellip_ = new min_ellipsoid( pp.size()/3, &pp[0] );
 

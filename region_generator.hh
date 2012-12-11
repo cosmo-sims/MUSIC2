@@ -1,3 +1,7 @@
+#ifndef __REGION_GENERATOR_HH
+#define __REGION_GENERATOR_HH
+
+#include <vector>
 #include "config_file.hh"
 
 //! Abstract base class for region generators
@@ -22,7 +26,6 @@ public:
     
     //! query whether a point intersects the region
     virtual bool query_point( double *x ) = 0;
-    
 };
 
 //! Implements abstract factory design pattern for region generator plug-ins
@@ -59,3 +62,7 @@ struct region_generator_plugin_creator_concrete : public region_generator_plugin
 typedef region_generator_plugin region_generator;
 
 region_generator_plugin *select_region_generator_plugin( config_file& cf );
+
+extern region_generator_plugin *the_region_generator;
+
+#endif

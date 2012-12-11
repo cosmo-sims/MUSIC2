@@ -96,6 +96,47 @@ protected:
 			
 		}
 	}
+    
+    void write_refinement_mask( std::ofstream& ofs, unsigned ilevel, const grid_hierarchy& gh )
+    {
+        unsigned n1,n2,n3;
+		n1 = gh.get_grid(ilevel)->size(0);
+		n2 = gh.get_grid(ilevel)->size(1);
+		n3 = gh.get_grid(ilevel)->size(2);
+		
+		std::vector<float> data(n1*n2,0.0f);
+		
+		for( unsigned i=0; i<n3; ++i )
+		{
+			
+			data.clear();
+			
+            if( ilevel < gh.levelmax() )
+            {
+                for( unsigned j=0; j<n2; ++j )
+                    for( unsigned k=0; k<n1; ++k )
+                        if( gh.is_refined(ilevel,i,j,k) )
+                            data[j*n1+k] = 1.0;
+                        else
+                            data[j*n1+k] = 0.0;
+			}
+            else
+            {
+                for( unsigned j=0; j<n2; ++j )
+                    for( unsigned k=0; k<n1; ++k )
+                        if( !gh.is_refined(ilevel,i,j,k) )
+                            data[j*n1+k] = 1.0;
+                        else
+                            data[j*n1+k] = 0.0;
+            }
+			unsigned blksize = n1*n2*sizeof(float);
+			
+			ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+			ofs.write( reinterpret_cast<char*> (&data[0]), blksize );
+			ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+			
+		}
+    }
 	
 	void write_ramses_namelist( const grid_hierarchy& gh )
 	{
@@ -292,6 +333,18 @@ public:
 		
 		if( cf_.getValueSafe<bool>("output","ramses_nml",true) )
 			write_ramses_namelist(gh);
+        
+        for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
+		{
+			
+			char ff[256];
+			sprintf(ff,"%s/level_%03d/ic_refmask",fname_.c_str(), ilevel );
+			
+			std::ofstream ofs(ff,std::ios::binary|std::ios::trunc);
+			
+            write_file_header( ofs, ilevel, gh );
+            write_refinement_mask( ofs, ilevel, gh );
+		}
 		
 	}
 	

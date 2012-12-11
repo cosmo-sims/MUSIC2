@@ -156,7 +156,7 @@ protected:
     size_t N;
     float X[16];
     float c[3];
-    float A[9];
+    float A[9], Ainv[9];
     float *Q;
     float *u;
     
@@ -323,7 +323,7 @@ public:
                 Pu[j] += P[3*i+j] * u[i];
         }
         
-        float Ainv[9];
+        
         for( int i=0; i<3; ++i )
             for( int j=0,i3=3*i; j<3; ++j )
             {
@@ -335,13 +335,13 @@ public:
             }
         
         Inverse_3x3( Ainv, A );
-        for( size_t i=0; i<9; ++i ) A[i] *= 0.333333333;
+        for( size_t i=0; i<9; ++i ){ A[i] *= 0.333333333; Ainv[i] *= 3.0; }
         
         // undo the scaling for floating point precision reasons
         for( size_t i=0; i<3*N; ++i )
             P[i] = P[i]/10.0+0.5;
         for( int i=0; i<3; ++i ) c[i] = c[i]/10.0 + 0.5;
-        for( int i=0; i<9; ++i ) A[i] *= 100.0;
+        for( int i=0; i<9; ++i ){ A[i] *= 100.0; Ainv[i] /= 100.0; }
     }
     
     ~min_ellipsoid()
@@ -366,6 +366,8 @@ public:
     template<typename T>
     void get_AABB( T *left, T *right )
     {
+        /*print(A,3);
+        print(Ainv,3);*/
         /*std::cout << "A = \n";
         for( int i=0; i<9; ++i )
         {
@@ -378,8 +380,10 @@ public:
         
         for( int i=0; i<3; ++i )
         {
-            left[i]  = c[i] - 1.0/sqrt(A[3*i+i]);
-            right[i] = c[i] + 1.0/sqrt(A[3*i+i]);
+            /*left[i]  = c[i] - 1.0/sqrt(A[3*i+i]);
+            right[i] = c[i] + 1.0/sqrt(A[3*i+i]);*/
+            left[i]  = c[i] - sqrt(Ainv[3*i+i]);
+            right[i] = c[i] + sqrt(Ainv[3*i+i]);
         }
     }
     

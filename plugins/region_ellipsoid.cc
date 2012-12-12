@@ -363,19 +363,24 @@ public:
         return r <= 1.0;
     }
     
-    template<typename T>
-    void get_AABB( T *left, T *right )
+    void print( void )
     {
-        /*print(A,3);
-        print(Ainv,3);*/
-        /*std::cout << "A = \n";
+        std::cout << "A = \n";
         for( int i=0; i<9; ++i )
         {
             if( i%3==0 ) std::cout << std::endl;
             std::cout << A[i] << "   ";
         }
         std::cout << std::endl;
-        std::cout << "c = (" << c[0] << ", " << c[1] << ", " << c[2] << ")\n";*/
+        std::cout << "c = (" << c[0] << ", " << c[1] << ", " << c[2] << ")\n";
+    }
+    
+    template<typename T>
+    void get_AABB( T *left, T *right )
+    {
+        /*print(A,3);
+        print(Ainv,3);*/
+        
         
         
         for( int i=0; i<3; ++i )
@@ -389,6 +394,8 @@ public:
     
     void expand_ellipsoid( float dr )
     {
+        //print();
+        
         if( !axes_computed )
             compute_axes();
         
@@ -407,6 +414,10 @@ public:
         
         for( int i=0; i<9; ++i )
             A[i] = Anew[i];
+        
+        Inverse_3x3( A, Ainv );
+        
+        //print();
     }
 };
 
@@ -461,9 +472,11 @@ private:
     void apply_shift( size_t Np, float *p, int *shift, int levelmin )
     {
         double dx = 1.0/(1<<levelmin);
-        for( size_t i3=0; i3<Np; i3+=3 )
+        LOGINFO("unapplying previous shift to region particles : [%d,%d,%d] = (%f,%f,%f)",shift[0],shift[1],shift[2],shift[0]*dx,shift[1]*dx,shift[2]*dx);
+        
+        for( size_t i=0,i3=0; i<Np; i++,i3+=3 )
             for( size_t j=0; j<3; ++j )
-                p[i3+j] -= shift[j]*dx;
+                p[i3+j] = fmod(p[i3+j]-shift[j]*dx+1.0,1.0);
     }
     
 public:
@@ -486,6 +499,11 @@ public:
         }
         
         pellip_ = new min_ellipsoid( pp.size()/3, &pp[0] );
+        
+        //expand the ellipsoid by one grid cell
+        unsigned levelmax = cf.getValue<unsigned>("setup","levelmax");
+        double dx = 1.0/(1<<levelmax);
+        pellip_->expand_ellipsoid( dx );
 
     }
     

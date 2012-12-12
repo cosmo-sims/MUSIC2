@@ -118,7 +118,19 @@ public:
     }
     
     bool query_point( double *x )
-    {  return true;  }
+    {
+        bool check = true;
+        double dx;
+        for( int i=0; i<3; ++i )
+        {
+            dx = x[i] - x0ref_[i];
+            if( dx < -0.5 ) dx += 1.0;
+            else if (dx > 0.5 ) dx -= 1.0;
+            
+            check &= dx >= 0.0 & dx <= lxref_[i];
+        }
+        return check;
+    }
 };
 
 namespace{

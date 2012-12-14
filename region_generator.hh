@@ -22,7 +22,7 @@ public:
     virtual ~region_generator_plugin() { };
     
     //! compute the bounding box of the region
-    virtual void get_AABB( double *left, double *right) = 0;
+    virtual void get_AABB( double *left, double *right, unsigned level) = 0;
     
     //! query whether a point intersects the region
     virtual bool query_point( double *x ) = 0;

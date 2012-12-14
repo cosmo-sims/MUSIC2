@@ -1121,9 +1121,17 @@ public:
 	explicit refinement_hierarchy( config_file& cf )
 	: cf_( cf )
 	{
+        //... query the parameter data we need
+		levelmin_	= cf_.getValue<unsigned>("setup","levelmin");
+		levelmax_	= cf_.getValue<unsigned>("setup","levelmax");
+		levelmin_tf_= cf_.getValueSafe<unsigned>("setup","levelmin_TF",levelmin_);
+		padding_	= cf_.getValue<unsigned>("setup","padding");
+		align_top_	= cf_.getValue<bool>("setup","align_top");
+		equal_extent_ = cf_.getValueSafe<bool>("setup","force_equal_extent",false);
+		
         //... call the region generator
         double x1ref[3];
-        the_region_generator->get_AABB(x0ref_,x1ref);
+        the_region_generator->get_AABB(x0ref_,x1ref,levelmax_);
         for( int i=0; i<3; ++i )
             lxref_[i] = x1ref[i]-x0ref_[i];
         bhave_nref = false;
@@ -1132,16 +1140,6 @@ public:
         
         LOGINFO("refinement region is \'%s\', w/ bounding box\n        left = [%f,%f,%f]\n       right = [%f,%f,%f]",
                 region_type.c_str(),x0ref_[0],x0ref_[1],x0ref_[2],x1ref[0],x1ref[1],x1ref[2]);
-        
-        
-		//... query the parameter data we need
-		levelmin_	= cf_.getValue<unsigned>("setup","levelmin");
-		levelmax_	= cf_.getValue<unsigned>("setup","levelmax");
-		levelmin_tf_= cf_.getValueSafe<unsigned>("setup","levelmin_TF",levelmin_);
-		padding_	= cf_.getValue<unsigned>("setup","padding");
-		align_top_	= cf_.getValue<bool>("setup","align_top");
-		equal_extent_ = cf_.getValueSafe<bool>("setup","force_equal_extent",false);
-		
 		
 		bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
 		bool force_shift = cf_.getValueSafe<bool>("setup","force_shift",false);

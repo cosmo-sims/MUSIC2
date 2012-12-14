@@ -512,9 +512,17 @@ public:
         delete pellip_;
     }
     
-    void get_AABB( double *left, double *right)
+    void get_AABB( double *left, double *right, unsigned level )
     {
         pellip_->get_AABB( left, right );
+        double dx = 1.0/(1ul<<level);
+        
+        for( int i=0;i<3;++i )
+        {
+            left[i] -= sqrt(3)*dx;
+            right[i] += sqrt(3)*dx;
+        }
+        
     }
     
     bool query_point( double *x )

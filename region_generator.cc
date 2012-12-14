@@ -71,7 +71,7 @@ public:
         
     }
     
-    void get_AABB( double *left, double *right)
+    void get_AABB( double *left, double *right, unsigned level )
     {
         levelmin_ = pcf_->getValue<unsigned>("setup","levelmin");
         levelmax_ = pcf_->getValue<unsigned>("setup","levelmax");

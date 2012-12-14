@@ -207,8 +207,56 @@ protected:
             n3 = n3c;
         }
     }
+    
+    void write_ramses_namelist( const grid_hierarchy& gh )
+	{
+		//... also write the refinement options to a dummy namelist file
+		char ff[256];
+		sprintf(ff,"%s/ramses.nml",fname_.c_str() );
+		
+		std::ofstream ofst(ff,std::ios::trunc);
+		
+		ofst
+            << "&INIT_PARAMS\n"
+            << "filetype=\'grafic\'\n";
+		for( unsigned i=gh.levelmin();i<=gh.levelmax(); ++i)
+		{
+			sprintf(ff,"initfile(%d)=\'%s/level_%03d\'\n",i-gh.levelmin()+1,fname_.c_str(), i );
+			ofst << std::string(ff);
+		}
+		ofst << "/\n\n";
+		
+		
+        unsigned naddref = 8; // initialize with settings for 10 additional levels of refinement
+        unsigned nexp = cf_.getValue<unsigned>("setup","padding");
+        
+        ofst << "&AMR_PARAMS\n"
+            << "levelmin=" << gh.levelmin() << "\n"
+            << "levelmax=" << gh.levelmax()+naddref << "\n"
+            << "ngridtot=2000000\n"
+            << "nparttot=3000000\n"
+            << "nexpand=";
+        
+        for( unsigned ilevel=gh.levelmin(); ilevel<gh.levelmax(); ++ilevel )
+            ofst << nexp-2 << ",";
+        ofst << naddref+1 << "*1\n";
+        ofst << "/\n\n";
+        
+        ofst << "&REFINE_PARAMS\n"
+            << "m_refine=" << gh.levelmax()-gh.levelmin()+1+naddref << "*8.,\n"
+            << "ivar_refine=6\n"
+            << "var_cut_refine=2e-6\n"
+            << "mass_cut_refine=1e-9\n"
+            << "interpol_var=1\n"
+            << "interpol_type=0\n"
+            << "/\n\n";
+        
+        
+		LOGINFO("The grafic2 output plug-in wrote the grid data to a partial");
+		LOGINFO("   RAMSES namelist file \'%s\'",fname_.c_str() );
+    }
 	
-	void write_ramses_namelist( const grid_hierarchy& gh )
+	void write_ramses_namelist_old( const grid_hierarchy& gh )
 	{
 		//... also write the refinement options to a dummy namelist file
 		char ff[256];
@@ -304,10 +352,6 @@ public:
 	: output_plugin( cf )
 	{
 		// create directory structure
-		
-		if( !cf.getValueSafe<bool>("setup","force_equal_extent",false) )
-			LOGWARN("Refinement region is not a square box, this may cause problems with RAMSES");
-		
 		remove( fname_.c_str() );
 		mkdir( fname_.c_str(), 0777 );
 		for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
@@ -403,6 +447,8 @@ public:
 		
 		if( cf_.getValueSafe<bool>("output","ramses_nml",true) )
 			write_ramses_namelist(gh);
+        else if( cf_.getValueSafe<bool>("output","ramses_old_nml",false) )
+			write_ramses_namelist_old(gh);
         
         write_refinement_mask( gh );
 		

@@ -97,45 +97,115 @@ protected:
 		}
 	}
     
-    void write_refinement_mask( std::ofstream& ofs, unsigned ilevel, const grid_hierarchy& gh )
+    void restrict_mask( size_t n1, size_t n2, size_t n3, size_t o1, size_t o2, size_t o3,
+                        size_t n1c, size_t n2c, size_t n3c, const float* finemask, float* coarsemask )
     {
-        unsigned n1,n2,n3;
-		n1 = gh.get_grid(ilevel)->size(0);
-		n2 = gh.get_grid(ilevel)->size(1);
-		n3 = gh.get_grid(ilevel)->size(2);
-		
-		std::vector<float> data(n1*n2,0.0f);
-		
-		for( unsigned i=0; i<n3; ++i )
-		{
-			
-			data.clear();
-			
-            if( ilevel < gh.levelmax() )
+        //unsigned n1p = n1/2, n2p = n2/2, n3p = n3/2;
+        
+        for( size_t i=0; i<n1c*n2c*n3c; ++i )
+            coarsemask[i] = 0.0f;
+        
+        for( size_t i=0; i<n1; ++i )
+        {
+            size_t ii=i/2+o1;
+            for( size_t j=0; j<n2; ++j )
             {
-                for( unsigned j=0; j<n2; ++j )
-                    for( unsigned k=0; k<n1; ++k )
-                        if( gh.is_refined(ilevel,i,j,k) )
-                            data[j*n1+k] = 1.0;
-                        else
-                            data[j*n1+k] = 0.0;
-			}
-            else
-            {
-                for( unsigned j=0; j<n2; ++j )
-                    for( unsigned k=0; k<n1; ++k )
-                        if( !gh.is_refined(ilevel,i,j,k) )
-                            data[j*n1+k] = 1.0;
-                        else
-                            data[j*n1+k] = 0.0;
+                size_t jj=j/2+o2;
+                for( size_t k=0; k<n3; ++k )
+                {
+                    size_t kk=k/2+o3;
+                    if( finemask[ (i*n2+j)*n3+k ] )
+                        coarsemask[(ii*n2c+jj)*n3c+kk] += 1.0f;
+                }
             }
-			unsigned blksize = n1*n2*sizeof(float);
-			
-			ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
-			ofs.write( reinterpret_cast<char*> (&data[0]), blksize );
-			ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
-			
-		}
+        }
+        
+        for( size_t i=0; i<n1c*n2c*n3c; ++i )
+            if( coarsemask[i] > 0.1f )
+                coarsemask[i] = 1.0f;
+    }
+    
+    void write_refinement_mask( const grid_hierarchy& gh )
+    {
+        
+        // generate mask for highest level
+        char ff[256];
+       
+        size_t n1,n2,n3;
+            n1 = gh.get_grid(gh.levelmax())->size(0);
+            n2 = gh.get_grid(gh.levelmax())->size(1);
+            n3 = gh.get_grid(gh.levelmax())->size(2);
+        
+        std::vector<float> data(n1*n2*n3,0.0f);
+        
+        // do finest level
+        {
+            // get mask for levelmax
+            for( size_t i=0; i<n1; ++i )
+                for( size_t j=0; j<n2; ++j )
+                    for( size_t k=0; k<n3; ++k )
+                        if( !gh.is_refined(gh.levelmax(),i,j,k) )
+                            data[(i*n1+j)*n2+k] = 1.0;
+                        else
+                            data[(i*n1+j)*n2+k] = 0.0;
+            
+            // write mask
+            sprintf(ff,"%s/level_%03d/ic_refmap",fname_.c_str(), gh.levelmax() );
+            std::ofstream ofs(ff,std::ios::binary|std::ios::trunc);
+            write_file_header( ofs, gh.levelmax(), gh );
+            
+            std::vector<float> block(n1*n2,0.0f);
+            for( unsigned i=0; i<n3; ++i )
+            {
+                for( unsigned j=0; j<n2; ++j )
+                    for( unsigned k=0; k<n1; ++k )
+                        block[j*n1+k] = data[(k*n2+j)*n3+i];
+                
+                unsigned blksize = n1*n2*sizeof(float);
+                
+                ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+                ofs.write( reinterpret_cast<char*> (&block[0]), blksize );
+                ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+            }
+        }
+        
+        // do all coarser levels
+        for( unsigned ilevel=levelmax_-1; ilevel>=levelmin_; --ilevel )
+        {
+            size_t n1c,n2c,n3c,o1,o2,o3;
+            n1c = gh.get_grid(ilevel)->size(0);
+            n2c = gh.get_grid(ilevel)->size(1);
+            n3c = gh.get_grid(ilevel)->size(2);
+            o1 = gh.get_grid(ilevel+1)->offset(0);
+            o2 = gh.get_grid(ilevel+1)->offset(1);
+            o3 = gh.get_grid(ilevel+1)->offset(2);
+            
+            std::vector<float> data_coarse( n1c*n2c*n3c, 0.0f );
+            restrict_mask( n1, n2, n3, o1, o2, o3, n1c, n2c, n3c, &data[0], &data_coarse[0] );
+            
+            
+            sprintf(ff,"%s/level_%03d/ic_refmap",fname_.c_str(), ilevel );
+            std::ofstream ofs(ff,std::ios::binary|std::ios::trunc);
+            write_file_header( ofs, gh.levelmax(), gh );
+            std::vector<float> block(n1c*n2c,0.0f);
+            for( unsigned i=0; i<n3c; ++i )
+            {
+                for( unsigned j=0; j<n2c; ++j )
+                    for( unsigned k=0; k<n1c; ++k )
+                        block[j*n1c+k] = data_coarse[(k*n2c+j)*n3c+i];
+                
+                unsigned blksize = n1*n2*sizeof(float);
+                
+                ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+                ofs.write( reinterpret_cast<char*> (&block[0]), blksize );
+                ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+            }
+            
+            data.swap( data_coarse );
+            n1 = n1c;
+            n2 = n2c;
+            n3 = n3c;
+        }
     }
 	
 	void write_ramses_namelist( const grid_hierarchy& gh )
@@ -334,17 +404,7 @@ public:
 		if( cf_.getValueSafe<bool>("output","ramses_nml",true) )
 			write_ramses_namelist(gh);
         
-        for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
-		{
-			
-			char ff[256];
-			sprintf(ff,"%s/level_%03d/ic_refmap",fname_.c_str(), ilevel );
-			
-			std::ofstream ofs(ff,std::ios::binary|std::ios::trunc);
-			
-            write_file_header( ofs, ilevel, gh );
-            write_refinement_mask( ofs, ilevel, gh );
-		}
+        write_refinement_mask( gh );
 		
 	}
 	

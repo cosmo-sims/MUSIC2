@@ -1189,7 +1189,8 @@ public:
 			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
 		}
          */
-
+        
+        bhave_nref = the_region_generator->is_grid_dim_forced( lnref_ );
 		
         
         // if not doing any refinement levels, set extent to full box

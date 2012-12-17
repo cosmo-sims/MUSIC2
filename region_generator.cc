@@ -61,7 +61,7 @@ private:
         x0ref_[3],      //!< coordinates of refinement region origin (in [0..1[)
         lxref_[3];      //!< extent of refinement region (int [0..1[)
     size_t lnref_[3];
-    bool bhave_nref;
+    bool bhave_nref_;
     unsigned levelmin_, levelmax_;
     
 public:
@@ -87,11 +87,11 @@ public:
         {
             temp                = pcf_->getValue<std::string>( "setup", "ref_extent" );
             sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
-            bhave_nref = false;
+            bhave_nref_ = false;
         }else if( pcf_->containsKey("setup","ref_dims") ){
             temp = pcf_->getValue<std::string>("setup","ref_dims");
             sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
-            bhave_nref = true;
+            bhave_nref_ = true;
             
             lxref_[0] = lnref_[0] * 1.0/(double)(1<<levelmax_);
             lxref_[1] = lnref_[1] * 1.0/(double)(1<<levelmax_);
@@ -130,6 +130,13 @@ public:
             check &= dx >= 0.0 & dx <= lxref_[i];
         }
         return check;
+    }
+    
+    bool is_grid_dim_forced( size_t* ndims )
+    {
+        for( int i=0; i<3; ++i )
+            ndims[i] = lnref_[i];
+        return bhave_nref_;
     }
 };
 

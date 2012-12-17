@@ -26,6 +26,10 @@ public:
     
     //! query whether a point intersects the region
     virtual bool query_point( double *x ) = 0;
+    
+    //! query whether the region generator explicitly forces the grid dimensions
+    virtual bool is_grid_dim_forced( size_t *ndims ) = 0;
+    
 };
 
 //! Implements abstract factory design pattern for region generator plug-ins

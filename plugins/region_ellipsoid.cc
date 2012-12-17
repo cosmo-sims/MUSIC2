@@ -526,9 +526,10 @@ public:
     }
     
     bool query_point( double *x )
-    {
-        return pellip_->check_point( x );
-    }
+    {   return pellip_->check_point( x );   }
+    
+    bool is_grid_dim_forced( size_t* ndims )
+    {   return false;   }
 };
 
 namespace{

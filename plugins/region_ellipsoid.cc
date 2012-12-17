@@ -378,18 +378,16 @@ public:
     template<typename T>
     void get_AABB( T *left, T *right )
     {
-        /*print(A,3);
-        print(Ainv,3);*/
-        
-        
-        
         for( int i=0; i<3; ++i )
         {
-            /*left[i]  = c[i] - 1.0/sqrt(A[3*i+i]);
-            right[i] = c[i] + 1.0/sqrt(A[3*i+i]);*/
             left[i]  = c[i] - sqrt(Ainv[3*i+i]);
             right[i] = c[i] + sqrt(Ainv[3*i+i]);
         }
+    }
+    
+    void get_center( float* xc )
+    {
+        for( int i=0; i<3; ++i ) xc[i] = c[i];
     }
     
     void expand_ellipsoid( float dr )
@@ -472,7 +470,8 @@ private:
     void apply_shift( size_t Np, float *p, int *shift, int levelmin )
     {
         double dx = 1.0/(1<<levelmin);
-        LOGINFO("unapplying previous shift to region particles : [%d,%d,%d] = (%f,%f,%f)",shift[0],shift[1],shift[2],shift[0]*dx,shift[1]*dx,shift[2]*dx);
+        LOGINFO("unapplying previous shift to region particles :\n" \
+                "\t [%d,%d,%d] = (%f,%f,%f)",shift[0],shift[1],shift[2],shift[0]*dx,shift[1]*dx,shift[2]*dx);
         
         for( size_t i=0,i3=0; i<Np; i++,i3+=3 )
             for( size_t j=0; j<3; ++j )
@@ -504,7 +503,11 @@ public:
         unsigned levelmax = cf.getValue<unsigned>("setup","levelmax");
         double dx = 1.0/(1<<levelmax);
         pellip_->expand_ellipsoid( dx );
-
+        
+        // output the center
+        float c[3];
+        pellip_->get_center( c );
+        LOGINFO("Region center for ellipsoid determined at\n\t (%f,%f,%f)",c[0],c[1],c[2]);
     }
     
     ~region_ellipsoid_plugin()

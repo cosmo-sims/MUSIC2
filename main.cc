@@ -230,15 +230,16 @@ double compute_finest_mean( grid_hierarchy& u )
 {
 
 	double sum = 0.0;
+    size_t count = 0;
 	for( int ix = 0; ix < (int)(*u.get_grid(u.levelmax())).size(0); ++ix )
 		for( int iy = 0; iy < (int)(*u.get_grid(u.levelmax())).size(1); ++iy )
 			for( int iz = 0; iz < (int)(*u.get_grid(u.levelmax())).size(2); ++iz )
-				sum += (*u.get_grid(u.levelmax()))(ix,iy,iz);
-	
-	sum /= (double)(*u.get_grid(u.levelmax())).size(0)
-			* (double)(*u.get_grid(u.levelmax())).size(1)
-			* (double)(*u.get_grid(u.levelmax())).size(2);
-	
+                if( ! u.is_refined(u.levelmax(),ix,iy,iz) )
+                {
+                    sum += (*u.get_grid(u.levelmax()))(ix,iy,iz);
+                    ++count;
+                }
+	sum /= count;
 	return sum;
 	
 }
@@ -969,13 +970,12 @@ int main (int argc, const char * argv[])
 				//... velocity kick to keep refined region centered?
 				if( do_CVM )
 				{
-					uref[icoord] = kickfac * compute_finest_mean(data_forIO);
+					/*uref[icoord] = kickfac * compute_finest_mean(data_forIO);
 					//std::cerr << "uref_old[" << icoord << "] = " << uref[icoord] << std::endl;
 					uref[icoord] = kickfac * compute_finest_mean(data_forIO) - 6./7. * uref_2LPT[icoord];
 					uref_2LPT[icoord] = 6./7. * kickfac_2LPT/kickfac * uref_2LPT[icoord];
 					uref[icoord] += uref_2LPT[icoord];
-					//std::cerr << "uref_new[" << icoord << "] = " << uref[icoord] << std::endl;
-
+					//std::cerr << "uref_new[" << icoord << "] = " << uref[icoord] << std::endl; */
 					uref[icoord] = compute_finest_mean(data_forIO);
 
 					data_forIO -= uref[icoord];

@@ -19,8 +19,6 @@ void print_region_generator_plugins()
 			std::cout << "\t\'" << (*it).first << "\'\n";
 		++it;
 	}
-	
-	
 }
 
 region_generator_plugin *select_region_generator_plugin( config_file& cf )
@@ -79,10 +77,15 @@ public:
         std::string temp;
         
         if( !pcf_->containsKey("setup","ref_offset") && !pcf_->containsKey("setup","ref_center") )
+        {
+            LOGERR("Found levelmin!=levelmax but neither ref_offset nor ref_center was specified.");
             throw std::runtime_error("Found levelmin!=levelmax but neither ref_offset nor ref_center was specified.");
+        }
         if( !pcf_->containsKey("setup","ref_extent") && !pcf_->containsKey("setup","ref_dims") )
+        {
+            LOGERR("Found levelmin!=levelmax but neither ref_extent nor ref_dims was specified.");
             throw std::runtime_error("Found levelmin!=levelmax but neither ref_extent nor ref_dims was specified.");
-        
+        }
         if( pcf_->containsKey("setup","ref_extent") )
         {
             temp                = pcf_->getValue<std::string>( "setup", "ref_extent" );

@@ -277,8 +277,10 @@ public:
 	Meshvar<real_t>& operator*=( const Meshvar<real_t>& v )
 	{
 		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
-			throw std::runtime_error("Meshvar::operator*= : attempt to operate on incompatible data");
-		
+		{
+            LOGERR("Meshvar::operator*= : attempt to operate on incompatible data");
+            throw std::runtime_error("Meshvar::operator*= : attempt to operate on incompatible data");
+		}
 		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] *= v.m_pdata[i];
 		
@@ -289,8 +291,11 @@ public:
 	Meshvar<real_t>& operator/=( const Meshvar<real_t>& v )
 	{
 		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
-			throw std::runtime_error("Meshvar::operator/= : attempt to operate on incompatible data");
-		
+		{
+            LOGERR("Meshvar::operator/= : attempt to operate on incompatible data");
+            throw std::runtime_error("Meshvar::operator/= : attempt to operate on incompatible data");
+		}
+        
 		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] /= v.m_pdata[i];
 		
@@ -301,8 +306,10 @@ public:
 	Meshvar<real_t>& operator+=( const Meshvar<real_t>& v )
 	{
 		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
-			throw std::runtime_error("Meshvar::operator+= : attempt to operate on incompatible data");
-		
+		{
+            LOGERR("Meshvar::operator+= : attempt to operate on incompatible data");
+            throw std::runtime_error("Meshvar::operator+= : attempt to operate on incompatible data");
+		}
 		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] += v.m_pdata[i];
 		
@@ -313,8 +320,10 @@ public:
 	Meshvar<real_t>& operator-=( const Meshvar<real_t>& v )
 	{
 		if( v.m_nx*v.m_ny*v.m_nz != m_nx*m_ny*m_nz )
-			throw std::runtime_error("Meshvar::operator-= : attempt to operate on incompatible data");
-		
+		{
+            LOGERR("Meshvar::operator-= : attempt to operate on incompatible data");
+            throw std::runtime_error("Meshvar::operator-= : attempt to operate on incompatible data");
+		}
 		for( size_t i=0; i<m_nx*m_ny*m_nz; ++i )
 			m_pdata[i] -= v.m_pdata[i];
 		
@@ -563,7 +572,7 @@ public:
 
 		if( ilevel >= m_pgrids.size() )
 		{
-			std::cerr << "Attempt to access level " << ilevel << " but maxlevel = " << m_pgrids.size()-1 << std::endl;
+			LOGERR("Attempt to access level %d but maxlevel = %d", ilevel, m_pgrids.size()-1);
 			throw std::runtime_error("Fatal: attempt to access non-existent grid");
 		}
 		return m_pgrids[ilevel];  
@@ -574,7 +583,7 @@ public:
 	{	
 		if( ilevel >= m_pgrids.size() )
 		{
-			std::cerr << "Attempt to access level " << ilevel << " but maxlevel = " << m_pgrids.size()-1 << std::endl;
+            LOGERR("Attempt to access level %d but maxlevel = %d", ilevel, m_pgrids.size()-1 );
 			throw std::runtime_error("Fatal: attempt to access non-existent grid");
 		}
 
@@ -877,8 +886,10 @@ public:
 	GridHierarchy<T>& operator*=( const GridHierarchy<T>& gh )
 	{
 		if( !is_consistent(gh) )
-			throw std::runtime_error("GridHierarchy::operator*= : attempt to operate on incompatible data");
-		
+		{
+            LOGERR("GridHierarchy::operator*= : attempt to operate on incompatible data");
+            throw std::runtime_error("GridHierarchy::operator*= : attempt to operate on incompatible data");
+		}
 		for( unsigned i=0; i<m_pgrids.size(); ++i )
 			(*m_pgrids[i]) *= *gh.get_grid(i);
 		return *this;
@@ -888,8 +899,10 @@ public:
 	GridHierarchy<T>& operator/=( const GridHierarchy<T>& gh )
 	{
 		if( !is_consistent(gh) )
-			throw std::runtime_error("GridHierarchy::operator/= : attempt to operate on incompatible data");
-		
+		{
+            LOGERR("GridHierarchy::operator/= : attempt to operate on incompatible data");
+            throw std::runtime_error("GridHierarchy::operator/= : attempt to operate on incompatible data");
+		}
 		for( unsigned i=0; i<m_pgrids.size(); ++i )
 			(*m_pgrids[i]) /= *gh.get_grid(i);
 		return *this;
@@ -910,8 +923,10 @@ public:
 	GridHierarchy<T>& operator-=( const GridHierarchy<T>& gh )
 	{
 		if( !is_consistent(gh) )
-			throw std::runtime_error("GridHierarchy::operator-= : attempt to operate on incompatible data");
-		
+		{
+            LOGERR("GridHierarchy::operator-= : attempt to operate on incompatible data");
+            throw std::runtime_error("GridHierarchy::operator-= : attempt to operate on incompatible data");
+		}
 		for( unsigned i=0; i<m_pgrids.size(); ++i )
 			(*m_pgrids[i]) -= *gh.get_grid(i);
 		return *this;
@@ -1143,52 +1158,6 @@ public:
 		
 		bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
 		bool force_shift = cf_.getValueSafe<bool>("setup","force_shift",false);
-		
-		/*std::string temp;
-		
-		if( cf_.containsKey("setup","ref_offset") && cf_.containsKey("setup","ref_center") )
-			throw std::runtime_error("Found both ref_offset and ref_center. You can only specify one.");
-		
-		if( cf_.containsKey("setup","ref_extent") && cf_.containsKey("setup","ref_dims") )
-		  throw std::runtime_error("Found both ref_extent and ref_dims. You can only specify one.");
-
-        if( levelmin_ != levelmax_ )
-        {
-            if( !cf_.containsKey("setup","ref_offset") && !cf_.containsKey("setup","ref_center") )
-                throw std::runtime_error("Found levelmin!=levelmax but neither ref_offset nor ref_center was specified.");
-            if( !cf_.containsKey("setup","ref_extent") && !cf_.containsKey("setup","ref_dims") )
-                throw std::runtime_error("Found levelmin!=levelmax but neither ref_extent nor ref_dims was specified.");
-        }
-        
-        
-		if( cf_.containsKey("setup","ref_extent") )
-		{
-            temp		= cf_.getValue<std::string>( "setup", "ref_extent" );
-                sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
-            bhave_nref = false;
-		}else if( cf_.containsKey("setup","ref_dims") ){
-            temp = cf_.getValue<std::string>("setup","ref_dims");
-            sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
-            bhave_nref = true;
-
-            lxref_[0] = lnref_[0] * 1.0/(double)(1<<levelmax_);
-            lxref_[1] = lnref_[1] * 1.0/(double)(1<<levelmax_);
-            lxref_[2] = lnref_[2] * 1.0/(double)(1<<levelmax_);
-        }
-
-		
-		if( cf_.containsKey("setup","ref_center") )
-		{
-			temp		= cf_.getValue<std::string>( "setup", "ref_center" );
-			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
-			x0ref_[0] = fmod( x0ref_[0]-0.5*lxref_[0]+1.0,1.0);
-			x0ref_[1] = fmod( x0ref_[1]-0.5*lxref_[1]+1.0,1.0);
-			x0ref_[2] = fmod( x0ref_[2]-0.5*lxref_[2]+1.0,1.0);			
-		}else if( cf_.containsKey("setup","ref_offset") ){
-			temp		= cf_.getValue<std::string>( "setup", "ref_offset" );
-			sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
-		}
-         */
         
         bhave_nref = the_region_generator->is_grid_dim_forced( lnref_ );
 		
@@ -1280,8 +1249,10 @@ public:
 			    if( lnref_[0] % (1ul<<(levelmax_-levelmin_)) != 0 ||
 				lnref_[1] % (1ul<<(levelmax_-levelmin_)) != 0 ||
 				lnref_[2] % (1ul<<(levelmax_-levelmin_)) != 0 )
-			      throw std::runtime_error("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
-
+			    {
+                    LOGERR("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
+                    throw std::runtime_error("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
+                }
 			  }
 
 			
@@ -1335,8 +1306,10 @@ public:
 		kl = (kl+nresmax)%nresmax; kr = (kr+nresmax)%nresmax;
 		
 		if( il>=ir || jl>=jr || kl>=kr )
-			LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]",il,ir,jl,jr,kl,kr);
-		
+		{
+            LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]",il,ir,jl,jr,kl,kr);
+            throw std::runtime_error("refinement_hierarchy: Internal refinement bounding box error 1");
+		}
 		//... determine offsets
 		if( levelmin_ != levelmax_ )
 		{
@@ -1352,8 +1325,10 @@ public:
 			{
 
 			  if( bhave_nref && (lnref_[0]!=lnref_[1]||lnref_[0]!=lnref_[2]) )
-			    throw std::runtime_error("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
-			    
+			  {
+                  LOGERR("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
+                  throw std::runtime_error("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
+              }
 				size_t ilevel = levelmax_;
 				size_t nmax = std::max( nx_[ilevel], std::max( ny_[ilevel], nz_[ilevel] ) );				
 				int dx = (int)((double)(nmax-nx_[ilevel])*0.5);
@@ -1408,8 +1383,10 @@ public:
 			}
 			
 			if( il>=ir || jl>=jr || kl>=kr || il < 0 || jl < 0 || kl < 0)
-				LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]",il,ir,jl,jr,kl,kr);
-
+			{
+                LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d], level=%d",il,ir,jl,jr,kl,kr,ilevel);
+                throw std::runtime_error("refinement_hierarchy: Internal refinement bounding box error 2");
+            }
 			oax_[ilevel] = il;		oay_[ilevel] = jl;		oaz_[ilevel] = kl;
 			nx_[ilevel]  = ir-il;	ny_[ilevel]  = jr-jl;	nz_[ilevel]  = kr-kl;
 			
@@ -1568,7 +1545,7 @@ public:
 		}
 		
 		if( (old_levelmin != levelmin_) && print)
-			std::cerr << " - refinement_hierarchy: set new levelmin to " << levelmin_ << std::endl;
+			LOGINFO("refinement_hierarchy: set new levelmin to %d", levelmin_ );
 	}
 	
 	//! get absolute grid offset for a specified level along a specified dimension (in fine grid units)

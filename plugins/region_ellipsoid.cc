@@ -533,6 +533,16 @@ public:
     
     bool is_grid_dim_forced( size_t* ndims )
     {   return false;   }
+    
+    void get_center( double *xc )
+    {
+        float c[3];
+        pellip_->get_center( c );
+        
+        xc[0] = c[0];
+        xc[1] = c[1];
+        xc[2] = c[2];
+    }
 };
 
 namespace{

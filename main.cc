@@ -77,7 +77,7 @@ void splash(void)
 	std::cout 
 	<< "\n    __    __     __  __     ______     __     ______      \n"
 	<< "   /\\ \"-./  \\   /\\ \\/\\ \\   /\\  ___\\   /\\ \\   /\\  ___\\  \n"   
-	<< "   \\ \\ \\-./\\ \\  \\ \\ \\_\\ \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\____ \n"  
+	<< "   \\ \\ \\-./\\ \\  \\ \\ \\_\\ \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\____ \n"
 	<< "    \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\/\\_____\\  \\ \\_\\  \\ \\_____\\ \n"
 	<< "     \\/_/  \\/_/   \\/_____/   \\/_____/   \\/_/   \\/_____/ \n\n"
 	<< "                            this is " << THE_CODE_NAME << " version " << THE_CODE_VERSION << "\n\n\n";
@@ -264,6 +264,7 @@ double compute_finest_sigma( grid_hierarchy& u )
 	return sqrt(sum2-sum*sum);
 }
 
+
 /*****************************************************************************************************/
 /*****************************************************************************************************/
 /*****************************************************************************************************/
@@ -383,7 +384,8 @@ int main (int argc, const char * argv[])
 		do_baryons	= cf.getValue<bool>("setup","baryons"),
 		do_2LPT		= cf.getValueSafe<bool>("setup","use_2LPT",false),
 		do_LLA		= cf.getValueSafe<bool>("setup","use_LLA",false),
-		do_CVM		= cf.getValueSafe<bool>("setup","center_vel",false);
+		do_CVM		= cf.getValueSafe<bool>("setup","center_vel",false),
+        do_CVMfrompos = false;
 	
 	transfer_function_plugin *the_transfer_function_plugin
 		= select_transfer_function_plugin( cf );
@@ -443,7 +445,8 @@ int main (int argc, const char * argv[])
 	
 
 	double kickfac = 0.0, kickfac_2LPT = 0.0;
-	
+    double velocity_restframe[3] = {0.0,0.0,0.0};
+    
 	if( do_CVM )
 	{
 		double ztarget = 0.0;//cf.getValueSafe<double>("setup","center_vel_zfinal",0.0);
@@ -451,6 +454,47 @@ int main (int argc, const char * argv[])
 		kickfac_2LPT = ccalc.ComputeVelocityCompensation_2LPT( cosmo.astart, 1./(1.+ztarget) )/cosmo.vfact;
 		std::cout	<< " - Will center velocities for target redshift " << ztarget << std::endl;
 		LOGUSER("Will center velocities for target redshift %f.",ztarget);
+        
+        double atarget = 1.0;
+        
+        if( cf.containsKey("setup", "center_vel_posfinal" ) )
+        {
+            double CVM_x0final[3], CVM_x0initial[3], dx[3];
+            
+            do_CVMfrompos = true;
+            atarget = cf.getValueSafe("setup", "center_vel_afinal", atarget );
+            
+            std::string strtemp;
+            strtemp            = cf.getValue<std::string>( "setup", "center_vel_posfinal" );
+            sscanf( strtemp.c_str(), "%lf,%lf,%lf", &CVM_x0final[0], &CVM_x0final[1], &CVM_x0final[2] );
+            
+            kickfac = ccalc.CalcTFac( cosmo.astart, atarget );
+            
+            LOGINFO("Will center velocities for target position\n     (%f,%f,%f) at a=%f.",CVM_x0final[0],CVM_x0final[1],CVM_x0final[2],atarget);
+            
+            
+            LOGINFO("kick factor is %f",kickfac);
+            // initial center definition goes here:
+            the_region_generator->get_center( CVM_x0initial );
+            
+            LOGINFO("Will center velocities for initial position\n     (%f,%f,%f) at a=%f.",CVM_x0initial[0],CVM_x0initial[1],CVM_x0initial[2],cosmo.astart);
+            
+            dx[0] = (CVM_x0final[0] - CVM_x0initial[0]);
+            dx[1] = (CVM_x0final[1] - CVM_x0initial[1]);
+            dx[2] = (CVM_x0final[2] - CVM_x0initial[2]);
+            
+            velocity_restframe[0] = dx[0] * kickfac;
+            velocity_restframe[1] = dx[1] * kickfac;
+            velocity_restframe[2] = dx[2] * kickfac;
+            
+            LOGINFO("Setting initial velocity rest frame to (%f,%f,%f)", velocity_restframe[0],velocity_restframe[1],velocity_restframe[2]);
+            
+            
+        }else{
+            LOGINFO("Will zero initial velocities, no target center specified.");
+            
+        }
+        
 	}
 	
 	
@@ -582,7 +626,7 @@ int main (int argc, const char * argv[])
 					{
 						data_forIO.zero();
 						*data_forIO.get_grid(data_forIO.levelmax()) = *f.get_grid(f.levelmax());
-						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order, 
+						poisson_hybrid(*data_forIO.get_grid(data_forIO.levelmax()), icoord, grad_order,
 							       data_forIO.levelmin()==data_forIO.levelmax(), decic_DM );					
 						*data_forIO.get_grid(data_forIO.levelmax()) /= 1<<f.levelmax();
 						the_poisson_solver->gradient_add(icoord, u, data_forIO );
@@ -719,8 +763,13 @@ int main (int argc, const char * argv[])
 					//... velocity kick to keep refined region centered?
 					if(do_CVM)
 					{	
-					  kickfac = 1.0;
-						double ukick = kickfac * compute_finest_mean(data_forIO);
+					    
+						double ukick = 0.0;
+                        if( !do_CVMfrompos )
+                            ukick = compute_finest_mean(data_forIO);
+                        else
+                            ukick = -velocity_restframe[icoord];
+                        
 						data_forIO -= ukick;
 					}
 					double sigv = compute_finest_sigma( data_forIO );
@@ -788,8 +837,11 @@ int main (int argc, const char * argv[])
 					//... velocity kick to keep refined region centered?
 					if(do_CVM)
 					{
- 					        kickfac = 1.0;
-						uref[icoord] = kickfac*compute_finest_mean(data_forIO);
+					    if( !do_CVMfrompos )
+                            uref[icoord] = compute_finest_mean(data_forIO);
+                        else
+                            uref[icoord] = -velocity_restframe[icoord];
+                        
 						data_forIO -= uref[icoord];
 					}
 				
@@ -968,6 +1020,7 @@ int main (int argc, const char * argv[])
 				data_forIO *= cosmo.vfact;
 				
 				//... velocity kick to keep refined region centered?
+#if 0
 				if( do_CVM )
 				{
 					/*uref[icoord] = kickfac * compute_finest_mean(data_forIO);
@@ -980,6 +1033,17 @@ int main (int argc, const char * argv[])
 
 					data_forIO -= uref[icoord];
 				}
+#endif
+                if(do_CVM)
+                {
+                    if( !do_CVMfrompos )
+                        uref[icoord] = compute_finest_mean(data_forIO);
+                    else
+                        uref[icoord] = -velocity_restframe[icoord];
+                    
+                    data_forIO -= uref[icoord];
+                }
+				
 					
 				double sigv = compute_finest_sigma( data_forIO );
 				std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;

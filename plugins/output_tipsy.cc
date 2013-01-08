@@ -698,7 +698,7 @@ public:
 	for( int ilevel=gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
 	{
 	    double pmass = omegam_/(1ul<<(3*ilevel));
-	    
+        
             if( with_baryons_ && ilevel == (int)gh.levelmax() )
                 pmass *= (omegam_-omegab_)/omegam_;
 	    
@@ -746,9 +746,9 @@ public:
             temp_dat.clear();
             temp_dat.reserve(block_buf_size_);
 	    
-            char temp_fname[256];
-            sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_mass );
-            ofs_temp.open( temp_fname, std::ios::binary|std::ios::trunc );
+            char temp_fnameb[256];
+            sprintf( temp_fnameb, "___ic_temp_%05d.bin", 100*id_gas_mass );
+            ofs_temp.open( temp_fnameb, std::ios::binary|std::ios::trunc );
 	    
 	    
             blksize = sizeof(T_store)*nptot;

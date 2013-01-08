@@ -30,6 +30,9 @@ public:
     //! query whether the region generator explicitly forces the grid dimensions
     virtual bool is_grid_dim_forced( size_t *ndims ) = 0;
     
+    //! get the center of the region
+    virtual void get_center( double *xc ) = 0;
+    
 };
 
 //! Implements abstract factory design pattern for region generator plug-ins

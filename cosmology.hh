@@ -94,6 +94,20 @@ public:
 		return eta/a*integral;
 	}
     
+    inline static double InvHubble( double a, void *Params )
+    {
+        Cosmology *cosm = (Cosmology*)Params;
+		double eta = 1.0/(100.0*sqrt((double)(cosm->Omega_m/(a*a*a)+cosm->Omega_L
+								   +(1.0-cosm->Omega_m-cosm->Omega_L)/(a*a))));
+        return eta;
+    }
+    
+    inline real_t CalcTFac( real_t a0, real_t a1 )
+    {
+        real_t fact = integrate( &InvHubble, a0, a1, (void*)&m_Cosmology );
+        return 1.0/fact;
+    }
+    
 	//! Integrand used by function CalcGrowthFactor to determine the linear growth factor D+
 	inline static double GrowthIntegrand( double a, void *Params )
 	{

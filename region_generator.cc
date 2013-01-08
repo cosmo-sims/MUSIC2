@@ -57,7 +57,8 @@ class region_box_plugin : public region_generator_plugin{
 private:
     double
         x0ref_[3],      //!< coordinates of refinement region origin (in [0..1[)
-        lxref_[3];      //!< extent of refinement region (int [0..1[)
+        lxref_[3],      //!< extent of refinement region (int [0..1[)
+        xcref_[3];
     size_t lnref_[3];
     bool bhave_nref_;
     unsigned levelmin_, levelmax_;
@@ -65,11 +66,6 @@ private:
 public:
     region_box_plugin( config_file& cf )
     : region_generator_plugin( cf )
-    {
-        
-    }
-    
-    void get_AABB( double *left, double *right, unsigned level )
     {
         levelmin_ = pcf_->getValue<unsigned>("setup","levelmin");
         levelmax_ = pcf_->getValue<unsigned>("setup","levelmax");
@@ -104,14 +100,24 @@ public:
         if( pcf_->containsKey("setup","ref_center") )
         {
             temp            = pcf_->getValue<std::string>( "setup", "ref_center" );
-            sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
-            x0ref_[0] = fmod( x0ref_[0]-0.5*lxref_[0]+1.0,1.0);
-            x0ref_[1] = fmod( x0ref_[1]-0.5*lxref_[1]+1.0,1.0);
-            x0ref_[2] = fmod( x0ref_[2]-0.5*lxref_[2]+1.0,1.0);
+            sscanf( temp.c_str(), "%lf,%lf,%lf", &xcref_[0], &xcref_[1], &xcref_[2] );
+            x0ref_[0] = fmod( xcref_[0]-0.5*lxref_[0]+1.0,1.0);
+            x0ref_[1] = fmod( xcref_[1]-0.5*lxref_[1]+1.0,1.0);
+            x0ref_[2] = fmod( xcref_[2]-0.5*lxref_[2]+1.0,1.0);
+            
         }else if( pcf_->containsKey("setup","ref_offset") ){
             temp            = pcf_->getValue<std::string>( "setup", "ref_offset" );
             sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
+            
+            xcref_[0] = fmod( x0ref_[0]+0.5*lxref_[0], 1.0 );
+            xcref_[1] = fmod( x0ref_[1]+0.5*lxref_[1], 1.0 );
+            xcref_[2] = fmod( x0ref_[2]+0.5*lxref_[2], 1.0 );
         }
+    }
+    
+    void get_AABB( double *left, double *right, unsigned level )
+    {
+        
         
         for( int i=0; i<3; ++i )
         {
@@ -140,6 +146,13 @@ public:
         for( int i=0; i<3; ++i )
             ndims[i] = lnref_[i];
         return bhave_nref_;
+    }
+    
+    void get_center( double *xc )
+    {
+        xc[0] = xcref_[0];
+        xc[1] = xcref_[1];
+        xc[2] = xcref_[2];
     }
 };
 

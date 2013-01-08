@@ -154,6 +154,11 @@ public:
         xc[1] = xcref_[1];
         xc[2] = xcref_[2];
     }
+
+  void get_center_unshifted( double *xc )
+  {
+    get_center( xc );
+  }
 };
 
 namespace{

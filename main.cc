@@ -475,7 +475,7 @@ int main (int argc, const char * argv[])
             
             LOGINFO("kick factor is %f",kickfac);
             // initial center definition goes here:
-            the_region_generator->get_center( CVM_x0initial );
+            the_region_generator->get_center_unshifted( CVM_x0initial );
             
             LOGINFO("Will center velocities for initial position\n     (%f,%f,%f) at a=%f.",CVM_x0initial[0],CVM_x0initial[1],CVM_x0initial[2],cosmo.astart);
             

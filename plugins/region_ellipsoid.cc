@@ -427,6 +427,7 @@ class region_ellipsoid_plugin : public region_generator_plugin{
 private:
     
     min_ellipsoid *pellip_;
+  int shift[3], shift_level;
     
     void read_points_from_file( std::string fname, std::vector<float>& p )
     {
@@ -483,7 +484,7 @@ public:
     : region_generator_plugin( cf )
     {
         std::vector<float> pp;
-        int shift[3];
+        
         
         std::string point_file = cf.getValue<std::string>("setup","region_point_file");
         read_points_from_file( point_file, pp );
@@ -495,6 +496,7 @@ public:
             unsigned point_levelmin = cf.getValue<unsigned>("setup","region_point_levelmin");
         
             apply_shift( pp.size()/3, &pp[0], shift, point_levelmin );
+	    shift_level = point_levelmin;
         }
         
         pellip_ = new min_ellipsoid( pp.size()/3, &pp[0] );
@@ -543,6 +545,20 @@ public:
         xc[1] = c[1];
         xc[2] = c[2];
     }
+
+  void get_center_unshifted( double *xc )
+  {
+    double dx = 1.0/(1<<shift_level);
+    float c[3];
+
+    pellip_->get_center( c );        
+
+    xc[0] = c[0]+shift[0]*dx;
+    xc[1] = c[1]+shift[1]*dx;
+    xc[2] = c[2]+shift[2]*dx;
+
+  }
+
 };
 
 namespace{

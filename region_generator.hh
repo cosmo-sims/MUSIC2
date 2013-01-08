@@ -32,6 +32,9 @@ public:
     
     //! get the center of the region
     virtual void get_center( double *xc ) = 0;
+
+  //! get the center of the region with a possible re-centering unapplied
+  virtual void get_center_unshifted( double *xc ) = 0;
     
 };
 

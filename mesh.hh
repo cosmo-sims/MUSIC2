@@ -762,13 +762,14 @@ public:
 	 */
 	bool is_refined( unsigned ilevel, int i, int j, int k ) const
 	{
-		if( ilevel == levelmax() )
+	  if( ilevel == levelmax() ){
             if( !bhave_refmask ) return false;
             else if( ref_mask(offset(levelmax(),0)+i/2,offset(levelmax(),1)+j/2,offset(levelmax(),2)+k/2) )
                 return false;
             else
                 return true;
-        
+	  }
+
         if( ilevel == levelmax()-1 && bhave_refmask )
             return ref_mask(i,j,k);
 		

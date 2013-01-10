@@ -483,9 +483,9 @@ int main (int argc, const char * argv[])
             dx[1] = (CVM_x0final[1] - CVM_x0initial[1]);
             dx[2] = (CVM_x0final[2] - CVM_x0initial[2]);
             
-            velocity_restframe[0] = dx[0] * kickfac;
-            velocity_restframe[1] = dx[1] * kickfac;
-            velocity_restframe[2] = dx[2] * kickfac;
+            velocity_restframe[0] = -dx[0] * kickfac;
+            velocity_restframe[1] = -dx[1] * kickfac;
+            velocity_restframe[2] = -dx[2] * kickfac;
             
             LOGINFO("Setting initial velocity rest frame to (%f,%f,%f)", velocity_restframe[0],velocity_restframe[1],velocity_restframe[2]);
             
@@ -767,13 +767,15 @@ int main (int argc, const char * argv[])
 						double ukick = 0.0;
                         if( !do_CVMfrompos )
                             ukick = compute_finest_mean(data_forIO);
-                        else
+                        else{
+                            ukick = compute_finest_mean(data_forIO);
+                            LOGINFO("mean of %c-velocity of high-res particles is %f",'x'+icoord,ukick);
                             ukick = -velocity_restframe[icoord];
-                        
+                        }
 						data_forIO -= ukick;
 					}
 					double sigv = compute_finest_sigma( data_forIO );
-					std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
+					LOGINFO("sigma of %c-velocity of high-res particles is %f",'x'+icoord, sigv);
 
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -839,14 +841,17 @@ int main (int argc, const char * argv[])
 					{
 					    if( !do_CVMfrompos )
                             uref[icoord] = compute_finest_mean(data_forIO);
-                        else
+                        else{
+                            double umean = compute_finest_mean(data_forIO);
+                            LOGINFO("mean of %c-velocity of high-res particles is %f",'x'+icoord,umean);
+                            
                             uref[icoord] = -velocity_restframe[icoord];
-                        
+                        }
 						data_forIO -= uref[icoord];
 					}
 				
 					double sigv = compute_finest_sigma( data_forIO );
-					std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
+					LOGINFO("sigma of %c-velocity of high-res DM is %f",'x'+icoord, sigv);
 
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -897,7 +902,7 @@ int main (int argc, const char * argv[])
 						data_forIO -= uref[icoord];
 					
 					double sigv = compute_finest_sigma( data_forIO );
-					std::cerr << " - baryon velocity component " << icoord << " : sigma = " << sigv << std::endl;
+                    LOGINFO("sigma of %c-velocity of high-res baryons is %f",'x'+icoord, sigv);
 					
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);

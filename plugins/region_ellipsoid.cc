@@ -44,6 +44,97 @@ inline void Inverse_3x3( const float *data, float *m )
     m[8] = (data[0]*data[4]-data[1]*data[3])*invdet;
 }
 
+void Inverse_4x4( float *mat )
+{
+    double tmp[12]; /* temp array for pairs */
+    double src[16]; /* array of transpose source matrix */
+    double det; /* determinant */
+    double dst[16];
+                
+/* transpose matrix */
+    for (int i = 0; i < 4; i++)
+    {
+        src[i] = mat[i*4];
+        src[i + 4] = mat[i*4 + 1];
+        src[i + 8] = mat[i*4 + 2];
+        src[i + 12] = mat[i*4 + 3];
+    }
+    
+    tmp[0] = src[10] * src[15];
+    tmp[1] = src[11] * src[14];
+    tmp[2] = src[9] * src[15];
+    tmp[3] = src[11] * src[13];
+    tmp[4] = src[9] * src[14];
+    tmp[5] = src[10] * src[13];
+    tmp[6] = src[8] * src[15];
+    tmp[7] = src[11] * src[12];
+    tmp[8] = src[8] * src[14];
+    tmp[9] = src[10] * src[12];
+    tmp[10] = src[8] * src[13];
+    tmp[11] = src[9] * src[12];
+    
+    /* calculate first 8 elements (cofactors) */
+    dst[0] = tmp[0]*src[5] + tmp[3]*src[6] + tmp[4]*src[7];
+    dst[0] -= tmp[1]*src[5] + tmp[2]*src[6] + tmp[5]*src[7];
+    dst[1] = tmp[1]*src[4] + tmp[6]*src[6] + tmp[9]*src[7];
+    dst[1] -= tmp[0]*src[4] + tmp[7]*src[6] + tmp[8]*src[7];
+    dst[2] = tmp[2]*src[4] + tmp[7]*src[5] + tmp[10]*src[7];
+    dst[2] -= tmp[3]*src[4] + tmp[6]*src[5] + tmp[11]*src[7];
+    dst[3] = tmp[5]*src[4] + tmp[8]*src[5] + tmp[11]*src[6];
+    dst[3] -= tmp[4]*src[4] + tmp[9]*src[5] + tmp[10]*src[6];
+    dst[4] = tmp[1]*src[1] + tmp[2]*src[2] + tmp[5]*src[3];
+    dst[4] -= tmp[0]*src[1] + tmp[3]*src[2] + tmp[4]*src[3];
+    dst[5] = tmp[0]*src[0] + tmp[7]*src[2] + tmp[8]*src[3];
+    dst[5] -= tmp[1]*src[0] + tmp[6]*src[2] + tmp[9]*src[3];
+    dst[6] = tmp[3]*src[0] + tmp[6]*src[1] + tmp[11]*src[3];
+    dst[6] -= tmp[2]*src[0] + tmp[7]*src[1] + tmp[10]*src[3];
+    dst[7] = tmp[4]*src[0] + tmp[9]*src[1] + tmp[10]*src[2];
+    dst[7] -= tmp[5]*src[0] + tmp[8]*src[1] + tmp[11]*src[2];
+    
+    /* calculate pairs for second 8 elements (cofactors) */
+    tmp[0] = src[2]*src[7];
+    tmp[1] = src[3]*src[6];
+    tmp[2] = src[1]*src[7];
+    tmp[3] = src[3]*src[5];
+    tmp[4] = src[1]*src[6];
+    tmp[5] = src[2]*src[5];
+    tmp[6] = src[0]*src[7];
+    tmp[7] = src[3]*src[4];
+    tmp[8] = src[0]*src[6];
+    tmp[9] = src[2]*src[4];
+    tmp[10] = src[0]*src[5];
+    tmp[11] = src[1]*src[4];
+    
+    /* calculate second 8 elements (cofactors) */
+    dst[8] = tmp[0]*src[13] + tmp[3]*src[14] + tmp[4]*src[15];
+    dst[8] -= tmp[1]*src[13] + tmp[2]*src[14] + tmp[5]*src[15];
+    dst[9] = tmp[1]*src[12] + tmp[6]*src[14] + tmp[9]*src[15];
+    dst[9] -= tmp[0]*src[12] + tmp[7]*src[14] + tmp[8]*src[15];
+    dst[10] = tmp[2]*src[12] + tmp[7]*src[13] + tmp[10]*src[15];
+    dst[10]-= tmp[3]*src[12] + tmp[6]*src[13] + tmp[11]*src[15];
+    dst[11] = tmp[5]*src[12] + tmp[8]*src[13] + tmp[11]*src[14];
+    dst[11]-= tmp[4]*src[12] + tmp[9]*src[13] + tmp[10]*src[14];
+    dst[12] = tmp[2]*src[10] + tmp[5]*src[11] + tmp[1]*src[9];
+    dst[12]-= tmp[4]*src[11] + tmp[0]*src[9] + tmp[3]*src[10];
+    dst[13] = tmp[8]*src[11] + tmp[0]*src[8] + tmp[7]*src[10];
+    dst[13]-= tmp[6]*src[10] + tmp[9]*src[11] + tmp[1]*src[8];
+    dst[14] = tmp[6]*src[9] + tmp[11]*src[11] + tmp[3]*src[8];
+    dst[14]-= tmp[10]*src[11] + tmp[2]*src[8] + tmp[7]*src[9];
+    dst[15] = tmp[10]*src[10] + tmp[4]*src[8] + tmp[9]*src[9];
+    dst[15]-= tmp[8]*src[9] + tmp[11]*src[10] + tmp[5]*src[8];
+    
+    /* calculate determinant */
+    det=src[0]*dst[0]+src[1]*dst[1]+src[2]*dst[2]+src[3]*dst[3];
+    
+    /* calculate matrix inverse */
+    det = 1/det;
+    for (int j = 0; j < 16; j++)
+    {    dst[j] *= det;
+        mat[j] = dst[j];
+    }
+    
+}
+
 #include <xmmintrin.h>
 
 //! Inversion of 4x4 matrix
@@ -243,7 +334,11 @@ protected:
                     X[k] = temp;
                 }
             
-            PIII_Inverse_4x4(X);
+            
+            
+            //PIII_Inverse_4x4(X);
+            Inverse_4x4(X);
+            
             
             int imax = 0; float Mmax = -1e30;
             double m;
@@ -288,19 +383,15 @@ public:
         Q = new float[4*N];
         u = new float[N];
         
-        for( size_t i=0; i<3*N; ++i )
-            P[i] = (P[i]-0.5)*10.0;
-        
         for( size_t i=0; i<N; ++i )
             u[i] = 1.0/N;
         
         for( size_t i=0; i<N; ++i )
         {
-            int i4=4*i;
-            //insert and scale to -5..5 for floating point precision reasons
-            for( size_t j=0,i3=3*i; j<3; ++j,++i3,++i4 )
-                Q[i4] = P[i3];
-            Q[i4] = 1.0f;
+            int i4=4*i, i3=3*i;
+            for( size_t j=0; j<3; ++j )
+                Q[i4+j] = P[i3+j];
+            Q[i4+3] = 1.0f;
         }
         
         // compute the actual ellipsoid
@@ -336,12 +427,6 @@ public:
         
         Inverse_3x3( Ainv, A );
         for( size_t i=0; i<9; ++i ){ A[i] *= 0.333333333; Ainv[i] *= 3.0; }
-        
-        // undo the scaling for floating point precision reasons
-        for( size_t i=0; i<3*N; ++i )
-            P[i] = P[i]/10.0+0.5;
-        for( int i=0; i<3; ++i ) c[i] = c[i]/10.0 + 0.5;
-        for( int i=0; i<9; ++i ){ A[i] *= 100.0; Ainv[i] /= 100.0; }
     }
     
     ~min_ellipsoid()
@@ -370,6 +455,13 @@ public:
         {
             if( i%3==0 ) std::cout << std::endl;
             std::cout << A[i] << "   ";
+        }
+        std::cout << std::endl;
+        std::cout << "Ainv = \n";
+        for( int i=0; i<9; ++i )
+        {
+            if( i%3==0 ) std::cout << std::endl;
+            std::cout << Ainv[i] << "   ";
         }
         std::cout << std::endl;
         std::cout << "c = (" << c[0] << ", " << c[1] << ", " << c[2] << ")\n";
@@ -476,7 +568,7 @@ private:
         
         for( size_t i=0,i3=0; i<Np; i++,i3+=3 )
             for( size_t j=0; j<3; ++j )
-                p[i3+j] = fmod(p[i3+j]-shift[j]*dx+1.0,1.0);
+                p[i3+j] = p[i3+j]-shift[j]*dx;
     }
     
 public:
@@ -496,8 +588,9 @@ public:
             unsigned point_levelmin = cf.getValue<unsigned>("setup","region_point_levelmin");
         
             apply_shift( pp.size()/3, &pp[0], shift, point_levelmin );
-	    shift_level = point_levelmin;
+            shift_level = point_levelmin;
         }
+        
         
         pellip_ = new min_ellipsoid( pp.size()/3, &pp[0] );
         

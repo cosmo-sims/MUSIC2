@@ -15,13 +15,15 @@
 #include "mg_interp.hh"
 #include "mesh.hh"
 
+const int empty_fill_bytes = 60;
+
 template< typename T_store=float >
 class gadget2_output_plugin : public output_plugin
 {
 public:
-    bool do_baryons_;
-	double omegab_;
-	double gamma_;
+  bool do_baryons_;
+  double omegab_;
+  double gamma_;
     
 protected:
 	
@@ -48,7 +50,7 @@ protected:
 		int flag_metals;                     
 		unsigned int npartTotalHighWord[6];  
 		int  flag_entropy_instead_u;         
-		char fill[60];                       
+		char fill[empty_fill_bytes];                       
 	}header;                       
 	
 	
@@ -839,6 +841,8 @@ public:
 			header_.BoxSize *= 1000.0;
         
         
+		for( int i=0; i<empty_fill_bytes; ++i )
+		  header_.fill[i] = 0;
 	}
     
 	void write_dm_mass( const grid_hierarchy& gh )

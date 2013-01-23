@@ -33,7 +33,7 @@ protected:
 	}header;
 	
 	bool bhavehydro_;
-	
+        float metal_floor_;
 	
 	void write_file_header( std::ofstream& ofs, unsigned ilevel, const grid_hierarchy& gh )
 	{
@@ -159,7 +159,18 @@ protected:
             // write mask
             sprintf(ff,"%s/level_%03d/ic_refmap",fname_.c_str(), gh.levelmax() );
             std::ofstream ofs(ff,std::ios::binary|std::ios::trunc);
-            write_file_header( ofs, gh.levelmax(), gh );
+	    write_file_header( ofs, gh.levelmax(), gh );
+
+	    std::ofstream ofs_metals;
+	    
+	    if( metal_floor_ > 0.0f )
+	      {
+		sprintf(ff,"%s/level_%03d/ic_pvar_00001",fname_.c_str(), gh.levelmax() );
+		ofs_metals.open(ff,std::ios::binary|std::ios::trunc);
+		write_file_header( ofs_metals, gh.levelmax(), gh );
+	      }
+
+           
             
             std::vector<float> block(n1*n2,0.0f);
             for( unsigned k=0; k<n3; ++k )
@@ -173,6 +184,20 @@ protected:
                 ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
                 ofs.write( reinterpret_cast<char*> (&block[0]), blksize );
                 ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+
+
+		if( metal_floor_ > 0.0f ){
+
+		  for( unsigned j=0; j<n2; ++j )
+		    for( unsigned i=0; i<n1; ++i )
+		      block[j*n1+i] = data[(i*n2+j)*n3+k] * metal_floor_;
+                
+		  unsigned blksize = n1*n2*sizeof(float);
+                
+		  ofs_metals.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+		  ofs_metals.write( reinterpret_cast<char*> (&block[0]), blksize );
+		  ofs_metals.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+		}
             }
         }
         
@@ -194,7 +219,7 @@ protected:
             
             std::vector<float> data_coarse( n1c*n2c*n3c, 0.0f );
             
-            if( ilevel <= levelmax_-2 )
+            /*if( ilevel <= levelmax_-2 )
             {
                 for( size_t i=0; i<n1*n2*n3; ++i )
                     data[i] = 0.0;
@@ -203,7 +228,7 @@ protected:
                     for( unsigned j=2; j<n2-2; ++j )
                         for( unsigned k=2; k<n3-2; ++k )
                             data[(i*n2+j)*n3+k] = 1.0;
-            }
+			    }*/
             
             size_t nref;
             nref = restrict_mask( n1, n2, n3, o1, o2, o3, n1c, n2c, n3c, &data[0], &data_coarse[0] );
@@ -213,6 +238,16 @@ protected:
             sprintf(ff,"%s/level_%03d/ic_refmap",fname_.c_str(), ilevel );
             std::ofstream ofs(ff,std::ios::binary|std::ios::trunc);
             write_file_header( ofs, ilevel, gh );
+
+	    std::ofstream ofs_metals;
+	    if( metal_floor_ > 0.0f )
+	      {
+		sprintf(ff,"%s/level_%03d/ic_pvar_00001",fname_.c_str(), ilevel );
+		ofs_metals.open(ff,std::ios::binary|std::ios::trunc);
+		write_file_header( ofs_metals, ilevel, gh );
+	      }
+
+
             std::vector<float> block(n1c*n2c,0.0f);
             for( unsigned i=0; i<n3c; ++i )
             {
@@ -225,6 +260,19 @@ protected:
                 ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
                 ofs.write( reinterpret_cast<char*> (&block[0]), blksize );
                 ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+
+		if( metal_floor_ > 0.0f ){
+
+		  for( unsigned j=0; j<n2c; ++j )
+                    for( unsigned k=0; k<n1c; ++k )
+                        block[j*n1c+k] = data_coarse[(k*n2c+j)*n3c+i] * metal_floor_;
+                
+		  unsigned blksize = n1c*n2c*sizeof(float);
+                
+		  ofs_metals.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+		  ofs_metals.write( reinterpret_cast<char*> (&block[0]), blksize );
+		  ofs_metals.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
+		}
             }
             
             data.swap( data_coarse );
@@ -264,8 +312,8 @@ protected:
         
         ofst << "&REFINE_PARAMS\n"
             << "m_refine=" << gh.levelmax()-gh.levelmin()+1+naddref << "*8.,\n"
-            << "ivar_refine=0\n"
-            //<< "var_cut_refine=2e-6\n"
+            << "ivar_refine=6\n"
+            << "var_cut_refine=2e-6\n"
             //<< "mass_cut_refine=1e-9\n"
             << "interpol_var=1\n"
             << "interpol_type=0\n"
@@ -383,6 +431,7 @@ public:
 		
 		
 		bhavehydro_ = cf.getValue<bool>("setup","baryons");
+		metal_floor_ = cf.getValueSafe<float>("output","ramses_metal_floor",1e-5);
 	}
 	
 	/*~grafic2_output_plugin()

@@ -535,11 +535,7 @@ public:
 	explicit art_output_plugin ( config_file& cf )
 	: output_plugin( cf )
 	{
-		if( mkdir( fname_.c_str(), 0777 ) )
-                {
-                        perror( fname_.c_str() );
-                        throw std::runtime_error("Error in art_output_plugin!");
-                }
+	    if( mkdir( fname_.c_str(), 0777 ) );
 
 		do_baryons_ = cf.getValueSafe<bool>("setup","baryons",false);
         // We need to say that we want to do SPH for baryons 

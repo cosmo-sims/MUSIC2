@@ -7,6 +7,7 @@ MULTITHREADFFTW	= no
 SINGLEPRECISION	= no
 HAVEHDF5        = no
 HAVEBOXLIB	= yes
+BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################
 ### compiler and path settings
@@ -88,8 +89,7 @@ OBJS    = output.o transfer_function.o Numerics.o defaults.o constraints.o rando
 BLOBJS = ""
 ifeq ($(HAVEBOXLIB), yes)
   IN_MUSIC = YES
-  BOXLIB_HOME ?= ${HOME}/nyx_tot_sterben/BoxLib
-  TOP = ${HOME}/music-stuff/music/plugins/boxlib_stuff
+  TOP = ${PWD}/plugins/boxlib_stuff
   CCbla := $(CC)
   include plugins/boxlib_stuff/Make.ic
   CC  := $(CCbla)
@@ -101,14 +101,14 @@ endif
 
 ##############################################################################
 all: $(OBJS) $(TARGET)
-	cd plugins/boxlib_stuff; make
+#	cd plugins/boxlib_stuff; make
 
 bla:
 	echo $(BLOBJS)
 
 #FIXME!!!
 $(TARGET): $(OBJS) 
-	cd plugins/boxlib_stuff; make
+	cd plugins/boxlib_stuff; make BOXLIB_HOME=$(BOXLIB_HOME) FFTW3=$(FFTW3) SINGLE=$(SINGLEPRECISION)
 	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS) $(BLOBJS) -lifcore
 
 #%.o: %.cc *.hh Makefile 
@@ -117,4 +117,5 @@ $(TARGET): $(OBJS)
 
 clean:
 	rm -rf $(OBJS)
+	cd plugins/boxlib_stuff; make realclean BOXLIB_HOME=$(BOXLIB_HOME)
 

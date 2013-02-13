@@ -388,7 +388,7 @@ public:
 		inputs << "mg.v                  = 0       # verbosity in Amr.cpp" << std::endl;
 		inputs << "particles.v           = 1       # verbosity in Particle class" << std::endl;
 		inputs << "amr.ref_ratio       = 2 2 2 2 2 2 2 2 " << std::endl;
-		inputs << "amr.regrid_int      = 1 1 1 1 1 1 1 1 " << std::endl;
+		inputs << "amr.regrid_int      = 2 2 2 2 2 2 2 2 " << std::endl;
 		inputs << "amr.initial_grid_file = init/grids_file" << std::endl;
 		inputs << "amr.useFixedCoarseGrids = 1" << std::endl;
 		inputs << "amr.useFixedUpToLevel = " << levelmax_-levelmin_ << std::endl;

@@ -1,9 +1,8 @@
 ##############################################################################
 ### compile time configuration options
 FFTW3		= yes
+MULTITHREADFFTW	= no
 MULTITHREADFFTW	= yes
-MULTITHREADFFTW	= no
-MULTITHREADFFTW	= no
 SINGLEPRECISION	= no
 HAVEHDF5        = no
 HAVEBOXLIB	= yes
@@ -19,7 +18,7 @@ CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
 LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
 
 CPATHS  = -I. -I$(HOME)/music-stuff/inst/include 
-LPATHS  = -L$(HOME)/music-stuff/inst/lib 
+LPATHS  = -L$(HOME)/music-stuff/inst/lib -L$(HOME)/fftw-3.3.3/lib
 
 ##############################################################################
 # if you have FFTW 2.1.5 or 3.x with multi-thread support, you can enable the 

@@ -425,7 +425,7 @@ public:
 		inputs << "nyx.n_particles      = " << sizex_[0] << " " << sizey_[0] << " " << sizez_[0] << std::endl;
 		inputs << "geometry.prob_lo     = 0 0 0" << std::endl;  
 		//double dx = the_sim_header.dx/the_sim_header.h0;
-		double bl = the_sim_header.boxlength;
+		double bl = the_sim_header.boxlength/the_sim_header.h0;
 		inputs << "geometry.prob_hi     = " << bl << " " << bl << " " << bl << std::endl;
 
 
@@ -450,6 +450,7 @@ public:
 		const Real cur_time = 0.0;
 
 		std::cout << "in writeLevelPlotFile" << std::endl;
+		double h0 = cf_.getValue<double>("cosmology", "H0")*0.01;
 
 //		for (MFIter mfi(mf); mfi.isValid(); ++mfi)
 //		{ 
@@ -479,7 +480,7 @@ public:
 			os << '\n';
 			double boxlength = cf_.getValue<double>("setup","boxlength");
 			for (i = 0; i < BL_SPACEDIM; i++)
-				os << boxlength << ' '; //ProbHi
+				os << boxlength/h0 << ' '; //ProbHi
 			os << '\n';
 		
 			for (i = 0; i < f_lev; i++)
@@ -504,7 +505,7 @@ public:
 				os << 0 << ' ';
 			os << '\n';
 		
-			double dx = cf_.getValue<double>("setup","boxlength")/gridp;
+			double dx = cf_.getValue<double>("setup","boxlength")/gridp/h0;
 			for (i = 0; i <= f_lev; i++)
 			{
 				for (int k = 0; k < BL_SPACEDIM; k++)
@@ -540,7 +541,7 @@ public:
 		os << 0 << '\n';
 	
 		double cellsize[3];
-		double dx = cf_.getValue<double>("setup","boxlength")/gridp;
+		double dx = cf_.getValue<double>("setup","boxlength")/gridp/h0;
 		for (n = 0; n < BL_SPACEDIM; n++)
 		{
 			cellsize[n] = dx;

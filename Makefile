@@ -106,7 +106,7 @@ bla:
 	echo $(BLOBJS)
 
 #FIXME!!!
-$(TARGET): $(OBJS) 
+$(TARGET): $(OBJS) plugins/boxlib_stuff/*.cpp
 	cd plugins/boxlib_stuff; make BOXLIB_HOME=$(BOXLIB_HOME) FFTW3=$(FFTW3) SINGLE=$(SINGLEPRECISION)
 	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS) $(BLOBJS) -lifcore
 

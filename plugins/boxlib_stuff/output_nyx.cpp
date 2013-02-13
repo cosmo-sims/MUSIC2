@@ -391,7 +391,6 @@ public:
 		inputs << "amr.regrid_int      = 2 2 2 2 2 2 2 2 " << std::endl;
 		inputs << "amr.initial_grid_file = init/grids_file" << std::endl;
 		inputs << "amr.useFixedCoarseGrids = 1" << std::endl;
-		inputs << "amr.useFixedUpToLevel = " << levelmax_-levelmin_ << std::endl;
 		inputs << "amr.blocking_factor =8" << std::endl;
 		inputs << "amr.check_file      = chk " << std::endl;
 		inputs << "amr.check_int       = 1 " << std::endl;

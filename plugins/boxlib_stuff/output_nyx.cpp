@@ -393,9 +393,9 @@ public:
 		inputs << "amr.useFixedCoarseGrids = 1" << std::endl;
 		inputs << "amr.blocking_factor =8" << std::endl;
 		inputs << "amr.check_file      = chk " << std::endl;
-		inputs << "amr.check_int       = 1 " << std::endl;
+		inputs << "amr.check_int       = 10 " << std::endl;
 		inputs << "amr.plot_file       = plt " << std::endl;
-		inputs << "amr.plot_int        = 1 " << std::endl;
+		inputs << "amr.plot_int        = 10 " << std::endl;
 		inputs << "amr.derive_plot_vars = particle_count particle_mass_density pressure" << std::endl;
 		inputs << "amr.plot_vars = ALL" << std::endl;
 		inputs << "nyx.add_ext_src = 0" << std::endl;
@@ -411,6 +411,7 @@ public:
 		inputs << "nyx.do_grav  = 1                      " << std::endl;
 		inputs << "nyx.do_dm_particles = 1               " << std::endl;
 		inputs << "nyx.particle_init_type = Cosmological " << std::endl;
+                inputs << "nyx.print_fortran_warnings = 0" << std::endl;
 		inputs << "cosmo.initDirName  = init             " << std::endl;
 		inputs << "nyx.particle_move_type = Gravitational" << std::endl;
 		inputs << "amr.probin_file = probin              " << std::endl;
@@ -423,6 +424,7 @@ public:
 		inputs << "amr.n_cell           = " << sizex_[0] << " " << sizey_[0] << " " << sizez_[0] << std::endl;
 		inputs << "nyx.n_particles      = " << sizex_[0] << " " << sizey_[0] << " " << sizez_[0] << std::endl;
 		inputs << "geometry.prob_lo     = 0 0 0" << std::endl;  
+
 		//double dx = the_sim_header.dx/the_sim_header.h0;
 		double bl = the_sim_header.boxlength/the_sim_header.h0;
 		inputs << "geometry.prob_hi     = " << bl << " " << bl << " " << bl << std::endl;

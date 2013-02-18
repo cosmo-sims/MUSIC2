@@ -2,7 +2,6 @@
 ### compile time configuration options
 FFTW3		= yes
 MULTITHREADFFTW	= no
-MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
 HAVEHDF5        = no
 HAVEBOXLIB	= yes

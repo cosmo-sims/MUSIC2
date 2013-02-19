@@ -194,9 +194,17 @@ public:
 			int mlev = lev+levelmin_;
 			int fac  = (1<<lev);
 
-			off[0] += fac*offx_[lev];
-			off[1] += fac*offy_[lev];
-			off[2] += fac*offz_[lev];
+//			off[0] += fac*offx_[lev];
+//			off[1] += fac*offy_[lev];
+//			off[2] += fac*offz_[lev];
+
+
+			off[0] += offx_[lev];
+			off[1] += offy_[lev];
+			off[2] += offz_[lev];
+
+			for (int asdf = 0; asdf < 3; asdf++)
+				off[asdf] *= 2;
 
 			IntVect    pdLo(off[0], 
 					off[1], 
@@ -558,6 +566,7 @@ public:
 		for (i = 0; i < boxarrays[level].size(); ++i)
 		{
 			double problo[] = {0,0,0};
+			std::cout << boxarrays[level][i] << std::endl;
 			RealBox gridloc = RealBox(boxarrays[level][i], cellsize, problo);
 			for (n = 0; n < BL_SPACEDIM; n++)
 				os << gridloc.lo(n) << ' ' << gridloc.hi(n) << '\n';

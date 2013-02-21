@@ -33,9 +33,11 @@ public:
     //! get the center of the region
     virtual void get_center( double *xc ) = 0;
 
-  //! get the center of the region with a possible re-centering unapplied
-  virtual void get_center_unshifted( double *xc ) = 0;
-    
+    //! get the center of the region with a possible re-centering unapplied
+    virtual void get_center_unshifted( double *xc ) = 0;
+  
+    //! update the highres bounding box to what the grid generator actually uses
+    virtual void update_AABB( double *left, double *right ) = 0;
 };
 
 //! Implements abstract factory design pattern for region generator plug-ins

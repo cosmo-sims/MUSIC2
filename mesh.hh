@@ -1433,7 +1433,7 @@ public:
 		
 		for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
 		{
-			double h = 1.0/(1<<ilevel);
+			double h = 1.0/(1ul<<ilevel);
 			
 			x0_[ilevel] = h*(double)oax_[ilevel];
 			y0_[ilevel] = h*(double)oay_[ilevel];
@@ -1451,6 +1451,11 @@ public:
 			xl_[ilevel] = yl_[ilevel] = zl_[ilevel] = 1.0;
 			nx_[ilevel] = ny_[ilevel] = nz_[ilevel] = n;
 		}
+      
+        // update the region generator with what has been actually created
+        double left[3] =  { x0_[levelmax_]+rshift_[0], y0_[levelmax_]+rshift_[1], z0_[levelmax_]+rshift_[2] };
+        double right[3] = { left[0]+xl_[levelmax_], left[1]+yl_[levelmax_], left[2]+zl_[levelmax_] };
+        the_region_generator->update_AABB( left, right );
 	}
 	
 	//! asignment operator

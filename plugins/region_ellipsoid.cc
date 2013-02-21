@@ -622,7 +622,13 @@ public:
         }
         
     }
-    
+  
+    void update_AABB( double *left, double *right )
+    {
+      // we ignore this, the grid generator must have generated a grid that contains the ellipsoid
+      // it might have enlarged it, but who cares...
+    }
+  
     bool query_point( double *x )
     {   return pellip_->check_point( x );   }
     

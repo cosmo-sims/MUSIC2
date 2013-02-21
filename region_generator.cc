@@ -115,7 +115,7 @@ public:
         }
       
       // round everything to full grid cells, this should become an option
-      double xr[3] = {x0ref_[0] + lxref_[0],x0ref_[1] + lxref_[1],x0ref_[2] + lxref_[2]};
+      /*double xr[3] = {x0ref_[0] + lxref_[0],x0ref_[1] + lxref_[1],x0ref_[2] + lxref_[2]};
       size_t nres = 1ul << levelmax_;
       x0ref_[0] = ((size_t)(x0ref_[0] * nres))/(double)nres;
       x0ref_[1] = ((size_t)(x0ref_[1] * nres))/(double)nres;
@@ -126,7 +126,7 @@ public:
       lxref_[0] = xr[0] - x0ref_[0];
       lxref_[1] = xr[1] - x0ref_[1];
       lxref_[2] = xr[2] - x0ref_[2];
-      
+      */
       
     }
     
@@ -139,6 +139,19 @@ public:
             left[i] = x0ref_[i];
             right[i] = x0ref_[i] + lxref_[i];
         }
+    }
+  
+    void update_AABB( double *left, double *right )
+    {
+      for( int i=0; i<3; ++i )
+      {
+        double dx = right[i] - left[i];
+        if( dx < -0.5 ) dx += 1.0; else if (dx > 0.5 ) dx -= 1.0;
+        x0ref_[i] = left[i];
+        lxref_[i] = dx;
+        xcref_[i] = left[i] + 0.5 * dx;
+      }
+      fprintf(stderr,"left = %f,%f,%f - right = %f,%f,%f\n",left[0],left[1],left[2],right[0],right[1],right[2]);
     }
     
     bool query_point( double *x )

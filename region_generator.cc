@@ -113,6 +113,21 @@ public:
             xcref_[1] = fmod( x0ref_[1]+0.5*lxref_[1], 1.0 );
             xcref_[2] = fmod( x0ref_[2]+0.5*lxref_[2], 1.0 );
         }
+      
+      // round everything to full grid cells, this should become an option
+      double xr[3] = {x0ref_[0] + lxref_[0],x0ref_[1] + lxref_[1],x0ref_[2] + lxref_[2]};
+      size_t nres = 1ul << levelmax_;
+      x0ref_[0] = ((size_t)(x0ref_[0] * nres))/(double)nres;
+      x0ref_[1] = ((size_t)(x0ref_[1] * nres))/(double)nres;
+      x0ref_[2] = ((size_t)(x0ref_[2] * nres))/(double)nres;
+      xr[0] = ((size_t)(xr[0] * nres) + 1)/(double)nres;
+      xr[1] = ((size_t)(xr[1] * nres) + 1)/(double)nres;
+      xr[2] = ((size_t)(xr[2] * nres) + 1)/(double)nres;
+      lxref_[0] = xr[0] - x0ref_[0];
+      lxref_[1] = xr[1] - x0ref_[1];
+      lxref_[2] = xr[2] - x0ref_[2];
+      
+      
     }
     
     void get_AABB( double *left, double *right, unsigned level )

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "region_generator.hh"
 
 std::map< std::string, region_generator_plugin_creator *>&
@@ -85,10 +86,12 @@ public:
         if( pcf_->containsKey("setup","ref_extent") )
         {
             temp                = pcf_->getValue<std::string>( "setup", "ref_extent" );
+            std::remove_if(temp.begin(),temp.end(),isspace);
             sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
             bhave_nref_ = false;
         }else if( pcf_->containsKey("setup","ref_dims") ){
             temp = pcf_->getValue<std::string>("setup","ref_dims");
+            std::remove_if(temp.begin(),temp.end(),isspace);
             sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
             bhave_nref_ = true;
             
@@ -100,6 +103,7 @@ public:
         if( pcf_->containsKey("setup","ref_center") )
         {
             temp            = pcf_->getValue<std::string>( "setup", "ref_center" );
+            std::remove_if(temp.begin(),temp.end(),isspace);
             sscanf( temp.c_str(), "%lf,%lf,%lf", &xcref_[0], &xcref_[1], &xcref_[2] );
             x0ref_[0] = fmod( xcref_[0]-0.5*lxref_[0]+1.0,1.0);
             x0ref_[1] = fmod( xcref_[1]-0.5*lxref_[1]+1.0,1.0);
@@ -107,6 +111,7 @@ public:
             
         }else if( pcf_->containsKey("setup","ref_offset") ){
             temp            = pcf_->getValue<std::string>( "setup", "ref_offset" );
+            std::remove_if(temp.begin(),temp.end(),isspace);
             sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
             
             xcref_[0] = fmod( x0ref_[0]+0.5*lxref_[0], 1.0 );
@@ -151,7 +156,7 @@ public:
         lxref_[i] = dx;
         xcref_[i] = left[i] + 0.5 * dx;
       }
-      fprintf(stderr,"left = %f,%f,%f - right = %f,%f,%f\n",left[0],left[1],left[2],right[0],right[1],right[2]);
+      //fprintf(stderr,"left = %f,%f,%f - right = %f,%f,%f\n",left[0],left[1],left[2],right[0],right[1],right[2]);
     }
     
     bool query_point( double *x )

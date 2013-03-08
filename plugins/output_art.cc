@@ -166,6 +166,7 @@ protected:
 	// non-public member functions
 	void write_header_file( void ) //PMcrd.DAT
 	{
+
         std::string fout;
         if(do_baryons_)
             fout = "/PMcrdIC.DAT";
@@ -289,12 +290,14 @@ protected:
 	void assemble_DM_file( void ) //PMcrs0.DAT
 	{
 		// file name
+
         std::string fout;
         if(do_baryons_)
 	        fout = "/PMcrs0IC.DAT";
         else
 		    fout = "/PMcrs0.DAT";
-		std::string partfname = fname_ + fout;
+
+        std::string partfname = fname_ + fout;
 		std::ofstream ofs( partfname.c_str(), std::ios::trunc );
 		
 		// generate all temp file names
@@ -535,11 +538,7 @@ public:
 	explicit art_output_plugin ( config_file& cf )
 	: output_plugin( cf )
 	{
-		if( mkdir( fname_.c_str(), 0777 ) )
-                {
-                        perror( fname_.c_str() );
-                        throw std::runtime_error("Error in art_output_plugin!");
-                }
+	    if( mkdir( fname_.c_str(), 0777 ) );
 
 		do_baryons_ = cf.getValueSafe<bool>("setup","baryons",false);
         // We need to say that we want to do SPH for baryons 

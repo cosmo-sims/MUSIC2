@@ -3,7 +3,7 @@
 FFTW3		= yes
 MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
-HAVEHDF5        = yes
+HAVEHDF5        = no
 
 ##############################################################################
 ### compiler and path settings

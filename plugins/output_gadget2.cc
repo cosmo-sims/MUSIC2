@@ -29,6 +29,7 @@ protected:
 	
 	std::ofstream ofs_;
 	bool bmultimass_;
+    bool blongids_;
 	
 	
 	typedef struct io_header
@@ -421,11 +422,11 @@ protected:
         size_t curr_block_buf_size = block_buf_size_;
         
         size_t idcount = 0;
-        bool bneed_long_ids = false;
-        if( nptot >= 1ul<<32 )
+        bool bneed_long_ids = blongids_;
+        if( nptot >= 1ul<<32 && !bneed_long_ids )
         {
             bneed_long_ids = true;
-            LOGWARN("Need long particle IDs, make sure to enable in Gadget!");
+            LOGWARN("Need long particle IDs, will write 64bit, make sure to enable in Gadget!");
         }   
 		
 		for( unsigned ifile=0; ifile<nfiles_; ++ifile )
@@ -752,6 +753,8 @@ public:
 		npartmax_ = 1<<30;
 		
 		nfiles_ = cf.getValueSafe<unsigned>("output","gadget_num_files",1);
+      
+        blongids_ = cf.getValueSafe<bool>("output","gadget_longids",false);
 
 		//if( nfiles_ < (int)ceil((double)npart/(double)npartmax_) )
 		//	LOGWARN("Should use more files.");

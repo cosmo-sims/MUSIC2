@@ -24,6 +24,7 @@ public:
   bool do_baryons_;
   double omegab_;
   double gamma_;
+  bool shift_halfcell_;
     
 protected:
 	
@@ -755,6 +756,8 @@ public:
 		nfiles_ = cf.getValueSafe<unsigned>("output","gadget_num_files",1);
       
         blongids_ = cf.getValueSafe<bool>("output","gadget_longids",false);
+      
+        shift_halfcell_ = cf.getValueSafe<bool>("output","gadget_cell_centered",false);
 
 		//if( nfiles_ < (int)ceil((double)npart/(double)npartmax_) )
 		//	LOGWARN("Should use more files.");
@@ -954,7 +957,15 @@ public:
 			shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;
 			shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
 		}
-*/		
+*/
+      
+        if( shift_halfcell_ )
+        {
+          double h = 1.0/(1<<(levelmin_+1));
+          shift = new double[3];
+          shift[0] = shift[1] = shift[2] = -h;
+        }
+      
         size_t npart = npfine+npcoarse;
 		size_t nwritten = 0;
 		
@@ -1212,7 +1223,14 @@ public:
 			shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;
 			shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
 		}*/
-		
+      
+        if( shift_halfcell_ )
+        {
+          double h = 1.0/(1<<(levelmin_+1));
+          shift = new double[3];
+          shift[0] = shift[1] = shift[2] = -h;
+        }
+          
 		size_t npart = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());;
         size_t nwritten = 0;
 		

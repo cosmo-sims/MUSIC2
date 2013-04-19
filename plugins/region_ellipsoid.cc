@@ -481,7 +481,13 @@ public:
     {
         for( int i=0; i<3; ++i ) xc[i] = c[i];
     }
-    
+  
+    double sgn( double x )
+    {
+      if( x < 0.0 ) return -1.0;
+      return 1.0;
+    }
+  
     void expand_ellipsoid( float dr )
     {
         //print();
@@ -491,8 +497,8 @@ public:
         
         float munew[3];
         for( int i=0; i<3; ++i )
-            munew[i] = 1.0/sqr(1.0/sqrt(mu[i])+dr);
-        
+            munew[i] = sgn(mu[i])/sqr(1.0/sqrt(fabs(mu[i]))+dr);
+      
         float Anew[9];
         for(int i=0; i<3; ++i )
             for( int j=0; j<3; ++j )
@@ -519,8 +525,9 @@ class region_ellipsoid_plugin : public region_generator_plugin{
 private:
     
     min_ellipsoid *pellip_;
-  int shift[3], shift_level;
-    
+    int shift[3], shift_level, padding_;
+    double vfac_;
+  
     void read_points_from_file( std::string fname, std::vector<float>& p )
     {
         std::ifstream ifs(fname.c_str());
@@ -529,6 +536,9 @@ private:
             LOGERR("region_ellipsoid_plugin::read_points_from_file : Could not open file \'%s\'",fname.c_str());
             throw std::runtime_error("region_ellipsoid_plugin::read_points_from_file : cannot open point file.");
         }
+      
+        int colcount = 0, row = 0;
+      
         while( ifs )
         {
             std::string s;
@@ -538,26 +548,80 @@ private:
             {
                 if( !getline(ss,s,' ') ) break;
                 p.push_back( strtod(s.c_str(),NULL) );
+                if( row == 0 )
+                  colcount++;
             }
+          ++row;
         }
-        
-        if( p.size()%3 != 0 )
+      
+        LOGINFO("region point file appears to contain %d columns",colcount);
+      
+        if( p.size()%3 != 0 && p.size()%6 != 0 )
         {
             LOGERR("Region point file \'%s\' does not contain triplets",fname.c_str());
             throw std::runtime_error("region_ellipsoid_plugin::read_points_from_file : file does not contain triplets.");
         }
-        
+      
+      
         double x0[3] = { p[0],p[1],p[2] }, dx;
-        for( size_t i=3; i<p.size(); i+=3 )
+      
+        if( colcount == 3 )
         {
+          // only positions are given
+          
+          for( size_t i=3; i<p.size(); i+=3 )
+          {
             for( size_t j=0; j<3; ++j )
             {
-                dx = p[i+j]-x0[j];
-                if( dx < -0.5 ) dx += 1.0;
-                else if( dx > 0.5 ) dx -= 1.0;
-                p[i+j] = x0[j] + dx;
+              dx = p[i+j]-x0[j];
+              if( dx < -0.5 ) dx += 1.0;
+              else if( dx > 0.5 ) dx -= 1.0;
+              p[i+j] = x0[j] + dx;
             }
+          }
         }
+        else if( colcount == 6 )
+        {
+          // positions and velocities are given
+          
+          //... include the velocties to unapply Zeldovich approx.
+          
+          for( size_t j=3; j<6; ++j )
+          {
+            dx = (p[j-3]-p[j]/vfac_)-x0[j-3];
+            if( dx < -0.5 ) dx += 1.0;
+            else if( dx > 0.5 ) dx -= 1.0;
+            p[j] = x0[j-3] + dx;
+          }
+          
+          for( size_t i=6; i<p.size(); i+=6 )
+          {
+            for( size_t j=0; j<3; ++j )
+            {
+              dx = p[i+j]-x0[j];
+              if( dx < -0.5 ) dx += 1.0;
+              else if( dx > 0.5 ) dx -= 1.0;
+              p[i+j] = x0[j] + dx;
+            }
+            
+            for( size_t j=3; j<6; ++j )
+            {
+              dx = (p[i+j-3]-p[i+j]/vfac_)-x0[j-3];
+              if( dx < -0.5 ) dx += 1.0;
+              else if( dx > 0.5 ) dx -= 1.0;
+              p[i+j] = x0[j-3] + dx;
+            }
+            
+            //fprintf(stderr,"%f,%f,%f - %f,%f,%f\n",p[i+0],p[i+1],p[i+2],p[i+3],p[i+4],p[i+5]);
+            
+          }
+        }
+        else
+          LOGERR("Problem interpreting the region point file \'%s\'", fname.c_str() );
+      
+      
+      //fprintf(stderr,"%f,%f,%f - %f,%f,%f\n",p[0],p[1],p[2],p[3],p[4],p[5]);
+      
     }
     
     void apply_shift( size_t Np, float *p, int *shift, int levelmin )
@@ -576,6 +640,9 @@ public:
     : region_generator_plugin( cf )
     {
         std::vector<float> pp;
+      
+        vfac_ = cf.getValue<double>("cosmology","vfact");
+        padding_ = cf.getValue<int>("setup","padding");
         
         
         std::string point_file = cf.getValue<std::string>("setup","region_point_file");
@@ -595,8 +662,9 @@ public:
         pellip_ = new min_ellipsoid( pp.size()/3, &pp[0] );
         
         //expand the ellipsoid by one grid cell
+      
         unsigned levelmax = cf.getValue<unsigned>("setup","levelmax");
-        double dx = 1.0/(1<<levelmax);
+        double dx = 1.0/(1ul<<levelmax);
         pellip_->expand_ellipsoid( dx );
         
         // output the center
@@ -613,12 +681,15 @@ public:
     void get_AABB( double *left, double *right, unsigned level )
     {
         pellip_->get_AABB( left, right );
+      
         double dx = 1.0/(1ul<<level);
-        
+        double pad = (double)(padding_+1) * dx;
+        double ext = sqrt(3)*dx + pad;
+      
         for( int i=0;i<3;++i )
         {
-            left[i] -= sqrt(3)*dx;
-            right[i] += sqrt(3)*dx;
+            left[i]  -= ext;
+            right[i] += ext;
         }
         
     }

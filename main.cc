@@ -390,8 +390,7 @@ int main (int argc, const char * argv[])
 	transfer_function_plugin *the_transfer_function_plugin
 		= select_transfer_function_plugin( cf );
     
-    the_region_generator = select_region_generator_plugin( cf );
-	
+    
 	cosmology cosmo( cf );
 	
 	std::cout << " - starting at a=" << cosmo.astart << std::endl;
@@ -502,7 +501,11 @@ int main (int argc, const char * argv[])
 	//------------------------------------------------------------------------------
 	//... determine the refinement hierarchy
 	//------------------------------------------------------------------------------
-	refinement_hierarchy rh_Poisson( cf );
+	
+    the_region_generator = select_region_generator_plugin( cf );
+  
+  
+    refinement_hierarchy rh_Poisson( cf );
 	store_grid_structure(cf, rh_Poisson);
 	//rh_Poisson.output();
 	print_hierarchy_stats( cf, rh_Poisson );

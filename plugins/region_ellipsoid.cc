@@ -4,6 +4,8 @@
 #include <cassert>
 #include <fstream>
 #include <sstream>
+#include <cctype>
+#include <algorithm>
 
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_eigen.h>
@@ -132,98 +134,7 @@ void Inverse_4x4( float *mat )
     {    dst[j] *= det;
         mat[j] = dst[j];
     }
-    
-}
-
-#include <xmmintrin.h>
-
-//! Inversion of 4x4 matrix
-//  Intel SIMD reference implementation
-//  c.f. http://download.intel.com/design/PentiumIII/sml/24504301.pdf
-inline void PIII_Inverse_4x4(float* src) {
-    __m128 minor0, minor1, minor2, minor3;
-    __m128 row0,   row1,   row2,   row3;
-    __m128 det,    tmp1;
-    tmp1 = _mm_loadh_pi(_mm_loadl_pi(tmp1, (__m64*)(src)), (__m64*)(src+ 4));
-    row1 = _mm_loadh_pi(_mm_loadl_pi(row1, (__m64*)(src+8)), (__m64*)(src+12));
-    row0 = _mm_shuffle_ps(tmp1, row1, 0x88);
-    row1 = _mm_shuffle_ps(row1, tmp1, 0xDD);
-    tmp1 = _mm_loadh_pi(_mm_loadl_pi(tmp1, (__m64*)(src+ 2)), (__m64*)(src+ 6));
-    row3 = _mm_loadh_pi(_mm_loadl_pi(row3, (__m64*)(src+10)), (__m64*)(src+14));
-    row2 = _mm_shuffle_ps(tmp1, row3, 0x88);
-    row3 = _mm_shuffle_ps(row3, tmp1, 0xDD);
-    // -----------------------------------------------
-    tmp1 = _mm_mul_ps(row2, row3);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
-    minor0 = _mm_mul_ps(row1, tmp1);
-    minor1 = _mm_mul_ps(row0, tmp1);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
-    minor0 = _mm_sub_ps(_mm_mul_ps(row1, tmp1), minor0);
-    minor1 = _mm_sub_ps(_mm_mul_ps(row0, tmp1), minor1);
-    minor1 = _mm_shuffle_ps(minor1, minor1, 0x4E);
-    // -----------------------------------------------
-    tmp1 = _mm_mul_ps(row1, row2);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
-    minor0 = _mm_add_ps(_mm_mul_ps(row3, tmp1), minor0);
-    minor3 = _mm_mul_ps(row0, tmp1);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
-    minor0 = _mm_sub_ps(minor0, _mm_mul_ps(row3, tmp1));
-    minor3 = _mm_sub_ps(_mm_mul_ps(row0, tmp1), minor3);
-    minor3 = _mm_shuffle_ps(minor3, minor3, 0x4E);
-    // -----------------------------------------------
-    tmp1 = _mm_mul_ps(_mm_shuffle_ps(row1, row1, 0x4E), row3);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
-    row2 = _mm_shuffle_ps(row2, row2, 0x4E);
-    minor0 = _mm_add_ps(_mm_mul_ps(row2, tmp1), minor0);
-    minor2 = _mm_mul_ps(row0, tmp1);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
-    minor0 = _mm_sub_ps(minor0, _mm_mul_ps(row2, tmp1));
-    minor2 = _mm_sub_ps(_mm_mul_ps(row0, tmp1), minor2);
-    minor2 = _mm_shuffle_ps(minor2, minor2, 0x4E);
-    // -----------------------------------------------
-    tmp1 = _mm_mul_ps(row0, row1);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
-    minor2 = _mm_add_ps(_mm_mul_ps(row3, tmp1), minor2);
-    minor3 = _mm_sub_ps(_mm_mul_ps(row2, tmp1), minor3);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
-    minor2 = _mm_sub_ps(_mm_mul_ps(row3, tmp1), minor2);
-    minor3 = _mm_sub_ps(minor3, _mm_mul_ps(row2, tmp1));
-    // -----------------------------------------------
-    tmp1 = _mm_mul_ps(row0, row3);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
-    minor1 = _mm_sub_ps(minor1, _mm_mul_ps(row2, tmp1));
-    minor2 = _mm_add_ps(_mm_mul_ps(row1, tmp1), minor2);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
-    minor1 = _mm_add_ps(_mm_mul_ps(row2, tmp1), minor1);
-    minor2 = _mm_sub_ps(minor2, _mm_mul_ps(row1, tmp1));
-    // -----------------------------------------------
-    tmp1 = _mm_mul_ps(row0, row2);
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0xB1);
-    minor1 = _mm_add_ps(_mm_mul_ps(row3, tmp1), minor1);
-    minor3 = _mm_sub_ps(minor3, _mm_mul_ps(row1, tmp1));
-    tmp1 = _mm_shuffle_ps(tmp1, tmp1, 0x4E);
-    minor1 = _mm_sub_ps(minor1, _mm_mul_ps(row3, tmp1));
-    minor3 = _mm_add_ps(_mm_mul_ps(row1, tmp1), minor3);
-    // -----------------------------------------------
-    det = _mm_mul_ps(row0, minor0);
-    det = _mm_add_ps(_mm_shuffle_ps(det, det, 0x4E), det);
-    det = _mm_add_ss(_mm_shuffle_ps(det, det, 0xB1), det);
-    tmp1 = _mm_rcp_ss(det);
-    det = _mm_sub_ss(_mm_add_ss(tmp1, tmp1), _mm_mul_ss(det, _mm_mul_ss(tmp1, tmp1)));
-    det = _mm_shuffle_ps(det, det, 0x00);
-    minor0 = _mm_mul_ps(det, minor0);
-    _mm_storel_pi((__m64*)(src), minor0);
-    _mm_storeh_pi((__m64*)(src+2), minor0);
-    minor1 = _mm_mul_ps(det, minor1);
-    _mm_storel_pi((__m64*)(src+4), minor1);
-    _mm_storeh_pi((__m64*)(src+6), minor1);
-    minor2 = _mm_mul_ps(det, minor2);
-    _mm_storel_pi((__m64*)(src+ 8), minor2);
-    _mm_storeh_pi((__m64*)(src+10), minor2);
-    minor3 = _mm_mul_ps(det, minor3);
-    _mm_storel_pi((__m64*)(src+12), minor3);
-    _mm_storeh_pi((__m64*)(src+14), minor3);
-    
+  
 }
 
 /***** Minimum Volume Bounding Ellipsoid Implementation ******/
@@ -240,6 +151,8 @@ inline void PIII_Inverse_4x4(float* src) {
  *
  * The ellipsoid equation is given in the canonical form
  *     (x-c)' A (x-c) <= 1
+ *
+ * Code was adapted from the MATLAB version by Nima Moshtagh (nima@seas.upenn.edu)
  */
 class min_ellipsoid
 {
@@ -287,7 +200,6 @@ protected:
                 V[3*i+j] = gsl_vector_get(&evec_i.vector,j);
         }
         
-        
         r1 = 1.0 / sqrt( gsl_vector_get(eval, 0) );
         r2 = 1.0 / sqrt( gsl_vector_get(eval, 1) );
         r3 = 1.0 / sqrt( gsl_vector_get(eval, 2) );
@@ -307,14 +219,14 @@ protected:
         v3[1] = gsl_vector_get(&evec_i.vector,1);
         v3[2] = gsl_vector_get(&evec_i.vector,2);
         
-        
         gsl_vector_free(eval);
         gsl_matrix_free(evec);
         gsl_eigen_symmv_free (w);
         
         axes_computed = true;
     }
-    
+  
+    // use the Khachiyan Algorithm to find the minimum bounding ellipsoid
     void compute( double tol = 0.001, int maxit = 10000 )
     {
         double err = 10.0 * tol;
@@ -330,15 +242,11 @@ protected:
                     const int k = i4+j;
                     temp = 0.0;
                     for( size_t l=0; l<N; ++l )
-                        temp += Q[4*l+i] * u[l] * Q[4*l+j];
+                        temp += (double)(Q[4*l+i] * u[l] * Q[4*l+j]);
                     X[k] = temp;
                 }
             
-            
-            
-            //PIII_Inverse_4x4(X);
             Inverse_4x4(X);
-            
             
             int imax = 0; float Mmax = -1e30;
             double m;
@@ -347,7 +255,7 @@ protected:
                 m = 0.0;
                 for( int k=0; k<4; ++k )
                     for( int l=0; l<4; ++l )
-                        m += Q[4*i+k] * X[4*l+k] * Q[4*i+l];
+                        m += (double)(Q[4*i+k] * X[4*l+k] * Q[4*i+l]);
                 if( m > Mmax )
                 {
                     imax = i;
@@ -380,6 +288,9 @@ public:
     min_ellipsoid( size_t N_, float* P )
     : N( N_ ), axes_computed( false )
     {
+        // --- initialize ---
+        LOGINFO("computing minimum bounding ellipsoid from %lld points",N);
+      
         Q = new float[4*N];
         u = new float[N];
         
@@ -394,39 +305,40 @@ public:
             Q[i4+3] = 1.0f;
         }
         
-        // compute the actual ellipsoid
+        //--- compute the actual ellipsoid using the Khachiyan Algorithm ---
         compute();
         
-        // determine center
-        for( int i=0; i<3; ++i )
-        {
-            c[i] = 0.0f;
-            for( size_t j=0; j<N; ++j )
-                c[i] += P[3*j+i] * u[j];
-        }
-        
-        // determine A matrix
-        float Pu[3];
+        //--- determine the ellipsoid A matrix ---
+        double Pu[3];
         for( int j=0; j<3; ++j )
         {
             Pu[j] = 0.0;
             for( size_t i=0; i<N; ++i )
                 Pu[j] += P[3*i+j] * u[i];
         }
-        
-        
+      
+        // determine center
+        c[0] = Pu[0]; c[1] = Pu[1]; c[2] = Pu[2];
+      
+        // need to do summation in double precision due to
+        // possible catastrophic cancellation issues when
+        // using many input points
+        double Atmp[9];
         for( int i=0; i<3; ++i )
             for( int j=0,i3=3*i; j<3; ++j )
             {
                 const int k = i3+j;
-                Ainv[k] = 0.0f;
+                Atmp[k] = 0.0;
                 for( size_t l=0; l<N; ++l )
-                    Ainv[k] += P[3*l+i] * u[l] * P[3*l+j];
-                Ainv[k] -= Pu[i]*Pu[j];
+                    Atmp[k] += P[3*l+i] * u[l] * P[3*l+j];
+                Atmp[k] -= Pu[i]*Pu[j];
             }
+      
+        for( int i=0;i<9;++i)
+          Ainv[i] = Atmp[i];
         
         Inverse_3x3( Ainv, A );
-        for( size_t i=0; i<9; ++i ){ A[i] *= 0.333333333; Ainv[i] *= 3.0; }
+        for( size_t i=0; i<9; ++i ){ A[i] /= 3.0; Ainv[i] *= 3.0; }
     }
     
     ~min_ellipsoid()
@@ -490,14 +402,15 @@ public:
   
     void expand_ellipsoid( float dr )
     {
-        //print();
+      //print();
         
         if( !axes_computed )
             compute_axes();
-        
+      
         float munew[3];
         for( int i=0; i<3; ++i )
-            munew[i] = sgn(mu[i])/sqr(1.0/sqrt(fabs(mu[i]))+dr);
+          munew[i] = sgn(mu[i])/sqr(1.0/sqrt(fabs(mu[i]))+dr);
+          
       
         float Anew[9];
         for(int i=0; i<3; ++i )
@@ -512,8 +425,8 @@ public:
             A[i] = Anew[i];
         
         Inverse_3x3( A, Ainv );
-        
-        //print();
+      
+      //print();
     }
 };
 
@@ -528,6 +441,16 @@ private:
     int shift[3], shift_level, padding_;
     double vfac_;
   
+    bool isFloat( std::string myString )
+    {
+      std::istringstream iss(myString);
+      double f;
+      //iss >> std::noskipws >> f; // noskipws considers leading whitespace invalid
+                          // Check the entire string was consumed and if either failbit or badbit is set
+      iss >> f;
+      return iss.eof() && !iss.fail();
+    }
+  
     void read_points_from_file( std::string fname, std::vector<float>& p )
     {
         std::ifstream ifs(fname.c_str());
@@ -537,28 +460,39 @@ private:
             throw std::runtime_error("region_ellipsoid_plugin::read_points_from_file : cannot open point file.");
         }
       
-        int colcount = 0, row = 0;
+        int colcount = 0, colcount1 = 0, row = 0;
+        p.clear();
       
         while( ifs )
         {
             std::string s;
             if( !getline(ifs,s) )break;
             std::stringstream ss(s);
+            colcount1 = 0;
             while(ss)
             {
                 if( !getline(ss,s,' ') ) break;
+                if( !isFloat( s ) ) continue;
                 p.push_back( strtod(s.c_str(),NULL) );
+              
                 if( row == 0 )
                   colcount++;
+                else
+                  colcount1++;
             }
           ++row;
+          
+          if( row>1 && colcount != colcount1 )
+            LOGERR("error on line %d of input file",row);
+          
+          //std::cout << std::endl;
         }
       
         LOGINFO("region point file appears to contain %d columns",colcount);
       
         if( p.size()%3 != 0 && p.size()%6 != 0 )
         {
-            LOGERR("Region point file \'%s\' does not contain triplets",fname.c_str());
+            LOGERR("Region point file \'%s\' does not contain triplets (%d elems)",fname.c_str(),p.size());
             throw std::runtime_error("region_ellipsoid_plugin::read_points_from_file : file does not contain triplets.");
         }
       
@@ -611,30 +545,23 @@ private:
               else if( dx > 0.5 ) dx -= 1.0;
               p[i+j] = x0[j-3] + dx;
             }
-            
-            //fprintf(stderr,"%f,%f,%f - %f,%f,%f\n",p[i+0],p[i+1],p[i+2],p[i+3],p[i+4],p[i+5]);
-            
           }
         }
         else
           LOGERR("Problem interpreting the region point file \'%s\'", fname.c_str() );
-      
-      
-      //fprintf(stderr,"%f,%f,%f - %f,%f,%f\n",p[0],p[1],p[2],p[3],p[4],p[5]);
-      
     }
     
     void apply_shift( size_t Np, float *p, int *shift, int levelmin )
     {
         double dx = 1.0/(1<<levelmin);
-        LOGINFO("unapplying previous shift to region particles :\n" \
+        LOGINFO("unapplying shift of previous zoom region to region particles :\n" \
                 "\t [%d,%d,%d] = (%f,%f,%f)",shift[0],shift[1],shift[2],shift[0]*dx,shift[1]*dx,shift[2]*dx);
-        
+      
         for( size_t i=0,i3=0; i<Np; i++,i3+=3 )
             for( size_t j=0; j<3; ++j )
                 p[i3+j] = p[i3+j]-shift[j]*dx;
     }
-    
+  
 public:
     explicit region_ellipsoid_plugin( config_file& cf )
     : region_generator_plugin( cf )

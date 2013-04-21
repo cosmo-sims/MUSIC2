@@ -440,6 +440,7 @@ private:
     min_ellipsoid *pellip_;
     int shift[3], shift_level, padding_;
     double vfac_;
+    bool do_extra_padding_;
   
     bool isFloat( std::string myString )
     {
@@ -598,6 +599,17 @@ public:
         float c[3];
         pellip_->get_center( c );
         LOGINFO("Region center for ellipsoid determined at\n\t (%f,%f,%f)",c[0],c[1],c[2]);
+      
+        //-----------------------------------------------------------------
+        // when querying the bounding box, do we need extra padding?
+        do_extra_padding_ = false;
+      
+        // conditions should be added here
+        {
+          std::string output_plugin = cf.getValue<std::string>("output","format");
+          if( output_plugin == std::string("grafic2") )
+            do_extra_padding_ = true;
+        }
     }
     
     ~region_ellipsoid_plugin()
@@ -611,6 +623,9 @@ public:
       
         double dx = 1.0/(1ul<<level);
         double pad = (double)(padding_+1) * dx;
+      
+        if( ! do_extra_padding_ ) pad = 0.0;
+      
         double ext = sqrt(3)*dx + pad;
       
         for( int i=0;i<3;++i )

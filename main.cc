@@ -428,14 +428,11 @@ int main (int argc, const char * argv[])
 		
 	}
 	
-	
-	
-	
-	
+    the_region_generator = select_region_generator_plugin( cf );
+  
 	//------------------------------------------------------------------------------
 	//... determine run parameters
 	//------------------------------------------------------------------------------
-
 	
 	if( !the_transfer_function_plugin->tf_is_distinct() && do_baryons )
 		std::cout	<< " - WARNING: The selected transfer function does not support\n"
@@ -502,9 +499,6 @@ int main (int argc, const char * argv[])
 	//... determine the refinement hierarchy
 	//------------------------------------------------------------------------------
 	
-    the_region_generator = select_region_generator_plugin( cf );
-  
-  
     refinement_hierarchy rh_Poisson( cf );
 	store_grid_structure(cf, rh_Poisson);
 	//rh_Poisson.output();

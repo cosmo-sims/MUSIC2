@@ -4,22 +4,32 @@ FFTW3		= yes
 MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
 HAVEHDF5        = no
+HAVEBOXLIB	= yes
+BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################
 ### compiler and path settings
-CC      = g++ 
+CC      = mpiicpc
 OPT     = -Wall -Wno-unknown-pragmas -O3 -g -msse2
 CFLAGS  =  
 LFLAGS  = -lgsl -lgslcblas 
 CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
 LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
 
+CPATHS  = -I. -I$(HOME)/music-stuff/inst/include 
+LPATHS  = -L$(HOME)/music-stuff/inst/lib -L$(HOME)/fftw-3.3.3/lib
+
 ##############################################################################
 # if you have FFTW 2.1.5 or 3.x with multi-thread support, you can enable the 
 # option MULTITHREADFFTW
 ifeq ($(MULTITHREADFFTW), yes)
-  CFLAGS += -fopenmp
-  LFLAGS += -fopenmp
+  ifeq ($(CC), mpiicpc)
+    CFLAGS += -openmp
+    LFLAGS += -openmp
+  else
+    CFLAGS += -fopenmp
+    LFLAGS += -fopenmp
+  endif
   ifeq ($(FFTW3),yes)
 	ifeq ($(SINGLEPRECISION), yes)
 		LFLAGS  +=  -lfftw3f_threads
@@ -69,19 +79,41 @@ endif
 CFLAGS += $(OPT)
 TARGET  = MUSIC
 OBJS    = output.o transfer_function.o Numerics.o defaults.o constraints.o random.o\
-		convolution_kernel.o region_generator.o densities.o cosmology.o poisson.o\
-        log.o main.o \
+		convolution_kernel.o region_generator.o densities.o cosmology.o poisson.o densities.o cosmology.o poisson.o log.o main.o \
 		$(patsubst plugins/%.cc,plugins/%.o,$(wildcard plugins/*.cc))
 
 ##############################################################################
+# stuff for BoxLib
+BLOBJS = ""
+ifeq ($(HAVEBOXLIB), yes)
+  IN_MUSIC = YES
+  TOP = ${PWD}/plugins/boxlib_stuff
+  CCbla := $(CC)
+  include plugins/boxlib_stuff/Make.ic
+  CC  := $(CCbla)
+  CPATHS += $(INCLUDE_LOCATIONS)
+  LPATHS += -L$(objEXETempDir)
+  BLOBJS = $(foreach obj,$(objForExecs),plugins/boxlib_stuff/$(obj))
+#
+endif
+
+##############################################################################
 all: $(OBJS) $(TARGET)
+#	cd plugins/boxlib_stuff; make
 
-$(TARGET): $(OBJS)
-	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS)
+bla:
+	echo $(BLOBJS)
 
-%.o: %.cc *.hh Makefile 
+#FIXME!!!
+$(TARGET): $(OBJS) plugins/boxlib_stuff/*.cpp
+	cd plugins/boxlib_stuff; make BOXLIB_HOME=$(BOXLIB_HOME) FFTW3=$(FFTW3) SINGLE=$(SINGLEPRECISION)
+	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS) $(BLOBJS) -lifcore
+
+#%.o: %.cc *.hh Makefile 
+%.o: %.cc *.hh
 	$(CC) $(CFLAGS) $(CPATHS) -c $< -o $@
 
 clean:
 	rm -rf $(OBJS)
-
+	cd plugins/boxlib_stuff; make realclean BOXLIB_HOME=$(BOXLIB_HOME)
+	

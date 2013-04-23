@@ -87,13 +87,20 @@ void splash(void)
 
 void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarchy& rh_TF, config_file& cf )
 {
-	unsigned lbase, lbaseTF, lmax, overlap;
+	unsigned lbase, lbaseTF, lmax, overlap, use_blockingfactor,blocking_factor;
 	
 	lbase				= cf.getValue<unsigned>( "setup", "levelmin" );
 	lmax				= cf.getValue<unsigned>( "setup", "levelmax" );
 	lbaseTF				= cf.getValueSafe<unsigned>( "setup", "levelmin_TF", lbase );
 	overlap				= cf.getValueSafe<unsigned>( "setup", "overlap", 4 );
-	
+	use_blockingfactor		= cf.getValueSafe<unsigned>( "setup", "use_blockingfactor",0);
+	blocking_factor			= cf.getValueSafe<unsigned>( "setup", "blocking_factor",0);
+	if(use_blockingfactor && (blocking_factor % 4))
+	{
+	  std::cout << "Sorry, blocking factor must be divisible by 4!\n" << std::endl;
+	  return;
+	}
+	std::cout << use_blockingfactor << " " << blocking_factor << std::endl;
 	rh_TF = rh_full;
 	
 	unsigned pad = overlap;
@@ -112,7 +119,11 @@ void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarc
 		}
 		
 		//... make sure that grids are divisible by 4 for convolution.
-		lxmax += lxmax%4;
+		if(use_blockingfactor)
+		  lxmax += lxmax%blocking_factor;
+		else
+		  lxmax += lxmax%4;
+		
 		
 		for( int j=0; j<3; ++j )
 		{

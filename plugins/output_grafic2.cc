@@ -33,7 +33,9 @@ protected:
 	}header;
 	
 	bool bhavehydro_;
-        float metal_floor_;
+  //float metal_floor_;
+    int passive_variable_index_;
+    float passive_variable_value_;
 	
 	void write_file_header( std::ofstream& ofs, unsigned ilevel, const grid_hierarchy& gh )
 	{
@@ -163,11 +165,11 @@ protected:
 
 	    std::ofstream ofs_metals;
 	    
-	    if( metal_floor_ > 0.0f )
+	    if( passive_variable_value_ > 0.0f )
 	      {
-		sprintf(ff,"%s/level_%03d/ic_pvar_00001",fname_.c_str(), gh.levelmax() );
-		ofs_metals.open(ff,std::ios::binary|std::ios::trunc);
-		write_file_header( ofs_metals, gh.levelmax(), gh );
+            sprintf(ff,"%s/level_%03d/ic_pvar_%05d",fname_.c_str(), gh.levelmax(), passive_variable_index_ );
+            ofs_metals.open(ff,std::ios::binary|std::ios::trunc);
+            write_file_header( ofs_metals, gh.levelmax(), gh );
 	      }
 
            
@@ -186,11 +188,11 @@ protected:
                 ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
 
 
-		if( metal_floor_ > 0.0f ){
+		if( passive_variable_value_ > 0.0f ){
 
 		  for( unsigned j=0; j<n2; ++j )
 		    for( unsigned i=0; i<n1; ++i )
-		      block[j*n1+i] = data[(i*n2+j)*n3+k] * metal_floor_;
+		      block[j*n1+i] = data[(i*n2+j)*n3+k] * passive_variable_value_;
                 
 		  unsigned blksize = n1*n2*sizeof(float);
                 
@@ -240,9 +242,9 @@ protected:
             write_file_header( ofs, ilevel, gh );
 
 	    std::ofstream ofs_metals;
-	    if( metal_floor_ > 0.0f )
+	    if( passive_variable_value_ > 0.0f )
 	      {
-		sprintf(ff,"%s/level_%03d/ic_pvar_00001",fname_.c_str(), ilevel );
+		sprintf(ff,"%s/level_%03d/ic_pvar_%05d",fname_.c_str(), ilevel, passive_variable_index_ );
 		ofs_metals.open(ff,std::ios::binary|std::ios::trunc);
 		write_file_header( ofs_metals, ilevel, gh );
 	      }
@@ -261,11 +263,11 @@ protected:
                 ofs.write( reinterpret_cast<char*> (&block[0]), blksize );
                 ofs.write( reinterpret_cast<char*> (&blksize), sizeof(unsigned) );
 
-		if( metal_floor_ > 0.0f ){
+		if( passive_variable_value_ > 0.0f ){
 
 		  for( unsigned j=0; j<n2c; ++j )
                     for( unsigned k=0; k<n1c; ++k )
-                        block[j*n1c+k] = data_coarse[(k*n2c+j)*n3c+i] * metal_floor_;
+                        block[j*n1c+k] = data_coarse[(k*n2c+j)*n3c+i] * passive_variable_value_;
                 
 		  unsigned blksize = n1c*n2c*sizeof(float);
                 
@@ -287,10 +289,36 @@ protected:
 		sprintf(ff,"%s/ramses.nml",fname_.c_str() );
 		
 		std::ofstream ofst(ff,std::ios::trunc);
+      
+        // -- RUN_PARAMS -- //
+        ofst
+          << "&RUN_PARAMS\n"
+          << "cosmo=.true.\n"
+          << "pic=.true.\n"
+          << "poisson=.true.\n";
+      
+        if( bhavehydro_ )
+          ofst << "hydro=.true.\n";
+        else
+          ofst << "hydro=.false.\n";
+          
+        ofst
+          << "nrestart=0\n"
+          << "nremap=1\n"
+          << "nsubcycle=";
+      
+        for( unsigned ilevel=gh.levelmin(); ilevel<=gh.levelmax(); ++ilevel )
+          ofst << "1,";
+        ofst << "1,2\n";
+      
+        ofst
+          << "ncontrol=1\n"
+          << "verbose=.false.\n/\n\n";
 		
-		ofst
-            << "&INIT_PARAMS\n"
-            << "filetype=\'grafic\'\n";
+        // -- INIT_PARAMS -- //
+        ofst
+          << "&INIT_PARAMS\n"
+          << "filetype=\'grafic\'\n";
 		for( unsigned i=gh.levelmin();i<=gh.levelmax(); ++i)
 		{
 			sprintf(ff,"initfile(%d)=\'%s/level_%03d\'\n",i-gh.levelmin()+1,fname_.c_str(), i );
@@ -300,24 +328,42 @@ protected:
 		
 		
         unsigned naddref = 8; // initialize with settings for 10 additional levels of refinement
-        unsigned nexp = cf_.getValue<unsigned>("setup","padding");
+        unsigned nexpand = (cf_.getValue<unsigned>("setup","padding")-1)/2;
         
+        // -- AMR_PARAMS -- //
         ofst << "&AMR_PARAMS\n"
             << "levelmin=" << gh.levelmin() << "\n"
             << "levelmax=" << gh.levelmax()+naddref << "\n"
-            << "ngridtot=2000000\n"
-            << "nparttot=3000000\n"
-            << "nexpand="<< gh.levelmax()-gh.levelmin()+1+naddref << "*1,\n"
-            << "/\n\n";
-        
+            << "nexpand=";
+      
+        if( gh.levelmax() == gh.levelmin() )
+          ofst << "1";
+        else 
+        {
+          for( unsigned ilevel=gh.levelmin(); ilevel<gh.levelmax()-1; ++ilevel )
+            ofst << nexpand << ",";
+          ofst << "1,1";
+          
+        }
+      
+        ofst << "\n"
+             << "ngridtot=2000000\n"
+             << "nparttot=3000000\n"
+             << "/\n\n";
+      
         ofst << "&REFINE_PARAMS\n"
-            << "m_refine=" << gh.levelmax()-gh.levelmin()+1+naddref << "*8.,\n"
-            << "ivar_refine=6\n"
-            << "var_cut_refine=2e-6\n"
-            //<< "mass_cut_refine=1e-9\n"
-            << "interpol_var=1\n"
-            << "interpol_type=0\n"
-            << "/\n\n";
+            << "m_refine=" << gh.levelmax()-gh.levelmin()+1+naddref << "*8.,\n";
+      
+        if( bhavehydro_ )
+          ofst << "ivar_refine=" << 5+passive_variable_index_ << "\n"
+               << "var_cut_refine=" << passive_variable_value_*0.01 << "\n";
+        else
+          ofst << "ivar_refine=0\n";
+      
+        ofst << "mass_cut_refine=" << 2.0/pow(2,3*gh.levelmax()) << "\n"
+             << "interpol_var=1\n"
+             << "interpol_type=0\n"
+             << "/\n\n";
         
         
 		LOGINFO("The grafic2 output plug-in wrote the grid data to a partial");
@@ -344,8 +390,6 @@ protected:
 		
 		
 		double xc,yc,zc,l;
-		
-		
 		
 		ofst
 		<< "&AMR_PARAMS\n"
@@ -431,7 +475,9 @@ public:
 		
 		
 		bhavehydro_ = cf.getValue<bool>("setup","baryons");
-		metal_floor_ = cf.getValueSafe<float>("output","ramses_metal_floor",1e-5);
+      //metal_floor_ = cf.getValueSafe<float>("output","ramses_metal_floor",1e-5);
+        passive_variable_index_ = cf.getValueSafe<int>("output","ramses_pvar_idx",1);
+        passive_variable_value_ = cf.getValueSafe<float>("output","ramses_pvar_val",1.0f);
 	}
 	
 	/*~grafic2_output_plugin()
@@ -518,9 +564,9 @@ public:
 			write_ramses_namelist(gh);
         else if( cf_.getValueSafe<bool>("output","ramses_old_nml",false) )
 			write_ramses_namelist_old(gh);
-        
-        write_refinement_mask( gh );
-		
+      
+        if( gh.levelmin() != gh.levelmax() )
+          write_refinement_mask( gh );
 	}
 	
 	void write_dm_mass( const grid_hierarchy& gh )

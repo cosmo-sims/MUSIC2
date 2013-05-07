@@ -68,6 +68,7 @@ protected:
 //	std::vector<grid_on_one_level> grids;
 
 	std::vector<BoxArray> boxarrays;
+	std::vector<Box> boxes;
 
 	sim_header the_sim_header;
 
@@ -95,15 +96,17 @@ protected:
 			    const int  *fab_lo = mfi.validbox().loVect();
 			    const int  *fab_hi = mfi.validbox().hiVect();
 	
-//			    int mk = 0;
+			    int mk = fab_lo[2] - boxes[blevel].smallEnd()[2];
 	#ifdef OMP		    
 			    #pragma omp parallel for default(shared)
 	#endif
-			    for (int k = fab_lo[2], mk=0; k <= fab_hi[2]; k++, mk++) {
-//			      int mj = 0;
-			      for (int j = fab_lo[1], mj=0; j <= fab_hi[1]; j++, mj++) {
-//				int mi = 0;
-			    	for (int i = fab_lo[0], mi=0; i <= fab_hi[0]; i++, mi++) {
+			    for (int k = fab_lo[2]; k <= fab_hi[2]; k++, mk++) {
+
+			      int mj = fab_lo[1] - boxes[blevel].smallEnd()[1];
+			      for (int j = fab_lo[1]; j <= fab_hi[1]; j++, mj++) {
+
+				int mi = fab_lo[0] - boxes[blevel].smallEnd()[0];
+			    	for (int i = fab_lo[0]; i <= fab_hi[0]; i++, mi++) {
 				  if (mi>=ng[0])
 					  std::cout << "mi (" << mi << ") too large " << ng[0] << std::endl;
 				  if (mj>=ng[1])
@@ -226,9 +229,13 @@ public:
 			
 			// We just have one box since we don't use mpi.
 		   	domainBoxArray.set(0, probDomain);
+			domainBoxArray.maxSize(32);
+			pmap.resize(domainBoxArray.size(),0);
+			
 			DistributionMapping domainDistMap(pmap);
 	
 			boxarrays.push_back(domainBoxArray);
+			boxes.push_back(probDomain);
 	
 			int ngrow(0);
 			MultiFab *mf = new MultiFab;

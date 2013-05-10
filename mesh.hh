@@ -1106,7 +1106,8 @@ class refinement_hierarchy
 		levelmin_,		//!< minimum grid level for Poisson solver
 		levelmax_,		//!< maximum grid level for all operations
 		levelmin_tf_,	//!< minimum grid level for density calculation
-		padding_;		//!< padding in number of coarse cells between refinement levels
+		padding_,		//!< padding in number of coarse cells between refinement levels
+		blocking_factor_;
 	
 	
 	config_file& cf_;	//!< reference to config_file
@@ -1144,6 +1145,7 @@ public:
 		padding_	= cf_.getValue<unsigned>("setup","padding");
 		align_top_	= cf_.getValue<bool>("setup","align_top");
 		equal_extent_ = cf_.getValueSafe<bool>("setup","force_equal_extent",false);
+		blocking_factor_= cf.getValueSafe<unsigned>( "setup", "blocking_factor",0);
 		
         //... call the region generator
         double x1ref[3];
@@ -1382,6 +1384,7 @@ public:
 				il -= il%2; jl -= jl%2; kl -= kl%2;
 				ir += ir%2; jr += jr%2; kr += kr%2; 
 			}
+
 			
 			if( il>=ir || jl>=jr || kl>=kr || il < 0 || jl < 0 || kl < 0)
 			{
@@ -1390,6 +1393,13 @@ public:
             }
 			oax_[ilevel] = il;		oay_[ilevel] = jl;		oaz_[ilevel] = kl;
 			nx_[ilevel]  = ir-il;	ny_[ilevel]  = jr-jl;	nz_[ilevel]  = kr-kl;
+
+			if (blocking_factor_)
+			{
+				nx_[ilevel] += nx_[ilevel] % blocking_factor_;
+				ny_[ilevel] += ny_[ilevel] % blocking_factor_;
+				nz_[ilevel] += nz_[ilevel] % blocking_factor_;
+			}
 			
 			if( equal_extent_ )
 			{

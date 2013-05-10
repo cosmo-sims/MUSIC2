@@ -251,11 +251,11 @@ public:
 		
 		bool align_top			= cf.getValueSafe<bool>( "setup", "align_top", true );
 		
-		if( !align_top )
-		{
-            LOGERR("nyx output plug-in requires that \'align_top=true\'!");
-            throw std::runtime_error("nyx output plug-in requires that \'align_top=true\'!");
-		}
+//		if( !align_top )
+//		{
+//            LOGERR("nyx output plug-in requires that \'align_top=true\'!");
+//            throw std::runtime_error("nyx output plug-in requires that \'align_top=true\'!");
+//		}
         
 		the_sim_header.dimensions.push_back( 1<<levelmin_ );
 		the_sim_header.dimensions.push_back( 1<<levelmin_ );

@@ -406,7 +406,6 @@ public:
 		inputs << "amr.regrid_int      = 2 2 2 2 2 2 2 2 " << std::endl;
 		inputs << "amr.initial_grid_file = init/grids_file" << std::endl;
 		inputs << "amr.useFixedCoarseGrids = 1" << std::endl;
-		inputs << "amr.blocking_factor =8" << std::endl;
 		inputs << "amr.check_file      = chk " << std::endl;
 		inputs << "amr.check_int       = 10 " << std::endl;
 		inputs << "amr.plot_file       = plt " << std::endl;
@@ -433,6 +432,8 @@ public:
 		inputs << "cosmo.ic-source = MUSIC               " << std::endl;
 		
 
+		inputs << "amr.blocking_factor = " << cf_.getValue<double>("setup","blocking_factor") << std::endl;
+			
 		inputs << "nyx.do_hydro = "<< (the_sim_header.omega_b>0?1:0) << std::endl;
 		inputs << "amr.max_level       = " << levelmax_-levelmin_ << std::endl;
 		inputs << "nyx.initial_z = " << 1/the_sim_header.a_start-1 << std::endl;

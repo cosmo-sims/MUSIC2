@@ -249,13 +249,13 @@ public:
 //			throw std::runtime_error("Error in nyx_output_plugin!");
 //		}
 		
-		bool align_top			= cf.getValueSafe<bool>( "setup", "align_top", true );
+		bool haveblockingfactor		= cf.containsKey( "setup", "blocking_factor");
 		
-//		if( !align_top )
-//		{
-//            LOGERR("nyx output plug-in requires that \'align_top=true\'!");
-//            throw std::runtime_error("nyx output plug-in requires that \'align_top=true\'!");
-//		}
+		if( !haveblockingfactor )
+		{
+            LOGERR("nyx output plug-in requires that \'blocking_factor\' is set!");
+            throw std::runtime_error("nyx output plug-in requires that \'blocking_factor\' is set!");
+		}
         
 		the_sim_header.dimensions.push_back( 1<<levelmin_ );
 		the_sim_header.dimensions.push_back( 1<<levelmin_ );

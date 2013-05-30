@@ -5,7 +5,6 @@ MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
 HAVEHDF5        = no
 HAVEBOXLIB	= yes
-HAVEBOXLIB	= no
 BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################

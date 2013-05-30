@@ -1,0 +1,71 @@
+TOP = ${PWD}
+PRECISION = DOUBLE
+DEBUG	  = FALSE
+DIM       = 3
+COMP	  = Intel
+FCOMP     = Intel
+USE_MPI   = FALSE
+USE_OMP	  = FALSE
+
+IN_MUSIC = NO
+
+#hmm....awful (needed for general.hh)
+ifeq ($(FFTW3), yes)
+  DEFINES += -DFFTW3
+endif
+
+ifeq ($(SINGLE), yes)
+  PRECISION = SINGLE
+endif
+
+
+include $(BOXLIB_HOME)/Tools/C_mk/Make.defs
+NYX           = TRUE
+VERBOSE = TRUE
+
+DEFINES += -DHAVE_BOXLIB
+
+#These are the directories in Nyx 
+
+Bpack	+= $(TOP)/Make.package
+Blocs	+= $(TOP)
+
+#include $(TOP)/Make.package
+
+include $(Bpack)
+INCLUDE_LOCATIONS += $(Blocs)
+VPATH_LOCATIONS   += $(Blocs)
+
+#These are the directories in BoxLib
+
+Pdirs   := C_BaseLib
+Ppack	+= $(foreach dir, $(Pdirs), $(BOXLIB_HOME)/Src/$(dir)/Make.package)
+Plocs	+= $(foreach dir, $(Pdirs), $(BOXLIB_HOME)/Src/$(dir))
+
+include $(Ppack)
+INCLUDE_LOCATIONS += $(Plocs)
+VPATH_LOCATIONS   += $(Plocs)
+
+
+INCLUDE_LOCATIONS += $(BOXLIB_HOME)/Src/F_BaseLib
+VPATH_LOCATIONS   += $(BOXLIB_HOME)/Src/F_BaseLib
+
+
+
+vpath %.c   . $(VPATH_LOCATIONS)
+vpath %.cpp . $(VPATH_LOCATIONS)
+vpath %.h   . $(VPATH_LOCATIONS)
+vpath %.H   . $(VPATH_LOCATIONS)
+vpath %.F   . $(VPATH_LOCATIONS)
+vpath %.f90 . $(VPATH_LOCATIONS)
+vpath %.f   . $(VPATH_LOCATIONS)
+vpath %.fi  . $(VPATH_LOCATIONS)
+
+ifeq ($(IN_MUSIC), NO)
+all: $(objForExecs)
+	@echo BoxLib compiled ...
+	@touch ../../output.cc
+
+include $(BOXLIB_HOME)/Tools/C_mk/Make.rules
+
+endif

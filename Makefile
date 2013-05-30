@@ -5,6 +5,7 @@ MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
 HAVEHDF5        = no
 HAVEBOXLIB	= yes
+HAVEBOXLIB	= no
 BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################
@@ -104,10 +105,14 @@ all: $(OBJS) $(TARGET)
 bla:
 	echo $(BLOBJS)
 
-#FIXME!!!
+ifeq ($(HAVEBOXLIB), yes)
 $(TARGET): $(OBJS) plugins/boxlib_stuff/*.cpp
 	cd plugins/boxlib_stuff; make BOXLIB_HOME=$(BOXLIB_HOME) FFTW3=$(FFTW3) SINGLE=$(SINGLEPRECISION)
 	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS) $(BLOBJS) -lifcore
+else
+$(TARGET): $(OBJS)
+	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS)
+endif
 
 #%.o: %.cc *.hh Makefile 
 %.o: %.cc *.hh

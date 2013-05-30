@@ -1,2 +1,3 @@
 CEXE_sources += output_nyx.cpp
+CEXE_sources += output_nyx_memo.cpp
 

@@ -87,9 +87,9 @@ OBJS    = output.o transfer_function.o Numerics.o defaults.o constraints.o rando
 BLOBJS = ""
 ifeq ($(HAVEBOXLIB), yes)
   IN_MUSIC = YES
-  TOP = ${PWD}/plugins/boxlib_stuff
+  TOP = ${PWD}/plugins/nyx_plugin
   CCbla := $(CC)
-  include plugins/boxlib_stuff/Make.ic
+  include plugins/nyx_plugin/Make.ic
   CC  := $(CCbla)
   CPATHS += $(INCLUDE_LOCATIONS)
   LPATHS += -L$(objEXETempDir)
@@ -105,8 +105,8 @@ bla:
 	echo $(BLOBJS)
 
 ifeq ($(HAVEBOXLIB), yes)
-$(TARGET): $(OBJS) plugins/boxlib_stuff/*.cpp
-	cd plugins/boxlib_stuff; make BOXLIB_HOME=$(BOXLIB_HOME) FFTW3=$(FFTW3) SINGLE=$(SINGLEPRECISION)
+$(TARGET): $(OBJS) plugins/nyx_plugin/*.cpp
+	cd plugins/nyx_plugin; make BOXLIB_HOME=$(BOXLIB_HOME) FFTW3=$(FFTW3) SINGLE=$(SINGLEPRECISION)
 	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS) $(BLOBJS) -lifcore
 else
 $(TARGET): $(OBJS)
@@ -119,5 +119,5 @@ endif
 
 clean:
 	rm -rf $(OBJS)
-	cd plugins/boxlib_stuff; make realclean BOXLIB_HOME=$(BOXLIB_HOME)
+	cd plugins/nyx_plugin; make realclean BOXLIB_HOME=$(BOXLIB_HOME)
 	

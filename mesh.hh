@@ -936,6 +936,9 @@ public:
 	//! assign (element-wise) two grid hierarchies
 	GridHierarchy<T>& operator=( const GridHierarchy<T>& gh )
 	{
+        bhave_refmask = gh.bhave_refmask;
+        ref_mask = gh.ref_mask;
+      
 		if( !is_consistent(gh) )
 		{
 			for( unsigned i=0; i<m_pgrids.size(); ++i )

@@ -63,14 +63,18 @@ private:
     size_t lnref_[3];
     bool bhave_nref_;
     unsigned levelmin_, levelmax_;
-    
+    bool do_extra_padding_;
+    int padding_;
+    double padding_fine_;
+
 public:
     region_box_plugin( config_file& cf )
     : region_generator_plugin( cf )
     {
         levelmin_ = pcf_->getValue<unsigned>("setup","levelmin");
         levelmax_ = pcf_->getValue<unsigned>("setup","levelmax");
-        
+        padding_ = cf.getValue<int>("setup","padding");
+
         std::string temp;
         
         if( !pcf_->containsKey("setup","ref_offset") && !pcf_->containsKey("setup","ref_center") )
@@ -133,16 +137,29 @@ public:
       lxref_[2] = xr[2] - x0ref_[2];
       */
       
+        // conditions should be added here
+        {
+	  do_extra_padding_ = false;
+          std::string output_plugin = cf.getValue<std::string>("output","format");
+          if( output_plugin == std::string("grafic2") )
+            do_extra_padding_ = true;
+	  padding_fine_ = 0.0;
+	  if( do_extra_padding_ )
+	    padding_fine_ = (double)(padding_+1) * 1.0/(1ul<<levelmax_);
+        }
     }
     
     void get_AABB( double *left, double *right, unsigned level )
-    {
-        
+    { 
+        double dx = 1.0/(1ul<<level);
+        double pad = (double)(padding_+1) * dx;
+      
+        if( ! do_extra_padding_ ) pad = 0.0;
         
         for( int i=0; i<3; ++i )
         {
-            left[i] = x0ref_[i];
-            right[i] = x0ref_[i] + lxref_[i];
+            left[i] = x0ref_[i] - pad;
+            right[i] = x0ref_[i] + lxref_[i] + pad;
         }
     }
   
@@ -169,7 +186,7 @@ public:
             if( dx < -0.5 ) dx += 1.0;
             else if (dx > 0.5 ) dx -= 1.0;
             
-            check &= dx >= 0.0 & dx <= lxref_[i];
+            check &= ((dx >= padding_fine_) & (dx <= lxref_[i]-padding_fine_));
         }
         return check;
     }

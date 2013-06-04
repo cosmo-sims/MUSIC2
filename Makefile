@@ -4,20 +4,17 @@ FFTW3		= yes
 MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
 HAVEHDF5        = no
-HAVEBOXLIB	= yes
+HAVEBOXLIB	= no
 BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################
 ### compiler and path settings
-CC      = mpiicpc
+CC      = g++
 OPT     = -Wall -Wno-unknown-pragmas -O3 -g -msse2
 CFLAGS  =  
 LFLAGS  = -lgsl -lgslcblas 
 CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
 LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
-
-CPATHS  = -I. -I$(HOME)/music-stuff/inst/include 
-LPATHS  = -L$(HOME)/music-stuff/inst/lib -L$(HOME)/fftw-3.3.3/lib
 
 ##############################################################################
 # if you have FFTW 2.1.5 or 3.x with multi-thread support, you can enable the 
@@ -79,7 +76,8 @@ endif
 CFLAGS += $(OPT)
 TARGET  = MUSIC
 OBJS    = output.o transfer_function.o Numerics.o defaults.o constraints.o random.o\
-		convolution_kernel.o region_generator.o densities.o cosmology.o poisson.o densities.o cosmology.o poisson.o log.o main.o \
+		convolution_kernel.o region_generator.o densities.o cosmology.o poisson.o\
+		densities.o cosmology.o poisson.o log.o main.o \
 		$(patsubst plugins/%.cc,plugins/%.o,$(wildcard plugins/*.cc))
 
 ##############################################################################
@@ -119,5 +117,7 @@ endif
 
 clean:
 	rm -rf $(OBJS)
+	pushd .
 	cd plugins/nyx_plugin; make realclean BOXLIB_HOME=$(BOXLIB_HOME)
+	popd
 	

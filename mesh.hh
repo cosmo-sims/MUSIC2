@@ -1145,12 +1145,18 @@ public:
 		levelmin_	= cf_.getValue<unsigned>("setup","levelmin");
 		levelmax_	= cf_.getValue<unsigned>("setup","levelmax");
 		levelmin_tf_= cf_.getValueSafe<unsigned>("setup","levelmin_TF",levelmin_);
-		padding_	= cf_.getValue<unsigned>("setup","padding");
-		align_top_	= cf_.getValue<bool>("setup","align_top");
+		align_top_	= cf_.getValueSafe<bool>("setup","align_top",false);
 		equal_extent_ = cf_.getValueSafe<bool>("setup","force_equal_extent",false);
 		blocking_factor_= cf.getValueSafe<unsigned>( "setup", "blocking_factor",0);
 		
+        bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
+		bool force_shift = cf_.getValueSafe<bool>("setup","force_shift",false);
+        
+        
         //... call the region generator
+        if( levelmin_ != levelmax_ )
+        {
+        
         double x1ref[3];
         the_region_generator->get_AABB(x0ref_,x1ref,levelmax_);
         for( int i=0; i<3; ++i )
@@ -1162,10 +1168,9 @@ public:
         LOGINFO("refinement region is \'%s\', w/ bounding box\n        left = [%f,%f,%f]\n       right = [%f,%f,%f]",
                 region_type.c_str(),x0ref_[0],x0ref_[1],x0ref_[2],x1ref[0],x1ref[1],x1ref[2]);
 		
-		bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
-		bool force_shift = cf_.getValueSafe<bool>("setup","force_shift",false);
-        
+		
         bhave_nref = the_region_generator->is_grid_dim_forced( lnref_ );
+        }
 		
         
         // if not doing any refinement levels, set extent to full box
@@ -1231,6 +1236,9 @@ public:
 		nx_[levelmin_] = ncoarse;
 		ny_[levelmin_] = ncoarse;
 		nz_[levelmin_] = ncoarse;
+        
+        if( levelmax_ == levelmin_ )
+            return;
 		
 		
 		//... determine the position of the refinement region on the finest grid
@@ -1356,6 +1364,8 @@ public:
 				kr = kl + nmax;
 			}
 		}
+        
+        padding_	= cf_.getValueSafe<unsigned>("setup","padding", 8);
 		
 		//... determine position of coarser grids
 		for( unsigned ilevel=levelmax_-1; ilevel> levelmin_; --ilevel )

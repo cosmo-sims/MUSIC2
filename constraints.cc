@@ -170,7 +170,8 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 	
 	unsigned i=0;
 	
-	unsigned levelmin_TF = pcf_->getValue<unsigned>("setup","levelmin_TF");
+    unsigned levelmin = pcf_->getValue<unsigned>("setup","levelmin");
+	unsigned levelmin_TF = pcf_->getValueSafe<unsigned>("setup","levelmin_TF",levelmin);
 	constr_level_ = pcf_->getValueSafe<unsigned>("constraints","level",levelmin_TF);
 	
 	constr_level_ = std::max(constr_level_,levelmin_TF);

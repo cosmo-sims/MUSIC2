@@ -1474,6 +1474,18 @@ public:
 			xl_[ilevel] = yl_[ilevel] = zl_[ilevel] = 1.0;
 			nx_[ilevel] = ny_[ilevel] = nz_[ilevel] = n;
 		}
+        
+        // do a consistency check that largest subgrid in zoom is not larger than half the box size
+        for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
+		{	
+            if( nx_[ilevel] > (1ul<<(ilevel-1)) ||
+                ny_[ilevel] > (1ul<<(ilevel-1)) ||
+                nz_[ilevel] > (1ul<<(ilevel-1)) )
+            {
+                LOGERR("On level %d, subgrid is larger than half the box. This is not allowed!",ilevel);
+                throw std::runtime_error("Fatal: Subgrid larger than half boxin zoom.");
+            }
+		}
       
         // update the region generator with what has been actually created
         double left[3] =  { x0_[levelmax_]+rshift_[0], y0_[levelmax_]+rshift_[1], z0_[levelmax_]+rshift_[2] };

@@ -103,15 +103,6 @@ program get_music_refmask
   endif
   close(10)
 
-  if(rad>0) then
-     xmin=xc-rad
-     xmax=xc+rad
-     ymin=yc-rad
-     ymax=yc+rad
-     zmin=zc-rad
-     zmax=zc+rad
-  endif
-
   if(TRIM(ordering).eq.'hilbert')then
 
      dmax=max(xmax-xmin,ymax-ymin,zmax-zmin)

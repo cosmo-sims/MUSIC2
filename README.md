@@ -2,8 +2,12 @@ MUSIC - multi-scale cosmological initial conditions
 ===================================================
 
 MUSIC is a computer program to generate nested grid initial conditions for
-high-resolution "zoom" cosmological simulations. Current MUSIC key
-features are:
+high-resolution "zoom" cosmological simulations. A detailed description
+of the algorithms can be found in [Hahn & Abel (2011)][1]. You can
+download the user's guide [here][3]. Please consider joining the
+[user mailing list][2].
+
+Current MUSIC key features are:
 
 - Supports output for RAMSES, ENZO, Gadget-2/3, ART, Pkdgrav/Gasoline 
 and NyX via pugins. New codes can be added.
@@ -27,3 +31,8 @@ WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
 or FITNESS FOR A PARTICULAR PURPOSE. By downloading and using MUSIC, you 
 agree to the LICENSE, distributed with the source code in a text 
 file of the same name.
+
+
+[1]: http://arxiv.org/abs/1103.6031
+[2]: https://groups.google.com/forum/#!forum/cosmo_music
+[3]: https://bitbucket.org/ohahn/music/downloads/MUSIC_Users_Guide.pdf

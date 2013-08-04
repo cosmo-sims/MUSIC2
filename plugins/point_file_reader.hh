@@ -19,7 +19,8 @@ struct point_reader{
         return iss.eof() && !iss.fail();
     }
     
-    void read_points_from_file( std::string fname, float vfac_, std::vector<float>& p )
+    template< typename real_t >
+    void read_points_from_file( std::string fname, float vfac_, std::vector<real_t>& p )
     {
         std::ifstream ifs(fname.c_str());
         if( !ifs )

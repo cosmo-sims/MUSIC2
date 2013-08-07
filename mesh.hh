@@ -1237,9 +1237,19 @@ public:
 		ny_[levelmin_] = ncoarse;
 		nz_[levelmin_] = ncoarse;
         
+        // set up base hierarchy sizes
+        for( unsigned ilevel=0; ilevel <=levelmin_; ++ilevel )
+        {
+            unsigned n = 1<<ilevel;
+            
+            xl_[ilevel] = yl_[ilevel] = zl_[ilevel] = 1.0;
+            nx_[ilevel] = ny_[ilevel] = nz_[ilevel] = n;
+        }
+        
+        // if no refinement, we can exit here
         if( levelmax_ == levelmin_ )
             return;
-		
+        
 		
 		//... determine the position of the refinement region on the finest grid
 		int il,jl,kl,ir,jr,kr;
@@ -1467,13 +1477,7 @@ public:
 			zl_[ilevel] = h*(double)nz_[ilevel];
 		}
 		
-		for( unsigned ilevel=0; ilevel <=levelmin_; ++ilevel )
-		{
-			unsigned n = 1<<ilevel;
-			
-			xl_[ilevel] = yl_[ilevel] = zl_[ilevel] = 1.0;
-			nx_[ilevel] = ny_[ilevel] = nz_[ilevel] = n;
-		}
+		
         
         // do a consistency check that largest subgrid in zoom is not larger than half the box size
         for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )

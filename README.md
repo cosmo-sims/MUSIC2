@@ -18,8 +18,8 @@ theory, local Lagrangian approximation (LLA) for baryons with grid codes.
 - Pluggable transfer functions, currently CAMB, Eisenstein&Hu, BBKS, Warm 
 Dark Matter variants. Distinct baryon+CDM fields.
 
-- Minimum bounding ellipsoid high-res regions supported with most codes, 
-supports refinement mask generation for RAMSES.
+- Minimum bounding ellipsoid and convex hull shaped high-res regions supported 
+with most codes, supports refinement mask generation for RAMSES.
 
 - Parallelized with OpenMP
     

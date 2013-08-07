@@ -61,10 +61,9 @@ public:
         phull_ =  new convex_hull<double>(  &pp[0], pp.size()/3 );
         
         //expand the ellipsoid by one grid cell
-        
         unsigned levelmax = cf.getValue<unsigned>("setup","levelmax");
         double dx = 1.0/(1ul<<levelmax);
-        //phull_->expand( dx );
+        phull_->expand( sqrt(3.)*dx );
         
         // output the center
         float c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };

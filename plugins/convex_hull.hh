@@ -233,6 +233,31 @@ struct convex_hull{
         return true;
     }
     
+    void expand_vector_from_centroid( real_t v, double dr  )
+    {
+        double dx[3], d = 0.0;
+        for( int i=0; i<3; ++i )
+        {
+            dx[i] = v[i]-centroid_[i];
+            d += dx[i]*dx[i];
+        }
+        d = sqrt(d);
+        for( int i=0; i<3; ++i )
+            v[i] += dr * dx[i];
+    }
+    
+    void expand( real_t dr )
+    {
+        for( size_t i=0; i<normals_L_.size(); i+=3 )
+            expand_vector_from_centroid( &x0_L_[3*i], dr );
+        for( size_t i=0; i<normals_U_.size(); i+=3 )
+            expand_vector_from_centroid( &x0_U_[3*i], dr );
+        
+        expand_vector_from_centroid( left_, dr );
+        expand_vector_from_centroid( right_, dr );
+        
+    }
+    
     void get_defining_indices( std::set<int>& unique ) const
     {
         unique.clear();

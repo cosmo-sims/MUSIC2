@@ -285,7 +285,7 @@ protected:
     }
     
 public:
-    min_ellipsoid( size_t N_, float* P )
+    min_ellipsoid( size_t N_, double* P )
     : N( N_ ), axes_computed( false )
     {
         // --- initialize ---
@@ -432,6 +432,7 @@ public:
 
 
 #include "point_file_reader.hh"
+#include "convex_hull.hh"
 
 //! Minimum volume enclosing ellipsoid plugin
 class region_ellipsoid_plugin : public region_generator_plugin{
@@ -444,7 +445,7 @@ private:
   
     
     
-    void apply_shift( size_t Np, float *p, int *shift, int levelmin )
+    void apply_shift( size_t Np, double *p, int *shift, int levelmin )
     {
         double dx = 1.0/(1<<levelmin);
         LOGINFO("unapplying shift of previous zoom region to region particles :\n" \
@@ -459,7 +460,7 @@ public:
     explicit region_ellipsoid_plugin( config_file& cf )
     : region_generator_plugin( cf )
     {
-        std::vector<float> pp;
+        std::vector<double> pp;
       
         vfac_ = cf.getValue<double>("cosmology","vfact");
         padding_ = cf.getValue<int>("setup","padding");
@@ -478,6 +479,34 @@ public:
         
             apply_shift( pp.size()/3, &pp[0], shift, point_levelmin );
             shift_level = point_levelmin;
+        }
+        
+
+        if( false )
+        {
+            // compute convex hull and use only hull points to speed things up
+            // BUT THIS NEEDS MORE TESTING BEFORE IT GOES IN THE REPO
+            LOGINFO("Computing convex hull for %llu points", pp.size()/3 );
+            convex_hull<double> ch( &pp[0], pp.size()/3 );
+            std::set<int> unique;
+            ch.get_defining_indices( unique );
+            std::set<int>::iterator it = unique.begin();
+            
+            std::vector<double> pphull;
+            pphull.reserve( unique.size()*3 );
+            
+            while( it != unique.end() )
+            {
+                int idx = *it;
+                
+                pphull.push_back( pp[3*idx+0] );
+                pphull.push_back( pp[3*idx+1] );
+                pphull.push_back( pp[3*idx+2] );
+                
+                ++it;
+            }
+            
+            pphull.swap( pp );
         }
         
         

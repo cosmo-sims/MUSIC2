@@ -233,7 +233,7 @@ struct convex_hull{
         return true;
     }
     
-    void expand_vector_from_centroid( real_t v, double dr  )
+    void expand_vector_from_centroid( real_t *v, double dr  )
     {
         double dx[3], d = 0.0;
         for( int i=0; i<3; ++i )

@@ -10,7 +10,7 @@ download the user's guide [here][3]. Please consider joining the
 Current MUSIC key features are:
 
 - Supports output for RAMSES, ENZO, Arepo, Gadget-2/3, ART, Pkdgrav/Gasoline 
-and NyX via pugins. New codes can be added.
+and NyX via plugins. New codes can be added.
 
 - Support for first (1LPT) and second order (2LPT) Lagrangian perturbation 
 theory, local Lagrangian approximation (LLA) for baryons with grid codes.

@@ -8,12 +8,14 @@
  * Plugin: Dylan Nelson (dnelson@cfa.harvard.edu)
  */
  
-#ifndef HAVE_HDF5
+#ifndef HAVEHDF5
+
+#include "output.hh"
 
 class arepo_output_plugin : public output_plugin
 {
 public:
-	arepo_output_plugin( config_file& cf ) ) : output_plugin( cf ) )
+	arepo_output_plugin( config_file& cf ) : output_plugin( cf ) 
 	{
 		std::cerr << "\n Arepo output requires HAVE_HDF5 (otherwise use gadget2 format)!\n\n";
 		exit(0);

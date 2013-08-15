@@ -8,7 +8,7 @@
  * Plugin: Dylan Nelson (dnelson@cfa.harvard.edu)
  */
  
-#ifndef HAVEHDF5
+#ifndef HAVE_HDF5
 
 #include "output.hh"
 

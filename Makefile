@@ -117,7 +117,9 @@ endif
 
 clean:
 	rm -rf $(OBJS)
-	pushd .
+ifeq ($(strip $(HAVEBOXLIB)), yes)
+	oldpath=`pwd`
 	cd plugins/nyx_plugin; make realclean BOXLIB_HOME=$(BOXLIB_HOME)
-	popd
+endif
+	cd $(oldpath)
 	

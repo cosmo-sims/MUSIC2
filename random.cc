@@ -499,7 +499,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 	{
 		
 		LOGINFO("Generating a constrained random number set with seed %ld\n    using coarse mode replacement...",baseseed);
-		
+		assert(lx[0]%2==0 && lx[1]%2==0 && lx[2]%2==0);
 		size_t nx=lx[0], ny=lx[1], nz=lx[2],
 		nxc=lx[0]/2, nyc=lx[1]/2, nzc=lx[2]/2;
 		
@@ -575,25 +575,73 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 #endif
 		
 		double fftnorm = 1.0/((double)nx*(double)ny*(double)nz);
-		
-		#pragma omp parallel for
-		for( int i=0; i<(int)nxc; i++ )
-			for( int j=0; j<(int)nyc; j++ )
+        double sqrt8 = sqrt(8.0);
+        // embedding of coarse white noise by fourier interpolation
+        
+        // 0 0
+        #pragma omp parallel for
+		for( int i=0; i<(int)nxc/2+1; i++ )
+			for( int j=0; j<(int)nyc/2+1; j++ )
 				for( int k=0; k<(int)nzc/2+1; k++ )
-				{
-					int ii(i),jj(j),kk(k);
-					
-					if( i > (int)nxc/2 ) ii += nx/2;
-					if( j > (int)nyc/2 ) jj += ny/2;
-					
-					size_t qc,qf;
+                {
+                    int ii(i),jj(j),kk(k);
+                    size_t qc,qf;
 					qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 					qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
-
-					RE(cfine[qf]) = sqrt(8.0)*RE(ccoarse[qc]);
-					IM(cfine[qf]) = sqrt(8.0)*IM(ccoarse[qc]);
-				}
-		
+                    
+					RE(cfine[qf]) = sqrt8*RE(ccoarse[qc]);
+					IM(cfine[qf]) = sqrt8*IM(ccoarse[qc]);
+                }
+        // 1 0
+        #pragma omp parallel for
+		for( int i=nxc/2; i<(int)nxc; i++ )
+			for( int j=0; j<(int)nyc/2+1; j++ )
+				for( int k=0; k<(int)nzc/2+1; k++ )
+                {
+                    int ii(i+nx/2),jj(j),kk(k);
+                    size_t qc,qf;
+					qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+					qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+                    
+					RE(cfine[qf]) = sqrt8*RE(ccoarse[qc]);
+					IM(cfine[qf]) = sqrt8*IM(ccoarse[qc]);
+                    
+                    if( i==(int)nxc/2 || j==(int)nyc/2 )
+                        IM(cfine[qf]) *= -1.0;
+                }
+        // 0 1
+        #pragma omp parallel for
+		for( int i=0; i<(int)nxc/2+1; i++ )
+			for( int j=nyc/2; j<(int)nyc; j++ )
+				for( int k=0; k<(int)nzc/2+1; k++ )
+                {
+                    int ii(i),jj(j+ny/2),kk(k);
+                    size_t qc,qf;
+					qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+					qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+                    
+					RE(cfine[qf]) = sqrt8*RE(ccoarse[qc]);
+					IM(cfine[qf]) = sqrt8*IM(ccoarse[qc]);
+                    
+                    if( i==(int)nxc/2 || j==(int)nyc/2 )
+                        IM(cfine[qf]) *= -1.0;
+                }
+        
+        // 1 1
+        #pragma omp parallel for
+		for( int i=nxc/2; i<(int)nxc; i++ )
+			for( int j=nyc/2; j<(int)nyc; j++ )
+				for( int k=0; k<(int)nzc/2+1; k++ )
+                {
+                    int ii(i+nx/2),jj(j+ny/2),kk(k);
+                    size_t qc,qf;
+					qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+					qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+                    
+					RE(cfine[qf]) = sqrt8*RE(ccoarse[qc]);
+					IM(cfine[qf]) = sqrt8*IM(ccoarse[qc]);
+                }
+        		
 		delete[] rcoarse;
 		
 		#pragma omp parallel for
@@ -657,9 +705,9 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		
 		double fac = 1./sqrt(8.0);
 		
-		for( int i=x0[0],ii=x0[0]/2; ii<lx[0]; i+=2,++ii )
-			for( int j=x0[1],jj=x0[1]/2; jj<lx[1]; j+=2,++jj )
-				for( int k=x0[2],kk=x0[2]/2; kk<lx[2]; k+=2,++kk )
+		for( int i=x0[0],ii=x0[0]/2; i<x0[0]+lx[0]; i+=2,++ii )
+			for( int j=x0[1],jj=x0[1]/2; j<x0[1]+lx[1]; j+=2,++jj )
+				for( int k=x0[2],kk=x0[2]/2; k<x0[2]+lx[2]; k+=2,++kk )
 				{
 					double topval = rc(ii,jj,kk);
 					double locmean = 0.125*((*this)(i,j,k)+(*this)(i+1,j,k)+(*this)(i,j+1,k)+(*this)(i,j,k+1)+

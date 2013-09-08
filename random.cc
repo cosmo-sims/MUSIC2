@@ -13,6 +13,166 @@
 // TODO: move all this into a plugin!!!
 
 
+#if defined(FFTW3) && defined( SINGLE_PRECISION)
+//#define fftw_complex fftwf_complex
+typedef fftw_complex fftwf_complex;
+#endif
+
+template< typename T >
+void rapid_proto_ngenic_rng( size_t res, long baseseed, random_numbers<T>& R )
+{
+  LOGUSER("Invoking the N-GenIC random number generator");
+
+  unsigned *seedtable = new unsigned[res*res];
+
+  gsl_rng *random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
+
+  gsl_rng_set(random_generator, baseseed);
+
+  for(size_t i = 0; i < res / 2; i++)
+    {
+      size_t j;
+      for(j = 0; j < i; j++)
+	seedtable[i * res + j] = 0x7fffffff * gsl_rng_uniform(random_generator);
+      for(j = 0; j < i + 1; j++)
+	seedtable[j * res + i] = 0x7fffffff * gsl_rng_uniform(random_generator);
+      for(j = 0; j < i; j++)
+	seedtable[(res - 1 - i) * res + j] = 0x7fffffff * gsl_rng_uniform(random_generator);
+      for(j = 0; j < i + 1; j++)
+	seedtable[(res - 1 - j) * res + i] = 0x7fffffff * gsl_rng_uniform(random_generator);
+      for(j = 0; j < i; j++)
+	seedtable[i * res + (res - 1 - j)] = 0x7fffffff * gsl_rng_uniform(random_generator);
+      for(j = 0; j < i + 1; j++)
+	seedtable[j * res + (res - 1 - i)] = 0x7fffffff * gsl_rng_uniform(random_generator);
+      for(j = 0; j < i; j++)
+	seedtable[(res - 1 - i) * res + (res - 1 - j)] = 0x7fffffff * gsl_rng_uniform(random_generator);
+      for(j = 0; j < i + 1; j++)
+	seedtable[(res - 1 - j) * res + (res - 1 - i)] = 0x7fffffff * gsl_rng_uniform(random_generator);
+    }
+  
+  fftw_real *rnoise = new fftw_real[ res*res*(res+2) ];
+  fftw_complex *knoise = reinterpret_cast< fftw_complex* >( rnoise );
+
+  double fnorm = 1./sqrt(res*res*res);
+
+#warning need to check for race conditions below
+  //#pragma omp parallel for
+  for( size_t i = 0; i < res; i++ )
+    {
+      int ii = (int)res - (int)i;
+      if(ii == (int)res)
+	ii = 0;
+      
+      for( size_t j = 0; j < res; j++ )
+	{
+	  gsl_rng_set(random_generator, seedtable[i * res + j]);
+	  
+	  for( size_t k = 0; k < res / 2; k++ )
+	    {
+	      double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
+	      double ampl;
+	      do
+		ampl = gsl_rng_uniform(random_generator);
+	      while(ampl == 0);
+	      
+	      if(i == res / 2 || j == res / 2 || k == res / 2)
+		continue;
+	      if(i == 0 && j == 0 && k == 0)
+		continue;
+
+	      T rp = -sqrt(-log(ampl))*cos(phase) * fnorm;
+	      T ip = -sqrt(-log(ampl))*sin(phase) * fnorm;
+
+	      if(k > 0)
+		{
+		  RE(knoise[(i * res + j) * (res / 2 + 1) + k]) = rp;
+		  IM(knoise[(i * res + j) * (res / 2 + 1) + k]) = ip;
+		}
+	      else	/* k=0 plane needs special treatment */
+		{
+		  if(i == 0)
+		    {
+		      if(j >= res / 2)
+			continue;
+		      else
+			{
+			  int jj = (int)res - (int)j;	/* note: j!=0 surely holds at this point */
+			  
+			  RE(knoise[(i * res + j) * (res / 2 + 1) + k]) = rp;
+			  IM(knoise[(i * res + j) * (res / 2 + 1) + k]) = ip;
+			  
+			  RE(knoise[(i * res + jj) * (res / 2 + 1) + k]) = rp;
+			  IM(knoise[(i * res + jj) * (res / 2 + 1) + k]) = -ip;
+			}
+		    }
+		  else				
+		    {
+		      if(i >= res / 2) continue;
+		      else
+			{
+			  int ii = (int)res - (int)i;
+			  if(ii == (int)res)
+			    ii = 0;
+			  int jj = (int)res - (int)j;
+			  if(jj == (int)res)
+			    jj = 0;
+									
+			  RE(knoise[(i * res + j) * (res / 2 + 1) + k]) = rp;
+			  IM(knoise[(i * res + j) * (res / 2 + 1) + k]) = ip;
+			
+			  if(ii >= 0 && ii < (int)res)
+			    {
+			      RE(knoise[(ii * res + jj) * (res / 2 + 1) + k]) = rp;
+			      IM(knoise[(ii * res + jj) * (res / 2 + 1) + k]) = -ip;
+			    }
+			}
+		    } 
+		}
+	    }
+	}
+      
+
+    }
+
+  delete[] seedtable;
+
+
+  //... perform FT to real space
+
+#ifdef FFTW3
+#ifdef SINGLE_PRECISION
+  fftwf_plan plan = fftwf_plan_dft_c2r_3d( res, res, res, knoise, rnoise, FFTW_ESTIMATE); 
+  fftwf_execute(plan);
+  fftwf_destroy_plan(plan);
+#else
+  fftw_plan plan = fftw_plan_dft_c2r_3d( res, res, res, knoise, rnoise, FFTW_ESTIMATE);
+  fftw_execute(plan);
+  fftw_destroy_plan(plan);
+#endif
+#else
+  rfftwnd_plan	plan = rfftw3d_create_plan( res, res, res, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+#ifndef SINGLETHREAD_FFTW		
+  rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), plan, knoise, NULL );
+#else
+  rfftwnd_one_complex_to_real( plan, knoise, NULL );
+#endif		
+  rfftwnd_destroy_plan(plan);
+#endif
+
+  // copy to array that holds the random numbers
+
+  #pragma omp parallel for
+  for( size_t i=0; i<res; ++i )
+    for( size_t j=0; j<res; ++j )
+      for( size_t k=0; k<res; ++k )
+	R(i,j,k) = rnoise[ (i*res+j)*res+k ];
+
+  delete[] rnoise;
+
+}
+
+ 
+
 template< typename T >
 random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long baseseed, int *x0, int *lx )
 : res_( res ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
@@ -30,9 +190,23 @@ random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long basesee
 	LOGINFO("Generating random numbers (2) with seed %ld", baseseed);
     
 	double mean = 0.0;
+
+	bool musicnoise = true;
+	if( !musicnoise )
+	  cubesize_ = res_;
+
 	initialize();
-	mean = fill_all();
-	
+
+	if( musicnoise )
+	  mean = fill_all();
+	else
+	  {
+	    rnums_.push_back( new Meshvar<T>( res, 0, 0, 0 ) );
+	    cubemap_[0] = 0; // create dummy map index
+	    register_cube(0,0,0);
+	    rapid_proto_ngenic_rng( res_, baseseed_, *this );
+	  }
+
 	if( zeromean )
 	{
 		mean = 0.0;

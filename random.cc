@@ -162,10 +162,10 @@ void rapid_proto_ngenic_rng( size_t res, long baseseed, random_numbers<T>& R )
   // copy to array that holds the random numbers
 
   #pragma omp parallel for
-  for( size_t i=0; i<res; ++i )
+  for( int i=0; i<(int)res; ++i )
     for( size_t j=0; j<res; ++j )
       for( size_t k=0; k<res; ++k )
-	R(i,j,k) = rnoise[ (i*res+j)*res+k ];
+	R(i,j,k) = rnoise[ ((size_t)i*res+j)*res+k ];
 
   delete[] rnoise;
 
@@ -194,6 +194,9 @@ random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long basesee
 	bool musicnoise = true;
 	if( !musicnoise )
 	  cubesize_ = res_;
+    
+    if( !musicnoise )
+        LOGERR("This currently breaks compatibility. Need to disable by hand! Make sure to not check into repo");
 
 	initialize();
 

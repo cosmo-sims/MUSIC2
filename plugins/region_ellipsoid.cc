@@ -508,6 +508,21 @@ public:
             point_reader pfr;
             pfr.read_points_from_file( point_file, vfac_, pp );
             
+            // if file has more than three columns, just take first three
+            // at the moment...
+            if( pfr.num_columns > 3 )
+            {
+                std::vector<double> xx;
+                xx.reserve( 3 * pp.size()/pfr.num_columns );
+                
+                for( size_t i=0; i<pp.size()/pfr.num_columns; ++i )
+                    for( size_t j=0; j<3; ++j )
+                        xx.push_back( pp[ pfr.num_columns * i + j ] );
+                
+                pp.swap( xx );
+            }
+            
+            
             if( cf.containsKey("setup","region_point_shift") )
             {
                 std::string point_shift = cf.getValue<std::string>("setup","region_point_shift");

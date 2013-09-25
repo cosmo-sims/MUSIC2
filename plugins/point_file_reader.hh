@@ -9,6 +9,12 @@
 
 struct point_reader{
     
+    int num_columns;
+    
+    point_reader( void )
+    : num_columns( 0 )
+    { }
+    
     bool isFloat( std::string myString )
     {
         std::istringstream iss(myString);
@@ -118,6 +124,8 @@ struct point_reader{
         }
         else
             LOGERR("Problem interpreting the region point file \'%s\'", fname.c_str() );
+        
+        num_columns = colcount;
     }
     
     

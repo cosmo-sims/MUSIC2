@@ -753,6 +753,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		
 		double fftnorm = 1.0/((double)nx*(double)ny*(double)nz);
         double sqrt8 = sqrt(8.0);
+
         // embedding of coarse white noise by fourier interpolation
         
         // 0 0
@@ -880,7 +881,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 	{
 		LOGINFO("Generating a constrained random number set with seed %ld\n    using Hoffman-Ribak constraints...", baseseed);
 		
-		double fac = 1./sqrt(8.0);
+		double fac = 1.0/sqrt(8.0);//1./sqrt(8.0);
 		
 		for( int i=x0[0],ii=x0[0]/2; i<x0[0]+lx[0]; i+=2,++ii )
 			for( int j=x0[1],jj=x0[1]/2; j<x0[1]+lx[1]; j+=2,++jj )

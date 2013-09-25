@@ -341,6 +341,15 @@ public:
         for( size_t i=0; i<9; ++i ){ A[i] /= 3.0; Ainv[i] *= 3.0; }
     }
     
+    min_ellipsoid( const double* A_, const double *c_ )
+    : N( 0 ), axes_computed( false )
+    {
+        for( int i=0; i<9; ++i )
+        {   A[i] = A_[i]; Ainv[i] = 0.0;   }
+        for( int i=0; i<3; ++i )
+            c[i] = c_[i];
+    }
+    
     ~min_ellipsoid()
     {
         delete[] u;
@@ -394,6 +403,11 @@ public:
         for( int i=0; i<3; ++i ) xc[i] = c[i];
     }
   
+    void get_matrix( float* AA )
+    {
+        for( int i=0; i<9; ++i ) AA[i] = A[i];
+    }
+    
     double sgn( double x )
     {
       if( x < 0.0 ) return -1.0;
@@ -404,9 +418,15 @@ public:
     {
       //print();
         
+        
+        
+        
         if( !axes_computed )
+        {
+            std::cerr << "computing axes.....\n";
             compute_axes();
-      
+        }
+        
         float munew[3];
         for( int i=0; i<3; ++i )
           munew[i] = sgn(mu[i])/sqr(1.0/sqrt(fabs(mu[i]))+dr);
@@ -461,25 +481,64 @@ public:
     : region_generator_plugin( cf )
     {
         std::vector<double> pp;
+        
+        // sanity check
+        if( !cf.containsKey("setup", "region_point_file") &&
+           !( cf.containsKey("setup","region_ellipsoid_matrix[0]") &&
+              cf.containsKey("setup","region_ellipsoid_matrix[1]") &&
+              cf.containsKey("setup","region_ellipsoid_matrix[2]") &&
+              cf.containsKey("setup","region_ellipsoid_center") ) )
+        {
+            LOGERR("Insufficient data for region=ellipsoid\n Need to specify either \'region_point_file\' or the ellipsoid equation.");
+            throw std::runtime_error("Insufficient data for region=ellipsoid");
+        }
+        //
       
         vfac_ = cf.getValue<double>("cosmology","vfact");
         padding_ = cf.getValue<int>("setup","padding");
         
+        std::string point_file;
+        bool bfrom_file = true;
         
-        std::string point_file = cf.getValue<std::string>("setup","region_point_file");
-        
-        point_reader pfr;
-        pfr.read_points_from_file( point_file, vfac_, pp );
-        
-        if( cf.containsKey("setup","region_point_shift") )
+        if( cf.containsKey("setup", "region_point_file") )
         {
-            std::string point_shift = cf.getValue<std::string>("setup","region_point_shift");
-            sscanf( point_shift.c_str(), "%d,%d,%d", &shift[0],&shift[1],&shift[2] );
-            unsigned point_levelmin = cf.getValue<unsigned>("setup","region_point_levelmin");
-        
-            apply_shift( pp.size()/3, &pp[0], shift, point_levelmin );
-            shift_level = point_levelmin;
+            point_file = cf.getValue<std::string>("setup","region_point_file");
+            bfrom_file = true;
+            
+            point_reader pfr;
+            pfr.read_points_from_file( point_file, vfac_, pp );
+            
+            if( cf.containsKey("setup","region_point_shift") )
+            {
+                std::string point_shift = cf.getValue<std::string>("setup","region_point_shift");
+                sscanf( point_shift.c_str(), "%d,%d,%d", &shift[0],&shift[1],&shift[2] );
+                unsigned point_levelmin = cf.getValue<unsigned>("setup","region_point_levelmin");
+                
+                apply_shift( pp.size()/3, &pp[0], shift, point_levelmin );
+                shift_level = point_levelmin;
+            }
+            
+            pellip_ = new min_ellipsoid( pp.size()/3, &pp[0] );
+            
+            
+        } else {
+            double A[9] = {0}, c[3] = {0};
+            std::string strtmp;
+            
+            strtmp = cf.getValue<std::string>("setup","region_ellipsoid_matrix[0]");
+            sscanf( strtmp.c_str(), "%lf,%lf,%lf", &A[0],&A[1],&A[2] );
+            strtmp = cf.getValue<std::string>("setup","region_ellipsoid_matrix[1]");
+            sscanf( strtmp.c_str(), "%lf,%lf,%lf", &A[3],&A[4],&A[5] );
+            strtmp = cf.getValue<std::string>("setup","region_ellipsoid_matrix[2]");
+            sscanf( strtmp.c_str(), "%lf,%lf,%lf", &A[6],&A[7],&A[8] );
+            
+            strtmp = cf.getValue<std::string>("setup","region_ellipsoid_center");
+            sscanf( strtmp.c_str(), "%lf,%lf,%lf", &c[0],&c[1],&c[2] );
+            
+            pellip_ = new min_ellipsoid( A, c );
+            
         }
+        
         
 
         if( false )
@@ -510,7 +569,16 @@ public:
         }
         
         
-        pellip_ = new min_ellipsoid( pp.size()/3, &pp[0] );
+        // output the center
+        float c[3], A[9];
+        pellip_->get_center( c );
+        pellip_->get_matrix( A );
+        
+        LOGINFO("Region center for ellipsoid determined at\n\t xc = ( %f %f %f )",c[0],c[1],c[2]);
+        LOGINFO("Ellipsoid matrix determined as\n\t      ( %f %f %f )\n\t  A = ( %f %f %f )\n\t      ( %f %f %f )",
+                A[0], A[1], A[2], A[3], A[4], A[5], A[6], A[7], A[8] );
+        
+        
         
         //expand the ellipsoid by one grid cell
       
@@ -518,11 +586,8 @@ public:
         double dx = 1.0/(1ul<<levelmax);
         pellip_->expand_ellipsoid( dx );
         
-        // output the center
-        float c[3];
-        pellip_->get_center( c );
-        LOGINFO("Region center for ellipsoid determined at\n\t (%f,%f,%f)",c[0],c[1],c[2]);
-      
+        
+        
         //-----------------------------------------------------------------
         // when querying the bounding box, do we need extra padding?
         do_extra_padding_ = false;

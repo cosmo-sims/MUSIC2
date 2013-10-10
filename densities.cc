@@ -127,6 +127,8 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
     if( ispadded ) phasefac *= 1.5;
     //if( bothpadded ) phasefac = -0.125;
     
+    phasefac = -0.5;
+
      // 0 0
     #pragma omp parallel for
     for( int i=0; i<(int)nxc/2+1; i++ )
@@ -138,9 +140,9 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
 	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
             
-	    double kx = (i <= nxc/2)? (double)i : (double)(i-nxc);
-	    double ky = (j <= nyc/2)? (double)j : (double)(j-nyc);
-	    double kz = (k <= nzc/2)? (double)k : (double)(k-nzc);
+	    double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
 	    
 	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 	    std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -163,9 +165,9 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
 	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
             
-	    double kx = (i <= nxc/2)? (double)i : (double)(i-nxc);
-	    double ky = (j <= nyc/2)? (double)j : (double)(j-nyc);
-	    double kz = (k <= nzc/2)? (double)k : (double)(k-nzc);
+	    double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
 	    
 	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 	    std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -188,9 +190,9 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
 	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
             
-	    double kx = (i <= nxc/2)? (double)i : (double)(i-nxc);
-	    double ky = (j <= nyc/2)? (double)j : (double)(j-nyc);
-	    double kz = (k <= nzc/2)? (double)k : (double)(k-nzc);
+	    double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
 	    
 	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 	    std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -213,9 +215,9 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
 	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
             
-	    double kx = (i <= nxc/2)? (double)i : (double)(i-nxc);
-	    double ky = (j <= nyc/2)? (double)j : (double)(j-nyc);
-	    double kz = (k <= nzc/2)? (double)k : (double)(k-nzc);
+	    double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
 	    
 	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 	    std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -472,19 +474,19 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	
 	//std::cerr << "check 2" << std::endl;
 
-	/*if( i==1 )
+	if( i==1 )
 	  fft_interpolate( *top, *fine, true, true, false );
 	else
 	  fft_interpolate( *coarse, *fine, true, false, true );//bool fourier_splice = false ) 
-	*/
+	
 
 	//std::cerr << "check 3" << std::endl;
 
-	if( i==1 )
+	/*if( i==1 )
 	  enforce_coarse_mean_for_overlap( *fine, *top );
 	else
 	  enforce_coarse_mean_for_overlap( *fine, *coarse );
-	
+	*/
 
 
 	delta.add_patch( refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2), 

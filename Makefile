@@ -3,31 +3,18 @@
 FFTW3		= yes
 MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
-<<<<<<< local
 HAVEHDF5        = yes
-=======
-HAVEHDF5        = no
->>>>>>> other
 HAVEBOXLIB	= no
 BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################
 ### compiler and path settings
 CC      = g++
-<<<<<<< local
 OPT     = -Wall -Wno-unknown-pragmas -O3 -g -mtune=native
-=======
-OPT     = -Wall -Wno-unknown-pragmas -O3 -g -msse2
->>>>>>> other
 CFLAGS  =  
 LFLAGS  = -lgsl -lgslcblas 
-<<<<<<< local
-CPATHS  = -I. -I/opt/local/include -I/usr/local/include
-LPATHS  = -L/opt/local/lib -L/usr/local/lib
-=======
 CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
 LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
->>>>>>> other
 
 ##############################################################################
 # if you have FFTW 2.1.5 or 3.x with multi-thread support, you can enable the 

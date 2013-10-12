@@ -23,8 +23,7 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
   int oxf = v.offset(0), oyf = v.offset(1), ozf = v.offset(2);
   size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf+2;
   
-  fourier_splice = false;
-
+  
   if( ispadded )
     {
       oxf -= nxf/8;
@@ -450,8 +449,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
     
     for( int i=1; i<nlevels; ++i )
       {
-	std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmin+i << " ..." << std::endl;
-	LOGINFO("Performing noise convolution on level %3d",levelmin+i);
+	LOGINFO("Performing noise convolution on level %3d...",levelmin+i);
 	
 	//... add new refinement patch
 	LOGINFO("Allocating refinement patch");
@@ -466,9 +464,10 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	//			       refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2) );
 	
 	rand.load(*fine,levelmin+i);	
-
-	//std::cerr << "check 1" << std::endl;
+	
 	//fine->zero_boundary();
+	//std::cerr << "check 1" << std::endl;
+	//
 
 	convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmin+i, true ), reinterpret_cast<void*>( fine->get_data_ptr() ), shift );
 	
@@ -480,8 +479,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	  fft_interpolate( *coarse, *fine, true, false, true );//bool fourier_splice = false ) 
 	
 
-	//std::cerr << "check 3" << std::endl;
-
+	
 	/*if( i==1 )
 	  enforce_coarse_mean_for_overlap( *fine, *top );
 	else
@@ -492,10 +490,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	delta.add_patch( refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2), 
 			 refh.size(levelmin+i,0), refh.size(levelmin+i,1), refh.size(levelmin+i,2) );
 
-
 	//delta.get_grid(levelmin+i)->zero();
 	//	fine->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
-	//fine->upload_bnd( *delta.get_grid(levelmin+i-1) );
+	//fine->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
 	fine->copy_unpad( *delta.get_grid(levelmin+i) );
 
 	//fine->subtract_oct_mean();
@@ -791,10 +788,10 @@ void normalize_density( grid_hierarchy& delta )
 void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 {
 
-  /* for( int i=rh.levelmax(); i>0; --i )
-  mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
-  */
-  for( unsigned i=1; i<=rh.levelmax(); ++i )
+   for( int i=rh.levelmax(); i>0; --i )
+     mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+  
+   for( unsigned i=1; i<=rh.levelmax(); ++i )
     {
       if( rh.offset(i,0) != u.get_grid(i)->offset(0)
 	  || rh.offset(i,1) != u.get_grid(i)->offset(1)

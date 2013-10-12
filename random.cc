@@ -795,8 +795,8 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		RE(cfine[qf]) = val.real();
 		IM(cfine[qf]) = val.imag();
 
-		//		if( k==0 & (i==(int)nxc/2 || j==(int)nyc/2) )
-		//		  IM(cfine[qf]) *= -1.0;
+		//if( k==0 & (i==(int)nxc/2 || j==(int)nyc/2) )
+		//  IM(cfine[qf]) *= -1.0;
 	      }
         // 1 0
 #pragma omp parallel for

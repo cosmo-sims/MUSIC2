@@ -800,6 +800,38 @@ void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 	  || rh.size(i,1) != u.get_grid(i)->size(1)
 	  || rh.size(i,2) != u.get_grid(i)->size(2) )
 	{
+	  u.cut_patch(i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
+	  	      rh.size(i,0), rh.size(i,1), rh.size(i,2) );
+
+	  //u.cut_patch_enforce_top_density( i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
+	  //				   rh.size(i,0), rh.size(i,1), rh.size(i,2) );
+	}
+      
+      //u.get_grid(i)->zero_bnd();
+    }
+  
+   //for( int i=rh.levelmax(); i>0; --i )
+   // mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+
+}
+
+
+void coarsen_density_kspace_filter( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
+{
+  unsigned levelmin_TF = rh.levelmin();
+
+   for( int i=levelmin_TF; i>0; --i )
+     mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+  
+   for( unsigned i=levelmin_TF+1; i<=rh.levelmax(); ++i )
+    {
+      if( rh.offset(i,0) != u.get_grid(i)->offset(0)
+	  || rh.offset(i,1) != u.get_grid(i)->offset(1)
+	  || rh.offset(i,2) != u.get_grid(i)->offset(2)
+	  || rh.size(i,0) != u.get_grid(i)->size(0)
+	  || rh.size(i,1) != u.get_grid(i)->size(1)
+	  || rh.size(i,2) != u.get_grid(i)->size(2) )
+	{
 	  //u.cut_patch(i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
 	  //	      rh.size(i,0), rh.size(i,1), rh.size(i,2) );
 

@@ -249,9 +249,9 @@ struct convex_hull{
     void expand( real_t dr )
     {
         for( size_t i=0; i<normals_L_.size(); i+=3 )
-            expand_vector_from_centroid( &x0_L_[3*i], dr );
+            expand_vector_from_centroid( &x0_L_[i], dr );
         for( size_t i=0; i<normals_U_.size(); i+=3 )
-            expand_vector_from_centroid( &x0_U_[3*i], dr );
+            expand_vector_from_centroid( &x0_U_[i], dr );
         
         expand_vector_from_centroid( left_, dr );
         expand_vector_from_centroid( right_, dr );

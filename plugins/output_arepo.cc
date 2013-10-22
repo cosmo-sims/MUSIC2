@@ -226,12 +226,12 @@ public:
 		
 		if( levelmin_ != levelmax_ )
 		{
-			double lxref[3];
+			double lxref[3], x0ref[3], x1ref[3];
 			double pmgrid_new;
 			
-			std::string temp = cf.getValue<std::string>( "setup", "ref_extent" );
-			std::remove_if(temp.begin(),temp.end(),isspace);
-			sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref[0],&lxref[1],&lxref[2] );
+			the_region_generator->get_AABB(x0ref,x1ref,levelmax_); // generalized beyond box
+			for (int i=0; i < 3; i++)
+			  lxref[i] = x1ref[i] - x0ref[i];
 			
 			// fraction box length of the zoom region
 			lxref[0] = pow( (lxref[0]*lxref[1]*lxref[2]),0.333 );

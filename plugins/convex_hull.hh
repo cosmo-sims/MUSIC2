@@ -273,6 +273,10 @@ struct convex_hull{
     {
         faceidx_L_.reserve(npoints_*3);
         faceidx_U_.reserve(npoints_*3);
+        normals_L_.reserve(npoints_*3);
+        normals_U_.reserve(npoints_*3);
+        x0_L_.reserve(npoints_*3);
+        x0_U_.reserve(npoints_*3);
         
         size_t i,j,l;
         for( i=0, l=1; l<npoints_; ++l )

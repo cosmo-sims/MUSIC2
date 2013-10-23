@@ -32,6 +32,49 @@
 #include "constraints.hh"
 
 
+class RNG_plugin{
+protected:
+  config_file *pcf_;		//!< pointer to config_file from which to read parameters
+public:
+  explicit RNG_plugin( config_file& cf )
+  : pcf_( &cf )
+  { }
+  virtual ~RNG_plugin() { }
+  virtual bool is_multiscale() const  = 0; 
+};
+
+
+struct RNG_plugin_creator
+{
+  virtual RNG_plugin * create( config_file& cf ) const = 0;
+  virtual ~RNG_plugin_creator() { }
+};
+
+std::map< std::string, RNG_plugin_creator *>&
+get_RNG_plugin_map();
+
+void print_RNG_plugins( void );
+
+template< class Derived >
+struct RNG_plugin_creator_concrete : public RNG_plugin_creator
+{
+  //! register the plugin by its name
+  RNG_plugin_creator_concrete( const std::string& plugin_name )
+  {
+    get_RNG_plugin_map()[ plugin_name ] = this;
+  }
+
+  //! create an instance of the plugin
+  RNG_plugin* create( config_file& cf ) const
+  {
+    return new Derived( cf );
+  }
+};
+
+typedef RNG_plugin RNG_instance;
+RNG_plugin *select_RNG_plugin( config_file& cf );
+
+
 /*!
  * @brief encapsulates all things random number generator related
  */

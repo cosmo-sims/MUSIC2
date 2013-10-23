@@ -270,6 +270,7 @@ double compute_finest_sigma( grid_hierarchy& u )
 /*****************************************************************************************************/
 
 region_generator_plugin *the_region_generator;
+RNG_plugin *the_random_number_generator;
 
 int main (int argc, const char * argv[]) 
 {
@@ -286,8 +287,9 @@ int main (int argc, const char * argv[])
 	if( argc != 2 ){
 		std::cout << " This version is compiled with the following plug-ins:\n";
 		
-        print_region_generator_plugins();
+		print_region_generator_plugins();
 		print_transfer_function_plugins();
+		print_RNG_plugins();
 		print_output_plugins();
 		
 		std::cerr << "\n In order to run, you need to specify a parameter file!\n\n";
@@ -390,7 +392,6 @@ int main (int argc, const char * argv[])
 	transfer_function_plugin *the_transfer_function_plugin
 		= select_transfer_function_plugin( cf );
     
-    
 	cosmology cosmo( cf );
 	
 	std::cout << " - starting at a=" << cosmo.astart << std::endl;
@@ -430,6 +431,7 @@ int main (int argc, const char * argv[])
 	
     the_region_generator = select_region_generator_plugin( cf );
   
+    the_random_number_generator = select_RNG_plugin( cf );
 	//------------------------------------------------------------------------------
 	//... determine run parameters
 	//------------------------------------------------------------------------------

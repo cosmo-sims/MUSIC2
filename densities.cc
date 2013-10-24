@@ -31,6 +31,10 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
       oxf *= 2;
       oyf *= 2;
       ozf *= 2;
+
+      oxf += nxf/8;
+      oyf += nyf/8;
+      ozf += nzf/8;
     }
   
   LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d",oxf,oyf,ozf,nxf,nyf,nzf);
@@ -750,8 +754,8 @@ void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 	}
     }
   
-  for( int i=rh.levelmax(); i>0; --i )
-   mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+  //for( int i=rh.levelmax(); i>0; --i )
+  // mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
 
 }
 

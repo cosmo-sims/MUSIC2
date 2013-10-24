@@ -405,7 +405,7 @@ void delete_duplicates( void )
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 
-const int empty_fill_bytes = 60;
+const int empty_fill_bytes = 54;
 
 template< typename T_store=float >
 class gadget_tetmesh_output_plugin : public output_plugin
@@ -442,7 +442,10 @@ protected:
 		int flag_metals;                     
 		unsigned int npartTotalHighWord[6];  
 		int  flag_entropy_instead_u;         
-		char fill[empty_fill_bytes];                       
+		//////////////////////////////////////
+        char fill[empty_fill_bytes];
+        //////////////////////////////////////
+        int tetgrid_baselevel;
 	}header;                       
 	
 	
@@ -1179,8 +1182,6 @@ public:
                         break;
                     }
                     
-                    
-                    
                     lidsum += lid;
                 }
                 
@@ -1227,6 +1228,11 @@ public:
             rhoc *= 1e10;
         
         header_.mass[1] = 0.0;
+        header_.mass[2] = 0.0;
+        header_.mass[5] = 0.0;
+        
+        header_.tetgrid_baselevel = tetgrid_baselevel;
+        
         
         idmap.clear();
         
@@ -1244,8 +1250,6 @@ public:
         np_type1_ = num_p_t1;
         np_type2_ = num_p_t2;
         np_type5_ = num_p_t5;
-        
-        
         
         header_.npart[1] = num_p_t1;
         header_.npartTotal[1] = num_p_t1;
@@ -1390,13 +1394,13 @@ public:
             for( size_t ip=0; ip<num_p; ++ip )
             {
                 if( temp_dat.size() < block_buf_size_ )
-                    temp_dat.push_back( P[ip].Level );
+                    temp_dat.push_back( P[ip].Level - header_.tetgrid_baselevel );
                 else
                 {
                     ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );
                     nwritten += block_buf_size_;
                     temp_dat.clear();
-                    temp_dat.push_back( P[ip].Level );
+                    temp_dat.push_back( P[ip].Level - header_.tetgrid_baselevel );
                 }
             }
             

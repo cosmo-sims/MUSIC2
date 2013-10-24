@@ -737,8 +737,9 @@ void normalize_density( grid_hierarchy& delta )
 void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 {
   unsigned levelmin_TF = rh.levelmin();
-
-   for( unsigned i=levelmin_TF+1; i<=rh.levelmax(); ++i )
+  
+  //for( unsigned i=levelmin_TF+1; i<=rh.levelmax(); ++i )
+  for( unsigned i=1; i<=rh.levelmax(); ++i )
     {
       if( rh.offset(i,0) != u.get_grid(i)->offset(0)
 	  || rh.offset(i,1) != u.get_grid(i)->offset(1)
@@ -752,8 +753,8 @@ void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 	}
     }
   
-   //for( int i=rh.levelmax(); i>0; --i )
-   //  mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+  for( int i=rh.levelmax(); i>0; --i )
+   mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
 
 }
 

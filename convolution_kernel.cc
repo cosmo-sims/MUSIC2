@@ -281,14 +281,8 @@ namespace convolution{
             
         }
         
-        
-        
-        
-        LOGINFO("l = (%f,%f,%f) ",cparam_.lx, cparam_.ly, cparam_.lz );
-
       //volfac_ = 1.0/(cparam_.lx*cparam_.ly*cparam_.lz);
       
-
       return this; 
     }
 

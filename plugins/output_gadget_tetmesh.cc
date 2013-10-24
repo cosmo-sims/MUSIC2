@@ -421,6 +421,7 @@ protected:
 	std::ofstream ofs_;
 	bool bmultimass_;
     bool blongids_;
+    bool blagrangeids_as_vertids_;
 	
 	
 	typedef struct io_header
@@ -986,6 +987,10 @@ public:
 		//... write displacements in kpc/h rather than Mpc/h?
 		kpcunits_ = cf.getValueSafe<bool>("output","gadget_usekpc",false);
         msolunits_ = cf.getValueSafe<bool>("output","gadget_usemsol",false);
+        
+        blagrangeids_as_vertids_ = cf.getValueSafe<bool>("output","gadget_lagrangevertid",true);
+        
+        
         /*bndparticletype_ = cf.getValueSafe<unsigned>("output","gadget_coarsetype",5);
         
         if( bndparticletype_ == 0 || bndparticletype_ == 1 || bndparticletype_ == 4 ||
@@ -1272,8 +1277,12 @@ public:
                 
                 if( P[ip].Type == 2 )
                     lid = -1;
-                else
-                    lid = (long long)idmap[ REMOVE_DECORATION_BITS(P[ip].get_vertex(j)) ];
+                else{
+                    if( blagrangeids_as_vertids_ )
+                        lid = REMOVE_DECORATION_BITS(P[ip].get_vertex(j));
+                    else
+                        lid = (long long)idmap[ REMOVE_DECORATION_BITS(P[ip].get_vertex(j)) ];
+                }
                 
                 if( temp_dat.size() < block_buf_size_ )
                     temp_dat.push_back( lid );

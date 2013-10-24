@@ -776,7 +776,7 @@ protected:
 			iffs2.open( fnvy, num_p, wrote_p*sizeof(T_store) );
 			iffs3.open( fnvz, num_p, wrote_p*sizeof(T_store) );
 			
-			npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile];
+			npleft = np_this_file;
 			n2read = std::min(curr_block_buf_size,npleft);
 			while( n2read > 0ul )
 			{
@@ -832,7 +832,7 @@ protected:
 			{
 				iffs1.open( fnm, num_p, wrote_p*sizeof(T_store) );
 				
-				npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile]+nftype5_per_file[ifile];
+				npleft = np_this_file;
                 n2read  = std::min(curr_block_buf_size,npleft);
 				blksize = np_this_file*sizeof(T_store);
                 
@@ -860,7 +860,7 @@ protected:
                 
 				iffs1.open( fnc, 8*num_p, 8*wrote_p*sizeof(size_t) );
 				
-				npleft = 8*(nftype1_per_file[ifile]+nftype2_per_file[ifile]+nftype5_per_file[ifile]);
+				npleft = 8*np_this_file;
                 n2read  = std::min(curr_block_buf_size,npleft);
 				blksize = 8*np_this_file*sizeof(long long);
                 
@@ -886,7 +886,7 @@ protected:
                 itemp.assign(curr_block_buf_size,0);
                 iffs1.open( fnlid, num_p, wrote_p*sizeof(size_t) );
 				
-				npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile]+nftype5_per_file[ifile];
+				npleft = np_this_file;
                 n2read  = std::min(curr_block_buf_size,npleft);
 				blksize = np_this_file*sizeof(size_t);
                 
@@ -912,7 +912,7 @@ protected:
                 itemp.assign(curr_block_buf_size,0);
                 iffs1.open( fnl, num_p, wrote_p*sizeof(int) );
 				
-				npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile]+nftype5_per_file[ifile];
+				npleft = np_this_file;
                 n2read  = std::min(curr_block_buf_size,npleft);
 				blksize = np_this_file*sizeof(int);
                 

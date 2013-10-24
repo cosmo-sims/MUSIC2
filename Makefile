@@ -2,19 +2,19 @@
 ### compile time configuration options
 FFTW3		= yes
 MULTITHREADFFTW	= yes
-SINGLEPRECISION	= no
-HAVEHDF5        = yes
+SINGLEPRECISION	= yes
+HAVEHDF5        = no
 HAVEBOXLIB	= no
 BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################
 ### compiler and path settings
-CC      = g++
-OPT     = -Wall -Wno-unknown-pragmas -O3 -g -mtune=native
+CC      = icpc
+OPT     = -Wall -Wno-unknown-pragmas -O3 -g -msse2
 CFLAGS  =  
 LFLAGS  = -lgsl -lgslcblas 
-CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
-LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
+CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include -I$(FFTW_HOME)/include -I$(GSL_HOME)/include
+LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib -L$(FFTW_HOME)/lib -L$(GSL_HOME)/lib -Xlinker -R -Xlinker $(GSL_LIBDIR)
 
 ##############################################################################
 # if you have FFTW 2.1.5 or 3.x with multi-thread support, you can enable the 

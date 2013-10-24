@@ -13,6 +13,8 @@
 #include <iostream>
 #include <bitset>
 #include <map>
+#include <cstring>
+#include <algorithm>
 
 #include "log.hh"
 #include "region_generator.hh"

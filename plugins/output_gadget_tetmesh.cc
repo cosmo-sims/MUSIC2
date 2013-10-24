@@ -52,6 +52,8 @@ typedef std::map<MyIDType,size_t>::iterator idmap_it;
 const size_t num_p_realloc_blocksize = 1000000;
 const size_t newnum_p_per_split = 19;
 
+int tetgrid_levelmax = 0;
+
 
 struct particle
 {
@@ -115,7 +117,8 @@ struct particle
     
 };
 
-bool sortP_bytype( const particle& p1, const particle& p2) { return p1.Type < p2.Type; }
+bool sortP_bytype( const particle& p1, const particle& p2)
+{  return p1.Type < p2.Type;  }
 
 
 particle *P;
@@ -268,6 +271,8 @@ void split_lagrange_cube( size_t ip )
     //int masslesstype = 2;
     int this_level = P[ip].Level + 1;
     
+    tetgrid_levelmax = std::max(this_level,tetgrid_levelmax);
+    
     count = 0;
     
     
@@ -347,6 +352,8 @@ void init_base_grid( int ilevel, size_t prealloc_particles = 0 )
                 
                 num_p++;
             }
+    
+    tetgrid_levelmax = ilevel;
 }
 
 
@@ -426,7 +433,7 @@ protected:
 		id_dm_mass, id_dm_vel, id_dm_pos, id_gas_vel, id_gas_rho, id_gas_temp, id_gas_pos, id_dm_conn, id_dm_level, id_dm_lagrangeid
 	};
     
-    size_t np_type1_, np_type2_;
+    size_t np_type1_, np_type2_, np_type5_;
     
 	size_t block_buf_size_;
 	size_t npartmax_;
@@ -439,16 +446,19 @@ protected:
     
     refinement_mask refmask;
     
-    void distribute_particles( unsigned nfiles, size_t n_t1, size_t n_t2,
-                              std::vector<unsigned>& nf_t1, std::vector<unsigned>& nf_t2 )
+    void distribute_particles( unsigned nfiles, size_t n_t1, size_t n_t2, size_t n_t5,
+                              std::vector<unsigned>& nf_t1, std::vector<unsigned>& nf_t2,
+                              std::vector<unsigned>& nf_t5 )
     {
         nf_t1.assign( nfiles, 0 );
         nf_t2.assign( nfiles, 0 );
+        nf_t5.assign( nfiles, 0 );
         
-        size_t ntotal = n_t1 + n_t2;
+        
+        size_t ntotal = n_t1 + n_t2 + n_t5;
         size_t nnominal = (size_t)((double)ntotal/(double)nfiles);
         
-        size_t n_t1_assigned = 0, n_t2_assigned = 0;
+        size_t n_t1_assigned = 0, n_t2_assigned = 0, n_t5_assigned = 0;
         
         for( unsigned i=0; i<nfiles; ++i )
         {
@@ -461,12 +471,21 @@ protected:
             {
                 nf_t2[i] = std::min( nnominal, n_t2-n_t2_assigned );
                 n_t2_assigned += nf_t2[i];
+                
+                
+                if( n_t2_assigned == n_t2 )
+                {
+                    nf_t5[i] = std::min( nnominal, n_t5-n_t5_assigned );
+                    n_t5_assigned += nf_t5[i];
+                }
             }
         }
         
         // make sure all particles are assigned
         nf_t1[ 0 ]          += n_t1-n_t1_assigned;
         nf_t2[ nfiles-1 ]   += n_t2-n_t2_assigned;
+        nf_t5[ nfiles-1 ]   += n_t5-n_t5_assigned;
+        
     }
 	
 	std::ifstream& open_and_check( std::string ffname, size_t npart, size_t offset=0 )
@@ -636,7 +655,7 @@ protected:
         
         
 		const size_t 
-            nptot = np_type1_+np_type2_;
+            nptot = np_type1_+np_type2_+np_type5_;
 		
         size_t wrote_p  = 0;
 		size_t
@@ -645,7 +664,9 @@ protected:
 		
 		std::cout << " - Gadget2 : writing " << nptot << " particles to file...\n"
 			<< "      type   1 : " << std::setw(12) << np_type1_ << "\n"
-			<< "      type   2 : " << std::setw(12) << np_type2_ << "\n";
+			<< "      type   2 : " << std::setw(12) << np_type2_ << "\n"
+            << "      type   5 : " << std::setw(12) << np_type5_ << "\n";
+        
 			
 				
 		std::vector<T_store> adata3;
@@ -660,18 +681,20 @@ protected:
 		//int fileno = 0;
 		//size_t npart_left = nptot;
         
-        std::vector<unsigned> nftype1_per_file, nftype2_per_file;
-        distribute_particles( nfiles_, np_type1_, np_type2_, nftype1_per_file, nftype2_per_file );
+        std::vector<unsigned> nftype1_per_file, nftype2_per_file, nftype5_per_file;
+        distribute_particles( nfiles_, np_type1_, np_type2_, np_type5_, nftype1_per_file, nftype2_per_file, nftype5_per_file );
         
 		if( nfiles_ > 1 )
 		{
 			std::cout << " - Gadget2 : distributing particles to " << nfiles_ << " files\n"
-			<< "                 " << std::setw(12) << "type 1" << "," << std::setw(12) << "type 2" << std::endl;
+                << "                 " << std::setw(12) << "type 1" << "," << std::setw(12)
+                << "type 2" << "," << std::setw(12) << "type 5" << std::endl;
 			for( unsigned i=0; i<nfiles_; ++i )
 			{
 				std::cout << "      file " << std::setw(3) << i << " : " 
 				<< std::setw(12) << nftype1_per_file[i] << ","
-				<< std::setw(12) << nftype2_per_file[i] << std::endl;
+				<< std::setw(12) << nftype2_per_file[i] << ","
+                << std::setw(12) << nftype5_per_file[i] << std::endl;
 			}			
 		}
         
@@ -693,7 +716,7 @@ protected:
 			}
 			
             
-			size_t np_this_file = nftype1_per_file[ifile] + nftype2_per_file[ifile];
+			size_t np_this_file = nftype1_per_file[ifile] + nftype2_per_file[ifile] + nftype5_per_file[ifile];
 			int blksize = sizeof(header);
 			
 			//... write the header .......................................................
@@ -701,6 +724,8 @@ protected:
 			header this_header( header_ );
             this_header.npart[1] = nftype1_per_file[ifile];
             this_header.npart[2] = nftype2_per_file[ifile];
+            this_header.npart[3] = nftype5_per_file[ifile];
+            
             
 			ofs_.write( (char *)&blksize, sizeof(int) );
 			ofs_.write( (char *)&this_header, sizeof(header) );
@@ -807,7 +832,7 @@ protected:
 			{
 				iffs1.open( fnm, num_p, wrote_p*sizeof(T_store) );
 				
-				npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile];
+				npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile]+nftype5_per_file[ifile];
                 n2read  = std::min(curr_block_buf_size,npleft);
 				blksize = np_this_file*sizeof(T_store);
                 
@@ -835,7 +860,7 @@ protected:
                 
 				iffs1.open( fnc, 8*num_p, 8*wrote_p*sizeof(size_t) );
 				
-				npleft = 8*(nftype1_per_file[ifile]+nftype2_per_file[ifile]);
+				npleft = 8*(nftype1_per_file[ifile]+nftype2_per_file[ifile]+nftype5_per_file[ifile]);
                 n2read  = std::min(curr_block_buf_size,npleft);
 				blksize = 8*np_this_file*sizeof(long long);
                 
@@ -861,7 +886,7 @@ protected:
                 itemp.assign(curr_block_buf_size,0);
                 iffs1.open( fnlid, num_p, wrote_p*sizeof(size_t) );
 				
-				npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile];
+				npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile]+nftype5_per_file[ifile];
                 n2read  = std::min(curr_block_buf_size,npleft);
 				blksize = np_this_file*sizeof(size_t);
                 
@@ -887,7 +912,7 @@ protected:
                 itemp.assign(curr_block_buf_size,0);
                 iffs1.open( fnl, num_p, wrote_p*sizeof(int) );
 				
-				npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile];
+				npleft = nftype1_per_file[ifile]+nftype2_per_file[ifile]+nftype5_per_file[ifile];
                 n2read  = std::min(curr_block_buf_size,npleft);
 				blksize = np_this_file*sizeof(int);
                 
@@ -910,7 +935,7 @@ protected:
 			ofs_.flush();
 			ofs_.close();
 			
-            wrote_p += nftype1_per_file[ifile] + nftype2_per_file[ifile];
+            wrote_p += nftype1_per_file[ifile] + nftype2_per_file[ifile] + nftype5_per_file[ifile];
 		}
         
         delete[] tmp1;
@@ -1084,7 +1109,7 @@ public:
                 bool foundall = true;
                 bool dorefine = true;
                 
-                if( P[ip].Type != 1 ) continue;
+                if( P[ip].Type == 2 ) continue;
                 
                 for( int i=0; i<8; ++i )
                 {
@@ -1154,6 +1179,13 @@ public:
             
         }
         
+        // make all particles that are type 1 but not at highest ref level type 5
+        for( size_t ip = 0; ip < num_p; ++ip )
+        {
+            if( P[ip].Type == 1 && P[ip].Level < tetgrid_levelmax )
+                P[ip].Type = 5;
+        }
+        
         
         /// now we sort all particles by type
         std::sort<particle*>( P, P+num_p, sortP_bytype );
@@ -1177,17 +1209,21 @@ public:
         
         idmap.clear();
         
-        size_t num_p_t1 = 0, num_p_t2 = 0;
+        size_t num_p_t1 = 0, num_p_t2 = 0, num_p_t5 = 0;
         for( size_t ip=0; ip<num_p; ++ip )
         {
             if( P[ip].Type == 1 ) num_p_t1++;
             else if( P[ip].Type == 2 ) num_p_t2++;
+            else if( P[ip].Type == 5 ) num_p_t5++;
+            
             
             idmap[ REMOVE_DECORATION_BITS( P[ip].Lagrange_ID ) ] = ip;
         }
         
         np_type1_ = num_p_t1;
         np_type2_ = num_p_t2;
+        np_type5_ = num_p_t5;
+        
         
         
         header_.npart[1] = num_p_t1;
@@ -1196,8 +1232,12 @@ public:
         header_.npart[2] = num_p_t2;
         header_.npartTotal[2] = num_p_t2;
         
-        LOGINFO("   active particles  (type 1) : %llu", num_p_t1 );
-        LOGINFO("   passive particles (type 2) : %llu", num_p_t2 );
+        header_.npart[5] = num_p_t5;
+        header_.npartTotal[5] = num_p_t5;
+        
+        LOGINFO("   active HR particles  (type 1) : %llu", num_p_t1 );
+        LOGINFO("   active LR particles  (type 5) : %llu", num_p_t5 );
+        LOGINFO("   passive particles    (type 2) : %llu", num_p_t2 );
         
         
         // write all particle masses

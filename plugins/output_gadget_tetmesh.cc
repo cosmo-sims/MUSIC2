@@ -512,15 +512,15 @@ protected:
         
     }
 	
-	std::ifstream& open_and_check( std::string ffname, size_t npart, size_t offset=0 )
+	std::ifstream& open_and_check( std::string ffname, size_t blksize, size_t offset=0 )
 	{
 		std::ifstream ifs( ffname.c_str(), std::ios::binary );
 		size_t blk;
 		ifs.read( (char*)&blk, sizeof(size_t) );
-		if( blk != npart*(size_t)sizeof(T_store) )
+		if( blk != blksize )
 		{	
 			LOGERR("Internal consistency error in gadget2 output plug-in");
-			LOGERR("Expected %ld bytes in temp file but found %ld",npart*(size_t)sizeof(T_store),blk);
+			LOGERR("Expected %ld bytes in temp file but found %ld",blksize,blk);
 			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 		}
         ifs.seekg( offset, std::ios::cur );
@@ -531,7 +531,7 @@ protected:
 	class pistream : public std::ifstream
 	{
 	public:
-		pistream (std::string fname, size_t npart, size_t offset=0 )
+		pistream (std::string fname, size_t blksize, size_t offset=0 )
 		: std::ifstream( fname.c_str(), std::ios::binary )
 		{
 			size_t blk;
@@ -544,10 +544,10 @@ protected:
 			
 			this->read( (char*)&blk, sizeof(size_t) );
 			
-			if( blk != npart*sizeof(T_store) )
+			if( blk != blksize )
 			{	
 				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
+				LOGERR("Expected %ld bytes in temp file but found %ld",blksize,blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -559,7 +559,7 @@ protected:
 			
 		}
 		
-		void open(std::string fname, size_t npart, size_t offset=0 )
+		void open(std::string fname, size_t blksize, size_t offset=0 )
 		{
 			std::ifstream::open( fname.c_str(), std::ios::binary );
 			size_t blk;
@@ -572,10 +572,10 @@ protected:
 			
 			this->read( (char*)&blk, sizeof(size_t) );
 			
-			if( blk != npart*sizeof(T_store) )
+			if( blk != blksize )
 			{	
 				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
+				LOGERR("Expected %ld bytes in temp file but found %ld",blksize,blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -583,75 +583,10 @@ protected:
 		}
 	};
     
-    class postream : public std::fstream
-	{
-	public:
-		postream (std::string fname, size_t npart, size_t offset=0 )
-		: std::fstream( fname.c_str(), std::ios::binary|std::ios::in|std::ios::out )
-		{
-			size_t blk;
-			
-			if( !this->good() )
-			{	
-				LOGERR("Could not open buffer file in gadget2 output plug-in");
-				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
-			}
-			
-            this->read( (char*)&blk, sizeof(size_t) );
-			
-			if( blk != npart*sizeof(T_store) )
-			{	
-				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
-				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
-			}
-            
-            this->seekg( offset, std::ios::cur );
-            this->seekp( offset+sizeof(size_t), std::ios::beg );
-		}
-		
-		postream ()
-		{
-			
-		}
-		
-		void open(std::string fname, size_t npart, size_t offset=0 )
-		{
-            if( is_open() )
-                this->close();
-            
-			std::fstream::open( fname.c_str(), std::ios::binary|std::ios::in|std::ios::out );
-			size_t blk;
-			
-			if( !this->good() )
-			{	
-				LOGERR("Could not open buffer file \'%s\' in gadget2 output plug-in",fname.c_str());
-				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
-			}
-			
-            this->read( (char*)&blk, sizeof(size_t) );
-			
-			if( blk != npart*sizeof(T_store) )
-			{	
-				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
-				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
-			}
-            
-            this->seekg( offset, std::ios::cur );
-            this->seekp( offset+sizeof(size_t), std::ios::beg );
-		}
-	};
-    
     
 	void assemble_gadget_file( void )
 	{
                 
-		//if( do_baryons_ )
-        //    combine_components_for_coarse();
-		
-        
-        
 		//............................................................................
 		//... copy from the temporary files, interleave the data and save ............
 		
@@ -670,14 +605,8 @@ protected:
 		sprintf( fnl,  "___ic_temp_%05d.bin", 100*id_dm_level );
 		sprintf( fnlid,  "___ic_temp_%05d.bin", 100*id_dm_lagrangeid );
 		
-        
-        
-        
-		pistream iffs1, iffs2, iffs3;
-		//np_type1_ = np_type1;
-        //np_type2_ = np_type2;
-        
-        
+    	pistream iffs1, iffs2, iffs3;
+	    
 		const size_t 
             nptot = np_type1_+np_type2_+np_type5_;
 		
@@ -763,9 +692,9 @@ protected:
 			npleft = np_this_file;
 			n2read = std::min(curr_block_buf_size,npleft);
 			
-			iffs1.open( fnx, num_p, wrote_p*sizeof(T_store) );
-			iffs2.open( fny, num_p, wrote_p*sizeof(T_store) );
-			iffs3.open( fnz, num_p, wrote_p*sizeof(T_store) );
+			iffs1.open( fnx, num_p*sizeof(T_store), wrote_p*sizeof(T_store) );
+			iffs2.open( fny, num_p*sizeof(T_store), wrote_p*sizeof(T_store) );
+			iffs3.open( fnz, num_p*sizeof(T_store), wrote_p*sizeof(T_store) );
 			
 			while( n2read > 0ul )
 			{
@@ -796,9 +725,9 @@ protected:
 			blksize = 3ul*np_this_file*sizeof(T_store);
 			ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
 			
-			iffs1.open( fnvx, num_p, wrote_p*sizeof(T_store) );
-			iffs2.open( fnvy, num_p, wrote_p*sizeof(T_store) );
-			iffs3.open( fnvz, num_p, wrote_p*sizeof(T_store) );
+			iffs1.open( fnvx, num_p*sizeof(T_store), wrote_p*sizeof(T_store) );
+			iffs2.open( fnvy, num_p*sizeof(T_store), wrote_p*sizeof(T_store) );
+			iffs3.open( fnvz, num_p*sizeof(T_store), wrote_p*sizeof(T_store) );
 			
 			npleft = np_this_file;
 			n2read = std::min(curr_block_buf_size,npleft);
@@ -854,7 +783,7 @@ protected:
 			//... particle masses .......................................................
 			if( true )//bmultimass_ && bmorethan2bnd_ && nc_per_file[ifile] > 0ul)
 			{
-				iffs1.open( fnm, num_p, wrote_p*sizeof(T_store) );
+				iffs1.open( fnm, num_p*sizeof(T_store), wrote_p*sizeof(T_store) );
 				
 				npleft = np_this_file;
                 n2read  = std::min(curr_block_buf_size,npleft);
@@ -882,7 +811,7 @@ protected:
                 std::vector<long long> itemp;
                 itemp.assign(curr_block_buf_size,0);
                 
-				iffs1.open( fnc, 8*num_p, 8*wrote_p*sizeof(size_t) );
+				iffs1.open( fnc, 8*num_p*sizeof(long long), 8*wrote_p*sizeof(long long) );
 				
 				npleft = 8*np_this_file;
                 n2read  = std::min(curr_block_buf_size,npleft);
@@ -906,9 +835,9 @@ protected:
             
             // lagrange_id
 			{
-				std::vector<size_t> itemp;
+                std::vector<size_t> itemp;
                 itemp.assign(curr_block_buf_size,0);
-                iffs1.open( fnlid, num_p, wrote_p*sizeof(size_t) );
+                iffs1.open( fnlid, num_p*sizeof(size_t), wrote_p*sizeof(size_t) );
 				
 				npleft = np_this_file;
                 n2read  = std::min(curr_block_buf_size,npleft);
@@ -932,9 +861,9 @@ protected:
             
 			// level
 			{
-				std::vector<int> itemp;
+                std::vector<int> itemp;
                 itemp.assign(curr_block_buf_size,0);
-                iffs1.open( fnl, num_p, wrote_p*sizeof(int) );
+                iffs1.open( fnl, num_p*sizeof(int), wrote_p*sizeof(int) );
 				
 				npleft = np_this_file;
                 n2read  = std::min(curr_block_buf_size,npleft);
@@ -1333,7 +1262,7 @@ public:
 			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_conn );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
             
-            size_t blksize = sizeof(T_store)*num_p*8;
+            size_t blksize = sizeof(long long)*num_p*8;
 			ofs_temp.write( (char *)&blksize, sizeof(size_t) );
             
             for( size_t ip=0; ip<num_p; ++ip )
@@ -1388,7 +1317,7 @@ public:
 			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_level );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
             
-            size_t blksize = sizeof(T_store)*num_p;
+            size_t blksize = sizeof(int)*num_p;
 			ofs_temp.write( (char *)&blksize, sizeof(size_t) );
             
             for( size_t ip=0; ip<num_p; ++ip )
@@ -1397,7 +1326,7 @@ public:
                     temp_dat.push_back( P[ip].Level - header_.tetgrid_baselevel );
                 else
                 {
-                    ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );
+                    ofs_temp.write( (char*)&temp_dat[0], sizeof(int)*block_buf_size_ );
                     nwritten += block_buf_size_;
                     temp_dat.clear();
                     temp_dat.push_back( P[ip].Level - header_.tetgrid_baselevel );
@@ -1406,7 +1335,7 @@ public:
             
             if( temp_dat.size() > 0 )
             {
-                ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*temp_dat.size() );
+                ofs_temp.write( (char*)&temp_dat[0], sizeof(int)*temp_dat.size() );
                 nwritten+=temp_dat.size();
             }
             
@@ -1434,7 +1363,7 @@ public:
 			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_lagrangeid );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
             
-            size_t blksize = sizeof(T_store)*num_p;
+            size_t blksize = sizeof(size_t)*num_p;
 			ofs_temp.write( (char *)&blksize, sizeof(size_t) );
             
             for( size_t ip=0; ip<num_p; ++ip )
@@ -1443,7 +1372,7 @@ public:
                     temp_dat.push_back( P[ip].Lagrange_ID );
                 else
                 {
-                    ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );
+                    ofs_temp.write( (char*)&temp_dat[0], sizeof(size_t)*block_buf_size_ );
                     nwritten += block_buf_size_;
                     temp_dat.clear();
                     temp_dat.push_back( P[ip].Lagrange_ID );
@@ -1452,7 +1381,7 @@ public:
             
             if( temp_dat.size() > 0 )
             {
-                ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*temp_dat.size() );
+                ofs_temp.write( (char*)&temp_dat[0], sizeof(size_t)*temp_dat.size() );
                 nwritten+=temp_dat.size();
             }
             

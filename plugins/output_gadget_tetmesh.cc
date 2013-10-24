@@ -724,7 +724,7 @@ protected:
 			header this_header( header_ );
             this_header.npart[1] = nftype1_per_file[ifile];
             this_header.npart[2] = nftype2_per_file[ifile];
-            this_header.npart[3] = nftype5_per_file[ifile];
+            this_header.npart[5] = nftype5_per_file[ifile];
             
             
 			ofs_.write( (char *)&blksize, sizeof(int) );

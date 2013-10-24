@@ -77,8 +77,7 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
       pf  = fftwf_plan_dft_r2c_3d( nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
       ipf = fftwf_plan_dft_c2r_3d( nxf, nyf, nzf, cfine, rfine, FFTW_ESTIMATE);
     fftwf_execute( pc );
-    if( fourier_splice )
-      fftwf_execute( pf );
+    fftwf_execute( pf );
 #else
     fftw_plan
       pc  = fftw_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE),
@@ -95,12 +94,10 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
     
 #ifndef SINGLETHREAD_FFTW		
     rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pc, rcoarse, NULL );
-    if( fourier_splice )
-      rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
+    rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
 #else
     rfftwnd_one_real_to_complex( pc, rcoarse, NULL );
-    if( fourier_splice )
-      rfftwnd_one_real_to_complex( pf, rfine, NULL );
+    rfftwnd_one_real_to_complex( pf, rfine, NULL );
 #endif
 #endif
 

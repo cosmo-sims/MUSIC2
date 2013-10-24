@@ -49,7 +49,7 @@ const int conn[][4] = { {1,0,2,4}, {3,1,2,4}, {3,5,1,4}, {3,6,5,4}, {3,2,6,4}, {
 std::map<MyIDType,size_t> idmap;
 typedef std::map<MyIDType,size_t>::iterator idmap_it;
 
-const size_t num_p_realloc_blocksize = 100000;
+const size_t num_p_realloc_blocksize = 1000000;
 const size_t newnum_p_per_split = 19;
 
 
@@ -84,13 +84,18 @@ struct particle
     {
         int rfac = 20-Level-isub;
         //MyIDType nfull = ((MyIDType)1)<<20;
-        MyIDType lid = REMOVE_DECORATION_BITS(Lagrange_ID);
+        MyIDType lid  = REMOVE_DECORATION_BITS(Lagrange_ID);
+        MyIDType lidx = get_lagrange_coord( lid, 0 );
+        MyIDType lidy = get_lagrange_coord( lid, 1 );
+        MyIDType lidz = get_lagrange_coord( lid, 2 );
+        
         //MyIDType lidold = lid;
         
-        lid += (vert_long[idx][0] << (rfac+40));
-        lid += (vert_long[idx][1] << (rfac+20));
-        lid += (vert_long[idx][2] << (rfac));
+        lidx = (lidx+(vert_long[idx][0] << (rfac))) % (1ull<<20);
+        lidy = (lidy+(vert_long[idx][1] << (rfac))) % (1ull<<20);
+        lidz = (lidz+(vert_long[idx][2] << (rfac))) % (1ull<<20);
         
+        lid = (lidx<<40) + (lidy<<20) + lidz;
         
         return lid;
     }
@@ -1092,6 +1097,8 @@ public:
                         break;
                     }
                     
+                    
+                    
                     size_t cid = (*it).second;
                     MyIDType lid = P[cid].Lagrange_ID;
                     
@@ -1111,6 +1118,7 @@ public:
                     ix = (xc[0]-off[0])>>rfac;//(int)((double)(xc[0] - off[0])*dlm);
                     iy = (xc[1]-off[1])>>rfac;//(int)((double)(xc[1] - off[1])*dlm);
                     iz = (xc[2]-off[2])>>rfac;//(int)((double)(xc[2] - off[2])*dlm);
+                    
                     
                     if( ix >= (int)gh.size(ilevel,0) || iy >= (int)gh.size(ilevel,1) || iz >= (int)gh.size(ilevel,2) )
                     {

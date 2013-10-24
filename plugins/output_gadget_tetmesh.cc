@@ -324,7 +324,7 @@ void init_base_grid( int ilevel, size_t prealloc_particles = 0 )
     size_t nbase = 1<<ilevel;//, lid;
     TetRefinementIDFactor = 20-ilevel;
     
-    tetgrid_baselevel = nbase;
+    tetgrid_baselevel = ilevel;
     
     prealloc_particles = std::max( prealloc_particles, nbase*nbase*nbase );
     P = (particle*)malloc( sizeof(particle) * prealloc_particles );

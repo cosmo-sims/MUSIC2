@@ -30,7 +30,7 @@
 #define ADD_REFINEMENT_COUNTERS(x,y) ((x)+((y)&(15ll<<60)))  // adds the counter of y to x, maintains rest of x
 #define SET_REFINEMENT_COUNTER(x,n) ((((x)&(~(15ll<<60)))+(((long long)n)<<60)))
 #define GET_REFINEMENT_COUNTER(x) (((x)>>60)&(15ll))
-#define GET_SUBSHIFT(lid,i,refl) ((lid >> (20*((i)+1)-tetgrid_baselevel-refl))&1ll)
+#define GET_SUBSHIFT(lid,i,refl) ((lid >> (20*((i)+1)-refl))&1ll)
 
 
 #define REMOVE_FREE_PARTICLE_BIT(x) ((x)&(~(1ll<<63)))

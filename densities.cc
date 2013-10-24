@@ -8,6 +8,8 @@
  
  */
 
+#include <cstring>
+
 #include "densities.hh"
 #include "convolution_kernel.hh"
 

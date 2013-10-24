@@ -1211,8 +1211,8 @@ public:
             {
                 double pmass = mfac / (1ull << (3*P[ip].Level));
                 
-                if( P[ip].Type == 2 )
-                    pmass = 0.0;
+                //if( P[ip].Type == 2 )
+                //    pmass = 0.0;
             
                 if( temp_dat.size() < block_buf_size_ )
                     temp_dat.push_back( pmass );

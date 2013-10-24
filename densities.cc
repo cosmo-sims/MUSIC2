@@ -17,27 +17,21 @@
 
 
 template< typename m1, typename m2 >
-void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=false, bool bothpadded=false ) 
+void fft_interpolate( m1& V, m2& v, bool from_basegrid=false ) 
 {
   //int oxc = V.offset(0), oyc = V.offset(1), ozc = V.offset(2);
   int oxf = v.offset(0), oyf = v.offset(1), ozf = v.offset(2);
   size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf+2;
   
   
-  if( ispadded )
-    {
-      oxf -= nxf/8;
-      oyf -= nyf/8;
-      ozf -= nzf/8;
-    }
-  else if( bothpadded )
+  if( !from_basegrid )
     {
       oxf *= 2;
       oyf *= 2;
       ozf *= 2;
     }
   
-  LOGINFO("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d",oxf,oyf,ozf,nxf,nyf,nzf);
+  LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d",oxf,oyf,ozf,nxf,nyf,nzf);
 
   // cut out piece of coarse grid that overlaps the fine:
   assert( nxf%2==0 && nyf%2==0 && nzf%2==0 );
@@ -50,37 +44,29 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
   fftw_real *rfine = new fftw_real[ nxf * nyf * nzfp];
   fftw_complex *cfine = reinterpret_cast<fftw_complex*> (rfine);
   
+  // copy coarse data to rcoarse[.]
+  memset( rcoarse, 0, sizeof(fftw_real) * nxc*nyc*nzcp );
   #pragma omp parallel for
-  for( int i=0; i<(int)nxc; ++i )
-    for( int j=0; j<(int)nyc; ++j )
-      for( int k=0; k<(int)nzc; ++k ) 
+  for( int i=0; i<(int)nxc/2; ++i )
+    for( int j=0; j<(int)nyc/2; ++j )
+      for( int k=0; k<(int)nzc/2; ++k )
 	{
-	  size_t q = ((size_t)i*nyc+(size_t)j)*nzcp+(size_t)k;
+	  int ii(i+nxc/4);
+	  int jj(j+nyc/4);
+	  int kk(k+nzc/4);
+	  size_t q = ((size_t)ii*nyc+(size_t)jj)*nzcp+(size_t)kk;
 	  rcoarse[q] = V( oxf+i, oyf+j, ozf+k );
 	}
-
-    if( fourier_splice )
-      {
-	#pragma omp parallel for
-	for( int i=0; i<(int)nxf; ++i )
-	  for( int j=0; j<(int)nyf; ++j )
-	    for( int k=0; k<(int)nzf; ++k ) 
-	      {
-		size_t q = ((size_t)i*nyf+(size_t)j)*nzfp+(size_t)k;
-		rfine[q] = v(i,j,k);
-	      }
-      }
-    else
-      {
-	#pragma omp parallel for
-	for( int i=0; i<(int)nxf; ++i )
-	  for( int j=0; j<(int)nyf; ++j )
-	    for( int k=0; k<(int)nzf; ++k ) 
-	      {
-		size_t q = ((size_t)i*nyf+(size_t)j)*nzfp+(size_t)k;
-		rfine[q] = 0.0;
-	      }
-      }
+  
+  #pragma omp parallel for
+  for( int i=0; i<(int)nxf; ++i )
+    for( int j=0; j<(int)nyf; ++j )
+      for( int k=0; k<(int)nzf; ++k ) 
+	{
+	  size_t q = ((size_t)i*nyf+(size_t)j)*nzfp+(size_t)k;
+	  rfine[q] = v(i,j,k);
+	}
+    
 
 #ifdef FFTW3
 #ifdef SINGLE_PRECISION
@@ -97,8 +83,7 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
       pf  = fftw_plan_dft_r2c_3d( nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
       ipf = fftw_plan_dft_c2r_3d( nxf, nyf, nzf, cfine, rfine, FFTW_ESTIMATE);
     fftw_execute( pc );
-    if( fourier_splice )
-      fftw_execute( pf );
+    fftw_execute( pf );
 #endif
 #else
     rfftwnd_plan 
@@ -121,12 +106,7 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
     //.. perform actual interpolation
     double fftnorm = 1.0/((double)nxf*(double)nyf*(double)nzf);
     double sqrt8 = 8.0;//sqrt(8.0);
-    double phasefac = -0.125;
-
-    if( ispadded ) phasefac *= 1.5;
-    //if( bothpadded ) phasefac = -0.125;
-    
-    phasefac = -0.5;
+    double phasefac = -0.5;
 
      // 0 0
     #pragma omp parallel for
@@ -139,9 +119,9 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
 	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
             
-	    double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
-	    double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
-	    double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
+	    double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
 	    
 	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 	    std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -164,9 +144,9 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
 	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
             
-	    double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
-	    double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
-	    double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
+	    double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
 	    
 	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 	    std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -189,9 +169,9 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
 	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
             
-	    double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
-	    double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
-	    double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
+	    double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
 	    
 	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 	    std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -214,9 +194,9 @@ void fft_interpolate( m1& V, m2& v, bool fourier_splice = false, bool ispadded=f
 	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
             
-	    double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
-	    double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
-	    double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
+	    double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
 	    
 	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 	    std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -432,11 +412,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
     //... create and initialize density grids with white noise	
     DensityGrid<real_t> *top(NULL);
     PaddedDensitySubGrid<real_t> *coarse(NULL), *fine(NULL);
-    //DensityGrid<real_t> *coarse(NULL), *fine(NULL);
-    
     int nlevels = (int)levelmax-(int)levelmin+1;
-
-    LOGINFO(">>>>>>>>> NEW KERNEL LOOP <<<<<<<<<<<<");
 
     // do coarse level
     top = new DensityGrid<real_t>( nbase, nbase, nbase );
@@ -452,55 +428,27 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 	LOGINFO("Performing noise convolution on level %3d...",levelmin+i);
 	
 	//... add new refinement patch
-	LOGINFO("Allocating refinement patch");
-	LOGINFO("   offset=(%5d,%5d,%5d)",refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2));
-	LOGINFO("   size  =(%5d,%5d,%5d)",refh.size(levelmin+i,0), refh.size(levelmin+i,1), refh.size(levelmin+i,2));
+	LOGUSER("Allocating refinement patch");
+	LOGUSER("   offset=(%5d,%5d,%5d)",refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2));
+	LOGUSER("   size  =(%5d,%5d,%5d)",refh.size(levelmin+i,0), refh.size(levelmin+i,1), refh.size(levelmin+i,2));
 	
-
-
 	fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2),
 						refh.size(levelmin+i,0), refh.size(levelmin+i,1), refh.size(levelmin+i,2) );
-	//fine = new DensityGrid<real_t>(refh.size(levelmin+i,0), refh.size(levelmin+i,1), refh.size(levelmin+i,2),
-	//			       refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2) );
 	
 	rand.load(*fine,levelmin+i);	
 	
-	//fine->zero_boundary();
-	//std::cerr << "check 1" << std::endl;
-	//
-
 	convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmin+i, true ), reinterpret_cast<void*>( fine->get_data_ptr() ), shift );
 	
-	//std::cerr << "check 2" << std::endl;
-
 	if( i==1 )
-	  fft_interpolate( *top, *fine, true, true, false );
+	  fft_interpolate( *top, *fine, true );
 	else
-	  fft_interpolate( *coarse, *fine, true, false, true );//bool fourier_splice = false ) 
+	  fft_interpolate( *coarse, *fine, false ); 
 	
-
-	
-	/*if( i==1 )
-	  enforce_coarse_mean_for_overlap( *fine, *top );
-	else
-	  enforce_coarse_mean_for_overlap( *fine, *coarse );
-	*/
-
 
 	delta.add_patch( refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2), 
 			 refh.size(levelmin+i,0), refh.size(levelmin+i,1), refh.size(levelmin+i,2) );
 
-	//delta.get_grid(levelmin+i)->zero();
-	//	fine->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
-	//fine->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
 	fine->copy_unpad( *delta.get_grid(levelmin+i) );
-
-	//fine->subtract_oct_mean();
-	
-
-	//fine->copy( *delta.get_grid(levelmin+i) );
-
-	//	std::cerr << "check 4" << std::endl;
 
 	if( i==1 )
 	  delete top;
@@ -784,14 +732,11 @@ void normalize_density( grid_hierarchy& delta )
 	}
 }
 
-
 void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 {
+  unsigned levelmin_TF = rh.levelmin();
 
-   for( int i=rh.levelmax(); i>0; --i )
-     mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
-  
-   for( unsigned i=1; i<=rh.levelmax(); ++i )
+   for( unsigned i=levelmin_TF+1; i<=rh.levelmax(); ++i )
     {
       if( rh.offset(i,0) != u.get_grid(i)->offset(0)
 	  || rh.offset(i,1) != u.get_grid(i)->offset(1)
@@ -802,48 +747,11 @@ void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 	{
 	  u.cut_patch(i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
 	  	      rh.size(i,0), rh.size(i,1), rh.size(i,2) );
-
-	  //u.cut_patch_enforce_top_density( i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
-	  //				   rh.size(i,0), rh.size(i,1), rh.size(i,2) );
 	}
-      
-      //u.get_grid(i)->zero_bnd();
     }
   
    //for( int i=rh.levelmax(); i>0; --i )
-   // mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
-
-}
-
-
-void coarsen_density_kspace_filter( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
-{
-  unsigned levelmin_TF = rh.levelmin();
-
-   for( int i=levelmin_TF; i>0; --i )
-     mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
-  
-   for( unsigned i=levelmin_TF+1; i<=rh.levelmax(); ++i )
-    {
-      if( rh.offset(i,0) != u.get_grid(i)->offset(0)
-	  || rh.offset(i,1) != u.get_grid(i)->offset(1)
-	  || rh.offset(i,2) != u.get_grid(i)->offset(2)
-	  || rh.size(i,0) != u.get_grid(i)->size(0)
-	  || rh.size(i,1) != u.get_grid(i)->size(1)
-	  || rh.size(i,2) != u.get_grid(i)->size(2) )
-	{
-	  //u.cut_patch(i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
-	  //	      rh.size(i,0), rh.size(i,1), rh.size(i,2) );
-
-	  u.cut_patch_enforce_top_density( i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
-	  				   rh.size(i,0), rh.size(i,1), rh.size(i,2) );
-	}
-      
-      //u.get_grid(i)->zero_bnd();
-    }
-  
-  for( int i=rh.levelmax(); i>0; --i )
-    mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+   //  mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
 
 }
 

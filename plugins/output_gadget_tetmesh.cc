@@ -825,20 +825,20 @@ protected:
             
             // vert_ids
             {
-                std::vector<size_t> itemp;
+                std::vector<long long> itemp;
                 itemp.assign(curr_block_buf_size,0);
                 
 				iffs1.open( fnc, 8*num_p, 8*wrote_p*sizeof(size_t) );
 				
 				npleft = 8*(nftype1_per_file[ifile]+nftype2_per_file[ifile]);
                 n2read  = std::min(curr_block_buf_size,npleft);
-				blksize = 8*np_this_file*sizeof(size_t);
+				blksize = 8*np_this_file*sizeof(long long);
                 
 				ofs_.write( reinterpret_cast<char*>(&blksize), sizeof(int) );
 				while( n2read > 0ul )
 				{
-					iffs1.read( reinterpret_cast<char*>(&itemp[0]), n2read*sizeof(size_t) );
-					ofs_.write( reinterpret_cast<char*>(&itemp[0]), n2read*sizeof(size_t) );
+					iffs1.read( reinterpret_cast<char*>(&itemp[0]), n2read*sizeof(long long) );
+					ofs_.write( reinterpret_cast<char*>(&itemp[0]), n2read*sizeof(long long) );
 					
 					npleft -= n2read;
 					n2read = std::min( curr_block_buf_size,npleft );
@@ -1250,7 +1250,7 @@ public:
         // write all particle connectivities
         {
             size_t nwritten = 0;
-            std::vector<size_t> temp_dat;
+            std::vector<long long> temp_dat;
             
             if( block_buf_size_%8 != 0 )
                 block_buf_size_ = (block_buf_size_/8+1)*8;
@@ -1269,15 +1269,15 @@ public:
                 size_t lid;
                 
                 if( P[ip].Type == 2 )
-                    lid = 1ull<<63;//(size_t)(-1);
+                    lid = -1;
                 else
-                    lid = idmap[ REMOVE_DECORATION_BITS(P[ip].get_vertex(j)) ];
+                    lid = (long long)idmap[ REMOVE_DECORATION_BITS(P[ip].get_vertex(j)) ];
                 
                 if( temp_dat.size() < block_buf_size_ )
                     temp_dat.push_back( lid );
                 else
                 {
-                    ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );
+                    ofs_temp.write( (char*)&temp_dat[0], sizeof(long long)*block_buf_size_ );
                     nwritten += block_buf_size_;
                     temp_dat.clear();
                 
@@ -1287,7 +1287,7 @@ public:
             
             if( temp_dat.size() > 0 )
             {
-                ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*temp_dat.size() );
+                ofs_temp.write( (char*)&temp_dat[0], sizeof(long long)*temp_dat.size() );
                 nwritten+=temp_dat.size();
             }
             

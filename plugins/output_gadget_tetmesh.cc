@@ -30,6 +30,8 @@
 #define ADD_REFINEMENT_COUNTERS(x,y) ((x)+((y)&(15ll<<60)))  // adds the counter of y to x, maintains rest of x
 #define SET_REFINEMENT_COUNTER(x,n) ((((x)&(~(15ll<<60)))+(((long long)n)<<60)))
 #define GET_REFINEMENT_COUNTER(x) (((x)>>60)&(15ll))
+#define GET_SUBSHIFT(lid,i,refl) ((lid >> (20*((i)+1)-tetgrid_baselevel-refl))&1ll)
+
 
 #define REMOVE_FREE_PARTICLE_BIT(x) ((x)&(~(1ll<<63)))
 #define SET_FREE_PARTICLE_BIT(x) ((x) |= (1ll<<63))
@@ -53,6 +55,7 @@ const size_t num_p_realloc_blocksize = 1000000;
 const size_t newnum_p_per_split = 19;
 
 int tetgrid_levelmax = 0;
+int tetgrid_baselevel = 0;
 
 
 struct particle
@@ -318,8 +321,10 @@ void split_lagrange_cube( size_t ip )
 
 void init_base_grid( int ilevel, size_t prealloc_particles = 0 )
 {
-    size_t nbase = 1<<ilevel, lid;
+    size_t nbase = 1<<ilevel;//, lid;
     TetRefinementIDFactor = 20-ilevel;
+    
+    tetgrid_baselevel = nbase;
     
     prealloc_particles = std::max( prealloc_particles, nbase*nbase*nbase );
     P = (particle*)malloc( sizeof(particle) * prealloc_particles );
@@ -347,7 +352,7 @@ void init_base_grid( int ilevel, size_t prealloc_particles = 0 )
                 SET_FREE_PARTICLE_BIT( P[idx].Lagrange_ID );
                 
                 //... insert into access map
-                lid = REMOVE_FREE_PARTICLE_BIT( REMOVE_REFINEMENT_COUNTER( P[idx].Lagrange_ID ) );
+                //lid = REMOVE_FREE_PARTICLE_BIT( REMOVE_REFINEMENT_COUNTER( P[idx].Lagrange_ID ) );
                 idmap[ REMOVE_DECORATION_BITS(P[idx].Lagrange_ID) ] = num_p;
                 
                 num_p++;
@@ -368,11 +373,27 @@ void delete_duplicates( void )
     size_t j=1;
     for( size_t i=1; i<num_p; ++i )
     {
-        if( REMOVE_DECORATION_BITS(P[i].Lagrange_ID) != REMOVE_DECORATION_BITS(P[i-1].Lagrange_ID) )
+        if( REMOVE_DECORATION_BITS(P[i].Lagrange_ID) != REMOVE_DECORATION_BITS(P[j-1].Lagrange_ID) )
         {
             memcpy( &P[j], &P[i], sizeof(particle) );
             idmap[ REMOVE_DECORATION_BITS(P[j].Lagrange_ID) ] = j;
             ++j;
+        }else{
+            P[j-1].Lagrange_ID = ADD_REFINEMENT_COUNTERS( P[j-1].Lagrange_ID, P[i].Lagrange_ID );
+            
+            // check if the vertex is part of all neighbouring, if yes, set as 'free' vertex
+            size_t lid = REMOVE_DECORATION_BITS( P[j-1].Lagrange_ID );
+            size_t rx = GET_SUBSHIFT( lid, 2, P[j-1].Level );
+            size_t ry = GET_SUBSHIFT( lid, 1, P[j-1].Level );
+            size_t rz = GET_SUBSHIFT( lid, 0, P[j-1].Level );
+            
+            int num_h = rx+ry+rz;  // type of vertex: 1 is on edge, 2 is on face, 3 is in vol
+            int req_h[] = {4,2,1}; // required: 4x ref for edge, 2x for face, 1x for volume
+            
+            int ref_count = GET_REFINEMENT_COUNTER( P[j-1].Lagrange_ID );
+            if( ref_count == req_h[ num_h-1 ] )
+                SET_FREE_PARTICLE_BIT( P[j-1].Lagrange_ID );
+            
         }
     }
     //size_t ndeleted = num_p-j;
@@ -908,7 +929,7 @@ protected:
             
 			// level
 			{
-				std::vector<size_t> itemp;
+				std::vector<int> itemp;
                 itemp.assign(curr_block_buf_size,0);
                 iffs1.open( fnl, num_p, wrote_p*sizeof(int) );
 				

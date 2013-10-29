@@ -538,7 +538,7 @@ namespace convolution{
     inline real_t eval_split_recurse( const TransferFunction_real* tfr, real_t *xmid, real_t dx, real_t prevval, int nsplit )
     {
         const real_t abs_err = 1e-10, rel_err = 1e-6;
-        const int nmaxsplits = 10;
+        const int nmaxsplits = 12;
         
         real_t dxnew = dx/2, dxnew2 = dx/4;
         real_t dV = dxnew*dxnew*dxnew;
@@ -575,7 +575,7 @@ namespace convolution{
         
         if( nsplit > nmaxsplits )
         {
-            LOGWARN("reached maximum number of supdivisions in eval_split_recurse. Ending recursion... : abs. err.=%f, rel. err.=%f",ae, re);
+            //LOGWARN("reached maximum number of supdivisions in eval_split_recurse. Ending recursion... : abs. err.=%f, rel. err.=%f",ae, re);
             return ressum;
         }
         
@@ -1168,7 +1168,7 @@ namespace convolution{
 						for( int k=0; k<nzc; ++k )
 						{
 							int iix(i), iiy(j), iiz(k);
-							double rr[3], rr2;
+							real_t rr[3];
 							
 							if( iix > (int)nxc/2 ) iix -= nxc;
 							if( iiy > (int)nyc/2 ) iiy -= nyc;
@@ -1183,7 +1183,7 @@ namespace convolution{
 #ifdef OLD_KERNEL_SAMPLING
 							rkernel_coarse[idx] = 0.0;
 							
-							rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+							real_t rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
 							if( fabs(rr[0])<=boxlength2||fabs(rr[1])<=boxlength2||fabs(rr[2])<=boxlength2 )
 								rkernel_coarse[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
 #else
@@ -1192,9 +1192,8 @@ namespace convolution{
                             
                             //if( i==0 && j==0 && k==0 ) continue;
                             
-                            real_t xmid[3] = { rr[0], rr[1], rr[2] };
                             real_t ddx = dxc;
-                            real_t val = eval_split_recurse( tfr, xmid, ddx ) / (ddx*ddx*ddx);
+                            real_t val = eval_split_recurse( tfr, rr, ddx ) / (ddx*ddx*ddx);
                             
                             if( fabs(rr[0])<=boxlength2||fabs(rr[1])<=boxlength2||fabs(rr[2])<=boxlength2 )
 								rkernel_coarse[idx] += val * fac;

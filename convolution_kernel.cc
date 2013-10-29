@@ -530,6 +530,74 @@ namespace convolution{
 		return this;
 	}
 	
+    template< typename real_t >
+    inline real_t sqr( real_t x )
+    { return x*x; }
+    
+    template< typename real_t >
+    inline real_t eval_split_recurse( const TransferFunction_real* tfr, real_t *xmid, real_t dx, real_t prevval, int nsplit )
+    {
+        const real_t abs_err = 1e-10, rel_err = 1e-6;
+        const int nmaxsplits = 10;
+        
+        real_t dxnew = dx/2, dxnew2 = dx/4;
+        real_t dV = dxnew*dxnew*dxnew;
+        
+        real_t xl[3] = {xmid[0]-dxnew2,xmid[1]-dxnew2,xmid[2]-dxnew2};
+        real_t xr[3] = {xmid[0]+dxnew2,xmid[1]+dxnew2,xmid[2]+dxnew2};
+        
+        real_t xc[8][3] =
+            {
+                {xl[0],xl[1],xl[2]},
+                {xl[0],xl[1],xr[2]},
+                {xl[0],xr[1],xl[2]},
+                {xl[0],xr[1],xr[2]},
+                {xr[0],xl[1],xl[2]},
+                {xr[0],xl[1],xr[2]},
+                {xr[0],xr[1],xl[2]},
+                {xr[0],xr[1],xr[2]},
+            };
+        
+        real_t rr2, res[8], ressum = 0.;
+        
+        for( int i=0; i<8; ++i )
+        {
+            rr2 = sqr(xc[i][0])+sqr(xc[i][1])+sqr(xc[i][2]);
+            res[i] = tfr->compute_real(rr2)*dV;
+            if( res[i] != res[i] ){ LOGERR("NaN encountered at r=%f, dx=%f, dV=%f : TF = %f",sqrt(rr2),dx,dV,res[i]); abort(); }
+            ressum += res[i];
+        }
+        
+        real_t ae = fabs((prevval-ressum));
+        real_t re = fabs(ae/ressum);
+        
+        if( ae < abs_err || re < rel_err ) return ressum;
+        
+        if( nsplit > nmaxsplits )
+        {
+            LOGWARN("reached maximum number of supdivisions in eval_split_recurse. Ending recursion... : abs. err.=%f, rel. err.=%f",ae, re);
+            return ressum;
+        }
+        
+        //otherwise keep splitting
+        ressum = 0;
+        for( int i=0; i<8; ++i )
+            ressum += eval_split_recurse( tfr, xc[i], dxnew, res[i], nsplit+1 );
+        
+        return ressum;
+    }
+    
+    template< typename real_t >
+    inline real_t eval_split_recurse( const TransferFunction_real *tfr, real_t *xmid, real_t dx, int nsplit = 0 )
+    {
+        //sqr(xmid[0])+sqr(xmid[1])+sqr(xmid[2])
+        
+        real_t rr2 = sqr(xmid[0]) + sqr(xmid[1]) + sqr(xmid[2]);
+        real_t prevval = tfr->compute_real(rr2)*dx*dx*dx;
+        return eval_split_recurse( tfr, xmid, dx, prevval, nsplit );
+    }
+    
+    //#define OLD_KERNEL_SAMPLING
 	
 	template< typename real_t >
 	void kernel_real_cached<real_t>::precompute_kernel( transfer_function* ptf, tf_type type, const refinement_hierarchy& refh )
@@ -604,6 +672,8 @@ namespace convolution{
 		const int ql = -ref_fac/2+1, qr = ql+ref_fac;
 		const double rf8 = pow(ref_fac,3);
 		const double dx05 = 0.5*dx, dx025 = 0.25*dx;
+        
+        std::cerr << ">>>>>>>>>>>> " << ref_fac << " <<<<<<<<<<<<<<<<" << std::endl;
 		
 		if( bperiodic  )
 		{		
@@ -615,7 +685,7 @@ namespace convolution{
 					for( int k=0; k<=nz/2; ++k )
 					{
 						int iix(i), iiy(j), iiz(k);
-						double rr[3], rr2;
+						double rr[3];
 						
 						if( iix > (int)nx/2 ) iix -= nx;
 						if( iiy > (int)ny/2 ) iiy -= ny;
@@ -668,16 +738,14 @@ namespace convolution{
 													{
 														rrr[2] = rr[2]+(double)kkk*dx05 - dx025;
 														rrr2[2]= rrr[2]*rrr[2];
-														rr2 = rrr2[0]+rrr2[1]+rrr2[2];
-														val += tfr->compute_real(rr2)/rf8;
+														val += tfr->compute_real(rrr2[0]+rrr2[1]+rrr2[2])/rf8;
 													}
 												}
 											}
 										}
 										else
 										{
-											rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-											val += tfr->compute_real(rr2);	
+											val += tfr->compute_real(rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2]);
 										}
 
 										
@@ -698,7 +766,7 @@ namespace convolution{
 					for( int k=0; k<nz; ++k )
 					{
 						int iix(i), iiy(j), iiz(k);
-						double rr[3], rr2;
+						double rr[3];
 						
 						if( iix > (int)nx/2 ) iix -= nx;
 						if( iiy > (int)ny/2 ) iiy -= ny;
@@ -732,6 +800,8 @@ namespace convolution{
 						
 						double val = 0.0;//(fftw_real)tfr->compute_real(rr2)*fac;
 						
+#ifdef OLD_KERNEL_SAMPLING
+                        
 						if( ref_fac > 0 )
 						{
 							double rrr[3];
@@ -748,19 +818,26 @@ namespace convolution{
 									{
 										rrr[2] = rr[2]+(double)kkk*dx05 - dx025;
 										rrr2[2]= rrr[2]*rrr[2];
-										rr2 = rrr2[0]+rrr2[1]+rrr2[2];
-										val += tfr->compute_real(rr2)/rf8;
+										val += tfr->compute_real(rrr2[0]+rrr2[1]+rrr2[2])/rf8;
 									}
 								}
 							}
 						}
 						else
 						{
-							rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-							val = tfr->compute_real(rr2);	
+							val = tfr->compute_real(rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2]);
 						}
 						
-						
+#else
+                        if( i == 0 && j == 0 && k == 0 ) continue;
+                        
+                        // use new exact volume integration scheme
+                        real_t xmid[3] = { rr[0], rr[1], rr[2] };
+                        real_t ddx = dx;
+                        val = eval_split_recurse( tfr, xmid, ddx ) / (ddx*ddx*ddx);
+
+#endif
+                        
 						//if( rr2 <= boxlength2*boxlength2 )
 						//rkernel[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
 						val *= fac;	
@@ -771,9 +848,16 @@ namespace convolution{
 						
 					}
 		}
-		
-		rkernel[0] = tfr->compute_real(0.0)*fac;
-		
+		{
+#ifdef OLD_KERNEL_SAMPLING
+            rkernel[0] = tfr->compute_real(0.0)*fac;
+#else
+            real_t xmid[3] = {0.0,0.0,0.0};
+            real_t ddx = dx;
+            rkernel[0] = fac*eval_split_recurse( tfr, xmid, ddx ) / (ddx*ddx*ddx);
+            deconv = false;
+#endif
+		}
 		/*************************************************************************************/
 		/*************************************************************************************/
 		/******* perform deconvolution *******************************************************/
@@ -1096,11 +1180,26 @@ namespace convolution{
 							rr[1] = ((double)iiy ) * dxc;
 							rr[2] = ((double)iiz ) * dxc;
 							
+#ifdef OLD_KERNEL_SAMPLING
 							rkernel_coarse[idx] = 0.0;
 							
 							rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
 							if( fabs(rr[0])<=boxlength2||fabs(rr[1])<=boxlength2||fabs(rr[2])<=boxlength2 )
 								rkernel_coarse[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
+#else
+  
+                            rkernel_coarse[idx] = 0.0;
+                            
+                            //if( i==0 && j==0 && k==0 ) continue;
+                            
+                            real_t xmid[3] = { rr[0], rr[1], rr[2] };
+                            real_t ddx = dxc;
+                            real_t val = eval_split_recurse( tfr, xmid, ddx ) / (ddx*ddx*ddx);
+                            
+                            if( fabs(rr[0])<=boxlength2||fabs(rr[1])<=boxlength2||fabs(rr[2])<=boxlength2 )
+								rkernel_coarse[idx] += val * fac;
+                            
+#endif
 							
 						}
 			}
@@ -1108,7 +1207,7 @@ namespace convolution{
 			LOGUSER("Averaging fine kernel to coarse kernel...");
 
 			//... copy averaged and convolved fine kernel to coarse kernel
-			#pragma omp parallel for
+			/*#pragma omp parallel for
 			for( int ix=0; ix<nx; ix+=2 )
 				for( int iy=0; iy<ny; iy+=2 )
 					for( int iz=0; iz<nz; iz+=2 )
@@ -1140,7 +1239,7 @@ namespace convolution{
 												 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k+1)] + rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k+1)]);
 									}
 						
-					}
+					}*/
 
 			
 			sprintf(cachefname,"temp_kernel_level%03d.tmp",ilevel);

@@ -576,9 +576,9 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 					
 					size_t qc,qf;
 
-					double kx = (i <= nxc/2)? (double)i : (double)(i-nxc);
-					double ky = (j <= nyc/2)? (double)j : (double)(j-nyc);
-					double kz = (k <= nzc/2)? (double)k : (double)(k-nzc);
+					double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+					double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+					double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
 					
 					
 					qc = ((size_t)i*nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
@@ -590,8 +590,8 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 
 					val_fine *= val_phas * fftnorm/sqrt(8.0);
 					
-					RE(ccoarse[qc]) = val_fine.real();//1.0/sqrt(8.0)*RE(cfine[qf])*fftnorm;
-					IM(ccoarse[qc]) = val_fine.imag();//1.0/sqrt(8.0)*IM(cfine[qf])*fftnorm;
+					RE(ccoarse[qc]) = val_fine.real();
+					IM(ccoarse[qc]) = val_fine.imag();
 				}
 		
 		delete[] rfine;
@@ -833,9 +833,9 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 		qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
 
-		double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
-		double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
-		double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
+		double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+		double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+		double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
 					
 		double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 		std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -860,9 +860,9 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 		qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
                 
-		double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
-		double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
-		double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
+		double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+		double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+		double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
 					
 		double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 		std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -887,9 +887,9 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 		qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
                 
-		double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
-		double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
-		double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
+		double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+		double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+		double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
 					
 		double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc)  * M_PI;
 		std::complex<double> val_phas( cos(phase), sin(phase) );
@@ -915,9 +915,9 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 		qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
                 
-		double kx = (i <= nxc/2)? (double)i : (double)(i-(int)nxc);
-		double ky = (j <= nyc/2)? (double)j : (double)(j-(int)nyc);
-		double kz = (k <= nzc/2)? (double)k : (double)(k-(int)nzc);
+		double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+		double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+		double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
 					
 		double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
 		std::complex<double> val_phas( cos(phase), sin(phase) );

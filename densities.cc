@@ -21,40 +21,18 @@
 template< typename m1, typename m2 >
 void fft_interpolate( m1& V, m2& v, bool from_basegrid=false ) 
 {
-  //int oxc = V.offset(0), oyc = V.offset(1), ozc = V.offset(2);
   int oxf = v.offset(0), oyf = v.offset(1), ozf = v.offset(2);
   size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf+2;
   size_t nxF = V.size(0), nyF = V.size(1), nzF = V.size(2);
     
-  LOGINFO("FFT interpolate: original subgrid offset=%d,%d,%d",oxf,oyf,ozf);
-    LOGINFO("FFT interpolate: nxf=%d,%d,%d nxF=%d,%d,%d",nxf,nyf,nzf,nxF,nyF,nzF);
-
   if( !from_basegrid )
     {
-      /*oxf *= 2;
-      oyf *= 2;
-      ozf *= 2;
-
-      oxf += nxf/8;
-      oyf += nyf/8;
-      ozf += nzf/8;*/
-        
-        /*oxf += nxF/4;
-        oyf += nyF/4;
-        ozf += nzF/4;
-        
-        oxf -= nxf/8;
-        oyf -= nyf/8;
-        ozf -= nzf/8;*/
-        
         oxf += nxF/4;
         oyf += nyF/4;
         ozf += nzF/4;
-        
-        
     }
   
-  LOGINFO("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d",oxf,oyf,ozf,nxf,nyf,nzf);
+  LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d",oxf,oyf,ozf,nxf,nyf,nzf);
 
   // cut out piece of coarse grid that overlaps the fine:
   assert( nxf%2==0 && nyf%2==0 && nzf%2==0 );
@@ -128,9 +106,6 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
     double sqrt8 = 8.0;//sqrt(8.0);
     double phasefac = -0.5;
     
-    //if( !from_basegrid )
-    //  phasefac = 1.0;
-
      // 0 0
     #pragma omp parallel for
     for( int i=0; i<(int)nxc/2+1; i++ )
@@ -757,10 +732,14 @@ void normalize_density( grid_hierarchy& delta )
 
 void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 {
-  unsigned levelmin_TF = rh.levelmin();
+  unsigned levelmin_TF = u.levelmin();//rh.levelmin();
     
-  /*  for( int i=rh.levelmax(); i>0; --i )
+/*    for( int i=rh.levelmax(); i>0; --i )
         mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );*/
+    
+  for( int i=levelmin_TF; i>0; --i )
+    mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+    
   
   //for( unsigned i=levelmin_TF+1; i<=rh.levelmax(); ++i )
   for( unsigned i=1; i<=rh.levelmax(); ++i )

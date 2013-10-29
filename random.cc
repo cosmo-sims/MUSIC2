@@ -816,7 +816,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 	  
 	  double fftnorm = 1.0/((double)nx*(double)ny*(double)nz);
 	  double sqrt8 = sqrt(8.0);
-	  double phasefac = -0.5;//-1.0;//-0.125;
+        double phasefac = -0.5;//-1.0;//-0.125;
 
 	  //if( isolated ) phasefac *= 1.5;
 

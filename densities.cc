@@ -756,8 +756,8 @@ void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 	}
     }
   
-    //for( int i=rh.levelmax(); i>0; --i )
-    //mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+  //for( int i=rh.levelmax(); i>0; --i )
+  //  mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
 
 }
 

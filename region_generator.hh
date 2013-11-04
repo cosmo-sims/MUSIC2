@@ -12,10 +12,14 @@
 class region_generator_plugin{
 public:
     config_file *pcf_;
+    int levelmin_, levelmax_;
+    
 public:
     region_generator_plugin( config_file& cf )
     : pcf_( &cf )
     {
+        levelmin_ = cf.getValue<int>("setup","levelmin");
+        levelmax_ = cf.getValue<int>("setup","levelmax");
     }
     
     //! destructor
@@ -25,7 +29,7 @@ public:
     virtual void get_AABB( double *left, double *right, unsigned level) = 0;
     
     //! query whether a point intersects the region
-    virtual bool query_point( double *x ) = 0;
+    virtual bool query_point( double *x, int level ) = 0;
     
     //! query whether the region generator explicitly forces the grid dimensions
     virtual bool is_grid_dim_forced( size_t *ndims ) = 0;

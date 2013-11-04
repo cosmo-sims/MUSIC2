@@ -36,10 +36,10 @@ public:
     : nx_( 0 ), ny_ ( 0 ), nz_( 0 )
     { }
     
-    refinement_mask( size_t nx, size_t ny, size_t nz )
+    refinement_mask( size_t nx, size_t ny, size_t nz, short value = 0. )
     : nx_( nx ), ny_( ny ), nz_( nz )
     {
-        mask_.assign( nx_*ny_*nz_, 0 );
+        mask_.assign( nx_*ny_*nz_, value );
     }
     
     refinement_mask( const refinement_mask& r )
@@ -60,12 +60,12 @@ public:
         return *this;
     }
     
-    void init( size_t nx, size_t ny, size_t nz )
+    void init( size_t nx, size_t ny, size_t nz, short value = 0. )
     {
         nx_ = nx;
         ny_ = ny;
         nz_ = nz;
-        mask_.assign( nx_*ny_*nz_, 0 );
+        mask_.assign( nx_*ny_*nz_, value );
     }
     
     const short& operator()( size_t i, size_t j, size_t k ) const
@@ -537,7 +537,7 @@ public:
 		m_yoffabs,		//!< vector of x-offsets of a level mesh relative to the coarser level
 		m_zoffabs;		//!< vector of x-offsets of a level mesh relative to the coarser level
     
-    refinement_mask ref_mask;
+    std::vector< refinement_mask* > m_ref_masks;
     bool bhave_refmask;
 	
 protected:
@@ -614,15 +614,20 @@ public:
 		m_yoffabs = gh.m_yoffabs;
 		m_zoffabs = gh.m_zoffabs;
         
-        ref_mask   = gh.ref_mask;
+        //ref_mask   = gh.ref_mask;
         bhave_refmask = gh.bhave_refmask;
+        
+        if( bhave_refmask )
+        {
+            for( size_t i=0; i<gh.m_ref_masks.size(); ++i )
+                m_ref_masks.push_back( new refinement_mask( *(gh.m_ref_masks[i]) ) );
+        }
 	}
 	
 	//! destructor
 	~GridHierarchy()
 	{
 		this->deallocate();
-		
 	}
 	
 	//! free all memory occupied by the grid hierarchy
@@ -633,11 +638,14 @@ public:
 		m_pgrids.clear();
 		std::vector< MeshvarBnd<T>* >().swap( m_pgrids );
 		
-		
 		m_xoffabs.clear();
 		m_yoffabs.clear();
 		m_zoffabs.clear();
 		m_levelmin = 0;
+        
+        for( size_t i=0; i<m_ref_masks.size(); ++i )
+            delete m_ref_masks[i];
+        m_ref_masks.clear();
 	}
     
     void add_refinement_mask( const double *shift )
@@ -647,28 +655,33 @@ public:
         //! generate a mask
         if( m_levelmin != levelmax() )
         {
-            int ilevel = levelmax() - 1;
-            double xq[3], dx = 1.0/(1ul<<(levelmax()-1));
-            
-            ref_mask.init( size(ilevel,0), size(ilevel,1), size(ilevel,2) );
-            
-            for( size_t i=0; i<size(ilevel,0); i++ )
+            for( int ilevel = levelmax()-1; ilevel >= levelmin(); --ilevel )
             {
-                xq[0] = (offset_abs(ilevel,0) + i)*dx + 0.5*dx + shift[0];
-                for( size_t j=0; j<size(ilevel,1); ++j )
+                double xq[3], dx = 1.0/(1ul<<ilevel); //1.0/(1ul<<(levelmax()-1));
+                
+                m_ref_masks[ilevel]->init( size(ilevel,0), size(ilevel,1), size(ilevel,2), 0.0 );
+                
+                for( size_t i=0; i<size(ilevel,0); i++ )
                 {
-                    xq[1] = (offset_abs(ilevel,1) + j)*dx + 0.5*dx + shift[1];
-                    for( size_t k=0; k<size(ilevel,2); ++k )
+                    xq[0] = (offset_abs(ilevel,0) + i)*dx + 0.5*dx + shift[0];
+                    for( size_t j=0; j<size(ilevel,1); ++j )
                     {
-                        xq[2] = (offset_abs(ilevel,2) + k)*dx + 0.5*dx + shift[2];
-                        
-                        if( the_region_generator->query_point( xq ) )
-                            ref_mask(i,j,k) = true;
+                        xq[1] = (offset_abs(ilevel,1) + j)*dx + 0.5*dx + shift[1];
+                        for( size_t k=0; k<size(ilevel,2); ++k )
+                        {
+                            xq[2] = (offset_abs(ilevel,2) + k)*dx + 0.5*dx + shift[2];
+                            
+                            if( the_region_generator->query_point( xq, ilevel ) )
+                                (*m_ref_masks[ilevel])(i,j,k) = 1.0;//true;
+                            else
+                                (*m_ref_masks[ilevel])(i,j,k) = 0.0;
+                        }
                     }
                 }
             }
             
             bhave_refmask = true;
+            
         }
     }
 	
@@ -762,16 +775,19 @@ public:
 	 */
 	bool is_refined( unsigned ilevel, int i, int j, int k ) const
 	{
-	  if( ilevel == levelmax() ){
+        if( bhave_refmask )
+            return !(*m_ref_masks[ilevel-1])(offset(ilevel,0)+i/2,offset(ilevel,1)+j/2,offset(ilevel,2)+k/2);
+        
+	  /*if( ilevel == levelmax() ){
             if( !bhave_refmask ) return false;
             else if( ref_mask(offset(levelmax(),0)+i/2,offset(levelmax(),1)+j/2,offset(levelmax(),2)+k/2) )
                 return false;
             else
                 return true;
-	  }
+	  }*/
 
         if( ilevel == levelmax()-1 && bhave_refmask )
-            return ref_mask(i,j,k);
+            return (*m_ref_masks[ilevel])(i,j,k);
 		
 		if( i < offset(ilevel+1,0) || i >= offset(ilevel+1, 0)+(int)size(ilevel+1,0)/2 ||
 		    j < offset(ilevel+1,1) || j >= offset(ilevel+1, 1)+(int)size(ilevel+1,1)/2 ||
@@ -849,6 +865,9 @@ public:
 		}
 		
 		m_levelmin = lmax;
+        
+        for( unsigned i=0; i<= lmax; ++i )
+            m_ref_masks.push_back( new refinement_mask(size(i,0),size(i,1),size(i,2),(short)(i!=lmax)) );
 	}
 	
 	//! multiply entire grid hierarchy by a constant
@@ -937,7 +956,12 @@ public:
 	GridHierarchy<T>& operator=( const GridHierarchy<T>& gh )
 	{
         bhave_refmask = gh.bhave_refmask;
-        ref_mask = gh.ref_mask;
+
+        if( bhave_refmask )
+        {
+            for( unsigned i=0; i<=gh.levelmax(); ++i )
+                m_ref_masks.push_back( new refinement_mask( *(gh.m_ref_masks[i]) ) );
+        }
       
 		if( !is_consistent(gh) )
 		{
@@ -1002,6 +1026,8 @@ public:
 		m_xoffabs.push_back( 2*(m_xoffabs.back() + xoff) );
 		m_yoffabs.push_back( 2*(m_yoffabs.back() + yoff) );
 		m_zoffabs.push_back( 2*(m_zoffabs.back() + zoff) );
+        
+        m_ref_masks.push_back( new refinement_mask(nx,ny,nz,0.0) );
 	}
 	
 	/*! cut a refinement patch to the specified size

@@ -21,6 +21,8 @@ private:
     double vfac_;
     bool do_extra_padding_;
     
+    std::vector<float> level_dist_;
+    
     void apply_shift( size_t Np, double *p, int *shift, int levelmin )
     {
         double dx = 1.0/(1<<levelmin);
@@ -79,6 +81,14 @@ public:
             if( output_plugin == std::string("grafic2") )
                 do_extra_padding_ = true;
         }
+        
+        level_dist_.assign( levelmax+1, 0.0 );
+        // generate the higher level ellipsoids
+        for( int ilevel = levelmax_-1; ilevel > 0; --ilevel )
+        {
+            dx = 1.0/(1ul<<(ilevel));
+            level_dist_[ilevel-1] = level_dist_[ilevel] + padding_ * dx;
+        }
     }
     
     ~region_convex_hull_plugin()
@@ -114,8 +124,8 @@ public:
         // it might have enlarged it, but who cares...
     }
 
-    bool query_point( double *x )
-    {   return phull_->check_point( x );   }
+    bool query_point( double *x, int ilevel )
+    {   return phull_->check_point( x, level_dist_[ilevel] );   }
     
     bool is_grid_dim_forced( size_t* ndims )
     {   return false;   }

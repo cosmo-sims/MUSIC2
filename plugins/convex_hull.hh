@@ -216,18 +216,20 @@ struct convex_hull{
     }
     
     template< typename T >
-    bool check_point( const T* x ) const
+    bool check_point( const T* x, double dist = 0.0 ) const
     {
+        dist *= -1.0;
+        
         for( size_t i=0; i<normals_L_.size()/3; ++i )
         {
             double xp[3] = {x[0]-x0_L_[3*i+0],x[1]-x0_L_[3*i+1],x[2]-x0_L_[3*i+2]};
-            if( dot( xp, &normals_L_[3*i])<0.0 ) return false;
+            if( dot( xp, &normals_L_[3*i]) < dist ) return false;
         }
         
         for( size_t i=0; i<normals_U_.size()/3; ++i )
         {
             double xp[3] = {x[0]-x0_U_[3*i+0],x[1]-x0_U_[3*i+1],x[2]-x0_U_[3*i+2]};
-            if( dot( xp, &normals_U_[3*i])<0.0 ) return false;
+            if( dot( xp, &normals_U_[3*i]) < dist ) return false;
         }
         
         return true;

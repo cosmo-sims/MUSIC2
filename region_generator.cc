@@ -173,8 +173,10 @@ public:
       //fprintf(stderr,"left = %f,%f,%f - right = %f,%f,%f\n",left[0],left[1],left[2],right[0],right[1],right[2]);
     }
     
-    bool query_point( double *x )
+    bool query_point( double *x, int ilevel )
     {
+        return true;
+/*
         bool check = true;
         double dx;
         for( int i=0; i<3; ++i )
@@ -186,6 +188,8 @@ public:
             check &= ((dx >= padding_fine_) & (dx <= lxref_[i]-padding_fine_));
         }
         return check;
+  */      
+        
     }
     
     bool is_grid_dim_forced( size_t* ndims )

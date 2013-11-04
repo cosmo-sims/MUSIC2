@@ -164,11 +164,13 @@ protected:
     float *Q;
     float *u;
     
+    float detA, detA13;
+    
     float v1[3],v2[3],v3[3],r1,r2,r3;
     
     float V[9], mu[3];
     
-    bool axes_computed;
+    bool axes_computed, hold_point_data;
     
     void compute_axes( void )
     {
@@ -286,7 +288,7 @@ protected:
     
 public:
     min_ellipsoid( size_t N_, double* P )
-    : N( N_ ), axes_computed( false )
+    : N( N_ ), axes_computed( false ), hold_point_data( true )
     {
         // --- initialize ---
         LOGINFO("computing minimum bounding ellipsoid from %lld points",N);
@@ -339,10 +341,13 @@ public:
         
         Inverse_3x3( Ainv, A );
         for( size_t i=0; i<9; ++i ){ A[i] /= 3.0; Ainv[i] *= 3.0; }
+        
+        detA = Determinant_3x3( A );
+        detA13 = pow( detA, 1.0/3.0 );
     }
     
     min_ellipsoid( const double* A_, const double *c_ )
-    : N( 0 ), axes_computed( false )
+    : N( 0 ), axes_computed( false ), hold_point_data( false )
     {
         for( int i=0; i<9; ++i )
         {   A[i] = A_[i]; Ainv[i] = 0.0;   }
@@ -350,15 +355,48 @@ public:
             c[i] = c_[i];
     }
     
+    min_ellipsoid( const min_ellipsoid& e )
+    : N( 0 ), hold_point_data( false )
+    {
+        for( int i=0; i<16; ++i )
+            X[i] = e.X[i];
+        
+        for( int i=0; i<3; ++i )
+        {
+            c[i] = e.c[i];
+            v1[i] = e.v1[i];
+            v2[i] = e.v2[i];
+            v3[i] = e.v3[i];
+            mu[i] = e.mu[i];
+        }
+        
+        for( int i=0; i<9; ++i )
+        {
+            A[i] = e.A[i];
+            Ainv[i] = e.Ainv[i];
+            V[i] = e.V[i];
+        }
+        
+        N = e.N;
+        detA = e.detA;
+        detA13 = e.detA13;
+        axes_computed = e.axes_computed;
+    }
+    
     ~min_ellipsoid()
     {
-        delete[] u;
-        delete[] Q;
+        if( hold_point_data )
+        {
+            delete[] u;
+            delete[] Q;
+        }
     }
     
     template<typename T>
-    bool check_point( const T *x )
+    bool check_point( const T *x, double dist = 0.0 )
     {
+        dist = (dist + 1.0) * detA13;
+        
         float q[3] = {x[0]-c[0],x[1]-c[1],x[2]-c[2]};
         
         double r = 0.0;
@@ -416,17 +454,12 @@ public:
   
     void expand_ellipsoid( float dr )
     {
-      //print();
-        
-        
-        
-        
         if( !axes_computed )
         {
-            std::cerr << "computing axes.....\n";
+            LOGUSER("computing ellipsoid axes.....");
             compute_axes();
         }
-        
+        float muold[3] = {mu[0],mu[1],mu[2]};
         float munew[3];
         for( int i=0; i<3; ++i )
           munew[i] = sgn(mu[i])/sqr(1.0/sqrt(fabs(mu[i]))+dr);
@@ -446,7 +479,11 @@ public:
         
         Inverse_3x3( A, Ainv );
       
-      //print();
+        LOGUSER("computing ellipsoid axes.....");
+        compute_axes();
+        
+        LOGINFO("mu = %f %f %f -> %f %f %f", muold[0], muold[1], muold[2], mu[0], mu[1], mu[2]);
+        //print();
     }
 };
 
@@ -458,12 +495,10 @@ public:
 class region_ellipsoid_plugin : public region_generator_plugin{
 private:
     
-    min_ellipsoid *pellip_;
+    std::vector< min_ellipsoid * > pellip_;
     int shift[3], shift_level, padding_;
     double vfac_;
     bool do_extra_padding_;
-  
-    
     
     void apply_shift( size_t Np, double *p, int *shift, int levelmin )
     {
@@ -481,6 +516,10 @@ public:
     : region_generator_plugin( cf )
     {
         std::vector<double> pp;
+        
+        for( int i=0; i<=levelmax_; ++i )
+            pellip_.push_back( NULL );
+        
         
         // sanity check
         if( !cf.containsKey("setup", "region_point_file") &&
@@ -533,7 +572,9 @@ public:
                 shift_level = point_levelmin;
             }
             
-            pellip_ = new min_ellipsoid( pp.size()/3, &pp[0] );
+            
+            
+            pellip_[levelmax_-1] = new min_ellipsoid( pp.size()/3, &pp[0] );
             
             
         } else {
@@ -550,7 +591,7 @@ public:
             strtmp = cf.getValue<std::string>("setup","region_ellipsoid_center");
             sscanf( strtmp.c_str(), "%lf,%lf,%lf", &c[0],&c[1],&c[2] );
             
-            pellip_ = new min_ellipsoid( A, c );
+            pellip_[levelmax_-1] = new min_ellipsoid( A, c );
             
         }
         
@@ -586,8 +627,8 @@ public:
         
         // output the center
         float c[3], A[9];
-        pellip_->get_center( c );
-        pellip_->get_matrix( A );
+        pellip_[levelmax_-1]->get_center( c );
+        pellip_[levelmax_-1]->get_matrix( A );
         
         LOGINFO("Region center for ellipsoid determined at\n\t xc = ( %f %f %f )",c[0],c[1],c[2]);
         LOGINFO("Ellipsoid matrix determined as\n\t      ( %f %f %f )\n\t  A = ( %f %f %f )\n\t      ( %f %f %f )",
@@ -598,8 +639,18 @@ public:
         //expand the ellipsoid by one grid cell
       
         unsigned levelmax = cf.getValue<unsigned>("setup","levelmax");
+        unsigned npad = cf.getValue<unsigned>("setup","padding");
         double dx = 1.0/(1ul<<levelmax);
-        pellip_->expand_ellipsoid( dx );
+        pellip_[levelmax_-1]->expand_ellipsoid( dx );
+        
+        
+        // generate the higher level ellipsoids
+        for( int ilevel = levelmax_-1; ilevel > 0; --ilevel )
+        {
+            dx = 1.0/(1ul<<(ilevel));
+            pellip_[ ilevel-1 ] = new min_ellipsoid( *pellip_[ ilevel ] );
+            pellip_[ ilevel-1 ]->expand_ellipsoid( npad*dx );
+        }
         
         
         
@@ -617,12 +668,21 @@ public:
     
     ~region_ellipsoid_plugin()
     {
-        delete pellip_;
+        for( int i=0; i<=levelmax_; ++i )
+            if( pellip_[i] != NULL )
+                delete pellip_[i];
     }
     
     void get_AABB( double *left, double *right, unsigned level )
     {
-        pellip_->get_AABB( left, right );
+        if( level <= levelmin_ )
+        {
+            left[0] = left[1] = left[2] = 0.0;
+            right[0] = right[1] = right[2] = 1.0;
+            return;
+        }
+        
+        pellip_[level-1]->get_AABB( left, right );
       
         double dx = 1.0/(1ul<<level);
         double pad = (double)(padding_+1) * dx;
@@ -645,8 +705,10 @@ public:
       // it might have enlarged it, but who cares...
     }
   
-    bool query_point( double *x )
-    {   return pellip_->check_point( x );   }
+    bool query_point( double *x, int level )
+    {
+        return pellip_[level]->check_point( x );
+    }
     
     bool is_grid_dim_forced( size_t* ndims )
     {   return false;   }
@@ -654,7 +716,7 @@ public:
     void get_center( double *xc )
     {
         float c[3];
-        pellip_->get_center( c );
+        pellip_[levelmax_]->get_center( c );
         
         xc[0] = c[0];
         xc[1] = c[1];
@@ -666,7 +728,7 @@ public:
     double dx = 1.0/(1<<shift_level);
     float c[3];
 
-    pellip_->get_center( c );        
+    pellip_[levelmax_]->get_center( c );
 
     xc[0] = c[0]+shift[0]*dx;
     xc[1] = c[1]+shift[1]*dx;

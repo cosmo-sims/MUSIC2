@@ -3,14 +3,14 @@
 FFTW3		= yes
 MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
-HAVEHDF5        = no
+HAVEHDF5        = yes
 HAVEBOXLIB	= no
 BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################
 ### compiler and path settings
 CC      = g++
-OPT     = -Wall -Wno-unknown-pragmas -O3 -g -msse2
+OPT     = -Wall -Wno-unknown-pragmas -O3 -g -mtune=native
 CFLAGS  =  
 LFLAGS  = -lgsl -lgslcblas 
 CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include

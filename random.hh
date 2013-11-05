@@ -32,6 +32,49 @@
 #include "constraints.hh"
 
 
+class RNG_plugin{
+protected:
+  config_file *pcf_;		//!< pointer to config_file from which to read parameters
+public:
+  explicit RNG_plugin( config_file& cf )
+  : pcf_( &cf )
+  { }
+  virtual ~RNG_plugin() { }
+  virtual bool is_multiscale() const  = 0; 
+};
+
+
+struct RNG_plugin_creator
+{
+  virtual RNG_plugin * create( config_file& cf ) const = 0;
+  virtual ~RNG_plugin_creator() { }
+};
+
+std::map< std::string, RNG_plugin_creator *>&
+get_RNG_plugin_map();
+
+void print_RNG_plugins( void );
+
+template< class Derived >
+struct RNG_plugin_creator_concrete : public RNG_plugin_creator
+{
+  //! register the plugin by its name
+  RNG_plugin_creator_concrete( const std::string& plugin_name )
+  {
+    get_RNG_plugin_map()[ plugin_name ] = this;
+  }
+
+  //! create an instance of the plugin
+  RNG_plugin* create( config_file& cf ) const
+  {
+    return new Derived( cf );
+  }
+};
+
+typedef RNG_plugin RNG_instance;
+RNG_plugin *select_RNG_plugin( config_file& cf );
+
+
 /*!
  * @brief encapsulates all things random number generator related
  */
@@ -152,7 +195,7 @@ public:
 	
 	//! constructor for constrained fine field
 	random_numbers( random_numbers<T>& rc, unsigned cubesize, long baseseed, 
-				    bool kspace=false, int *x0_=NULL, int *lx_=NULL, bool zeromean=true );
+			bool kspace=false, bool isolated=false, int *x0_=NULL, int *lx_=NULL, bool zeromean=true );
 	
 	//! constructor
 	random_numbers( unsigned res, unsigned cubesize, long baseseed, bool zeromean=true );
@@ -308,22 +351,52 @@ public:
 			
 			if( nx!=(int)A.size(0) || ny!=(int)A.size(1) || nz!=(int)A.size(2) )
 			{	
-				LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",nx,ny,nz,A.size(0),A.size(1),A.size(2));
-				throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency and bad.");
-			}
+
+			  if( nx==(int)A.size(0)*2 && ny==(int)A.size(1)*2 && nz==(int)A.size(2)*2 )
+			    {
+			      std::cerr << "CHECKPOINT" << std::endl;
+
+
+			      int ox = nx/4, oy = ny/4, oz = nz/4;
+			      std::vector<T> slice( ny*nz, 0.0 );
+
+			      for( int i=0; i<nx; ++i )
+				{
+				  ifs.read( reinterpret_cast<char*> ( &slice[0] ), ny*nz*sizeof(T) );
+			      
+				  if( i<ox ) continue;
+				  if( i>=3*ox ) break;
+
+                                  #pragma omp parallel for
+				  for( int j=oy; j<3*oy; ++j )
+				    for( int k=oz; k<3*oz; ++k )
+				      A(i-ox,j-oy,k-oz) = slice[j*nz+k];
+				}		
+			  
+			      ifs.close();	
+			    }
+			  else
+			    {
+			      LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].",
+				     nx,ny,nz,A.size(0),A.size(1),A.size(2));
+			      throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency and bad.");
+			    }
+			}else{
 			
-			for( int i=0; i<nx; ++i )
-			{
-				std::vector<T> slice( ny*nz, 0.0 );
-				ifs.read( reinterpret_cast<char*> ( &slice[0] ), ny*nz*sizeof(T) );
-				
-				#pragma omp parallel for
-				for( int j=0; j<ny; ++j )
-					for( int k=0; k<nz; ++k )
-						A(i,j,k) = slice[j*nz+k];
-				
-			}		
-			ifs.close();	
+			  for( int i=0; i<nx; ++i )
+			    {
+			      std::vector<T> slice( ny*nz, 0.0 );
+			      ifs.read( reinterpret_cast<char*> ( &slice[0] ), ny*nz*sizeof(T) );
+			      
+                              #pragma omp parallel for
+			      for( int j=0; j<ny; ++j )
+				for( int k=0; k<nz; ++k )
+				  A(i,j,k) = slice[j*nz+k];
+			      
+			    }		
+			  
+			  ifs.close();	
+			}
 		}
 		else
 		{

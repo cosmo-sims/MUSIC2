@@ -86,46 +86,106 @@ namespace convolution{
         
 		if( shift )
 		{	
-			double boxlength = pk->pcf_->getValue<double>("setup","boxlength");
-            double stagfact  = pk->pcf_->getValueSafe<double>("setup","baryon_staggering",0.5);
-			int lmax = pk->pcf_->getValue<int>("setup","levelmax");	
-			double dxmax = boxlength/(1<<lmax);
-			double dxcur = cparam_.lx/cparam_.nx;
-			//std::cerr << "Performing staggering shift for SPH\n";
-			LOGUSER("Performing staggering shift for SPH");
-			dstag = stagfact * 2.0 * M_PI/cparam_.nx * dxmax/dxcur;
+		  double boxlength = pk->pcf_->getValue<double>("setup","boxlength");
+		  double stagfact  = pk->pcf_->getValueSafe<double>("setup","baryon_staggering",0.5);
+		  int lmax = pk->pcf_->getValue<int>("setup","levelmax");	
+		  double dxmax = boxlength/(1<<lmax);
+		  double dxcur = cparam_.lx/cparam_.nx;
+		  //std::cerr << "Performing staggering shift for SPH\n";
+		  LOGUSER("Performing staggering shift for SPH");
+		  dstag = stagfact * 2.0 * M_PI/cparam_.nx * dxmax/dxcur;
 		}
 		
 		//.............................................
-		
-		#pragma omp parallel for
-		for( int i=0; i<cparam_.nx; ++i )
-			for( int j=0; j<cparam_.ny; ++j )
-				for( int k=0; k<cparam_.nz/2+1; ++k )
-				{
-					size_t ii = (size_t)(i*cparam_.ny + j) * (size_t)(cparam_.nz/2+1) + (size_t)k;
-					
-					double kx,ky,kz;
-					
-					kx = (double)i;
-					ky = (double)j;
-					kz = (double)k;
-					
-					if( kx > cparam_.nx/2 ) kx -= cparam_.nx;
-					if( ky > cparam_.ny/2 ) ky -= cparam_.ny;
-					
-					double arg = (kx+ky+kz)*dstag;
-					std::complex<double> carg( cos(arg), sin(arg) );
-					
-					std::complex<double> 
-						ccdata(RE(cdata[ii]),IM(cdata[ii])), 
-						cckernel(RE(ckernel[ii]),IM(ckernel[ii]));
-					
-					ccdata = ccdata * cckernel *fftnorm * carg;
-					
-					RE(cdata[ii]) = ccdata.real();
-					IM(cdata[ii]) = ccdata.imag();
-				}
+		if( !pk->is_ksampled() ) {
+		  
+                  #pragma omp parallel for
+		  for( int i=0; i<cparam_.nx; ++i )
+		    for( int j=0; j<cparam_.ny; ++j )
+		      for( int k=0; k<cparam_.nz/2+1; ++k )
+			{
+			  size_t ii = (size_t)(i*cparam_.ny + j) * (size_t)(cparam_.nz/2+1) + (size_t)k;
+			  
+			  double kx,ky,kz;
+			  
+			  kx = (double)i;
+			  ky = (double)j;
+			  kz = (double)k;
+			  
+			  if( kx > cparam_.nx/2 ) kx -= cparam_.nx;
+			  if( ky > cparam_.ny/2 ) ky -= cparam_.ny;
+			  
+			  double arg = (kx+ky+kz)*dstag;
+			  std::complex<double> carg( cos(arg), sin(arg) );
+			  
+			  std::complex<double> 
+			    ccdata(RE(cdata[ii]),IM(cdata[ii])), 
+			    cckernel(RE(ckernel[ii]),IM(ckernel[ii]));
+			  
+			  ccdata = ccdata * cckernel *fftnorm * carg;
+			  
+			  RE(cdata[ii]) = ccdata.real();
+			  IM(cdata[ii]) = ccdata.imag();
+			}
+		}else{
+		  
+            
+		  std::complex<double> dcmode(RE(cdata[0]),IM(cdata[0]));
+
+                  #pragma omp parallel
+		  {
+
+		    const size_t veclen = cparam_.nz/2+1;
+
+		    double *kvec = new double[veclen];
+		    double *Tkvec = new double[veclen];
+		    double *argvec = new double[veclen];
+
+                    #pragma omp for
+		    for( int i=0; i<cparam_.nx; ++i )
+		      for( int j=0; j<cparam_.ny; ++j ) {
+			
+			for( int k=0; k<cparam_.nz/2+1; ++k )
+			  {
+			  double kx,ky,kz;
+			  
+			  kx = (double)i;
+			  ky = (double)j;
+			  kz = (double)k;
+			  
+			  if( kx > cparam_.nx/2 ) kx -= cparam_.nx;
+			  if( ky > cparam_.ny/2 ) ky -= cparam_.ny;
+
+			  kvec[k] = sqrt(kx*kx + ky*ky + kz*kz);
+			  argvec[k] = (kx + ky + kz ) * dstag;
+			}
+
+			pk->at_k( veclen, kvec, Tkvec );
+
+			for( int k=0; k<cparam_.nz/2+1; ++k )
+			{
+			  size_t ii = (size_t)(i*cparam_.ny + j) * (size_t)(cparam_.nz/2+1) + (size_t)k;
+			  std::complex<double> carg( cos(argvec[k]), sin(argvec[k]) );
+
+			  std::complex<double> ccdata(RE(cdata[ii]),IM(cdata[ii]));
+
+			  ccdata = ccdata * Tkvec[k] * fftnorm *carg;
+                
+			  RE(cdata[ii]) = ccdata.real();
+			  IM(cdata[ii]) = ccdata.imag();
+			}
+		      }
+		    
+		    delete[] kvec;
+		    delete[] Tkvec;
+		    delete[] argvec;
+		  }
+
+            
+		  RE(cdata[0]) = dcmode.real() * fftnorm;
+		  IM(cdata[0]) = dcmode.imag() * fftnorm;
+        }
+
 
 		LOGUSER("Performing backward FFT...");
 		
@@ -159,31 +219,125 @@ namespace convolution{
 	/*****************************************************************************************\
 	 ***    SPECIFIC KERNEL IMPLEMENTATIONS      *********************************************
 	\*****************************************************************************************/	
-	
+  template< typename real_t >
+  class kernel_k_new : public kernel
+  {
+  protected:
+    /**/
+    double boxlength_, patchlength_, nspec_, pnorm_, volfac_, kfac_, kmax_;
+    TransferFunction_k *tfk_;
+    
+  public:
+    kernel_k_new( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
+      : kernel( cf, ptf, refh, type )
+    {
+      boxlength_ = pcf_->getValue<double>("setup","boxlength");
+      nspec_ = pcf_->getValue<double>("cosmology","nspec");
+      pnorm_ = pcf_->getValue<double>("cosmology","pnorm");
+      volfac_ = 1.0;//pow(boxlength,3)/pow(2.0*M_PI,3);
+      kfac_ = 2.0*M_PI/boxlength_;
+        kmax_ = kfac_/2;
+      tfk_ = new TransferFunction_k(type_,ptf_,nspec_,pnorm_);
+
+      cparam_.nx = 1;
+      cparam_.ny = 1;
+      cparam_.nz = 1;
+      cparam_.lx = boxlength_;
+      cparam_.ly = boxlength_;
+      cparam_.lz = boxlength_;
+      cparam_.pcf = pcf_;
+        patchlength_ = boxlength_;
+    }
+    
+    kernel* fetch_kernel( int ilevel, bool isolated=false )
+    {
+        if( !isolated )
+	  {
+	    cparam_.nx = prefh_->size(ilevel,0);
+	    cparam_.ny = prefh_->size(ilevel,1);
+	    cparam_.nz = prefh_->size(ilevel,2);
+	    
+	    cparam_.lx = (double)cparam_.nx / (double)(1<<ilevel) * boxlength_;
+	    cparam_.ly = (double)cparam_.ny / (double)(1<<ilevel) * boxlength_;
+	    cparam_.lz = (double)cparam_.nz / (double)(1<<ilevel) * boxlength_;
+	    
+	    patchlength_ = cparam_.lx;
+	    kfac_ = 2.0*M_PI/patchlength_;
+	    kmax_ = kfac_ * cparam_.nx/2;
+	  }
+        else
+	  {
+            cparam_.nx = 2*prefh_->size(ilevel,0);
+            cparam_.ny = 2*prefh_->size(ilevel,1);
+            cparam_.nz = 2*prefh_->size(ilevel,2);
+            
+            cparam_.lx = (double)cparam_.nx / (double)(1<<ilevel) * boxlength_;
+            cparam_.ly = (double)cparam_.ny / (double)(1<<ilevel) * boxlength_;
+            cparam_.lz = (double)cparam_.nz / (double)(1<<ilevel) * boxlength_;
+            
+            patchlength_ = cparam_.lx;
+            kfac_ = 2.0*M_PI/patchlength_;
+            kmax_ = kfac_ * cparam_.nx/2;
+        }
+        
+      return this; 
+    }
+
+
+    void *get_ptr() {  return NULL;  }
+
+    bool is_ksampled()  {  return true;  }
+
+    void at_k( size_t len, const double* in_k, double* out_Tk )
+    {
+      for( size_t i=0; i<len; ++i )
+      {
+          double kk = kfac_ * in_k[i];
+          /*if( kk > kmax_ )
+              out_Tk[i] = 0.0;
+          else*/
+              out_Tk[i] = volfac_ * tfk_->compute( kk );
+      }
+    }
+
+    ~kernel_k_new() { delete tfk_; }
+
+    void deallocate() {  }
+
+
+  };
+
+
+
 
 	template< typename real_t >
 	class kernel_k : public kernel
 	{
 	protected:
-		std::vector<real_t> kdata_;
-		
-		void compute_kernel( tf_type type );
-		
+	  std::vector<real_t> kdata_;
+	  
+	  void compute_kernel( tf_type type );
+	  
 	public:
-		kernel_k( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
-		: kernel( cf, ptf, refh, type )
-		{	}
-		
-		kernel* fetch_kernel( int ilevel, bool isolated=false );
-		
-		void *get_ptr()
-		{	return reinterpret_cast<void*> (&kdata_[0]);	}
-		
-		~kernel_k()
-		{	deallocate();	}
-		
-		void deallocate()
-		{	std::vector<real_t>().swap( kdata_ );	}
+	  kernel_k( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
+	    : kernel( cf, ptf, refh, type )
+	  {	}
+	  
+	  kernel* fetch_kernel( int ilevel, bool isolated=false );
+	  
+	  void *get_ptr()
+	  {	return reinterpret_cast<void*> (&kdata_[0]);	}
+	  
+	  bool is_ksampled()
+	  {     return false;  }
+
+	  void at_k( size_t, const double*, double * ) { }
+	  
+	  ~kernel_k()
+	  {	deallocate();	}
+	  
+	  void deallocate()
+	  {	std::vector<real_t>().swap( kdata_ );	}
 		
 	};
 	
@@ -266,26 +420,31 @@ namespace convolution{
 		void precompute_kernel( transfer_function* ptf, tf_type type, const refinement_hierarchy& refh );
 		
 	public:
-		kernel_real_cached( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
-		: kernel( cf, ptf, refh, type )
-		{
-			precompute_kernel(ptf, type, refh);
-		}
-		
-		kernel* fetch_kernel( int ilevel, bool isolated=false );
-		
-		void *get_ptr()
-		{	return reinterpret_cast<void*> (&kdata_[0]);	}
-		
-		~kernel_real_cached()
-		{	
-			deallocate();
-		}
-		
-		void deallocate()
-		{
-			std::vector<real_t>().swap( kdata_ );	
-		}
+	  kernel_real_cached( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
+	    : kernel( cf, ptf, refh, type )
+	  {
+	    precompute_kernel(ptf, type, refh);
+	  }
+	  
+	  kernel* fetch_kernel( int ilevel, bool isolated=false );
+	  
+	  void *get_ptr()
+	  {	return reinterpret_cast<void*> (&kdata_[0]);	}
+	  
+	  bool is_ksampled()
+	  { return false; }
+	  
+	  void at_k( size_t, const double*, double * ) { }
+	  
+	  ~kernel_real_cached()
+	  {	
+	    deallocate();
+	  }
+	  
+	  void deallocate()
+	  {
+	    std::vector<real_t>().swap( kdata_ );	
+	  }
 		
 	};
 	
@@ -368,15 +527,83 @@ namespace convolution{
 		return this;
 	}
 	
+    template< typename real_t >
+    inline real_t sqr( real_t x )
+    { return x*x; }
+    
+    template< typename real_t >
+    inline real_t eval_split_recurse( const TransferFunction_real* tfr, real_t *xmid, real_t dx, real_t prevval, int nsplit )
+    {
+        const real_t abs_err = 1e-8, rel_err = 1e-6;
+        const int nmaxsplits = 12;
+        
+        real_t dxnew = dx/2, dxnew2 = dx/4;
+        real_t dV = dxnew*dxnew*dxnew;
+        
+        real_t xl[3] = {xmid[0]-dxnew2,xmid[1]-dxnew2,xmid[2]-dxnew2};
+        real_t xr[3] = {xmid[0]+dxnew2,xmid[1]+dxnew2,xmid[2]+dxnew2};
+        
+        real_t xc[8][3] =
+            {
+                {xl[0],xl[1],xl[2]},
+                {xl[0],xl[1],xr[2]},
+                {xl[0],xr[1],xl[2]},
+                {xl[0],xr[1],xr[2]},
+                {xr[0],xl[1],xl[2]},
+                {xr[0],xl[1],xr[2]},
+                {xr[0],xr[1],xl[2]},
+                {xr[0],xr[1],xr[2]},
+            };
+        
+        real_t rr2, res[8], ressum = 0.;
+        
+        for( int i=0; i<8; ++i )
+        {
+            rr2 = sqr(xc[i][0])+sqr(xc[i][1])+sqr(xc[i][2]);
+            res[i] = tfr->compute_real(rr2)*dV;
+            if( res[i] != res[i] ){ LOGERR("NaN encountered at r=%f, dx=%f, dV=%f : TF = %f",sqrt(rr2),dx,dV,res[i]); abort(); }
+            ressum += res[i];
+        }
+        
+        real_t ae = fabs((prevval-ressum));
+        real_t re = fabs(ae/ressum);
+        
+        if( ae < abs_err || re < rel_err ) return ressum;
+        
+        if( nsplit > nmaxsplits )
+        {
+            //LOGWARN("reached maximum number of supdivisions in eval_split_recurse. Ending recursion... : abs. err.=%f, rel. err.=%f",ae, re);
+            return ressum;
+        }
+        
+        //otherwise keep splitting
+        ressum = 0;
+        for( int i=0; i<8; ++i )
+            ressum += eval_split_recurse( tfr, xc[i], dxnew, res[i], nsplit+1 );
+        
+        return ressum;
+    }
+    
+    template< typename real_t >
+    inline real_t eval_split_recurse( const TransferFunction_real *tfr, real_t *xmid, real_t dx, int nsplit = 0 )
+    {
+        //sqr(xmid[0])+sqr(xmid[1])+sqr(xmid[2])
+        
+        real_t rr2 = sqr(xmid[0]) + sqr(xmid[1]) + sqr(xmid[2]);
+        real_t prevval = tfr->compute_real(rr2)*dx*dx*dx;
+        return eval_split_recurse( tfr, xmid, dx, prevval, nsplit );
+    }
+    
+    //#define OLD_KERNEL_SAMPLING
 	
 	template< typename real_t >
 	void kernel_real_cached<real_t>::precompute_kernel( transfer_function* ptf, tf_type type, const refinement_hierarchy& refh )
 	{
 		//... compute kernel for finest level
 		int nx,ny,nz;
-		double dx,lx,ly,lz;
+		real_t dx,lx,ly,lz;
 		
-		double
+		real_t
 			boxlength	= pcf_->getValue<double>("setup","boxlength"),
 			boxlength2  = 0.5*boxlength;
 		
@@ -402,39 +629,36 @@ namespace convolution{
 		ly = dx * ny;
 		lz = dx * nz;
 		
-		double 
-		kny			= M_PI/dx,
-		fac			= lx*ly*lz/pow(2.0*M_PI,3)/((double)nx*(double)ny*(double)nz),
-		
-		nspec		= pcf_->getValue<double>("cosmology","nspec"),
-		pnorm		= pcf_->getValue<double>("cosmology","pnorm");
+		real_t 
+		  kny = M_PI/dx,
+		  fac = lx*ly*lz/pow(2.0*M_PI,3)/((double)nx*(double)ny*(double)nz),
+		  nspec = pcf_->getValue<double>("cosmology","nspec"),
+		  pnorm = pcf_->getValue<double>("cosmology","pnorm");
 		
 		bool
-			bperiodic	= pcf_->getValueSafe<bool>("setup","periodic_TF",true),
-			deconv = pcf_->getValueSafe<bool>("setup","deconvolve",true);
+		  bperiodic = pcf_->getValueSafe<bool>("setup","periodic_TF",true),
+		  deconv = pcf_->getValueSafe<bool>("setup","deconvolve",true);
 		//		bool deconv_baryons = true;//pcf_->getValueSafe<bool>("setup","deconvolve_baryons",false) || do_SPH;
 		bool bsmooth_baryons = false;//type==baryon && !deconv_baryons;
-									 //bool bbaryons = type==baryon | type==vbaryon;
+		//bool bbaryons = type==baryon | type==vbaryon;
 		bool kspacepoisson = ((pcf_->getValueSafe<bool>("poisson","fft_fine",true)|
-							   pcf_->getValueSafe<bool>("poisson","kspace",false)));// & !(type==baryon&!do_SPH);//&!baryons ;
+				       pcf_->getValueSafe<bool>("poisson","kspace",false)));// & !(type==baryon&!do_SPH);//&!baryons ;
 		
 		std::cout << "   - Computing transfer function kernel...\n";
 		
-		TransferFunction_real *tfr = 
-						new TransferFunction_real( boxlength, 1<<levelmax, type, ptf,nspec,pnorm,
-								  0.25*dx,2.0*boxlength,kny, (int)pow(2,levelmax+2));		
+		TransferFunction_real *tfr = new TransferFunction_real( boxlength, 1<<levelmax, type, ptf,nspec,pnorm,
+									0.25*dx,2.0*boxlength,kny, (int)pow(2,levelmax+2));		
 		
 		fftw_real *rkernel = new fftw_real[(size_t)nx*(size_t)ny*((size_t)nz+2)], *rkernel_coarse;
 		
 		#pragma omp parallel for
 		for( int i=0; i<nx; ++i )
-			for( int j=0; j<ny; ++j )
-				for( int k=0; k<nz; ++k )
-				{
-					size_t q=((size_t)(i)*ny + (size_t)(j)) * (size_t)(nz+2) + (size_t)(k);
-					rkernel[q] = 0.0;
-					
-				}
+		  for( int j=0; j<ny; ++j )
+		    for( int k=0; k<nz; ++k )
+		      {
+			size_t q=((size_t)(i)*ny + (size_t)(j)) * (size_t)(nz+2) + (size_t)(k);
+			rkernel[q] = 0.0;
+		      }
 		
 		LOGUSER("Computing fine kernel (level %d)...", levelmax);
 		
@@ -442,176 +666,190 @@ namespace convolution{
 		const int ql = -ref_fac/2+1, qr = ql+ref_fac;
 		const double rf8 = pow(ref_fac,3);
 		const double dx05 = 0.5*dx, dx025 = 0.25*dx;
+        
+		std::cerr << ">>>>>>>>>>>> " << ref_fac << " <<<<<<<<<<<<<<<<" << std::endl;
 		
 		if( bperiodic  )
 		{		
-			
-			
-			#pragma omp parallel for
-			for( int i=0; i<=nx/2; ++i )
-				for( int j=0; j<=ny/2; ++j )
-					for( int k=0; k<=nz/2; ++k )
+#pragma omp parallel for
+		  for( int i=0; i<=nx/2; ++i )
+		    for( int j=0; j<=ny/2; ++j )
+		      for( int k=0; k<=nz/2; ++k )
+			{
+			  int iix(i), iiy(j), iiz(k);
+			  real_t rr[3];
+			  
+			  if( iix > (int)nx/2 ) iix -= nx;
+			  if( iiy > (int)ny/2 ) iiy -= ny;
+			  if( iiz > (int)nz/2 ) iiz -= nz;
+			  
+			  
+			  //... speed up 8x by copying data to other octants
+			  size_t idx[8];
+			  
+			  idx[0] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
+			  idx[1] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
+			  idx[2] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
+			  idx[3] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
+			  idx[4] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
+			  idx[5] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
+			  idx[6] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
+			  idx[7] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
+			  
+			  if(i==0||i==nx/2){ idx[1]=idx[3]=idx[5]=idx[7]=(size_t)-1;}
+			  if(j==0||j==ny/2){ idx[2]=idx[3]=idx[6]=idx[7]=(size_t)-1;}
+			  if(k==0||k==nz/2){ idx[4]=idx[5]=idx[6]=idx[7]=(size_t)-1;}
+			  
+			  double val = 0.0;
+			  
+			  for( int ii=-1; ii<=1; ++ii )
+			    for( int jj=-1; jj<=1; ++jj )
+			      for( int kk=-1; kk<=1; ++kk )
+				{
+				  rr[0] = ((double)iix ) * dx + ii*boxlength;
+				  rr[1] = ((double)iiy ) * dx + jj*boxlength;
+				  rr[2] = ((double)iiz ) * dx + kk*boxlength;
+				  
+				  if( rr[0] > -boxlength && rr[0] <= boxlength
+				      && rr[1] > -boxlength && rr[1] <= boxlength
+				      && rr[2] > -boxlength && rr[2] <= boxlength )
+				    {
+#ifdef OLD_KERNEL_SAMPLING
+				      if( ref_fac > 0 )
 					{
-						int iix(i), iiy(j), iiz(k);
-						double rr[3], rr2;
+					  double rrr[3];
+					  register double rrr2[3];
+					  for( int iii=ql; iii<qr; ++iii )
+					    {       
+					      rrr[0] = rr[0]+(double)iii*dx05 - dx025;
+					      rrr2[0]= rrr[0]*rrr[0];
+					      for( int jjj=ql; jjj<qr; ++jjj )
+						{
+						  rrr[1] = rr[1]+(double)jjj*dx05 - dx025;
+						  rrr2[1]= rrr[1]*rrr[1];
+						  for( int kkk=ql; kkk<qr; ++kkk )
+						    {
+						      rrr[2] = rr[2]+(double)kkk*dx05 - dx025;
+						      rrr2[2]= rrr[2]*rrr[2];
+						      val += tfr->compute_real(rrr2[0]+rrr2[1]+rrr2[2])/rf8;
+						    }
+						}
+					    }
+					}
+				      else
+					{
+					  val += tfr->compute_real(rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2]);
+					}
+				      
+				      
+#else // !OLD_KERNEL_SAMPLING
+				      val += eval_split_recurse( tfr, rr, dx ) / (dx*dx*dx);
+#endif			
+				    }
+				}
+			  
+			  val *= fac;
+			  
+			  for(int q=0;q<8;++q)
+			    if(idx[q]!=(size_t)-1)  
+			      rkernel[idx[q]] = val;	
+			}
+		  
+		}else{ 
+                  #pragma omp parallel for
+		  for( int i=0; i<nx; ++i )
+		    for( int j=0; j<ny; ++j )
+		      for( int k=0; k<nz; ++k )
+			{
+			  int iix(i), iiy(j), iiz(k);
+			  real_t rr[3];
+			  
+			  if( iix > (int)nx/2 ) iix -= nx;
+			  if( iiy > (int)ny/2 ) iiy -= ny;
+			  if( iiz > (int)nz/2 ) iiz -= nz;
+			  
+			  //size_t idx = ((size_t)i*ny + (size_t)j) * 2*(nz/2+1) + (size_t)k;
+			  
+			  rr[0] = ((double)iix ) * dx;
+			  rr[1] = ((double)iiy ) * dx;
+			  rr[2] = ((double)iiz ) * dx;
+			  
+			  //rkernel[idx] = 0.0;
+			  
+			  //rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+			  
+			  //... speed up 8x by copying data to other octants
+			  size_t idx[8];
+			  
+			  idx[0] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
+			  idx[1] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
+			  idx[2] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
+			  idx[3] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
+			  idx[4] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
+			  idx[5] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
+			  idx[6] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
+			  idx[7] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
 						
-						if( iix > (int)nx/2 ) iix -= nx;
-						if( iiy > (int)ny/2 ) iiy -= ny;
-						if( iiz > (int)nz/2 ) iiz -= nz;
-						
-						
-						//... speed up 8x by copying data to other octants
-						size_t idx[8];
-						
-						idx[0] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
-						idx[1] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
-						idx[2] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
-						idx[3] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
-						idx[4] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
-						idx[5] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
-						idx[6] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
-						idx[7] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
-						
-						if(i==0||i==nx/2){ idx[1]=idx[3]=idx[5]=idx[7]=(size_t)-1;}
-						if(j==0||j==ny/2){ idx[2]=idx[3]=idx[6]=idx[7]=(size_t)-1;}
-						if(k==0||k==nz/2){ idx[4]=idx[5]=idx[6]=idx[7]=(size_t)-1;}
-						
-						double val = 0.0;
-						
-						for( int ii=-1; ii<=1; ++ii )
-							for( int jj=-1; jj<=1; ++jj )
-								for( int kk=-1; kk<=1; ++kk )
-								{
-									rr[0] = ((double)iix ) * dx + ii*boxlength;
-									rr[1] = ((double)iiy ) * dx + jj*boxlength;
-									rr[2] = ((double)iiz ) * dx + kk*boxlength;
-									
-									if( rr[0] > -boxlength && rr[0] <= boxlength
-									   && rr[1] > -boxlength && rr[1] <= boxlength
-									   && rr[2] > -boxlength && rr[2] <= boxlength )
-									{
-										if( ref_fac > 0 )
-										{
-											double rrr[3];
-											register double rrr2[3];
-											for( int iii=ql; iii<qr; ++iii )
-											{       
-												rrr[0] = rr[0]+(double)iii*dx05 - dx025;
-												rrr2[0]= rrr[0]*rrr[0];
-												for( int jjj=ql; jjj<qr; ++jjj )
-												{
-													rrr[1] = rr[1]+(double)jjj*dx05 - dx025;
-													rrr2[1]= rrr[1]*rrr[1];
-													for( int kkk=ql; kkk<qr; ++kkk )
-													{
-														rrr[2] = rr[2]+(double)kkk*dx05 - dx025;
-														rrr2[2]= rrr[2]*rrr[2];
-														rr2 = rrr2[0]+rrr2[1]+rrr2[2];
-														val += tfr->compute_real(rr2)/rf8;
-													}
-												}
-											}
-										}
-										else
-										{
-											rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-											val += tfr->compute_real(rr2);	
-										}
+			  if(i==0||i==nx/2){ idx[1]=idx[3]=idx[5]=idx[7]=(size_t)-1;}
+			  if(j==0||j==ny/2){ idx[2]=idx[3]=idx[6]=idx[7]=(size_t)-1;}
+			  if(k==0||k==nz/2){ idx[4]=idx[5]=idx[6]=idx[7]=(size_t)-1;}
+			  
+			  double val = 0.0;//(fftw_real)tfr->compute_real(rr2)*fac;
+			  
+#ifdef OLD_KERNEL_SAMPLING
+                        
+			  if( ref_fac > 0 )
+			    {
+			      double rrr[3];
+			      register double rrr2[3];
+			      for( int iii=ql; iii<qr; ++iii )
+				{       
+				  rrr[0] = rr[0]+(double)iii*dx05 - dx025;
+				  rrr2[0]= rrr[0]*rrr[0];
+				  for( int jjj=ql; jjj<qr; ++jjj )
+				    {
+				      rrr[1] = rr[1]+(double)jjj*dx05 - dx025;
+				      rrr2[1]= rrr[1]*rrr[1];
+				      for( int kkk=ql; kkk<qr; ++kkk )
+					{
+					  rrr[2] = rr[2]+(double)kkk*dx05 - dx025;
+					  rrr2[2]= rrr[2]*rrr[2];
+					  val += tfr->compute_real(rrr2[0]+rrr2[1]+rrr2[2])/rf8;
+					}
+				    }
+				}
+			    }
+			  else
+			    {
+			      val = tfr->compute_real(rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2]);
+			    }
+			  
+#else
+                        if( i == 0 && j == 0 && k == 0 ) continue;
+                        
+                        // use new exact volume integration scheme
+                        val = eval_split_recurse( tfr, rr, dx ) / (dx*dx*dx);
 
-										
-									}
-								}
-						
-						val *= fac;
-						
-						for(int q=0;q<8;++q)
-							if(idx[q]!=(size_t)-1)  
-								rkernel[idx[q]] = val;	
-					}
+#endif
+                        
+			//if( rr2 <= boxlength2*boxlength2 )
+			//rkernel[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
+			val *= fac;	
 			
-		}else{
-			#pragma omp parallel for
-			for( int i=0; i<nx; ++i )
-				for( int j=0; j<ny; ++j )
-					for( int k=0; k<nz; ++k )
-					{
-						int iix(i), iiy(j), iiz(k);
-						double rr[3], rr2;
-						
-						if( iix > (int)nx/2 ) iix -= nx;
-						if( iiy > (int)ny/2 ) iiy -= ny;
-						if( iiz > (int)nz/2 ) iiz -= nz;
-						
-						//size_t idx = ((size_t)i*ny + (size_t)j) * 2*(nz/2+1) + (size_t)k;
-						
-						rr[0] = ((double)iix ) * dx;
-						rr[1] = ((double)iiy ) * dx;
-						rr[2] = ((double)iiz ) * dx;
-						
-						//rkernel[idx] = 0.0;
-						
-						//rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-						
-						//... speed up 8x by copying data to other octants
-						size_t idx[8];
-						
-						idx[0] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
-						idx[1] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(k);
-						idx[2] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
-						idx[3] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(k);
-						idx[4] = ((size_t)(i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
-						idx[5] = ((size_t)(nx-i)*ny + (size_t)(j)) * 2*(nz/2+1) + (size_t)(nz-k);
-						idx[6] = ((size_t)(i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
-						idx[7] = ((size_t)(nx-i)*ny + (size_t)(ny-j)) * 2*(nz/2+1) + (size_t)(nz-k);
-						
-						if(i==0||i==nx/2){ idx[1]=idx[3]=idx[5]=idx[7]=(size_t)-1;}
-						if(j==0||j==ny/2){ idx[2]=idx[3]=idx[6]=idx[7]=(size_t)-1;}
-						if(k==0||k==nz/2){ idx[4]=idx[5]=idx[6]=idx[7]=(size_t)-1;}
-						
-						double val = 0.0;//(fftw_real)tfr->compute_real(rr2)*fac;
-						
-						if( ref_fac > 0 )
-						{
-							double rrr[3];
-							register double rrr2[3];
-							for( int iii=ql; iii<qr; ++iii )
-							{       
-								rrr[0] = rr[0]+(double)iii*dx05 - dx025;
-								rrr2[0]= rrr[0]*rrr[0];
-								for( int jjj=ql; jjj<qr; ++jjj )
-								{
-									rrr[1] = rr[1]+(double)jjj*dx05 - dx025;
-									rrr2[1]= rrr[1]*rrr[1];
-									for( int kkk=ql; kkk<qr; ++kkk )
-									{
-										rrr[2] = rr[2]+(double)kkk*dx05 - dx025;
-										rrr2[2]= rrr[2]*rrr[2];
-										rr2 = rrr2[0]+rrr2[1]+rrr2[2];
-										val += tfr->compute_real(rr2)/rf8;
-									}
-								}
-							}
-						}
-						else
-						{
-							rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-							val = tfr->compute_real(rr2);	
-						}
-						
-						
-						//if( rr2 <= boxlength2*boxlength2 )
-						//rkernel[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
-						val *= fac;	
-						
-						for(int q=0;q<8;++q)
-							if(idx[q]!=(size_t)-1)  
-								rkernel[idx[q]] = val;
-						
-					}
+			for(int q=0;q<8;++q)
+			  if(idx[q]!=(size_t)-1)  
+			    rkernel[idx[q]] = val;
+			
+			}
 		}
-		
-		rkernel[0] = tfr->compute_real(0.0)*fac;
-		
+		{
+#ifdef OLD_KERNEL_SAMPLING
+            rkernel[0] = tfr->compute_real(0.0)*fac;
+#else
+            real_t xmid[3] = {0.0,0.0,0.0};
+            rkernel[0] = fac*eval_split_recurse( tfr, xmid, dx ) / (dx*dx*dx);
+#endif
+		}
 		/*************************************************************************************/
 		/*************************************************************************************/
 		/******* perform deconvolution *******************************************************/
@@ -837,7 +1075,7 @@ namespace convolution{
 			LOGUSER("Computing coarse kernel (level %d)...",ilevel);
 			
 			int nxc, nyc, nzc;
-			double dxc,lxc,lyc,lzc;
+			real_t dxc,lxc,lyc,lzc;
 			
 			nxc = refh.size(ilevel,0);
 			nyc = refh.size(ilevel,1);
@@ -845,9 +1083,9 @@ namespace convolution{
 			
 			if( ilevel!=levelmin )
 			{
-				nxc *= 2;
-				nyc *= 2;
-				nzc *= 2;
+			  nxc *= 2;
+			  nyc *= 2;
+			  nzc *= 2;
 			}
 			
 			
@@ -857,96 +1095,112 @@ namespace convolution{
 			lzc = dxc * nzc;
 			
 			rkernel_coarse = new fftw_real[(size_t)nxc*(size_t)nyc*2*((size_t)nzc/2+1)];
-			fac			= lxc*lyc*lzc/pow(2.0*M_PI,3)/((double)nxc*(double)nyc*(double)nzc);
+			fac = lxc*lyc*lzc/pow(2.0*M_PI,3)/((double)nxc*(double)nyc*(double)nzc);
 			
 			if( bperiodic  )
 			{		
-				#pragma omp parallel for
-				for( int i=0; i<=nxc/2; ++i )
-					for( int j=0; j<=nyc/2; ++j )
-						for( int k=0; k<=nzc/2; ++k )
-						{
-							int iix(i), iiy(j), iiz(k);
-							double rr[3], rr2;
-							
-							if( iix > (int)nxc/2 ) iix -= nxc;
-							if( iiy > (int)nyc/2 ) iiy -= nyc;
-							if( iiz > (int)nzc/2 ) iiz -= nzc;
-							
-							//... speed up 8x by copying data to other octants
-							size_t idx[8];
-							
-							idx[0] = ((size_t)(i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(k);
-							idx[1] = ((size_t)(nxc-i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(k);
-							idx[2] = ((size_t)(i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(k);
-							idx[3] = ((size_t)(nxc-i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(k);
-							idx[4] = ((size_t)(i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
-							idx[5] = ((size_t)(nxc-i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
-							idx[6] = ((size_t)(i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
-							idx[7] = ((size_t)(nxc-i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
-							
-							if(i==0||i==nxc/2){ idx[1]=idx[3]=idx[5]=idx[7]=(size_t)-1;}
-							if(j==0||j==nyc/2){ idx[2]=idx[3]=idx[6]=idx[7]=(size_t)-1;}
-							if(k==0||k==nzc/2){ idx[4]=idx[5]=idx[6]=idx[7]=(size_t)-1;}
-							
-							double val = 0.0;
-							
-							for( int ii=-1; ii<=1; ++ii )
-								for( int jj=-1; jj<=1; ++jj )
-									for( int kk=-1; kk<=1; ++kk )
-									{
-										rr[0] = ((double)iix ) * dxc + ii*boxlength;
-										rr[1] = ((double)iiy ) * dxc + jj*boxlength;
-										rr[2] = ((double)iiz ) * dxc + kk*boxlength;
-										
-										if( rr[0] > -boxlength && rr[0] < boxlength
-										   && rr[1] > -boxlength && rr[1] < boxlength
-										   && rr[2] > -boxlength && rr[2] < boxlength )
-										{
-											rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-											val += tfr->compute_real(rr2);	
-										}
-									}
-							
-							val *= fac;
-							
-							for(int qq=0;qq<8;++qq)
-								if(idx[qq]!=(size_t)-1)  
-									rkernel_coarse[idx[qq]] = val;	
-						}
-				
+			  #pragma omp parallel for
+			  for( int i=0; i<=nxc/2; ++i )
+			    for( int j=0; j<=nyc/2; ++j )
+			      for( int k=0; k<=nzc/2; ++k )
+				{
+				  int iix(i), iiy(j), iiz(k);
+				  real_t rr[3], rr2;
+				  
+				  if( iix > (int)nxc/2 ) iix -= nxc;
+				  if( iiy > (int)nyc/2 ) iiy -= nyc;
+				  if( iiz > (int)nzc/2 ) iiz -= nzc;
+				  
+				  //... speed up 8x by copying data to other octants
+				  size_t idx[8];
+				  
+				  idx[0] = ((size_t)(i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(k);
+				  idx[1] = ((size_t)(nxc-i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(k);
+				  idx[2] = ((size_t)(i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(k);
+				  idx[3] = ((size_t)(nxc-i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(k);
+				  idx[4] = ((size_t)(i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
+				  idx[5] = ((size_t)(nxc-i)*nyc + (size_t)(j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
+				  idx[6] = ((size_t)(i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
+				  idx[7] = ((size_t)(nxc-i)*nyc + (size_t)(nyc-j)) * 2*(nzc/2+1) + (size_t)(nzc-k);
+				  
+				  if(i==0||i==nxc/2){ idx[1]=idx[3]=idx[5]=idx[7]=(size_t)-1;}
+				  if(j==0||j==nyc/2){ idx[2]=idx[3]=idx[6]=idx[7]=(size_t)-1;}
+				  if(k==0||k==nzc/2){ idx[4]=idx[5]=idx[6]=idx[7]=(size_t)-1;}
+				  
+				  double val = 0.0;
+				  
+				  for( int ii=-1; ii<=1; ++ii )
+				    for( int jj=-1; jj<=1; ++jj )
+				      for( int kk=-1; kk<=1; ++kk )
+					{
+					  rr[0] = ((double)iix ) * dxc + ii*boxlength;
+					  rr[1] = ((double)iiy ) * dxc + jj*boxlength;
+					  rr[2] = ((double)iiz ) * dxc + kk*boxlength;
+					  
+					  if( rr[0] > -boxlength && rr[0] < boxlength
+					      && rr[1] > -boxlength && rr[1] < boxlength
+					      && rr[2] > -boxlength && rr[2] < boxlength )
+					    {
+#ifdef OLD_KERNEL_SAMPLING
+					      rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+					      val += tfr->compute_real(rr2);	
+#else // ! OLD_KERNEL_SAMPLING
+					      val += eval_split_recurse( tfr, rr, dxc ) / (dxc*dxc*dxc);
+#endif
+					    }
+					}
+				  
+				  val *= fac;
+				  
+				  for(int qq=0;qq<8;++qq)
+				    if(idx[qq]!=(size_t)-1)  
+				      rkernel_coarse[idx[qq]] = val;	
+				}
+			  
 			}else{
-				#pragma omp parallel for
-				for( int i=0; i<nxc; ++i )
-					for( int j=0; j<nyc; ++j )
-						for( int k=0; k<nzc; ++k )
-						{
-							int iix(i), iiy(j), iiz(k);
-							double rr[3], rr2;
+                          #pragma omp parallel for
+			  for( int i=0; i<nxc; ++i )
+			    for( int j=0; j<nyc; ++j )
+			      for( int k=0; k<nzc; ++k )
+				{
+				  int iix(i), iiy(j), iiz(k);
+				  real_t rr[3];
 							
-							if( iix > (int)nxc/2 ) iix -= nxc;
-							if( iiy > (int)nyc/2 ) iiy -= nyc;
-							if( iiz > (int)nzc/2 ) iiz -= nzc;
+				  if( iix > (int)nxc/2 ) iix -= nxc;
+				  if( iiy > (int)nyc/2 ) iiy -= nyc;
+				  if( iiz > (int)nzc/2 ) iiz -= nzc;
+				  
+				  size_t idx = ((size_t)i*nyc + (size_t)j) * 2*(nzc/2+1) + (size_t)k;
+				  
+				  rr[0] = ((double)iix ) * dxc;
+				  rr[1] = ((double)iiy ) * dxc;
+				  rr[2] = ((double)iiz ) * dxc;
+				  
+#ifdef OLD_KERNEL_SAMPLING
+				  rkernel_coarse[idx] = 0.0;
+				  
+				  real_t rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
+				  if( fabs(rr[0])<=boxlength2||fabs(rr[1])<=boxlength2||fabs(rr[2])<=boxlength2 )
+				    rkernel_coarse[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
+#else
+				  
+				  rkernel_coarse[idx] = 0.0;
+				  
+				  //if( i==0 && j==0 && k==0 ) continue;
+				  real_t val = eval_split_recurse( tfr, rr, dxc ) / (dxc*dxc*dxc);
+                            
+				  if( fabs(rr[0])<=boxlength2||fabs(rr[1])<=boxlength2||fabs(rr[2])<=boxlength2 )
+				    rkernel_coarse[idx] += val * fac;
+                            
+#endif
 							
-							size_t idx = ((size_t)i*nyc + (size_t)j) * 2*(nzc/2+1) + (size_t)k;
-							
-							rr[0] = ((double)iix ) * dxc;
-							rr[1] = ((double)iiy ) * dxc;
-							rr[2] = ((double)iiz ) * dxc;
-							
-							rkernel_coarse[idx] = 0.0;
-							
-							rr2 = rr[0]*rr[0]+rr[1]*rr[1]+rr[2]*rr[2];
-							if( fabs(rr[0])<=boxlength2||fabs(rr[1])<=boxlength2||fabs(rr[2])<=boxlength2 )
-								rkernel_coarse[idx] += (fftw_real)tfr->compute_real(rr2)*fac;
-							
-						}
+				}
 			}
 
 			LOGUSER("Averaging fine kernel to coarse kernel...");
 
 			//... copy averaged and convolved fine kernel to coarse kernel
-			#pragma omp parallel for
+			/*#pragma omp parallel for
 			for( int ix=0; ix<nx; ix+=2 )
 				for( int iy=0; iy<ny; iy+=2 )
 					for( int iz=0; iz<nz; iz+=2 )
@@ -978,7 +1232,7 @@ namespace convolution{
 												 +rkernel[ACC_RF(ix-i,iy-j+1,iz-k+1)] + rkernel[ACC_RF(ix-i+1,iy-j+1,iz-k+1)]);
 									}
 						
-					}
+					}*/
 
 			
 			sprintf(cachefname,"temp_kernel_level%03d.tmp",ilevel);
@@ -1026,10 +1280,13 @@ namespace convolution{
 
 namespace
 {
-	convolution::kernel_creator_concrete< convolution::kernel_real_cached<double> > creator_d("tf_kernel_real_double");
-	convolution::kernel_creator_concrete< convolution::kernel_real_cached<float> > creator_f("tf_kernel_real_float");
-	convolution::kernel_creator_concrete< convolution::kernel_k<double> > creator_kd("tf_kernel_k_double");
-	convolution::kernel_creator_concrete< convolution::kernel_k<float> > creator_kf("tf_kernel_k_float");
+  convolution::kernel_creator_concrete< convolution::kernel_real_cached<double> > creator_d("tf_kernel_real_double");
+  convolution::kernel_creator_concrete< convolution::kernel_real_cached<float> > creator_f("tf_kernel_real_float");
+  convolution::kernel_creator_concrete< convolution::kernel_k<double> > creator_kd("tf_kernel_k_double");
+  convolution::kernel_creator_concrete< convolution::kernel_k<float> > creator_kf("tf_kernel_k_float");
+  
+  convolution::kernel_creator_concrete< convolution::kernel_k_new<double> > creator_knd("tf_kernel_k_new_double");
+  convolution::kernel_creator_concrete< convolution::kernel_k_new<float> > creator_knf("tf_kernel_k_new_float");
 }
 
 

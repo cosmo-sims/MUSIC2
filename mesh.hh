@@ -36,10 +36,10 @@ public:
     : nx_( 0 ), ny_ ( 0 ), nz_( 0 )
     { }
     
-    refinement_mask( size_t nx, size_t ny, size_t nz )
+    refinement_mask( size_t nx, size_t ny, size_t nz, short value = 0. )
     : nx_( nx ), ny_( ny ), nz_( nz )
     {
-        mask_.assign( nx_*ny_*nz_, 0 );
+        mask_.assign( nx_*ny_*nz_, value );
     }
     
     refinement_mask( const refinement_mask& r )
@@ -60,12 +60,12 @@ public:
         return *this;
     }
     
-    void init( size_t nx, size_t ny, size_t nz )
+    void init( size_t nx, size_t ny, size_t nz, short value = 0. )
     {
         nx_ = nx;
         ny_ = ny;
         nz_ = nz;
-        mask_.assign( nx_*ny_*nz_, 0 );
+        mask_.assign( nx_*ny_*nz_, value );
     }
     
     const short& operator()( size_t i, size_t j, size_t k ) const
@@ -537,7 +537,7 @@ public:
 		m_yoffabs,		//!< vector of x-offsets of a level mesh relative to the coarser level
 		m_zoffabs;		//!< vector of x-offsets of a level mesh relative to the coarser level
     
-    refinement_mask ref_mask;
+    std::vector< refinement_mask* > m_ref_masks;
     bool bhave_refmask;
 	
 protected:
@@ -614,15 +614,20 @@ public:
 		m_yoffabs = gh.m_yoffabs;
 		m_zoffabs = gh.m_zoffabs;
         
-        ref_mask   = gh.ref_mask;
+        //ref_mask   = gh.ref_mask;
         bhave_refmask = gh.bhave_refmask;
+        
+        if( bhave_refmask )
+        {
+            for( size_t i=0; i<gh.m_ref_masks.size(); ++i )
+                m_ref_masks.push_back( new refinement_mask( *(gh.m_ref_masks[i]) ) );
+        }
 	}
 	
 	//! destructor
 	~GridHierarchy()
 	{
 		this->deallocate();
-		
 	}
 	
 	//! free all memory occupied by the grid hierarchy
@@ -633,11 +638,14 @@ public:
 		m_pgrids.clear();
 		std::vector< MeshvarBnd<T>* >().swap( m_pgrids );
 		
-		
 		m_xoffabs.clear();
 		m_yoffabs.clear();
 		m_zoffabs.clear();
 		m_levelmin = 0;
+        
+        for( size_t i=0; i<m_ref_masks.size(); ++i )
+            delete m_ref_masks[i];
+        m_ref_masks.clear();
 	}
     
     void add_refinement_mask( const double *shift )
@@ -647,28 +655,33 @@ public:
         //! generate a mask
         if( m_levelmin != levelmax() )
         {
-            int ilevel = levelmax() - 1;
-            double xq[3], dx = 1.0/(1ul<<(levelmax()-1));
-            
-            ref_mask.init( size(ilevel,0), size(ilevel,1), size(ilevel,2) );
-            
-            for( size_t i=0; i<size(ilevel,0); i++ )
+            for( int ilevel = levelmax()-1; ilevel >= levelmin(); --ilevel )
             {
-                xq[0] = (offset_abs(ilevel,0) + i)*dx + 0.5*dx + shift[0];
-                for( size_t j=0; j<size(ilevel,1); ++j )
+                double xq[3], dx = 1.0/(1ul<<ilevel); //1.0/(1ul<<(levelmax()-1));
+                
+                m_ref_masks[ilevel]->init( size(ilevel,0), size(ilevel,1), size(ilevel,2), 0.0 );
+                
+                for( size_t i=0; i<size(ilevel,0); i++ )
                 {
-                    xq[1] = (offset_abs(ilevel,1) + j)*dx + 0.5*dx + shift[1];
-                    for( size_t k=0; k<size(ilevel,2); ++k )
+                    xq[0] = (offset_abs(ilevel,0) + i)*dx + 0.5*dx + shift[0];
+                    for( size_t j=0; j<size(ilevel,1); ++j )
                     {
-                        xq[2] = (offset_abs(ilevel,2) + k)*dx + 0.5*dx + shift[2];
-                        
-                        if( the_region_generator->query_point( xq ) )
-                            ref_mask(i,j,k) = true;
+                        xq[1] = (offset_abs(ilevel,1) + j)*dx + 0.5*dx + shift[1];
+                        for( size_t k=0; k<size(ilevel,2); ++k )
+                        {
+                            xq[2] = (offset_abs(ilevel,2) + k)*dx + 0.5*dx + shift[2];
+                            
+                            if( the_region_generator->query_point( xq, ilevel ) )
+                                (*m_ref_masks[ilevel])(i,j,k) = 1.0;//true;
+                            else
+                                (*m_ref_masks[ilevel])(i,j,k) = 0.0;
+                        }
                     }
                 }
             }
             
             bhave_refmask = true;
+            
         }
     }
 	
@@ -762,16 +775,19 @@ public:
 	 */
 	bool is_refined( unsigned ilevel, int i, int j, int k ) const
 	{
-	  if( ilevel == levelmax() ){
+        if( bhave_refmask )
+            return !(*m_ref_masks[ilevel-1])(offset(ilevel,0)+i/2,offset(ilevel,1)+j/2,offset(ilevel,2)+k/2);
+        
+	  /*if( ilevel == levelmax() ){
             if( !bhave_refmask ) return false;
             else if( ref_mask(offset(levelmax(),0)+i/2,offset(levelmax(),1)+j/2,offset(levelmax(),2)+k/2) )
                 return false;
             else
                 return true;
-	  }
+	  }*/
 
         if( ilevel == levelmax()-1 && bhave_refmask )
-            return ref_mask(i,j,k);
+            return (*m_ref_masks[ilevel])(i,j,k);
 		
 		if( i < offset(ilevel+1,0) || i >= offset(ilevel+1, 0)+(int)size(ilevel+1,0)/2 ||
 		    j < offset(ilevel+1,1) || j >= offset(ilevel+1, 1)+(int)size(ilevel+1,1)/2 ||
@@ -849,6 +865,9 @@ public:
 		}
 		
 		m_levelmin = lmax;
+        
+        for( unsigned i=0; i<= lmax; ++i )
+            m_ref_masks.push_back( new refinement_mask(size(i,0),size(i,1),size(i,2),(short)(i!=lmax)) );
 	}
 	
 	//! multiply entire grid hierarchy by a constant
@@ -937,7 +956,12 @@ public:
 	GridHierarchy<T>& operator=( const GridHierarchy<T>& gh )
 	{
         bhave_refmask = gh.bhave_refmask;
-        ref_mask = gh.ref_mask;
+
+        if( bhave_refmask )
+        {
+            for( unsigned i=0; i<=gh.levelmax(); ++i )
+                m_ref_masks.push_back( new refinement_mask( *(gh.m_ref_masks[i]) ) );
+        }
       
 		if( !is_consistent(gh) )
 		{
@@ -1002,6 +1026,8 @@ public:
 		m_xoffabs.push_back( 2*(m_xoffabs.back() + xoff) );
 		m_yoffabs.push_back( 2*(m_yoffabs.back() + yoff) );
 		m_zoffabs.push_back( 2*(m_zoffabs.back() + zoff) );
+        
+        m_ref_masks.push_back( new refinement_mask(nx,ny,nz,0.0) );
 	}
 	
 	/*! cut a refinement patch to the specified size
@@ -1020,6 +1046,8 @@ public:
 		dx = xoff-m_xoffabs[ilevel];
 		dy = yoff-m_yoffabs[ilevel];
 		dz = zoff-m_zoffabs[ilevel];
+
+		assert( dx%2==0 && dy%2==0 && dz%2==0 );
 		
 		dxtop = m_pgrids[ilevel]->offset(0)+dx/2;
 		dytop = m_pgrids[ilevel]->offset(1)+dy/2;
@@ -1051,7 +1079,80 @@ public:
 		
 		find_new_levelmin();
 	}
-	
+
+  void cut_patch_enforce_top_density( unsigned ilevel, unsigned xoff, unsigned yoff, unsigned zoff, unsigned nx, unsigned ny, unsigned nz)
+  {
+    unsigned dx,dy,dz,dxtop,dytop,dztop;
+		
+    dx = xoff-m_xoffabs[ilevel];
+    dy = yoff-m_yoffabs[ilevel];
+    dz = zoff-m_zoffabs[ilevel];
+    
+    assert( dx%2==0 && dy%2==0 && dz%2==0 );
+    
+    dxtop = m_pgrids[ilevel]->offset(0)+dx/2;
+    dytop = m_pgrids[ilevel]->offset(1)+dy/2;
+    dztop = m_pgrids[ilevel]->offset(2)+dz/2;
+    
+    MeshvarBnd<T> *mnew = new MeshvarBnd<T>( m_nbnd, nx, ny, nz, dxtop, dytop, dztop );
+    
+    double coarsesum = 0.0, finesum = 0.0;
+    size_t coarsecount = 0, finecount = 0;
+
+    //... copy data
+    for( unsigned i=0; i<nx; ++i )
+      for( unsigned j=0; j<ny; ++j )
+	for( unsigned k=0; k<nz; ++k ){
+	  (*mnew)(i,j,k) = (*m_pgrids[ilevel])(i+dx,j+dy,k+dz);
+	  finesum += (*mnew)(i,j,k);
+	  finecount++;
+	}
+
+    //... replace in hierarchy
+    delete m_pgrids[ilevel];
+    m_pgrids[ilevel] = mnew;
+    
+    //... update offsets
+    m_xoffabs[ilevel] += dx;
+    m_yoffabs[ilevel] += dy;
+    m_zoffabs[ilevel] += dz;
+    
+    if( ilevel < levelmax() )
+      {
+	m_pgrids[ilevel+1]->offset(0) -= dx;
+	m_pgrids[ilevel+1]->offset(1) -= dy;
+	m_pgrids[ilevel+1]->offset(2) -= dz;
+      }
+
+    //... enforce top mean density over same patch
+    if( ilevel > levelmin() )
+      {
+	int ox = m_pgrids[ilevel]->offset(0);
+	int oy = m_pgrids[ilevel]->offset(1);
+	int oz = m_pgrids[ilevel]->offset(2);
+
+	for( unsigned i=0; i<nx/2; ++i )
+	  for( unsigned j=0; j<ny/2; ++j )
+	    for( unsigned k=0; k<nz/2; ++k ){
+	      coarsesum += (*m_pgrids[ilevel-1])(i+ox,j+oy,k+oz);
+	      coarsecount++;
+	    }
+
+	coarsesum /= (double)coarsecount;
+	finesum /= (double)finecount;
+
+	for( unsigned i=0; i<nx; ++i )
+	  for( unsigned j=0; j<ny; ++j )
+	    for( unsigned k=0; k<nz; ++k )
+	      (*mnew)(i,j,k) += (coarsesum-finesum);
+
+	LOGINFO("level %d : corrected patch overlap mean density by %f",ilevel,coarsesum-finesum);
+      }
+
+    
+    find_new_levelmin();
+  }
+  
 	/*! determine level for which grid extends over entire domain */
 	void find_new_levelmin( void )
 	{
@@ -1141,386 +1242,391 @@ public:
 	explicit refinement_hierarchy( config_file& cf )
 	: cf_( cf )
 	{
-        //... query the parameter data we need
-		levelmin_	= cf_.getValue<unsigned>("setup","levelmin");
-		levelmax_	= cf_.getValue<unsigned>("setup","levelmax");
-		levelmin_tf_= cf_.getValueSafe<unsigned>("setup","levelmin_TF",levelmin_);
-		align_top_	= cf_.getValueSafe<bool>("setup","align_top",false);
-		equal_extent_ = cf_.getValueSafe<bool>("setup","force_equal_extent",false);
-		blocking_factor_= cf.getValueSafe<unsigned>( "setup", "blocking_factor",0);
+	  //... query the parameter data we need
+	  levelmin_	= cf_.getValue<unsigned>("setup","levelmin");
+	  levelmax_	= cf_.getValue<unsigned>("setup","levelmax");
+	  levelmin_tf_= cf_.getValueSafe<unsigned>("setup","levelmin_TF",levelmin_);
+	  align_top_	= cf_.getValueSafe<bool>("setup","align_top",false);
+	  equal_extent_ = cf_.getValueSafe<bool>("setup","force_equal_extent",false);
+	  blocking_factor_= cf.getValueSafe<unsigned>( "setup", "blocking_factor",0);
 		
-        bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
-		bool force_shift = cf_.getValueSafe<bool>("setup","force_shift",false);
+	  bool bnoshift = cf_.getValueSafe<bool>("setup","no_shift",false);
+	  bool force_shift = cf_.getValueSafe<bool>("setup","force_shift",false);
+	  
         
-        
-        //... call the region generator
-        if( levelmin_ != levelmax_ )
-        {
-        
-        double x1ref[3];
-        the_region_generator->get_AABB(x0ref_,x1ref,levelmax_);
-        for( int i=0; i<3; ++i )
-            lxref_[i] = x1ref[i]-x0ref_[i];
-        bhave_nref = false;
-        
-        std::string region_type = cf.getValueSafe<std::string>("setup","region","box");
-        
-        LOGINFO("refinement region is \'%s\', w/ bounding box\n        left = [%f,%f,%f]\n       right = [%f,%f,%f]",
-                region_type.c_str(),x0ref_[0],x0ref_[1],x0ref_[2],x1ref[0],x1ref[1],x1ref[2]);
+	  //... call the region generator
+	  if( levelmin_ != levelmax_ )
+	    {
+	      
+	      double x1ref[3];
+	      the_region_generator->get_AABB(x0ref_,x1ref,levelmax_);
+	      for( int i=0; i<3; ++i )
+		lxref_[i] = x1ref[i]-x0ref_[i];
+	      bhave_nref = false;
+	      
+	      std::string region_type = cf.getValueSafe<std::string>("setup","region","box");
+	      
+	      LOGINFO("refinement region is \'%s\', w/ bounding box\n        left = [%f,%f,%f]\n       right = [%f,%f,%f]",
+		      region_type.c_str(),x0ref_[0],x0ref_[1],x0ref_[2],x1ref[0],x1ref[1],x1ref[2]);
+	      
+	      
+	      bhave_nref = the_region_generator->is_grid_dim_forced( lnref_ );
+	    }
+	  
+	  
+	  // if not doing any refinement levels, set extent to full box
+	  if( levelmin_ == levelmax_ )
+	    {
+	      x0ref_[0] = 0.0;
+	      x0ref_[1] = 0.0;
+	      x0ref_[2] = 0.0;
+	      
+	      lxref_[0] = 1.0;
+	      lxref_[1] = 1.0;
+	      lxref_[2] = 1.0;
+	    }
 		
+	  unsigned ncoarse = 1<<levelmin_;
+	  
+	  //... determine shift
+	  
+	  double xc[3];
+	  xc[0] = fmod(x0ref_[0]+0.5*lxref_[0],1.0);
+	  xc[1] = fmod(x0ref_[1]+0.5*lxref_[1],1.0);
+	  xc[2] = fmod(x0ref_[2]+0.5*lxref_[2],1.0);
+	  
+	  if( (levelmin_ != levelmax_) && (!bnoshift || force_shift) )
+	    {
+	      xshift_[0] = (int)((0.5-xc[0])*ncoarse);
+	      xshift_[1] = (int)((0.5-xc[1])*ncoarse);
+	      xshift_[2] = (int)((0.5-xc[2])*ncoarse);
+	    }else{
+	    xshift_[0] = 0;
+	    xshift_[1] = 0;
+	    xshift_[2] = 0;
+	  }
+	  
+	  char strtmp[32];
+	  sprintf( strtmp, "%d", xshift_[0] );	cf_.insertValue( "setup", "shift_x", strtmp );
+	  sprintf( strtmp, "%d", xshift_[1] );	cf_.insertValue( "setup", "shift_y", strtmp );
+	  sprintf( strtmp, "%d", xshift_[2] );	cf_.insertValue( "setup", "shift_z", strtmp );
+	  
+	  rshift_[0] = -(double)xshift_[0]/ncoarse;
+	  rshift_[1] = -(double)xshift_[1]/ncoarse;
+	  rshift_[2] = -(double)xshift_[2]/ncoarse;
+	  
+	  x0ref_[0] += (double)xshift_[0]/ncoarse;
+	  x0ref_[1] += (double)xshift_[1]/ncoarse;
+	  x0ref_[2] += (double)xshift_[2]/ncoarse;
+	  
+	  
+	  //... initialize arrays 
+	  x0_.assign(levelmax_+1,0.0);	xl_.assign(levelmax_+1,1.0);
+	  y0_.assign(levelmax_+1,0.0);	yl_.assign(levelmax_+1,1.0);
+	  z0_.assign(levelmax_+1,0.0);	zl_.assign(levelmax_+1,1.0);
+	  ox_.assign(levelmax_+1,0);	nx_.assign(levelmax_+1,0);
+	  oy_.assign(levelmax_+1,0);	ny_.assign(levelmax_+1,0);
+	  oz_.assign(levelmax_+1,0);	nz_.assign(levelmax_+1,0);
+	  
+	  oax_.assign(levelmax_+1,0);
+	  oay_.assign(levelmax_+1,0);
+	  oaz_.assign(levelmax_+1,0);
+	  
 		
-        bhave_nref = the_region_generator->is_grid_dim_forced( lnref_ );
-        }
-		
-        
-        // if not doing any refinement levels, set extent to full box
-        if( levelmin_ == levelmax_ )
-        {
-            x0ref_[0] = 0.0;
-            x0ref_[1] = 0.0;
-            x0ref_[2] = 0.0;
-            
-            lxref_[0] = 1.0;
-            lxref_[1] = 1.0;
-            lxref_[2] = 1.0;
-        }
-		
-		unsigned 
-			ncoarse = 1<<levelmin_;
-			
-		//... determine shift
-
-		double xc[3];
-		xc[0] = fmod(x0ref_[0]+0.5*lxref_[0],1.0);
-		xc[1] = fmod(x0ref_[1]+0.5*lxref_[1],1.0);
-		xc[2] = fmod(x0ref_[2]+0.5*lxref_[2],1.0);
-		
-		if( (levelmin_ != levelmax_) && (!bnoshift || force_shift) )
-		{
-			xshift_[0] = (int)((0.5-xc[0])*ncoarse);
-			xshift_[1] = (int)((0.5-xc[1])*ncoarse);
-			xshift_[2] = (int)((0.5-xc[2])*ncoarse);
-		}else{
-			xshift_[0] = 0;
-			xshift_[1] = 0;
-			xshift_[2] = 0;
-		}
-		
-		char strtmp[32];
-		sprintf( strtmp, "%d", xshift_[0] );	cf_.insertValue( "setup", "shift_x", strtmp );
-		sprintf( strtmp, "%d", xshift_[1] );	cf_.insertValue( "setup", "shift_y", strtmp );
-		sprintf( strtmp, "%d", xshift_[2] );	cf_.insertValue( "setup", "shift_z", strtmp );
-        
-        rshift_[0] = -(double)xshift_[0]/ncoarse;
-        rshift_[1] = -(double)xshift_[1]/ncoarse;
-        rshift_[2] = -(double)xshift_[2]/ncoarse;
-        
-		x0ref_[0] += (double)xshift_[0]/ncoarse;
-		x0ref_[1] += (double)xshift_[1]/ncoarse;
-		x0ref_[2] += (double)xshift_[2]/ncoarse;
-		
-		
-		//... initialize arrays 
-		x0_.assign(levelmax_+1,0.0);	xl_.assign(levelmax_+1,1.0);
-		y0_.assign(levelmax_+1,0.0);	yl_.assign(levelmax_+1,1.0);
-		z0_.assign(levelmax_+1,0.0);	zl_.assign(levelmax_+1,1.0);
-		ox_.assign(levelmax_+1,0);		nx_.assign(levelmax_+1,0);
-		oy_.assign(levelmax_+1,0);		ny_.assign(levelmax_+1,0);
-		oz_.assign(levelmax_+1,0);		nz_.assign(levelmax_+1,0);
-		
-		oax_.assign(levelmax_+1,0);
-		oay_.assign(levelmax_+1,0);
-		oaz_.assign(levelmax_+1,0);
-		
-		
-		nx_[levelmin_] = ncoarse;
-		ny_[levelmin_] = ncoarse;
-		nz_[levelmin_] = ncoarse;
-        
-        // set up base hierarchy sizes
-        for( unsigned ilevel=0; ilevel <=levelmin_; ++ilevel )
-        {
-            unsigned n = 1<<ilevel;
-            
-            xl_[ilevel] = yl_[ilevel] = zl_[ilevel] = 1.0;
-            nx_[ilevel] = ny_[ilevel] = nz_[ilevel] = n;
-        }
-        
-        // if no refinement, we can exit here
-        if( levelmax_ == levelmin_ )
+	  nx_[levelmin_] = ncoarse;
+	  ny_[levelmin_] = ncoarse;
+	  nz_[levelmin_] = ncoarse;
+	  
+	  // set up base hierarchy sizes
+	  for( unsigned ilevel=0; ilevel <=levelmin_; ++ilevel )
+	    {
+	      unsigned n = 1<<ilevel;
+	      
+	      xl_[ilevel] = yl_[ilevel] = zl_[ilevel] = 1.0;
+	      nx_[ilevel] = ny_[ilevel] = nz_[ilevel] = n;
+	    }
+	  
+	  // if no refinement, we can exit here
+	  if( levelmax_ == levelmin_ )
             return;
-        
+	  
 		
-		//... determine the position of the refinement region on the finest grid
-		int il,jl,kl,ir,jr,kr;
-		int nresmax = 1<<levelmax_;
-		
-		il = (int)(x0ref_[0] * nresmax);
-		jl = (int)(x0ref_[1] * nresmax);
-		kl = (int)(x0ref_[2] * nresmax);
-		ir = (int)((x0ref_[0]+lxref_[0]) * nresmax );//+ 1.0);
-		jr = (int)((x0ref_[1]+lxref_[1]) * nresmax );//+ 1.0);
-		kr = (int)((x0ref_[2]+lxref_[2]) * nresmax );//+ 1.0);
-		
-		//... align with coarser grids ...
-		if( align_top_ )
+	  //... determine the position of the refinement region on the finest grid
+	  int il,jl,kl,ir,jr,kr;
+	  int nresmax = 1<<levelmax_;
+	  
+	  il = (int)(x0ref_[0] * nresmax);
+	  jl = (int)(x0ref_[1] * nresmax);
+	  kl = (int)(x0ref_[2] * nresmax);
+	  ir = (int)((x0ref_[0]+lxref_[0]) * nresmax );//+ 1.0);
+	  jr = (int)((x0ref_[1]+lxref_[1]) * nresmax );//+ 1.0);
+	  kr = (int)((x0ref_[2]+lxref_[2]) * nresmax );//+ 1.0);
+	  
+	  //... align with coarser grids ...
+	  if( align_top_ )
+	    {
+	      //... require alignment with top grid
+	      unsigned nref = 1<<(levelmax_-levelmin_+1);
+	      
+	      if( bhave_nref )
 		{
-			//... require alignment with top grid
-			unsigned nref = 1<<(levelmax_-levelmin_+1);
-
-			if( bhave_nref )
-			  {
-			    if( lnref_[0] % (1ul<<(levelmax_-levelmin_)) != 0 ||
-				lnref_[1] % (1ul<<(levelmax_-levelmin_)) != 0 ||
-				lnref_[2] % (1ul<<(levelmax_-levelmin_)) != 0 )
-			    {
-                    LOGERR("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
-                    throw std::runtime_error("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
-                }
-			  }
-
-			
-			il = (int)((double)il/nref)*nref;
-			jl = (int)((double)jl/nref)*nref;
-			kl = (int)((double)kl/nref)*nref;
-			
-			int irr = (int)((double)ir/nref)*nref;
-			int jrr = (int)((double)jr/nref)*nref;
-			int krr = (int)((double)kr/nref)*nref;
-			
-			if( irr < ir )
-				ir = (int)((double)ir/nref + 1.0)*nref;
-			else
-				ir = irr;
-			
-			if( jrr < jr )
-				jr = (int)((double)jr/nref + 1.0)*nref;
-			else
-				jr = jrr;
-			
-			if( krr < kr )
-				kr = (int)((double)kr/nref + 1.0)*nref;
-			else
-				kr = krr;
-			
-			
-		}else{
-			//... require alignment with coarser grid
-			il -= il%2; jl -= jl%2; kl -= kl%2;
-			ir += ir%2; jr += jr%2; kr += kr%2; 
-		}
-        
-        // if doing unigrid, set region to whole box
-        if( levelmin_ == levelmax_ )
-        {
-            il = jl = kl = 0;
-            ir = jr = kr = nresmax-1;
-        }
-		  if( bhave_nref )
+		  if( lnref_[0] % (1ul<<(levelmax_-levelmin_)) != 0 ||
+		      lnref_[1] % (1ul<<(levelmax_-levelmin_)) != 0 ||
+		      lnref_[2] % (1ul<<(levelmax_-levelmin_)) != 0 )
 		    {
-		      ir = il+lnref_[0];
-		      jr = jl+lnref_[1];
-		      kr = kl+lnref_[2];
-
+		      LOGERR("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
+		      throw std::runtime_error("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
 		    }
-		
-		//... make sure bounding box lies in domain
-		il = (il+nresmax)%nresmax; ir = (ir+nresmax)%nresmax;
-		jl = (jl+nresmax)%nresmax; jr = (jr+nresmax)%nresmax;
-		kl = (kl+nresmax)%nresmax; kr = (kr+nresmax)%nresmax;
-		
-		if( il>=ir || jl>=jr || kl>=kr )
-		{
-            LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]",il,ir,jl,jr,kl,kr);
-            throw std::runtime_error("refinement_hierarchy: Internal refinement bounding box error 1");
 		}
-		//... determine offsets
-		if( levelmin_ != levelmax_ )
+	      
+	      
+	      il = (int)((double)il/nref)*nref;
+	      jl = (int)((double)jl/nref)*nref;
+	      kl = (int)((double)kl/nref)*nref;
+	      
+	      int irr = (int)((double)ir/nref)*nref;
+	      int jrr = (int)((double)jr/nref)*nref;
+	      int krr = (int)((double)kr/nref)*nref;
+	      
+	      if( irr < ir )
+		ir = (int)((double)ir/nref + 1.0)*nref;
+	      else
+		ir = irr;
+	      
+	      if( jrr < jr )
+		jr = (int)((double)jr/nref + 1.0)*nref;
+	      else
+		jr = jrr;
+	      
+	      if( krr < kr )
+		kr = (int)((double)kr/nref + 1.0)*nref;
+	      else
+		kr = krr;
+	      
+	      
+	    }else{
+	    //... require alignment with coarser grid
+	    il -= il%2; jl -= jl%2; kl -= kl%2;
+	    ir += ir%2; jr += jr%2; kr += kr%2; 
+	  }
+	  
+	  // if doing unigrid, set region to whole box
+	  if( levelmin_ == levelmax_ )
+	    {
+	      il = jl = kl = 0;
+	      ir = jr = kr = nresmax-1;
+	    }
+	  if( bhave_nref )
+	    {
+	      ir = il+lnref_[0];
+	      jr = jl+lnref_[1];
+	      kr = kl+lnref_[2];
+	      
+	    }
+	  
+	  //... make sure bounding box lies in domain
+	  il = (il+nresmax)%nresmax; ir = (ir+nresmax)%nresmax;
+	  jl = (jl+nresmax)%nresmax; jr = (jr+nresmax)%nresmax;
+	  kl = (kl+nresmax)%nresmax; kr = (kr+nresmax)%nresmax;
+	  
+	  if( il>=ir || jl>=jr || kl>=kr )
+	    {
+	      LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]",il,ir,jl,jr,kl,kr);
+	      throw std::runtime_error("refinement_hierarchy: Internal refinement bounding box error 1");
+	    }
+	  //... determine offsets
+	  if( levelmin_ != levelmax_ )
+	    {
+	      
+	      oax_[levelmax_] = (il+nresmax)%nresmax;
+	      oay_[levelmax_] = (jl+nresmax)%nresmax;
+	      oaz_[levelmax_] = (kl+nresmax)%nresmax;
+	      nx_[levelmax_]  = ir-il;	
+	      ny_[levelmax_]  = jr-jl;	
+	      nz_[levelmax_]  = kr-kl;
+	      
+	      if( equal_extent_ )
 		{
+		  
+		  if( bhave_nref && (lnref_[0]!=lnref_[1]||lnref_[0]!=lnref_[2]) )
+		    {
+		      LOGERR("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
+		      throw std::runtime_error("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
+		    }
+		  size_t ilevel = levelmax_;
+		  size_t nmax = std::max( nx_[ilevel], std::max( ny_[ilevel], nz_[ilevel] ) );				
+		  int dx = (int)((double)(nmax-nx_[ilevel])*0.5);
+		  int dy = (int)((double)(nmax-ny_[ilevel])*0.5);
+		  int dz = (int)((double)(nmax-nz_[ilevel])*0.5);
+		  
+		  oax_[ilevel] -= dx;
+		  oay_[ilevel] -= dy;
+		  oaz_[ilevel] -= dz;
+		  nx_[ilevel] = nmax;
+		  ny_[ilevel] = nmax;
+		  nz_[ilevel] = nmax;
+		  
+		  il = oax_[ilevel];
+		  jl = oay_[ilevel];
+		  kl = oaz_[ilevel];
+		  ir = il + nmax;
+		  jr = jl + nmax;
+		  kr = kl + nmax;
+		}
+	    }
+	  
+	  padding_	= cf_.getValueSafe<unsigned>("setup","padding", 8);
+	  
+	  //... determine position of coarser grids
+	  for( unsigned ilevel=levelmax_-1; ilevel> levelmin_; --ilevel )
+	    {
+	      il = (int)((double)il * 0.5 - padding_);
+	      jl = (int)((double)jl * 0.5 - padding_);
+	      kl = (int)((double)kl * 0.5 - padding_);
+	      
+	      ir = (int)((double)ir * 0.5 + padding_);
+	      jr = (int)((double)jr * 0.5 + padding_);
+	      kr = (int)((double)kr * 0.5 + padding_);
+	      
+	      //... align with coarser grids ...
+	      if( align_top_ )
+		{
+		  //... require alignment with top grid
+		  unsigned nref = 1<<(ilevel-levelmin_);
+		  
+		  il = (int)((double)il/nref)*nref;
+		  jl = (int)((double)jl/nref)*nref;
+		  kl = (int)((double)kl/nref)*nref;
+		  
+		  ir = (int)((double)ir/nref+1.0)*nref;
+		  jr = (int)((double)jr/nref+1.0)*nref;
+		  kr = (int)((double)kr/nref+1.0)*nref;
+		  
+		}
+	      else
+		{
+		  //... require alignment with coarser grid
+		  il -= il%2; jl -= jl%2; kl -= kl%2;
+		  ir += ir%2; jr += jr%2; kr += kr%2; 
+		}
 
-			oax_[levelmax_] = (il+nresmax)%nresmax;
-			oay_[levelmax_] = (jl+nresmax)%nresmax;
-			oaz_[levelmax_] = (kl+nresmax)%nresmax;
-			nx_[levelmax_]  = ir-il;	
-			ny_[levelmax_]  = jr-jl;	
-			nz_[levelmax_]  = kr-kl;
 			
-			if( equal_extent_ )
-			{
-
-			  if( bhave_nref && (lnref_[0]!=lnref_[1]||lnref_[0]!=lnref_[2]) )
-			  {
-                  LOGERR("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
-                  throw std::runtime_error("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
-              }
-				size_t ilevel = levelmax_;
-				size_t nmax = std::max( nx_[ilevel], std::max( ny_[ilevel], nz_[ilevel] ) );				
-				int dx = (int)((double)(nmax-nx_[ilevel])*0.5);
-				int dy = (int)((double)(nmax-ny_[ilevel])*0.5);
-				int dz = (int)((double)(nmax-nz_[ilevel])*0.5);
+	      if( il>=ir || jl>=jr || kl>=kr || il < 0 || jl < 0 || kl < 0)
+		{
+		  LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d], level=%d",il,ir,jl,jr,kl,kr,ilevel);
+		  throw std::runtime_error("refinement_hierarchy: Internal refinement bounding box error 2");
+		}
+	      oax_[ilevel] = il;
+	      oay_[ilevel] = jl;
+	      oaz_[ilevel] = kl;
+	      nx_[ilevel]  = ir-il;
+	      ny_[ilevel]  = jr-jl;
+	      nz_[ilevel]  = kr-kl;
+	      
+	      if (blocking_factor_)
+		{
+		  nx_[ilevel] += nx_[ilevel] % blocking_factor_;
+		  ny_[ilevel] += ny_[ilevel] % blocking_factor_;
+		  nz_[ilevel] += nz_[ilevel] % blocking_factor_;
+		}
+	      
+	      if( equal_extent_ )
+		{
+		  size_t nmax = std::max( nx_[ilevel], std::max( ny_[ilevel], nz_[ilevel] ) );				
+		  int dx = (int)((double)(nmax-nx_[ilevel])*0.5);
+		  int dy = (int)((double)(nmax-ny_[ilevel])*0.5);
+		  int dz = (int)((double)(nmax-nz_[ilevel])*0.5);
 				
-				oax_[ilevel] -= dx;
-				oay_[ilevel] -= dy;
-				oaz_[ilevel] -= dz;
-				nx_[ilevel] = nmax;
-				ny_[ilevel] = nmax;
-				nz_[ilevel] = nmax;
-
-				il = oax_[ilevel];
-				jl = oay_[ilevel];
-				kl = oaz_[ilevel];
-				ir = il + nmax;
-				jr = jl + nmax;
-				kr = kl + nmax;
-			}
+		  oax_[ilevel] -= dx;
+		  oay_[ilevel] -= dy;
+		  oaz_[ilevel] -= dz;
+		  nx_[ilevel] = nmax;
+		  ny_[ilevel] = nmax;
+		  nz_[ilevel] = nmax;
+		  
+		  il = oax_[ilevel];
+		  jl = oay_[ilevel];
+		  kl = oaz_[ilevel];
+		  ir = il + nmax;
+		  jr = jl + nmax;
+		  kr = kl + nmax;
 		}
-        
-        padding_	= cf_.getValueSafe<unsigned>("setup","padding", 8);
-		
-		//... determine position of coarser grids
-		for( unsigned ilevel=levelmax_-1; ilevel> levelmin_; --ilevel )
+	      
+	    }
+	  
+	  //... determine relative offsets between grids
+	  for( unsigned ilevel=levelmax_; ilevel>levelmin_; --ilevel )
+	    {
+	      ox_[ilevel] = (oax_[ilevel]/2 - oax_[ilevel-1]);
+	      oy_[ilevel] = (oay_[ilevel]/2 - oay_[ilevel-1]);
+	      oz_[ilevel] = (oaz_[ilevel]/2 - oaz_[ilevel-1]);
+	    }
+	  
+	  //... do a forward sweep to ensure that absolute offsets are also correct now
+	  for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
+	    {
+	      oax_[ilevel] = 2*oax_[ilevel-1]+2*ox_[ilevel];
+	      oay_[ilevel] = 2*oay_[ilevel-1]+2*oy_[ilevel];
+	      oaz_[ilevel] = 2*oaz_[ilevel-1]+2*oz_[ilevel];
+	    }
+	  
+	  for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
+	    {
+	      double h = 1.0/(1ul<<ilevel);
+	      
+	      x0_[ilevel] = h*(double)oax_[ilevel];
+	      y0_[ilevel] = h*(double)oay_[ilevel];
+	      z0_[ilevel] = h*(double)oaz_[ilevel];
+	      
+	      xl_[ilevel] = h*(double)nx_[ilevel];
+	      yl_[ilevel] = h*(double)ny_[ilevel];
+	      zl_[ilevel] = h*(double)nz_[ilevel];
+	    }
+	  
+	  
+	  
+	  // do a consistency check that largest subgrid in zoom is not larger than half the box size
+	  for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
+	    {	
+	      if( nx_[ilevel] > (1ul<<(ilevel-1)) ||
+		  ny_[ilevel] > (1ul<<(ilevel-1)) ||
+		  nz_[ilevel] > (1ul<<(ilevel-1)) )
 		{
-			il = (int)((double)il * 0.5 - padding_);
-			jl = (int)((double)jl * 0.5 - padding_);
-			kl = (int)((double)kl * 0.5 - padding_);
-			
-			ir = (int)((double)ir * 0.5 + padding_);
-			jr = (int)((double)jr * 0.5 + padding_);
-			kr = (int)((double)kr * 0.5 + padding_);
-			
-			//... align with coarser grids ...
-			if( align_top_ )
-			{
-				//... require alignment with top grid
-				unsigned nref = 1<<(ilevel-levelmin_);
-				
-				il = (int)((double)il/nref)*nref;
-				jl = (int)((double)jl/nref)*nref;
-				kl = (int)((double)kl/nref)*nref;
-				
-				ir = (int)((double)ir/nref+1.0)*nref;
-				jr = (int)((double)jr/nref+1.0)*nref;
-				kr = (int)((double)kr/nref+1.0)*nref;
-				
-			}else{
-				//... require alignment with coarser grid
-				il -= il%2; jl -= jl%2; kl -= kl%2;
-				ir += ir%2; jr += jr%2; kr += kr%2; 
-			}
-
-			
-			if( il>=ir || jl>=jr || kl>=kr || il < 0 || jl < 0 || kl < 0)
-			{
-                LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d], level=%d",il,ir,jl,jr,kl,kr,ilevel);
-                throw std::runtime_error("refinement_hierarchy: Internal refinement bounding box error 2");
-            }
-			oax_[ilevel] = il;		oay_[ilevel] = jl;		oaz_[ilevel] = kl;
-			nx_[ilevel]  = ir-il;	ny_[ilevel]  = jr-jl;	nz_[ilevel]  = kr-kl;
-
-			if (blocking_factor_)
-			{
-				nx_[ilevel] += nx_[ilevel] % blocking_factor_;
-				ny_[ilevel] += ny_[ilevel] % blocking_factor_;
-				nz_[ilevel] += nz_[ilevel] % blocking_factor_;
-			}
-			
-			if( equal_extent_ )
-			{
-				size_t nmax = std::max( nx_[ilevel], std::max( ny_[ilevel], nz_[ilevel] ) );				
-				int dx = (int)((double)(nmax-nx_[ilevel])*0.5);
-				int dy = (int)((double)(nmax-ny_[ilevel])*0.5);
-				int dz = (int)((double)(nmax-nz_[ilevel])*0.5);
-				
-				oax_[ilevel] -= dx;
-				oay_[ilevel] -= dy;
-				oaz_[ilevel] -= dz;
-				nx_[ilevel] = nmax;
-				ny_[ilevel] = nmax;
-				nz_[ilevel] = nmax;
-
-				il = oax_[ilevel];
-				jl = oay_[ilevel];
-				kl = oaz_[ilevel];
-				ir = il + nmax;
-				jr = jl + nmax;
-				kr = kl + nmax;
-			}
-
+		  LOGERR("On level %d, subgrid is larger than half the box. This is not allowed!",ilevel);
+		  throw std::runtime_error("Fatal: Subgrid larger than half boxin zoom.");
 		}
-		
-		//... determine relative offsets between grids
-		for( unsigned ilevel=levelmax_; ilevel>levelmin_; --ilevel )
-		{
-			ox_[ilevel] = (oax_[ilevel]/2 - oax_[ilevel-1]);
-			oy_[ilevel] = (oay_[ilevel]/2 - oay_[ilevel-1]);
-			oz_[ilevel] = (oaz_[ilevel]/2 - oaz_[ilevel-1]);
-		}
-
-		//... do a forward sweep to ensure that absolute offsets are also correct now
-		for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
-		{
-		  oax_[ilevel] = 2*oax_[ilevel-1]+2*ox_[ilevel];
-		  oay_[ilevel] = 2*oay_[ilevel-1]+2*oy_[ilevel];
-		  oaz_[ilevel] = 2*oaz_[ilevel-1]+2*oz_[ilevel];
-		}
-		
-		for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
-		{
-			double h = 1.0/(1ul<<ilevel);
-			
-			x0_[ilevel] = h*(double)oax_[ilevel];
-			y0_[ilevel] = h*(double)oay_[ilevel];
-			z0_[ilevel] = h*(double)oaz_[ilevel];
-			
-			xl_[ilevel] = h*(double)nx_[ilevel];
-			yl_[ilevel] = h*(double)ny_[ilevel];
-			zl_[ilevel] = h*(double)nz_[ilevel];
-		}
-		
-		
-        
-        // do a consistency check that largest subgrid in zoom is not larger than half the box size
-        for( unsigned ilevel=levelmin_+1; ilevel<=levelmax_; ++ilevel )
-		{	
-            if( nx_[ilevel] > (1ul<<(ilevel-1)) ||
-                ny_[ilevel] > (1ul<<(ilevel-1)) ||
-                nz_[ilevel] > (1ul<<(ilevel-1)) )
-            {
-                LOGERR("On level %d, subgrid is larger than half the box. This is not allowed!",ilevel);
-                throw std::runtime_error("Fatal: Subgrid larger than half boxin zoom.");
-            }
-		}
-      
-        // update the region generator with what has been actually created
-        double left[3] =  { x0_[levelmax_]+rshift_[0], y0_[levelmax_]+rshift_[1], z0_[levelmax_]+rshift_[2] };
-        double right[3] = { left[0]+xl_[levelmax_], left[1]+yl_[levelmax_], left[2]+zl_[levelmax_] };
-        the_region_generator->update_AABB( left, right );
+	    }
+	  
+	  // update the region generator with what has been actually created
+	  double left[3] =  { x0_[levelmax_]+rshift_[0], y0_[levelmax_]+rshift_[1], z0_[levelmax_]+rshift_[2] };
+	  double right[3] = { left[0]+xl_[levelmax_], left[1]+yl_[levelmax_], left[2]+zl_[levelmax_] };
+	  the_region_generator->update_AABB( left, right );
 	}
-	
-	//! asignment operator
-	refinement_hierarchy& operator=( const refinement_hierarchy& o )
-	{
-		levelmin_ = o.levelmin_;
-		levelmax_ = o.levelmax_;
-		padding_  = o.padding_;
-		cf_ = o.cf_;
-		align_top_ = o.align_top_;
-		for( int i=0; i<3; ++i )
-		{
-			x0ref_[i] = o.x0ref_[i];
-			lxref_[i] = o.lxref_[i];
-			xshift_[i] = o.xshift_[i];
-            rshift_[i] = o.rshift_[i];
-		}
-		
-		x0_ = o.x0_; y0_ = o.y0_; z0_ = o.z0_;
-		xl_ = o.xl_; yl_ = o.yl_; zl_ = o.zl_;
-		ox_ = o.ox_; oy_ = o.oy_; oz_ = o.oz_;
-		oax_= o.oax_; oay_ = o.oay_; oaz_ = o.oaz_;
-		nx_ = o.nx_; ny_=o.ny_; nz_=o.nz_;
-		
-		return *this;
-	}
+  
+  //! asignment operator
+  refinement_hierarchy& operator=( const refinement_hierarchy& o )
+  {
+    levelmin_ = o.levelmin_;
+    levelmax_ = o.levelmax_;
+    padding_  = o.padding_;
+    cf_ = o.cf_;
+    align_top_ = o.align_top_;
+    for( int i=0; i<3; ++i )
+      {
+	x0ref_[i] = o.x0ref_[i];
+	lxref_[i] = o.lxref_[i];
+	xshift_[i] = o.xshift_[i];
+	rshift_[i] = o.rshift_[i];
+      }
+    
+    x0_ = o.x0_; y0_ = o.y0_; z0_ = o.z0_;
+    xl_ = o.xl_; yl_ = o.yl_; zl_ = o.zl_;
+    ox_ = o.ox_; oy_ = o.oy_; oz_ = o.oz_;
+    oax_= o.oax_; oay_ = o.oay_; oaz_ = o.oaz_;
+    nx_ = o.nx_; ny_=o.ny_; nz_=o.nz_;
+    
+    return *this;
+  }
 	
 	/*! cut a grid level to the specified size
 	 * @param ilevel grid level on which to perform the size adjustment

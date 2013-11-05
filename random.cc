@@ -12,6 +12,57 @@
 
 // TODO: move all this into a plugin!!!
 
+std::map< std::string, RNG_plugin_creator *>& 
+get_RNG_plugin_map()
+{
+  static std::map< std::string, RNG_plugin_creator* > RNG_plugin_map;
+  return RNG_plugin_map;
+}
+
+void print_RNG_plugins()
+{
+  std::map< std::string, RNG_plugin_creator *>& m = get_RNG_plugin_map();
+  std::map< std::string, RNG_plugin_creator *>::iterator it;
+  it = m.begin();
+  std::cout << " - Available random number generator plug-ins:\n";
+  while( it!=m.end() )
+    {
+      if( (*it).second )
+	std::cout << "\t\'" << (*it).first << "\'\n";
+      ++it;
+    }	
+}
+
+RNG_plugin *select_RNG_plugin( config_file& cf )
+{
+	std::string rngname = cf.getValueSafe<std::string>( "random", "generator", "MUSIC" );
+	
+	RNG_plugin_creator *the_RNG_plugin_creator 
+	= get_RNG_plugin_map()[ rngname ];
+	
+	if( !the_RNG_plugin_creator )
+	{	
+		std::cerr << " - Error: random number generator plug-in \'" << rngname << "\' not found." << std::endl;
+		LOGERR("Invalid/Unregistered random number generator plug-in encountered : %s",rngname.c_str() );
+		print_RNG_plugins();
+		throw std::runtime_error("Unknown random number generator plug-in");
+		
+	}else
+	{	
+		std::cout << " - Selecting random number generator plug-in \'" << rngname << "\'..." << std::endl;
+		LOGUSER("Selecting random number generator plug-in  : %s",rngname.c_str() );
+	}
+	
+	RNG_plugin *the_RNG_plugin 
+	= the_RNG_plugin_creator->create( cf );
+	
+	return the_RNG_plugin;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 #if defined(FFTW3) && defined( SINGLE_PRECISION)
 //#define fftw_complex fftwf_complex
@@ -524,12 +575,23 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 					if( j > nyc/2 ) jj += ny/2;
 					
 					size_t qc,qf;
+
+					double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+					double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+					double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+					
 					
 					qc = ((size_t)i*nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
 					qf = ((size_t)ii*ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+
+					std::complex<double> val_fine(RE(cfine[qf]),IM(cfine[qf]));
+					double phase =  (kx/nxc + ky/nyc + kz/nzc) * 0.5 * M_PI;
+					std::complex<double> val_phas( cos(phase), sin(phase) );
+
+					val_fine *= val_phas * fftnorm/sqrt(8.0);
 					
-					RE(ccoarse[qc]) = 1.0/sqrt(8.0)*RE(cfine[qf])*fftnorm;
-					IM(ccoarse[qc]) = 1.0/sqrt(8.0)*IM(cfine[qf])*fftnorm;
+					RE(ccoarse[qc]) = val_fine.real();
+					IM(ccoarse[qc]) = val_fine.imag();
 				}
 		
 		delete[] rfine;
@@ -647,7 +709,7 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 
 template< typename T >
 random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, long baseseed, 
-								   bool kspace, int *x0_, int *lx_, bool zeromean )
+				   bool kspace,bool isolated, int *x0_, int *lx_, bool zeromean )
 : res_( 2*rc.res_ ), cubesize_( cubesize ), ncubes_( 1 ), baseseed_( baseseed )
 {
 	initialize();
@@ -675,163 +737,210 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 	if( kspace )
 	{
 		
-		LOGINFO("Generating a constrained random number set with seed %ld\n    using coarse mode replacement...",baseseed);
-		assert(lx[0]%2==0 && lx[1]%2==0 && lx[2]%2==0);
-		size_t nx=lx[0], ny=lx[1], nz=lx[2],
-		nxc=lx[0]/2, nyc=lx[1]/2, nzc=lx[2]/2;
+	  LOGINFO("lx = %d,%d,%d  x0 = %d,%d,%d",lx[0],lx[1],lx[2],x0[0],x0[1],x0[2]);
+	  LOGINFO("Generating a constrained random number set with seed %ld\n    using coarse mode replacement...",baseseed);
+	  assert(lx[0]%2==0 && lx[1]%2==0 && lx[2]%2==0);
+	  size_t nx=lx[0], ny=lx[1], nz=lx[2],
+	    nxc=lx[0]/2, nyc=lx[1]/2, nzc=lx[2]/2;
+	  
 		
-		
-		fftw_real *rfine = new fftw_real[nx*ny*(nz+2l)];
-		fftw_complex *cfine = reinterpret_cast<fftw_complex*> (rfine);
-		
-#ifdef FFTW3
-	#ifdef SINGLE_PRECISION
-		fftwf_plan
-			pf  = fftwf_plan_dft_r2c_3d( nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
-			ipf	= fftwf_plan_dft_c2r_3d( nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
-	#else
-		fftw_plan
-			pf  = fftw_plan_dft_r2c_3d( nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
-			ipf	= fftw_plan_dft_c2r_3d( nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
-	#endif
-#else
-		rfftwnd_plan 
-			pf	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
-			ipf	= rfftw3d_create_plan( nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
-#endif
-		
-#pragma omp parallel for
-		for( int i=0; i<(int)nx; i++ )
-			for( int j=0; j<(int)ny; j++ )
-				for( int k=0; k<(int)nz; k++ )
-				{
-					size_t q = ((size_t)i*(size_t)ny+(size_t)j)*(size_t)(nz+2)+(size_t)k;
-					rfine[q] = (*this)(x0[0]+i,x0[1]+j,x0[2]+k);
-				}
-		//this->free_all_mem();	// temporarily free memory, allocate again later
-		
-		
-		
-		fftw_real *rcoarse = new fftw_real[nxc*nyc*(nzc+2)];
-		fftw_complex *ccoarse = reinterpret_cast<fftw_complex*> (rcoarse);
+	  fftw_real *rfine = new fftw_real[nx*ny*(nz+2l)];
+	  fftw_complex *cfine = reinterpret_cast<fftw_complex*> (rfine);
 		
 #ifdef FFTW3
 #ifdef SINGLE_PRECISION
-		fftwf_plan pc  = fftwf_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE);
+	  fftwf_plan
+	    pf  = fftwf_plan_dft_r2c_3d( nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
+	    ipf	= fftwf_plan_dft_c2r_3d( nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
 #else
-		fftw_plan pc  = fftw_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE);
+	  fftw_plan
+	    pf  = fftw_plan_dft_r2c_3d( nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
+	    ipf	= fftw_plan_dft_c2r_3d( nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
 #endif
 #else
-		rfftwnd_plan pc	= rfftw3d_create_plan( nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
-#endif		
-		
+	  rfftwnd_plan 
+	    pf	= rfftw3d_create_plan( nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+	    ipf	= rfftw3d_create_plan( nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+#endif
+	  
 #pragma omp parallel for
-		for( int i=0; i<(int)nxc; i++ )
-			for( int j=0; j<(int)nyc; j++ )
-				for( int k=0; k<(int)nzc; k++ )
-				{
-					size_t q = ((size_t)i*(size_t)nyc+(size_t)j)*(size_t)(nzc+2)+(size_t)k;
-					rcoarse[q] = rc(x0[0]/2+i,x0[1]/2+j,x0[2]/2+k);
-				}
+	  for( int i=0; i<(int)nx; i++ )
+	    for( int j=0; j<(int)ny; j++ )
+	      for( int k=0; k<(int)nz; k++ )
+		{
+		  size_t q = ((size_t)i*(size_t)ny+(size_t)j)*(size_t)(nz+2)+(size_t)k;
+		  rfine[q] = (*this)(x0[0]+i,x0[1]+j,x0[2]+k);
+		}
+	  //this->free_all_mem();	// temporarily free memory, allocate again later
+		
+		
+		
+	  fftw_real *rcoarse = new fftw_real[nxc*nyc*(nzc+2)];
+	  fftw_complex *ccoarse = reinterpret_cast<fftw_complex*> (rcoarse);
+		
 #ifdef FFTW3
-	#ifdef SINGLE_PRECISION
-		fftwf_execute( pc );
-		fftwf_execute( pf );
-	#else
-		fftw_execute( pc );
-		fftw_execute( pf );	
-	#endif
+#ifdef SINGLE_PRECISION
+	  fftwf_plan pc  = fftwf_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE);
+#else
+	  fftw_plan pc  = fftw_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE);
+#endif
+#else
+	  rfftwnd_plan pc	= rfftw3d_create_plan( nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
+#endif		
+	  
+#pragma omp parallel for
+	  for( int i=0; i<(int)nxc; i++ )
+	    for( int j=0; j<(int)nyc; j++ )
+	      for( int k=0; k<(int)nzc; k++ )
+		{
+		  size_t q = ((size_t)i*(size_t)nyc+(size_t)j)*(size_t)(nzc+2)+(size_t)k;
+		  rcoarse[q] = rc(x0[0]/2+i,x0[1]/2+j,x0[2]/2+k);
+		}
+#ifdef FFTW3
+#ifdef SINGLE_PRECISION
+	  fftwf_execute( pc );
+	  fftwf_execute( pf );
+#else
+	  fftw_execute( pc );
+	  fftw_execute( pf );	
+#endif
 #else
 #ifndef SINGLETHREAD_FFTW		
-		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pc, rcoarse, NULL );
-		rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
+	  rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pc, rcoarse, NULL );
+	  rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
 #else
-		rfftwnd_one_real_to_complex( pc, rcoarse, NULL );
-		rfftwnd_one_real_to_complex( pf, rfine, NULL );
+	  rfftwnd_one_real_to_complex( pc, rcoarse, NULL );
+	  rfftwnd_one_real_to_complex( pf, rfine, NULL );
 #endif
 #endif
-		
-		double fftnorm = 1.0/((double)nx*(double)ny*(double)nz);
-        double sqrt8 = sqrt(8.0);
+	  
+	  double fftnorm = 1.0/((double)nx*(double)ny*(double)nz);
+	  double sqrt8 = sqrt(8.0);
+        double phasefac = -0.5;//-1.0;//-0.125;
+
+	  //if( isolated ) phasefac *= 1.5;
 
         // embedding of coarse white noise by fourier interpolation
         
         // 0 0
-        #pragma omp parallel for
-		for( int i=0; i<(int)nxc/2+1; i++ )
-			for( int j=0; j<(int)nyc/2+1; j++ )
-				for( int k=0; k<(int)nzc/2+1; k++ )
-                {
-                    int ii(i),jj(j),kk(k);
-                    size_t qc,qf;
-					qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
-					qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
-                    
-					RE(cfine[qf]) = sqrt8*RE(ccoarse[qc]);
-					IM(cfine[qf]) = sqrt8*IM(ccoarse[qc]);
-                }
+#pragma omp parallel for
+	for( int i=0; i<(int)nxc/2+1; i++ )
+	  for( int j=0; j<(int)nyc/2+1; j++ )
+	    for( int k=0; k<(int)nzc/2+1; k++ )
+	      {
+		int ii(i),jj(j),kk(k);
+		size_t qc,qf;
+		qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+		qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+
+		double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+		double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+		double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+					
+		double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
+		std::complex<double> val_phas( cos(phase), sin(phase) );
+
+		std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+		val *= sqrt8 * val_phas;
+                
+		RE(cfine[qf]) = val.real();
+		IM(cfine[qf]) = val.imag();
+
+		//if( k==0 & (i==(int)nxc/2 || j==(int)nyc/2) )
+		//  IM(cfine[qf]) *= -1.0;
+	      }
         // 1 0
-        #pragma omp parallel for
-		for( int i=nxc/2; i<(int)nxc; i++ )
-			for( int j=0; j<(int)nyc/2+1; j++ )
-				for( int k=0; k<(int)nzc/2+1; k++ )
-                {
-                    int ii(i+nx/2),jj(j),kk(k);
-                    size_t qc,qf;
-					qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
-					qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
-                    
-					RE(cfine[qf]) = sqrt8*RE(ccoarse[qc]);
-					IM(cfine[qf]) = sqrt8*IM(ccoarse[qc]);
-                    
-                    if( i==(int)nxc/2 || j==(int)nyc/2 )
-                        IM(cfine[qf]) *= -1.0;
-                }
+#pragma omp parallel for
+	for( int i=nxc/2; i<(int)nxc; i++ )
+	  for( int j=0; j<(int)nyc/2+1; j++ )
+	    for( int k=0; k<(int)nzc/2+1; k++ )
+	      {
+		int ii(i+nx/2),jj(j),kk(k);
+		size_t qc,qf;
+		qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+		qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+                
+		double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+		double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+		double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+					
+		double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
+		std::complex<double> val_phas( cos(phase), sin(phase) );
+
+		std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+		val *= sqrt8 * val_phas;
+                
+		RE(cfine[qf]) = val.real();
+		IM(cfine[qf]) = val.imag();
+                
+		//if( k==0 & (i==(int)nxc/2 || j==(int)nyc/2) )
+		//IM(cfine[qf]) *= -1.0;
+	      }
         // 0 1
-        #pragma omp parallel for
-		for( int i=0; i<(int)nxc/2+1; i++ )
-			for( int j=nyc/2; j<(int)nyc; j++ )
-				for( int k=0; k<(int)nzc/2+1; k++ )
-                {
-                    int ii(i),jj(j+ny/2),kk(k);
-                    size_t qc,qf;
-					qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
-					qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
-                    
-					RE(cfine[qf]) = sqrt8*RE(ccoarse[qc]);
-					IM(cfine[qf]) = sqrt8*IM(ccoarse[qc]);
-                    
-                    if( i==(int)nxc/2 || j==(int)nyc/2 )
-                        IM(cfine[qf]) *= -1.0;
-                }
+#pragma omp parallel for
+	for( int i=0; i<(int)nxc/2+1; i++ )
+	  for( int j=nyc/2; j<(int)nyc; j++ )
+	    for( int k=0; k<(int)nzc/2+1; k++ )
+	      {
+		int ii(i),jj(j+ny/2),kk(k);
+		size_t qc,qf;
+		qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+		qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+                
+		double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+		double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+		double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+					
+		double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc)  * M_PI;
+		std::complex<double> val_phas( cos(phase), sin(phase) );
+
+		std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+		val *= sqrt8 * val_phas;
+                
+		RE(cfine[qf]) = val.real();
+		IM(cfine[qf]) = val.imag();
+                
+		//if( k==0 && (i==(int)nxc/2 || j==(int)nyc/2) )
+		//  IM(cfine[qf]) *= -1.0;
+	      }
         
         // 1 1
-        #pragma omp parallel for
-		for( int i=nxc/2; i<(int)nxc; i++ )
-			for( int j=nyc/2; j<(int)nyc; j++ )
-				for( int k=0; k<(int)nzc/2+1; k++ )
-                {
-                    int ii(i+nx/2),jj(j+ny/2),kk(k);
-                    size_t qc,qf;
-					qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
-					qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
-                    
-					RE(cfine[qf]) = sqrt8*RE(ccoarse[qc]);
-					IM(cfine[qf]) = sqrt8*IM(ccoarse[qc]);
-                }
-        		
-		delete[] rcoarse;
-		
-		#pragma omp parallel for
-		for( int i=0; i<(int)nx; i++ )
-			for( int j=0; j<(int)ny; j++ )
-				for( int k=0; k<(int)nz/2+1; k++ )
-				{
-					size_t q = ((size_t)i*ny+(size_t)j)*(nz/2+1)+(size_t)k;
+#pragma omp parallel for
+	for( int i=nxc/2; i<(int)nxc; i++ )
+	  for( int j=nyc/2; j<(int)nyc; j++ )
+	    for( int k=0; k<(int)nzc/2+1; k++ )
+	      {
+		int ii(i+nx/2),jj(j+ny/2),kk(k);
+		size_t qc,qf;
+		qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+		qf = ((size_t)ii*(size_t)ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+                
+		double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+		double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+		double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+					
+		double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
+		std::complex<double> val_phas( cos(phase), sin(phase) );
 
-					RE(cfine[q]) *= fftnorm;
-					IM(cfine[q]) *= fftnorm;
-				}
+		std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+		val *= sqrt8 * val_phas;
+                
+		RE(cfine[qf]) = val.real();
+		IM(cfine[qf]) = val.imag();
+	      }
+        
+	delete[] rcoarse;
+	
+#pragma omp parallel for
+	for( int i=0; i<(int)nx; i++ )
+	  for( int j=0; j<(int)ny; j++ )
+	    for( int k=0; k<(int)nz/2+1; k++ )
+	      {
+		size_t q = ((size_t)i*ny+(size_t)j)*(nz/2+1)+(size_t)k;
+		
+		RE(cfine[q]) *= fftnorm;
+		IM(cfine[q]) *= fftnorm;
+	      }
 
 		
 		
@@ -1269,189 +1378,187 @@ void random_number_generator<rng,T>::parse_rand_parameters( void )
 template< typename rng, typename T >
 void random_number_generator<rng,T>::correct_avg( int icoarse, int ifine )
 {
-	int shift[3], levelmin_poisson;
-	shift[0] = pcf_->getValue<int>("setup","shift_x");
-	shift[1] = pcf_->getValue<int>("setup","shift_y");
-	shift[2] = pcf_->getValue<int>("setup","shift_z");
-	
-	levelmin_poisson = pcf_->getValue<unsigned>("setup","levelmin");
-	
-	int lfacc = 1<<(icoarse-levelmin_poisson);
-	
-	
-	
-	
-	int nc[3], i0c[3], nf[3], i0f[3];
-	if( icoarse != levelmin_ )
-	{
-		nc[0]  = 2*prefh_->size(icoarse, 0);
-		nc[1]  = 2*prefh_->size(icoarse, 1);
-		nc[2]  = 2*prefh_->size(icoarse, 2);
-		i0c[0] = prefh_->offset_abs(icoarse, 0) - lfacc*shift[0] - nc[0]/4;
-		i0c[1] = prefh_->offset_abs(icoarse, 1) - lfacc*shift[1] - nc[1]/4;
-		i0c[2] = prefh_->offset_abs(icoarse, 2) - lfacc*shift[2] - nc[2]/4;
-		
-	}
-	else
-	{
-		nc[0]  = prefh_->size(icoarse, 0);
-		nc[1]  = prefh_->size(icoarse, 1);
-		nc[2]  = prefh_->size(icoarse, 2);
-		i0c[0] = - lfacc*shift[0];
-		i0c[1] = - lfacc*shift[1];
-		i0c[2] = - lfacc*shift[2];
-	}
-	nf[0]  = 2*prefh_->size(ifine, 0);
-	nf[1]  = 2*prefh_->size(ifine, 1);
-	nf[2]  = 2*prefh_->size(ifine, 2);
-	i0f[0] = prefh_->offset_abs(ifine, 0) - 2*lfacc*shift[0] - nf[0]/4;
-	i0f[1] = prefh_->offset_abs(ifine, 1) - 2*lfacc*shift[1] - nf[1]/4;
-	i0f[2] = prefh_->offset_abs(ifine, 2) - 2*lfacc*shift[2] - nf[2]/4;
-	
-	//.................................
-	if( disk_cached_ )
-	{
-		char fncoarse[128], fnfine[128];
-		sprintf(fncoarse,"wnoise_%04d.bin",icoarse);
-		sprintf(fnfine,"wnoise_%04d.bin",ifine);
-		
-		std::ifstream 
-		iffine( fnfine, std::ios::binary ), 
-		ifcoarse( fncoarse, std::ios::binary );
-		
-		int nxc,nyc,nzc,nxf,nyf,nzf;
-		iffine.read( reinterpret_cast<char*> (&nxf), sizeof(unsigned) );
-		iffine.read( reinterpret_cast<char*> (&nyf), sizeof(unsigned) );
-		iffine.read( reinterpret_cast<char*> (&nzf), sizeof(unsigned) );
-		
-		ifcoarse.read( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
-		ifcoarse.read( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
-		ifcoarse.read( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
-		
-		if( nxf!=nf[0] || nyf!=nf[1] || nzf!=nf[2] || nxc!=nc[0] || nyc!=nc[1] || nzc!=nc[2] )
-		{
+    int shift[3], levelmin_poisson;
+    shift[0] = pcf_->getValue<int>("setup","shift_x");
+    shift[1] = pcf_->getValue<int>("setup","shift_y");
+    shift[2] = pcf_->getValue<int>("setup","shift_z");
+    
+    levelmin_poisson = pcf_->getValue<unsigned>("setup","levelmin");
+    
+    int lfacc = 1<<(icoarse-levelmin_poisson);
+    
+    
+    
+    
+    int nc[3], i0c[3], nf[3], i0f[3];
+    if( icoarse != levelmin_ )
+    {
+        nc[0]  = 2*prefh_->size(icoarse, 0);
+        nc[1]  = 2*prefh_->size(icoarse, 1);
+        nc[2]  = 2*prefh_->size(icoarse, 2);
+        i0c[0] = prefh_->offset_abs(icoarse, 0) - lfacc*shift[0] - nc[0]/4;
+        i0c[1] = prefh_->offset_abs(icoarse, 1) - lfacc*shift[1] - nc[1]/4;
+        i0c[2] = prefh_->offset_abs(icoarse, 2) - lfacc*shift[2] - nc[2]/4;
+        
+    }
+    else
+    {
+        nc[0]  = prefh_->size(icoarse, 0);
+        nc[1]  = prefh_->size(icoarse, 1);
+        nc[2]  = prefh_->size(icoarse, 2);
+        i0c[0] = - lfacc*shift[0];
+        i0c[1] = - lfacc*shift[1];
+        i0c[2] = - lfacc*shift[2];
+    }
+    nf[0]  = 2*prefh_->size(ifine, 0);
+    nf[1]  = 2*prefh_->size(ifine, 1);
+    nf[2]  = 2*prefh_->size(ifine, 2);
+    i0f[0] = prefh_->offset_abs(ifine, 0) - 2*lfacc*shift[0] - nf[0]/4;
+    i0f[1] = prefh_->offset_abs(ifine, 1) - 2*lfacc*shift[1] - nf[1]/4;
+    i0f[2] = prefh_->offset_abs(ifine, 2) - 2*lfacc*shift[2] - nf[2]/4;
+    
+    //.................................
+    if( disk_cached_ )
+    {
+        char fncoarse[128], fnfine[128];
+        sprintf(fncoarse,"wnoise_%04d.bin",icoarse);
+        sprintf(fnfine,"wnoise_%04d.bin",ifine);
+        
+        std::ifstream
+        iffine( fnfine, std::ios::binary ),
+        ifcoarse( fncoarse, std::ios::binary );
+        
+        int nxc,nyc,nzc,nxf,nyf,nzf;
+        iffine.read( reinterpret_cast<char*> (&nxf), sizeof(unsigned) );
+        iffine.read( reinterpret_cast<char*> (&nyf), sizeof(unsigned) );
+        iffine.read( reinterpret_cast<char*> (&nzf), sizeof(unsigned) );
+        
+        ifcoarse.read( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
+        ifcoarse.read( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
+        ifcoarse.read( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
+        
+        if( nxf!=nf[0] || nyf!=nf[1] || nzf!=nf[2] || nxc!=nc[0] || nyc!=nc[1] || nzc!=nc[2] )
+        {
             LOGERR("White noise file mismatch. This should not happen. Notify a developer!");
             throw std::runtime_error("White noise file mismatch. This should not happen. Notify a developer!");
         }
-		int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
-		std::vector<T> deg_rand( (size_t)nxd*(size_t)nyd*(size_t)nzd, 0.0 );
-		double fac = 1.0/sqrt(8.0);
-		
-		for( int i=0, ic=0; i<nxf; i+=2, ic++ )
-		{	
-			std::vector<T> fine_rand( 2*nyf*nzf, 0.0 );
-			iffine.read( reinterpret_cast<char*> (&fine_rand[0]), 2*nyf*nzf*sizeof(T) );
-			
+        int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
+        std::vector<T> deg_rand( (size_t)nxd*(size_t)nyd*(size_t)nzd, 0.0 );
+        double fac = 1.0/sqrt(8.0);
+        
+        for( int i=0, ic=0; i<nxf; i+=2, ic++ )
+        {
+            std::vector<T> fine_rand( 2*nyf*nzf, 0.0 );
+            iffine.read( reinterpret_cast<char*> (&fine_rand[0]), 2*nyf*nzf*sizeof(T) );
+            
 #pragma omp parallel for
-			for( int j=0; j<nyf; j+=2 )
-				for( int k=0; k<nzf; k+=2 )
-				{
-					int jc = j/2, kc = k/2;
-					//size_t qc = (((size_t)i/2)*(size_t)nyd+((size_t)j/2))*(size_t)nzd+((size_t)k/2);
-					size_t qc = ((size_t)(ic*nyd+jc))*(size_t)nzd+(size_t)kc;
-					
-					size_t qf[8];
-					qf[0] = (0*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+0;
-					qf[1] = (0*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+1;
-					qf[2] = (0*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+0;
-					qf[3] = (0*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+1;
-					qf[4] = (1*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+0;
-					qf[5] = (1*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+1;
-					qf[6] = (1*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+0;
-					qf[7] = (1*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+1;
-					
-					double d = 0.0;
-					for( int q=0; q<8; ++q )
-						d += fac*fine_rand[qf[q]];
-					
-					//deg_rand[qc] += d;
-					deg_rand[qc] = d;
-				}
-		}
-		
-		//... now deg_rand holds the oct-averaged fine field, store this in the coarse field
-		std::vector<T> coarse_rand(nxc*nyc*nzc,0.0);
-		ifcoarse.read( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
-		
-		int di,dj,dk;
-		
-		di = i0f[0]/2-i0c[0];
-		dj = i0f[1]/2-i0c[1];
-		dk = i0f[2]/2-i0c[2];
-		
+            for( int j=0; j<nyf; j+=2 )
+                for( int k=0; k<nzf; k+=2 )
+                {
+                    int jc = j/2, kc = k/2;
+                    //size_t qc = (((size_t)i/2)*(size_t)nyd+((size_t)j/2))*(size_t)nzd+((size_t)k/2);
+                    size_t qc = ((size_t)(ic*nyd+jc))*(size_t)nzd+(size_t)kc;
+                    
+                    size_t qf[8];
+                    qf[0] = (0*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+0;
+                    qf[1] = (0*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+1;
+                    qf[2] = (0*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+0;
+                    qf[3] = (0*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+1;
+                    qf[4] = (1*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+0;
+                    qf[5] = (1*(size_t)nyf+(size_t)j+0)*(size_t)nzf+(size_t)k+1;
+                    qf[6] = (1*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+0;
+                    qf[7] = (1*(size_t)nyf+(size_t)j+1)*(size_t)nzf+(size_t)k+1;
+                    
+                    double d = 0.0;
+                    for( int q=0; q<8; ++q )
+                        d += fac*fine_rand[qf[q]];
+                    
+                    //deg_rand[qc] += d;
+                    deg_rand[qc] = d;
+                }
+        }
+        
+        //... now deg_rand holds the oct-averaged fine field, store this in the coarse field
+        std::vector<T> coarse_rand(nxc*nyc*nzc,0.0);
+        ifcoarse.read( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
+        
+        int di,dj,dk;
+        
+        di = i0f[0]/2-i0c[0];
+        dj = i0f[1]/2-i0c[1];
+        dk = i0f[2]/2-i0c[2];
+        
 #pragma omp parallel for
-		for( int i=0; i<nxd; i++ )
-			for( int j=0; j<nyd; j++ )
-				for( int k=0; k<nzd; k++ )
-				{
-					//unsigned qc = (((i+di+nxc)%nxc)*nyc+(((j+dj+nyc)%nyc)))*nzc+((k+dk+nzc)%nzc);
-					
-					if( i+di < 0 || i+di >= nxc || j+dj < 0 || j+dj >= nyc || k+dk < 0 || k+dk >= nzc )
-						continue;
-					
-					size_t qc = (((size_t)i+(size_t)di)*(size_t)nyc+((size_t)j+(size_t)dj))*(size_t)nzc+(size_t)(k+dk);
-					size_t qcd = (size_t)(i*nyd+j)*(size_t)nzd+(size_t)k;
-					
-					coarse_rand[qc] = deg_rand[qcd];
-				}
-		
-		deg_rand.clear();
-		
-		ifcoarse.close();
-		std::ofstream ofcoarse( fncoarse, std::ios::binary|std::ios::trunc );
-		ofcoarse.write( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
-		ofcoarse.write( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
-		ofcoarse.write( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
-		ofcoarse.write( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
-		ofcoarse.close();	
-	}
-	else
-	{
-		int nxc,nyc,nzc,nxf,nyf,nzf;
-		nxc = nc[0]; nyc = nc[1]; nzc = nc[2];
-		nxf = nf[0]; nyf = nf[1]; nzf = nf[2];
-		int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
-		
-		int di,dj,dk;
-		
-		di = i0f[0]/2-i0c[0];
-		dj = i0f[1]/2-i0c[1];
-		dk = i0f[2]/2-i0c[2];
-		
-		double fac = 1.0/sqrt(8.0);
-		
+        for( int i=0; i<nxd; i++ )
+            for( int j=0; j<nyd; j++ )
+                for( int k=0; k<nzd; k++ )
+                {
+                    //unsigned qc = (((i+di+nxc)%nxc)*nyc+(((j+dj+nyc)%nyc)))*nzc+((k+dk+nzc)%nzc);
+                    
+                    if( i+di < 0 || i+di >= nxc || j+dj < 0 || j+dj >= nyc || k+dk < 0 || k+dk >= nzc )
+                        continue;
+                    
+                    size_t qc = (((size_t)i+(size_t)di)*(size_t)nyc+((size_t)j+(size_t)dj))*(size_t)nzc+(size_t)(k+dk);
+                    size_t qcd = (size_t)(i*nyd+j)*(size_t)nzd+(size_t)k;
+                    
+                    coarse_rand[qc] = deg_rand[qcd];
+                }
+        
+        deg_rand.clear();
+        
+        ifcoarse.close();
+        std::ofstream ofcoarse( fncoarse, std::ios::binary|std::ios::trunc );
+        ofcoarse.write( reinterpret_cast<char*> (&nxc), sizeof(unsigned) );
+        ofcoarse.write( reinterpret_cast<char*> (&nyc), sizeof(unsigned) );
+        ofcoarse.write( reinterpret_cast<char*> (&nzc), sizeof(unsigned) );
+        ofcoarse.write( reinterpret_cast<char*> (&coarse_rand[0]), nxc*nyc*nzc*sizeof(T) );
+        ofcoarse.close();
+    }
+    else
+    {
+        int nxc,nyc,nzc,nxf,nyf,nzf;
+        nxc = nc[0]; nyc = nc[1]; nzc = nc[2];
+        nxf = nf[0]; nyf = nf[1]; nzf = nf[2];
+        int nxd(nxf/2),nyd(nyf/2),nzd(nzf/2);
+        
+        int di,dj,dk;
+        
+        di = i0f[0]/2-i0c[0];
+        dj = i0f[1]/2-i0c[1];
+        dk = i0f[2]/2-i0c[2];
+        
+        double fac = 1.0/sqrt(8.0);
+        
 #pragma omp parallel for
-		for( int i=0; i<nxd; i++ )
-			for( int j=0; j<nyd; j++ )
-				for( int k=0; k<nzd; k++ )
-				{
-					if( i+di < 0 || i+di >= nxc || j+dj < 0 || j+dj >= nyc || k+dk < 0 || k+dk >= nzc )
-						continue;
-					
-					size_t qf[8];
-					qf[0] = (size_t)((2*i+0)*nyf+2*j+0)*(size_t)nzf+(size_t)(2*k+0);
-					qf[1] = (size_t)((2*i+0)*nyf+2*j+0)*(size_t)nzf+(size_t)(2*k+1);
-					qf[2] = (size_t)((2*i+0)*nyf+2*j+1)*(size_t)nzf+(size_t)(2*k+0);
-					qf[3] = (size_t)((2*i+0)*nyf+2*j+1)*(size_t)nzf+(size_t)(2*k+1);
-					qf[4] = (size_t)((2*i+1)*nyf+2*j+0)*(size_t)nzf+(size_t)(2*k+0);
-					qf[5] = (size_t)((2*i+1)*nyf+2*j+0)*(size_t)nzf+(size_t)(2*k+1);
-					qf[6] = (size_t)((2*i+1)*nyf+2*j+1)*(size_t)nzf+(size_t)(2*k+0);
-					qf[7] = (size_t)((2*i+1)*nyf+2*j+1)*(size_t)nzf+(size_t)(2*k+1);
-					
-					double finesum = 0.0;
-					for( int q=0; q<8; ++q )
-						finesum += fac*(*mem_cache_[ifine-levelmin_])[qf[q]];
-					
-					size_t qc = ((size_t)(i+di)*nyc+(size_t)(j+dj))*(size_t)nzc+(size_t)(k+dk);
-					
-					(*mem_cache_[icoarse-levelmin_])[qc] = finesum;
-				}						
-	}
-	
-	
+        for( int i=0; i<nxd; i++ )
+            for( int j=0; j<nyd; j++ )
+                for( int k=0; k<nzd; k++ )
+                {
+                    if( i+di < 0 || i+di >= nxc || j+dj < 0 || j+dj >= nyc || k+dk < 0 || k+dk >= nzc )
+                        continue;
+                    
+                    size_t qf[8];
+                    qf[0] = (size_t)((2*i+0)*nyf+2*j+0)*(size_t)nzf+(size_t)(2*k+0);
+                    qf[1] = (size_t)((2*i+0)*nyf+2*j+0)*(size_t)nzf+(size_t)(2*k+1);
+                    qf[2] = (size_t)((2*i+0)*nyf+2*j+1)*(size_t)nzf+(size_t)(2*k+0);
+                    qf[3] = (size_t)((2*i+0)*nyf+2*j+1)*(size_t)nzf+(size_t)(2*k+1);
+                    qf[4] = (size_t)((2*i+1)*nyf+2*j+0)*(size_t)nzf+(size_t)(2*k+0);
+                    qf[5] = (size_t)((2*i+1)*nyf+2*j+0)*(size_t)nzf+(size_t)(2*k+1);
+                    qf[6] = (size_t)((2*i+1)*nyf+2*j+1)*(size_t)nzf+(size_t)(2*k+0);
+                    qf[7] = (size_t)((2*i+1)*nyf+2*j+1)*(size_t)nzf+(size_t)(2*k+1);
+                    
+                    double finesum = 0.0;
+                    for( int q=0; q<8; ++q )
+                        finesum += fac*(*mem_cache_[ifine-levelmin_])[qf[q]];
+                    
+                    size_t qc = ((size_t)(i+di)*nyc+(size_t)(j+dj))*(size_t)nzc+(size_t)(k+dk);
+                    
+                    (*mem_cache_[icoarse-levelmin_])[qc] = finesum;
+                }
+    }
+    
+    
 }
-
-
 
 template< typename rng, typename T >
 void random_number_generator<rng,T>::compute_random_numbers( void )
@@ -1467,7 +1574,7 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	if( levelmin_seed_ < levelmin_ )
 	{
 		if( rngfnames_[levelmin_seed_].size() > 0 )
-			randc[levelmin_seed_] 
+			randc[levelmin_seed_]
 			= new rng( 1<<levelmin_seed_, rngfnames_[levelmin_seed_], rndsign );
 		else
 			randc[levelmin_seed_]
@@ -1561,13 +1668,13 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 		x0[2] = prefh_->offset_abs(ilevel, 2) - lfac*shift[2] - lx[2]/4;
 		
 		if( randc[ilevel] == NULL )
-			randc[ilevel] = new rng( *randc[ilevel-1], ran_cube_size_, rngseeds_[ilevel], kavg, x0, lx );
+		  randc[ilevel] = new rng( *randc[ilevel-1], ran_cube_size_, rngseeds_[ilevel], kavg, ilevel==levelmin_+1, x0, lx );
 		delete randc[ilevel-1];
 		randc[ilevel-1] = NULL;
 		
 		//... apply constraints to this level, if any
 		//if( ilevel == levelmax_ )
-		constraints.apply( ilevel, x0, lx, randc[ilevel] );
+		//constraints.apply( ilevel, x0, lx, randc[ilevel] );
 		
 		//... store numbers
 		store_rnd( ilevel, randc[ilevel] );
@@ -1575,15 +1682,11 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	
 	delete randc[levelmax_];
 	randc[levelmax_] = NULL;
-	
-	//... make sure that the coarse grid contains oct averages where it overlaps with a fine grid
-	//... this also ensures that constraints enforced on fine grids are carried to the coarser grids
-	for( int ilevel=levelmax_; ilevel>levelmin_; --ilevel )
-		correct_avg( ilevel-1, ilevel );
-	
-	
-	
-	
+    
+    //... make sure that the coarse grid contains oct averages where it overlaps with a fine grid
+    //... this also ensures that constraints enforced on fine grids are carried to the coarser grids
+    //for( int ilevel=levelmax_; ilevel>levelmin_; --ilevel )
+    //    correct_avg( ilevel-1, ilevel );
 	
 	//.. we do not have random numbers for a coarse level, generate them
 	/*if( levelmax_rand_ >= (int)levelmin_ )

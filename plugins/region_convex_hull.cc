@@ -1,3 +1,13 @@
+/*
+ 
+ region_convex_hull.cc - This file is part of MUSIC -
+ a code to generate multi-scale initial conditions 
+ for cosmological simulations 
+ 
+ Copyright (C) 2010-13  Oliver Hahn
+ 
+ */
+
 #include <vector>
 #include <iostream>
 #include <cmath>
@@ -20,6 +30,8 @@ private:
     int shift[3], shift_level, padding_;
     double vfac_;
     bool do_extra_padding_;
+    
+    std::vector<float> level_dist_;
     
     void apply_shift( size_t Np, double *p, int *shift, int levelmin )
     {
@@ -66,7 +78,7 @@ public:
         phull_->expand( sqrt(3.)*dx );
         
         // output the center
-        float c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };
+        double c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };
         LOGINFO("Region center from convex hull centroid determined at\n\t (%f,%f,%f)",c[0],c[1],c[2]);
         
         //-----------------------------------------------------------------
@@ -78,6 +90,14 @@ public:
             std::string output_plugin = cf.getValue<std::string>("output","format");
             if( output_plugin == std::string("grafic2") )
                 do_extra_padding_ = true;
+        }
+        
+        level_dist_.assign( levelmax+1, 0.0 );
+        // generate the higher level ellipsoids
+        for( int ilevel = levelmax_-1; ilevel > 0; --ilevel )
+        {
+            dx = 1.0/(1ul<<(ilevel));
+            level_dist_[ilevel-1] = level_dist_[ilevel] + padding_ * dx;
         }
     }
     
@@ -114,8 +134,8 @@ public:
         // it might have enlarged it, but who cares...
     }
 
-    bool query_point( double *x )
-    {   return phull_->check_point( x );   }
+    bool query_point( double *x, int ilevel )
+    {   return phull_->check_point( x, level_dist_[ilevel] );   }
     
     bool is_grid_dim_forced( size_t* ndims )
     {   return false;   }
@@ -130,7 +150,7 @@ public:
     void get_center_unshifted( double *xc )
     {
         double dx = 1.0/(1<<shift_level);
-        float c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };
+        double c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };
         xc[0] = c[0]+shift[0]*dx;
         xc[1] = c[1]+shift[1]*dx;
         xc[2] = c[2]+shift[2]*dx;

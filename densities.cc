@@ -8,12 +8,242 @@
  
  */
 
+#include <cstring>
+
 #include "densities.hh"
 #include "convolution_kernel.hh"
 
 
 //TODO: this should be a larger number by default, just to maintain consistency with old default
 #define DEF_RAN_CUBE_SIZE	32
+
+
+template< typename m1, typename m2 >
+void fft_interpolate( m1& V, m2& v, bool from_basegrid=false ) 
+{
+  int oxf = v.offset(0), oyf = v.offset(1), ozf = v.offset(2);
+  size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf+2;
+  size_t nxF = V.size(0), nyF = V.size(1), nzF = V.size(2);
+    
+  if( !from_basegrid )
+    {
+      oxf += nxF/4;
+      oyf += nyF/4;
+      ozf += nzF/4;
+    }
+  
+  LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d",oxf,oyf,ozf,nxf,nyf,nzf);
+
+  // cut out piece of coarse grid that overlaps the fine:
+  assert( nxf%2==0 && nyf%2==0 && nzf%2==0 );
+  
+  size_t nxc = nxf/2, nyc = nyf/2, nzc = nzf/2, nzcp = nzf/2+2;
+  
+  fftw_real *rcoarse = new fftw_real[ nxc * nyc * nzcp ];
+  fftw_complex *ccoarse = reinterpret_cast<fftw_complex*> (rcoarse);
+  
+  fftw_real *rfine = new fftw_real[ nxf * nyf * nzfp];
+  fftw_complex *cfine = reinterpret_cast<fftw_complex*> (rfine);
+  
+  // copy coarse data to rcoarse[.]
+  memset( rcoarse, 0, sizeof(fftw_real) * nxc*nyc*nzcp );
+  #pragma omp parallel for
+  for( int i=0; i<(int)nxc/2; ++i )
+    for( int j=0; j<(int)nyc/2; ++j )
+      for( int k=0; k<(int)nzc/2; ++k )
+	{
+	  int ii(i+nxc/4);
+	  int jj(j+nyc/4);
+	  int kk(k+nzc/4);
+	  size_t q = ((size_t)ii*nyc+(size_t)jj)*nzcp+(size_t)kk;
+	  rcoarse[q] = V( oxf+i, oyf+j, ozf+k );
+	}
+    
+  #pragma omp parallel for
+  for( int i=0; i<(int)nxf; ++i )
+    for( int j=0; j<(int)nyf; ++j )
+      for( int k=0; k<(int)nzf; ++k ) 
+	{
+	  size_t q = ((size_t)i*nyf+(size_t)j)*nzfp+(size_t)k;
+	  rfine[q] = v(i,j,k);
+	}
+
+#ifdef FFTW3
+#ifdef SINGLE_PRECISION
+    fftwf_plan
+      pc  = fftwf_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE),
+      pf  = fftwf_plan_dft_r2c_3d( nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
+      ipf = fftwf_plan_dft_c2r_3d( nxf, nyf, nzf, cfine, rfine, FFTW_ESTIMATE);
+    fftwf_execute( pc );
+    fftwf_execute( pf );
+#else
+    fftw_plan
+      pc  = fftw_plan_dft_r2c_3d( nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE),
+      pf  = fftw_plan_dft_r2c_3d( nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
+      ipf = fftw_plan_dft_c2r_3d( nxf, nyf, nzf, cfine, rfine, FFTW_ESTIMATE);
+    fftw_execute( pc );
+    fftw_execute( pf );
+#endif
+#else
+    rfftwnd_plan 
+      pc  = rfftw3d_create_plan( nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+      pf  = rfftw3d_create_plan( nxf, nyf, nzf, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+      ipf = rfftw3d_create_plan( nxf, nyf, nzf, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+    
+#ifndef SINGLETHREAD_FFTW		
+    rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pc, rcoarse, NULL );
+    rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
+#else
+    rfftwnd_one_real_to_complex( pc, rcoarse, NULL );
+    rfftwnd_one_real_to_complex( pf, rfine, NULL );
+#endif
+#endif
+
+    /*************************************************/
+    //.. perform actual interpolation
+    double fftnorm = 1.0/((double)nxf*(double)nyf*(double)nzf);
+    double sqrt8 = 8.0;//sqrt(8.0);
+    double phasefac = -0.5;
+    
+     // 0 0
+    #pragma omp parallel for
+    for( int i=0; i<(int)nxc/2+1; i++ )
+      for( int j=0; j<(int)nyc/2+1; j++ )
+	for( int k=0; k<(int)nzc/2+1; k++ )
+	  {
+	    int ii(i),jj(j),kk(k);
+	    size_t qc,qf;
+	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
+            
+	    double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+	    
+	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
+	    std::complex<double> val_phas( cos(phase), sin(phase) );
+	    
+	    std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+	    val *= sqrt8 * val_phas;
+            
+	    RE(cfine[qf]) = val.real();
+	    IM(cfine[qf]) = val.imag();
+	  }
+
+    // 1 0
+    #pragma omp parallel for
+    for( int i=nxc/2; i<(int)nxc; i++ )
+      for( int j=0; j<(int)nyc/2+1; j++ )
+	for( int k=0; k<(int)nzc/2+1; k++ )
+	  {
+	    int ii(i+nxf/2),jj(j),kk(k);
+	    size_t qc,qf;
+	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
+            
+	    double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+	    
+	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
+	    std::complex<double> val_phas( cos(phase), sin(phase) );
+	    
+	    std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+	    val *= sqrt8 * val_phas;
+            
+	    RE(cfine[qf]) = val.real();
+	    IM(cfine[qf]) = val.imag();
+	  }
+
+    // 0 1
+    #pragma omp parallel for
+    for( int i=0; i<(int)nxc/2+1; i++ )
+      for( int j=nyc/2; j<(int)nyc; j++ )
+	for( int k=0; k<(int)nzc/2+1; k++ )
+	  {
+	    int ii(i),jj(j+nyf/2),kk(k);
+	    size_t qc,qf;
+	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
+            
+	    double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+	    
+	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
+	    std::complex<double> val_phas( cos(phase), sin(phase) );
+	    
+	    std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+	    val *= sqrt8 * val_phas;
+            
+	    RE(cfine[qf]) = val.real();
+	    IM(cfine[qf]) = val.imag();
+	  }
+    
+    // 1 1
+    #pragma omp parallel for
+    for( int i=nxc/2; i<(int)nxc; i++ )
+      for( int j=nyc/2; j<(int)nyc; j++ )
+	for( int k=0; k<(int)nzc/2+1; k++ )
+	  {
+	    int ii(i+nxf/2),jj(j+nyf/2),kk(k);
+	    size_t qc,qf;
+	    qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+	    qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
+            
+	    double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+	    double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+	    double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+	    
+	    double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
+	    std::complex<double> val_phas( cos(phase), sin(phase) );
+	    
+	    std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+	    val *= sqrt8 * val_phas;
+            
+	    RE(cfine[qf]) = val.real();
+	    IM(cfine[qf]) = val.imag();
+	  }
+        
+    delete[] rcoarse;
+
+     /*************************************************/    
+
+#ifdef FFTW3
+  #ifdef SINGLE_PRECISION
+    fftwf_execute( ipf );
+    fftwf_destroy_plan(pf);
+    fftwf_destroy_plan(pc);
+    fftwf_destroy_plan(ipf);
+  #else
+    fftw_execute( ipf );
+    fftw_destroy_plan(pf);
+    fftw_destroy_plan(pc);
+    fftw_destroy_plan(ipf);
+  #endif
+#else
+  #ifndef SINGLETHREAD_FFTW		
+    rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipf, cfine, NULL );
+  #else
+    rfftwnd_one_complex_to_real( ipf, cfine, NULL );
+  #endif
+    fftwnd_destroy_plan(pf);
+    fftwnd_destroy_plan(pc);
+    fftwnd_destroy_plan(ipf);
+#endif
+
+    // copy back and normalize
+    #pragma omp parallel for
+    for( int i=0; i<(int)nxf; ++i )
+      for( int j=0; j<(int)nyf; ++j )
+	for( int k=0; k<(int)nzf; ++k ) 
+	  {
+	    size_t q = ((size_t)i*nyf+(size_t)j)*nzfp+(size_t)k;
+	    v(i,j,k) = rfine[q] * fftnorm;
+	  }
+
+    delete[] rfine;
+}
 
 
 
@@ -46,9 +276,9 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 		LOGUSER("Using k-space transfer function kernel.");
 		
 		#ifdef SINGLE_PRECISION	
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_float" ];
+		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_float" ];
 		#else
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_double" ];
+		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_double" ];
 		#endif
 	}
 	else
@@ -102,73 +332,129 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 /*******************************************************************************************/
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
-							  refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool smooth, bool shift )
+				refinement_hierarchy& refh, rand_gen& rand, 
+				grid_hierarchy& delta, bool smooth, bool shift )
 {
-	unsigned					levelmin,levelmax,levelminPoisson;
-	std::vector<long>			rngseeds;
-	std::vector<std::string>	rngfnames;
-	bool						kspaceTF;
-	
-	double tstart, tend;
-
+  unsigned levelmin, levelmax, levelminPoisson;
+  std::vector<long> rngseeds;
+  std::vector<std::string> rngfnames;
+  bool kspaceTF;
+  
+  double tstart, tend;
+  
 #ifndef SINGLETHREAD_FFTW
-	tstart = omp_get_wtime();
+  tstart = omp_get_wtime();
 #else
-	tstart = (double)clock() / CLOCKS_PER_SEC;
+  tstart = (double)clock() / CLOCKS_PER_SEC;
 #endif
+  
+  levelminPoisson = cf.getValue<unsigned>("setup","levelmin");
+  levelmin = cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
+  levelmax = cf.getValue<unsigned>("setup","levelmax");
+  kspaceTF = cf.getValueSafe<bool>("setup", "kspace_TF", false);
+  
+  unsigned nbase = 1<<levelmin;
 	
-	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
-	levelmin		= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
-	levelmax		= cf.getValue<unsigned>("setup","levelmax");
-	kspaceTF		= cf.getValueSafe<bool>("setup", "kspace_TF", false);
+  convolution::kernel_creator *the_kernel_creator;
 	
-	
-	unsigned	nbase	= (unsigned)pow(2,levelmin);
-	
-	convolution::kernel_creator *the_kernel_creator;
-	
-	if( kspaceTF )
-	{
-		if( levelmin!=levelmax )
-		{	
-			LOGERR("K-space transfer function can only be used in unigrid density mode!");
-			throw std::runtime_error("k-space transfer function can only be used in unigrid density mode");
-			
-		}
-		
-		std::cout << " - Using k-space transfer function kernel.\n";
-		LOGUSER("Using k-space transfer function kernel.");
-		
+  if( kspaceTF )
+    {
+      std::cout << " - Using k-space transfer function kernel.\n";
+      LOGUSER("Using k-space transfer function kernel.");
+      
 #ifdef SINGLE_PRECISION	
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_float" ];
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_float" ];
 #else
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_double" ];
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_double" ];
 #endif
-	}
+    }
+  else
+    {
+      std::cout << " - Using real-space transfer function kernel.\n";
+      LOGUSER("Using real-space transfer function kernel.");
+#ifdef SINGLE_PRECISION	
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_float" ];
+#else
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_double" ];
+#endif
+    }	
+	
+  convolution::kernel *the_tf_kernel = the_kernel_creator->create( cf, ptf, refh, type );
+	
+  /***** PERFORM CONVOLUTIONS *****/
+  if( kspaceTF ){
+
+    //... create and initialize density grids with white noise	
+    DensityGrid<real_t> *top(NULL);
+    PaddedDensitySubGrid<real_t> *coarse(NULL), *fine(NULL);
+    int nlevels = (int)levelmax-(int)levelmin+1;
+    
+    // do coarse level
+    top = new DensityGrid<real_t>( nbase, nbase, nbase );
+    LOGINFO("Performing noise convolution on level %3d",levelmin);
+    rand.load(*top,levelmin);
+    convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmin, false ), reinterpret_cast<void*>( top->get_data_ptr() ), shift );
+    
+    delta.create_base_hierarchy(levelmin);
+    top->copy( *delta.get_grid(levelmin) );
+    
+    for( int i=1; i<nlevels; ++i )
+      {
+	LOGINFO("Performing noise convolution on level %3d...",levelmin+i);
+	/////////////////////////////////////////////////////////////////////////
+	//... add new refinement patch
+	LOGUSER("Allocating refinement patch");
+	LOGUSER("   offset=(%5d,%5d,%5d)",refh.offset(levelmin+i,0), 
+		refh.offset(levelmin+i,1), refh.offset(levelmin+i,2));
+	LOGUSER("   size  =(%5d,%5d,%5d)",refh.size(levelmin+i,0), 
+		refh.size(levelmin+i,1), refh.size(levelmin+i,2));
+	
+	fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin+i,0), 
+						refh.offset(levelmin+i,1), 
+						refh.offset(levelmin+i,2),
+						refh.size(levelmin+i,0), 
+						refh.size(levelmin+i,1), 
+						refh.size(levelmin+i,2) );
+	/////////////////////////////////////////////////////////////////////////
+
+	// load white noise for patch
+	rand.load(*fine,levelmin+i);	
+	
+	convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmin+i, true ), 
+				      reinterpret_cast<void*>( fine->get_data_ptr() ), shift );
+	
+	if( i==1 )
+	  fft_interpolate( *top, *fine, true );
 	else
-	{
-		std::cout << " - Using real-space transfer function kernel.\n";
-		LOGUSER("Using real-space transfer function kernel.");
-#ifdef SINGLE_PRECISION	
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_float" ];
-#else
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_double" ];
-#endif
-	}	
+	  fft_interpolate( *coarse, *fine, false ); 
 	
-	
-	//... create and initialize density grids with white noise	
+	delta.add_patch( refh.offset(levelmin+i,0), 
+			 refh.offset(levelmin+i,1),
+			 refh.offset(levelmin+i,2), 
+			 refh.size(levelmin+i,0),
+			 refh.size(levelmin+i,1),
+			 refh.size(levelmin+i,2) );
+
+	fine->copy_unpad( *delta.get_grid(levelmin+i) );
+
+	if( i==1 ) delete top;
+	else delete coarse;
+
+	coarse = fine;
+      }
+
+    delete coarse;
+
+  }else{
+	  
+        //... create and initialize density grids with white noise	
 	PaddedDensitySubGrid<real_t>* coarse(NULL), *fine(NULL);
-	
 	DensityGrid<real_t>* top(NULL);
-		
-	convolution::kernel *the_tf_kernel = the_kernel_creator->create( cf, ptf, refh, type );
-		
-	/***** PERFORM CONVOLUTIONS *****/
-	
+
 	if( levelmax == levelmin )
 	{
-		std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmax << " ..." << std::endl;
+		std::cout << " - Performing noise convolution on level " 
+			  << std::setw(2) << levelmax << " ..." << std::endl;
 		LOGUSER("Performing noise convolution on level %3d...",levelmax);
 		
 		top = new DensityGrid<real_t>( nbase, nbase, nbase );
@@ -176,7 +462,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		rand.load( *top, levelmin );
 
 
-		convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmax ), reinterpret_cast<void*>( top->get_data_ptr() ), shift );
+		convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmax ), 
+					      reinterpret_cast<void*>( top->get_data_ptr() ), 
+					      shift );
 		the_tf_kernel->deallocate();
 		
 		delta.create_base_hierarchy(levelmin);
@@ -198,8 +486,13 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			rand.load(*top,levelmin);
 		}
 		
-		fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
-												refh.size(levelmin+i+1,0), 	refh.size(levelmin+i+1,1), 	refh.size(levelmin+i+1,2) );
+		fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin+i+1,0), 
+							 refh.offset(levelmin+i+1,1),
+							 refh.offset(levelmin+i+1,2), 
+							 refh.size(levelmin+i+1,0), 
+							 refh.size(levelmin+i+1,1),
+							 refh.size(levelmin+i+1,2) );
+
 		rand.load(*fine,levelmin+i+1);
 		
 		//.......................................................................................................//
@@ -210,7 +503,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			/**********************************************************************************************************\
 			 *	multi-grid: top-level grid grids .....
 			 \**********************************************************************************************************/ 
-			std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmin+i << " ..." << std::endl;
+			std::cout << " - Performing noise convolution on level " 
+				  << std::setw(2) << levelmin+i << " ..." << std::endl;
 			LOGUSER("Performing noise convolution on level %3d",levelmin+i);
 			
 			LOGUSER("Creating base hierarchy...");
@@ -311,7 +605,7 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			coarse->subtract_oct_mean();
 			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()), shift );
 			coarse->subtract_mean();
-			coarse->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
+			//coarse->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
 			
 			//... clean up
 			the_tf_kernel->deallocate();
@@ -363,10 +657,12 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		coarse->subtract_mean();
 		
 		//... upload data to coarser grid
-		coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );
+		//coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );
 			
 		delete coarse;
 	}
+
+  }
 	
 	delete the_tf_kernel;
 			
@@ -429,24 +725,34 @@ void normalize_density( grid_hierarchy& delta )
 	}
 }
 
-
 void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 {
-	for( int i=rh.levelmax(); i>0; --i )
-		mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
-	
-	for( unsigned i=1; i<=rh.levelmax(); ++i )
+  unsigned levelmin_TF = u.levelmin();//rh.levelmin();
+    
+/*    for( int i=rh.levelmax(); i>0; --i )
+        mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );*/
+    
+  for( int i=levelmin_TF; i>0; --i )
+    mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+    
+  
+  //for( unsigned i=levelmin_TF+1; i<=rh.levelmax(); ++i )
+  for( unsigned i=1; i<=rh.levelmax(); ++i )
+    {
+      if( rh.offset(i,0) != u.get_grid(i)->offset(0)
+	  || rh.offset(i,1) != u.get_grid(i)->offset(1)
+	  || rh.offset(i,2) != u.get_grid(i)->offset(2)
+	  || rh.size(i,0) != u.get_grid(i)->size(0)
+	  || rh.size(i,1) != u.get_grid(i)->size(1)
+	  || rh.size(i,2) != u.get_grid(i)->size(2) )
 	{
-		if(	  rh.offset(i,0) != u.get_grid(i)->offset(0)
-   		   || rh.offset(i,1) != u.get_grid(i)->offset(1)
-		   || rh.offset(i,2) != u.get_grid(i)->offset(2)
-		   || rh.size(i,0) != u.get_grid(i)->size(0)
-		   || rh.size(i,1) != u.get_grid(i)->size(1)
-		   || rh.size(i,2) != u.get_grid(i)->size(2) )
-		{
-			u.cut_patch(i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
-						rh.size(i,0), rh.size(i,1), rh.size(i,2) );
-		}
+	  u.cut_patch(i, rh.offset_abs(i,0), rh.offset_abs(i,1), rh.offset_abs(i,2), 
+	  	      rh.size(i,0), rh.size(i,1), rh.size(i,2) );
 	}
+    }
+  
+    for( int i=rh.levelmax(); i>0; --i )
+        mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+
 }
 

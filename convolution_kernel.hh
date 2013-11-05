@@ -41,39 +41,45 @@ namespace convolution{
 	/////////////////////////////////////////////////////////////////
 	
 	
-	//! abstract base class for a transfer function convolution kernel
-	class kernel{
-	public:
-		
-		//! all parameters (physical/numerical)
-		parameters cparam_;
-		
-		config_file *pcf_;
-		transfer_function* ptf_;
-		refinement_hierarchy* prefh_;
-		tf_type type_;
-		
-		//! constructor
-		kernel( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
-		: pcf_(&cf), ptf_(ptf), prefh_(&refh), type_(type)//cparam_( cp )
-		{	}
-		
-		//! dummy constructor
-		/*kernel( void )
-		{	}*/
-		
-		//! compute/load the kernel
-		virtual kernel* fetch_kernel( int ilevel, bool isolated=false ) = 0;
-		
-		//! virtual destructor
-		virtual ~kernel(){ };
-		
-		//! purely virtual method to obtain a pointer to the underlying data
-		virtual void* get_ptr() = 0;	
-		
-		//! free memory
-		virtual void deallocate() = 0;
-	};
+  //! abstract base class for a transfer function convolution kernel
+  class kernel{
+  public:
+    
+    //! all parameters (physical/numerical)
+    parameters cparam_;
+    
+    config_file *pcf_;
+    transfer_function* ptf_;
+    refinement_hierarchy* prefh_;
+    tf_type type_;
+    
+    //! constructor
+    kernel( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
+      : pcf_(&cf), ptf_(ptf), prefh_(&refh), type_(type)//cparam_( cp )
+    {	}
+    
+    //! dummy constructor
+    /*kernel( void )
+      {	}*/
+    
+    //! compute/load the kernel
+    virtual kernel* fetch_kernel( int ilevel, bool isolated=false ) = 0;
+    
+    //! virtual destructor
+    virtual ~kernel(){ };
+    
+    //! purely virtual method to obtain a pointer to the underlying data
+    virtual void* get_ptr() = 0;
+
+    //! purely virtual method to determine whether the kernel is k-sampled or not
+    virtual bool is_ksampled() = 0;
+
+    //! purely virtual vectorized method to compute the kernel value if is_ksampled
+    virtual void at_k( size_t len, const double* in_k, double* out_Tk ) = 0;
+    
+    //! free memory
+    virtual void deallocate() = 0;
+  };
 
 	
 	//! abstract factory class to create convolution kernels

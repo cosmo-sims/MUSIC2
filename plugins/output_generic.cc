@@ -4,7 +4,7 @@
  a code to generate multi-scale initial conditions 
  for cosmological simulations 
  
- Copyright (C) 2010  Oliver Hahn
+ Copyright (C) 2010-13  Oliver Hahn
  
  */
 
@@ -32,7 +32,7 @@ protected:
 				for(int k=-nb; k<n2+nb; ++k )
 					vdata.push_back( data(i,j,k) );
 		
-		unsigned nd[3] = { n0+2*nb,n1+2*nb,n2+2*nb	};
+		unsigned nd[3] = { (unsigned)(n0+2*nb),(unsigned)(n1+2*nb),(unsigned)(n2+2*nb)	};
 		HDFWriteDataset3D( fname, dname, nd, vdata);
 	}
 	

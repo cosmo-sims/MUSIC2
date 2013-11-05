@@ -532,7 +532,7 @@ public:
 		
 		for( unsigned i=0; i<r.size(); ++i )
 		{
-			if( r[i] > rmin && r[i] < rmax )
+			if( r[i] > rmin/512. && r[i] < rmax )
 			{
 				xsp.push_back( log10(r[i]) );
 				ysp.push_back( T[i]*r[i]*r[i] );
@@ -676,7 +676,17 @@ public:
 		y2 = m_ytable[i+1];
 		
 		//divide by r**2 because r^2 T is tabulated
-		return (real_t)((y1 + (y2-y1)*(ii-(double)i))/r2);
+		//return (real_t)((y1 + (y2-y1)*(ii-(double)i))/r2);
+        
+        real_t retval = (real_t)((y1 + (y2-y1)*(ii-(double)i))/r2);
+        
+        if( retval != retval ){
+            std::cerr << "FAILURE FAILURE FAILURE" << std::endl;
+            fprintf(stderr,"r2 = %f, r = %f, i = %d, y1 = %f, y2 = %f, xtable[i]=%f",r2,r,i,y1,y2, m_xtable[i]);
+            abort();
+        }
+        
+        return retval;
 	}
 };
 

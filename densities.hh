@@ -46,7 +46,15 @@ public:
 	size_t ny_;	//!< number of grid cells in y-direction
 	size_t nz_;	//!< number of grid cells in z-direction
 	size_t nzp_;	//!< number of cells in memory (z-dir), used for Nyquist padding
+
+        size_t nv_[3];
 	
+        int ox_;        //!< offset of grid in x-direction
+        int oy_;        //!< offset of grid in y-direction
+        int oz_;        //!< offset of grid in z-direction
+
+        size_t ov_[3];
+
 	//! the actual data container in the form of a 1D array
 	std::vector< real_t > data_;
 	
@@ -57,17 +65,29 @@ public:
 	 * @param nz the number of cells in z
 	 */
 	DensityGrid( unsigned nx, unsigned ny, unsigned nz )
-	: nx_(nx), ny_(ny), nz_(nz)
+	  : nx_(nx), ny_(ny), nz_(nz), nzp_( 2*(nz_/2+1) ), ox_(0), oy_(0), oz_(0)
 	{
-		data_.assign((size_t)nx_*(size_t)ny_*2*((size_t)nz_/2+1),0.0);
-		nzp_ = 2*(nz_/2+1);
+		data_.assign((size_t)nx_*(size_t)ny_*(size_t)nzp_,0.0);
+		nv_[0] = nx_; nv_[1] = ny_; nv_[2] = nz_;
+		ov_[0] = ox_; ov_[1] = oy_; ov_[2] = oz_;
 	}
 	
+        DensityGrid( unsigned nx, unsigned ny, unsigned nz, int ox, int oy, int oz )
+	  : nx_(nx), ny_(ny), nz_(nz), nzp_( 2*(nz_/2+1) ), ox_(ox), oy_(oy), oz_(oz)
+	{
+		data_.assign((size_t)nx_*(size_t)ny_*(size_t)nzp_,0.0);
+		nv_[0] = nx_; nv_[1] = ny_; nv_[2] = nz_;
+		ov_[0] = ox_; ov_[1] = oy_; ov_[2] = oz_;
+	}
+
 	//! copy constructor
 	explicit DensityGrid( const DensityGrid<real_t> & g )
-	: nx_(g.nx_), ny_(g.ny_), nz_(g.nz_), nzp_(g.nzp_)
+	  : nx_(g.nx_), ny_(g.ny_), nz_(g.nz_), nzp_(g.nzp_), 
+	    ox_(g.ox_), oy_(g.oy_), oz_(g.oz_)
 	{
 		data_ = g.data_;
+		nv_[0] = nx_; nv_[1] = ny_; nv_[2] = nz_;
+		ov_[0] = ox_; ov_[1] = oy_; ov_[2] = oz_;
 	}
 	
 	//!destructor
@@ -80,6 +100,10 @@ public:
 	void clear( void )
 	{
 		nx_ = ny_ = nz_ = nzp_ = 0;
+		ox_ = oy_ = oz_ = 0;
+		nv_[0] = nv_[1] = nv_[2] = 0;
+		ov_[0] = ov_[1] = ov_[2] = 0;
+
 		data_.clear();
 		std::vector<real_t>().swap(data_);
 	}
@@ -90,11 +114,13 @@ public:
 	 * @returns array size along dimension i
 	 */
 	size_t size( int i )
-	{
-		if(i==0) return nx_;
-		if(i==1) return ny_;
-		return ny_;
-	}
+        {  return nv_[i];  }
+
+        int offset( int i )
+        {  return ov_[i];  }
+
+
+        
 	
 	//! zeroes the density object
 	/*! sets all values to 0.0
@@ -111,6 +137,9 @@ public:
 		ny_ = g.ny_;
 		nz_ = g.nz_;
 		nzp_= g.nzp_;
+		ox_ = g.ox_;
+		oy_ = g.oy_;
+		oz_ = g.oz_;
 		data_ = g.data_;
 		
 		return *this;
@@ -413,16 +442,19 @@ public:
 	using DensityGrid<real_t>::nx_;
 	using DensityGrid<real_t>::ny_;
 	using DensityGrid<real_t>::nz_;
+        using DensityGrid<real_t>::ox_;
+	using DensityGrid<real_t>::oy_;
+	using DensityGrid<real_t>::oz_;
 	using DensityGrid<real_t>::data_;	
 	
 	using DensityGrid<real_t>::fill_rand;
 	using DensityGrid<real_t>::get_data_ptr;
 	
-	int ox_, oy_, oz_;
+	
 public:
 	
 	PaddedDensitySubGrid( int ox, int oy, int oz, unsigned nx, unsigned ny, unsigned nz)
-	: DensityGrid<real_t>(2*nx,2*ny,2*nz), ox_(ox), oy_(oy), oz_(oz)
+	  : DensityGrid<real_t>(2*nx,2*ny,2*nz,ox,oy,oz)
 	{
 
 		//if( 2*ox-(int)nx/4 < 0 || 2*oy-(int)ny/4 < 0 || 2*oz-(int)nz/4 < 0 )
@@ -446,7 +478,7 @@ public:
 	}
 	
 	PaddedDensitySubGrid( const PaddedDensitySubGrid<real_t>& o )
-	: DensityGrid<real_t>( o ), ox_(o.ox_), oy_(o.oy_), oz_(o.oz_)
+	: DensityGrid<real_t>( o )
 	{ }
 	
 	void zero_padded_subgrid( unsigned oxsub, unsigned oysub, unsigned ozsub, unsigned lxsub, unsigned lysub, unsigned lzsub )
@@ -564,8 +596,34 @@ public:
 						
 						if( ic >=0 && ic < (int)top.size(0) && jc >= 0 && jc < (int)top.size(1) && kc >= 0 && kc < (int)top.size(2) )
 						{
-							top(ic,jc,kc) += 0.125* ((*this)(ix,iy,iz)+(*this)(ix+1,iy,iz)+(*this)(ix,iy+1,iz)+(*this)(ix,iy,iz+1)
-											+(*this)(ix+1,iy+1,iz)+(*this)(ix+1,iy,iz+1)+(*this)(ix,iy+1,iz+1)+(*this)(ix+1,iy+1,iz+1) );
+						  top(ic,jc,kc) += 0.125* ((*this)(ix,iy,iz)+(*this)(ix+1,iy,iz)+(*this)(ix,iy+1,iz)+(*this)(ix,iy,iz+1)
+									   +(*this)(ix+1,iy+1,iz)+(*this)(ix+1,iy,iz+1)+(*this)(ix,iy+1,iz+1)+(*this)(ix+1,iy+1,iz+1) );
+						}
+					}
+				}
+	}
+    
+    template< class array3 >
+	void upload_bnd( array3& top )
+	{
+        #pragma omp parallel for
+		for( int ix=0; ix<(int)nx_; ix+=2 )
+			for( int iy=0; iy<(int)ny_; iy+=2 )
+				for( int iz=0; iz<(int)nz_; iz+=2 )
+				{
+					
+					if( (ix<(int)nx_/4||ix>=3*(int)nx_/4) || (iy<(int)ny_/4||iy>=3*(int)ny_/4) || (iz<(int)nz_/4||iz>=3*(int)nz_/4) )
+					{
+						int ic,jc,kc;
+						
+						ic = ox_+(ix-nx_/4)/2;
+						jc = oy_+(iy-ny_/4)/2;
+						kc = oz_+(iz-nz_/4)/2;
+						
+						if( ic >=0 && ic < (int)top.size(0) && jc >= 0 && jc < (int)top.size(1) && kc >= 0 && kc < (int)top.size(2) )
+						{
+							top(ic,jc,kc) == 0.125* ((*this)(ix,iy,iz)+(*this)(ix+1,iy,iz)+(*this)(ix,iy+1,iz)+(*this)(ix,iy,iz+1)
+                                                     +(*this)(ix+1,iy+1,iz)+(*this)(ix+1,iy,iz+1)+(*this)(ix,iy+1,iz+1)+(*this)(ix+1,iy+1,iz+1) );
 						}
 					}
 				}
@@ -824,6 +882,87 @@ public:
 	
 
 };
+
+template< typename M1, typename M2 >
+inline void enforce_coarse_mean_for_overlap( M1& v, M2& V )
+{
+	double coarsesum =0.0, finesum = 0.0, coarsemean, finemean;
+	size_t
+    nx = v.size(0)/4,
+    ny = v.size(1)/4,
+    nz = v.size(2)/4,
+    ox = v.offset(0)+nx/2,
+    oy = v.offset(1)+ny/2,
+    oz = v.offset(2)+nz/2;
+    
+    //    ic = ox_+(ix-nx_/4)/2;
+    
+	size_t coarsecount = 0, finecount = 0;
+	for( unsigned i=0; i<V.size(0); ++i )
+		for( unsigned j=0; j<V.size(1); ++j )
+			for( unsigned k=0; k<V.size(2); ++k )
+			{
+				if( (i >= ox && i < ox+nx) &&
+                   (j >= oy && j < oy+ny) &&
+                   (k >= oz && k < oz+nz ))
+				{
+					coarsesum += V(i,j,k);
+					++coarsecount;
+				}
+			}
+    
+    nx = v.size(0)/2;
+    ny = v.size(1)/2;
+    nz = v.size(2)/2;
+    ox = nx/2;
+    oy = ny/2;
+    oz = nz/2;
+    
+    for( unsigned i=0; i<v.size(0); ++i )
+		for( unsigned j=0; j<v.size(1); ++j )
+			for( unsigned k=0; k<v.size(2); ++k )
+			{
+                if( (i >= ox && i < ox+nx) &&
+                   (j >= oy && j < oy+ny) &&
+                   (k >= oz && k < oz+nz ))
+				{
+                    finesum += v(i,j,k);
+                    ++finecount;
+                }
+            }
+    
+    finemean = finesum/finecount;
+	coarsemean = coarsesum/coarsecount;
+	
+	
+	//std::cerr << "***\n";
+	
+	//double dcorr = (coarsesum-finesum)/finecount;//mean-fine_mean);//  innersum * innercount / outercount;
+	double dcorr = coarsemean - finemean;//(coarsemsum-finesum)/finecount;
+    for( unsigned i=0; i<v.size(0); ++i )
+		for( unsigned j=0; j<v.size(1); ++j )
+			for( unsigned k=0; k<v.size(2); ++k )
+                v(i,j,k) = v(i,j,k) + dcorr;
+    
+    
+    finesum = 0.0; finecount = 0;
+    for( unsigned i=0; i<v.size(0); ++i )
+		for( unsigned j=0; j<v.size(1); ++j )
+			for( unsigned k=0; k<v.size(2); ++k )
+			{
+                if( (i >= ox && i < ox+nx) &&
+                   (j >= oy && j < oy+ny) &&
+                   (k >= oz && k < oz+nz ))
+				{
+                    finesum += v(i,j,k);
+                    ++finecount;
+                }
+            }
+    finemean = finesum/finecount;
+    
+    std::cerr << "coarse mean = " << coarsemean << ", fine mean = " << finemean;
+}
+
 
 template< typename M >
 inline void enforce_coarse_mean( M& v, M& V )

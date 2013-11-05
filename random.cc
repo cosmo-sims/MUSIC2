@@ -1610,7 +1610,7 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 			if( ilevel >= levelmax_ )
 				randc[ilevel] = new rng( *randc[ilevel+1], kavg );
 			else
-				randc[ilevel] = new rng( *randc[ilevel+1], false );
+				randc[ilevel] = new rng( *randc[ilevel+1], kavg );
 			
 			if( ilevel+1 > levelmax_ )
 			{

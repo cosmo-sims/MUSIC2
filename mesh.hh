@@ -655,7 +655,7 @@ public:
         //! generate a mask
         if( m_levelmin != levelmax() )
         {
-            for( int ilevel = levelmax()-1; ilevel >= levelmin(); --ilevel )
+            for( int ilevel = (int)levelmax()-1; ilevel >= (int)levelmin(); --ilevel )
             {
                 double xq[3], dx = 1.0/(1ul<<ilevel); //1.0/(1ul<<(levelmax()-1));
                 

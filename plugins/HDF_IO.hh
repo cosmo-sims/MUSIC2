@@ -800,8 +800,9 @@ struct HDFHyperslabWriter3Ds
 		hid_t memspace  = H5Screate_simple(4, counts, NULL);
 		H5Sselect_hyperslab( filespace, H5S_SELECT_SET, offsets, NULL, counts, NULL );
 		
-		herr_t status;
-		status = H5Dwrite(dset_id_, type_id_, memspace, filespace, H5P_DEFAULT, reinterpret_cast<void*>(data));
+		//herr_t status;
+		//status = 
+		H5Dwrite(dset_id_, type_id_, memspace, filespace, H5P_DEFAULT, reinterpret_cast<void*>(data));
 		H5Sclose(filespace);
 		H5Sclose(memspace);
 	}

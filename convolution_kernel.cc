@@ -213,14 +213,15 @@ namespace convolution{
 	}
 	
 	
-	template void perform<double>( kernel* pk, void *pd, bool shift );
-	template void perform<float>( kernel* pk, void *pd, bool shift );
+  template void perform<double>( kernel* pk, void *pd, bool shift );
+  template void perform<float>( kernel* pk, void *pd, bool shift );
 	
-	/*****************************************************************************************\
-	 ***    SPECIFIC KERNEL IMPLEMENTATIONS      *********************************************
-	\*****************************************************************************************/	
+  /*****************************************************************************************/
+  /***    SPECIFIC KERNEL IMPLEMENTATIONS      *********************************************/
+  /*****************************************************************************************/	
+ 
   template< typename real_t >
-  class kernel_k_new : public kernel
+  class kernel_k : public kernel
   {
   protected:
     /**/
@@ -228,7 +229,7 @@ namespace convolution{
     TransferFunction_k *tfk_;
     
   public:
-    kernel_k_new( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
+    kernel_k( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
       : kernel( cf, ptf, refh, type )
     {
       boxlength_ = pcf_->getValue<double>("setup","boxlength");
@@ -246,43 +247,42 @@ namespace convolution{
       cparam_.ly = boxlength_;
       cparam_.lz = boxlength_;
       cparam_.pcf = pcf_;
-        patchlength_ = boxlength_;
+      patchlength_ = boxlength_;
     }
     
     kernel* fetch_kernel( int ilevel, bool isolated=false )
     {
-        if( !isolated )
-	  {
-	    cparam_.nx = prefh_->size(ilevel,0);
-	    cparam_.ny = prefh_->size(ilevel,1);
-	    cparam_.nz = prefh_->size(ilevel,2);
-	    
-	    cparam_.lx = (double)cparam_.nx / (double)(1<<ilevel) * boxlength_;
-	    cparam_.ly = (double)cparam_.ny / (double)(1<<ilevel) * boxlength_;
-	    cparam_.lz = (double)cparam_.nz / (double)(1<<ilevel) * boxlength_;
-	    
-	    patchlength_ = cparam_.lx;
-	    kfac_ = 2.0*M_PI/patchlength_;
-	    kmax_ = kfac_ * cparam_.nx/2;
-	  }
-        else
-	  {
-            cparam_.nx = 2*prefh_->size(ilevel,0);
-            cparam_.ny = 2*prefh_->size(ilevel,1);
-            cparam_.nz = 2*prefh_->size(ilevel,2);
-            
-            cparam_.lx = (double)cparam_.nx / (double)(1<<ilevel) * boxlength_;
-            cparam_.ly = (double)cparam_.ny / (double)(1<<ilevel) * boxlength_;
-            cparam_.lz = (double)cparam_.nz / (double)(1<<ilevel) * boxlength_;
-            
-            patchlength_ = cparam_.lx;
-            kfac_ = 2.0*M_PI/patchlength_;
-            kmax_ = kfac_ * cparam_.nx/2;
+      if( !isolated )
+	{
+	  cparam_.nx = prefh_->size(ilevel,0);
+	  cparam_.ny = prefh_->size(ilevel,1);
+	  cparam_.nz = prefh_->size(ilevel,2);
+	  
+	  cparam_.lx = (double)cparam_.nx / (double)(1<<ilevel) * boxlength_;
+	  cparam_.ly = (double)cparam_.ny / (double)(1<<ilevel) * boxlength_;
+	  cparam_.lz = (double)cparam_.nz / (double)(1<<ilevel) * boxlength_;
+	  
+	  patchlength_ = cparam_.lx;
+	  kfac_ = 2.0*M_PI/patchlength_;
+	  kmax_ = kfac_ * cparam_.nx/2;
+	}
+      else
+	{
+	  cparam_.nx = 2*prefh_->size(ilevel,0);
+	  cparam_.ny = 2*prefh_->size(ilevel,1);
+	  cparam_.nz = 2*prefh_->size(ilevel,2);
+          
+	  cparam_.lx = (double)cparam_.nx / (double)(1<<ilevel) * boxlength_;
+	  cparam_.ly = (double)cparam_.ny / (double)(1<<ilevel) * boxlength_;
+	  cparam_.lz = (double)cparam_.nz / (double)(1<<ilevel) * boxlength_;
+          
+	  patchlength_ = cparam_.lx;
+	  kfac_ = 2.0*M_PI/patchlength_;
+	  kmax_ = kfac_ * cparam_.nx/2;
         }
-        
+      
       return this; 
     }
-
 
     void *get_ptr() {  return NULL;  }
 
@@ -293,121 +293,17 @@ namespace convolution{
       for( size_t i=0; i<len; ++i )
       {
           double kk = kfac_ * in_k[i];
-          /*if( kk > kmax_ )
-              out_Tk[i] = 0.0;
-          else*/
-              out_Tk[i] = volfac_ * tfk_->compute( kk );
+	  out_Tk[i] = volfac_ * tfk_->compute( kk );
       }
     }
 
-    ~kernel_k_new() { delete tfk_; }
+    ~kernel_k() { delete tfk_; }
 
     void deallocate() {  }
 
 
   };
 
-
-
-
-	template< typename real_t >
-	class kernel_k : public kernel
-	{
-	protected:
-	  std::vector<real_t> kdata_;
-	  
-	  void compute_kernel( tf_type type );
-	  
-	public:
-	  kernel_k( config_file& cf, transfer_function* ptf, refinement_hierarchy& refh, tf_type type )
-	    : kernel( cf, ptf, refh, type )
-	  {	}
-	  
-	  kernel* fetch_kernel( int ilevel, bool isolated=false );
-	  
-	  void *get_ptr()
-	  {	return reinterpret_cast<void*> (&kdata_[0]);	}
-	  
-	  bool is_ksampled()
-	  {     return false;  }
-
-	  void at_k( size_t, const double*, double * ) { }
-	  
-	  ~kernel_k()
-	  {	deallocate();	}
-	  
-	  void deallocate()
-	  {	std::vector<real_t>().swap( kdata_ );	}
-		
-	};
-	
-	template< typename real_t >
-	kernel* kernel_k<real_t>::fetch_kernel( int ilevel, bool isolated )
-	{
-		double 
-			boxlength	= pcf_->getValue<double>("setup","boxlength"),
-			nspec		= pcf_->getValue<double>("cosmology","nspec"),
-			pnorm		= pcf_->getValue<double>("cosmology","pnorm"),
-			fac			= pow(boxlength,3)/pow(2.0*M_PI,3);
-		
-		TransferFunction_k *tfk = new TransferFunction_k(type_,ptf_,nspec,pnorm);
-		
-		int 
-			nx = prefh_->size(prefh_->levelmax(),0),
-			ny = prefh_->size(prefh_->levelmax(),1),
-			nz = prefh_->size(prefh_->levelmax(),2);
-		
-		cparam_.nx = nx;
-		cparam_.ny = ny;
-		cparam_.nz = nz;
-		cparam_.lx = boxlength;
-		cparam_.ly = boxlength;
-		cparam_.lz = boxlength;
-		cparam_.pcf = pcf_;
-		
-		kdata_.assign( (size_t)nx*(size_t)ny*(size_t)(nz+2), 0.0 );
-		
-		fftw_complex *kdata = reinterpret_cast<fftw_complex*> ( this->get_ptr() );
-		
-		unsigned nzp = (nz/2+1);
-		fac =1.0;
-		
-		double kfac = 2.0*M_PI/boxlength, ksum = 0.0;
-		size_t kcount = 0;
-		
-		#pragma omp parallel for reduction(+:ksum,kcount)
-		for( int i=0; i<nx; ++i )
-			for( int j=0; j<ny; ++j )
-				for( int k=0; k<nz/2+1; ++k )
-				{
-					double kx,ky,kz;
-					
-					kx = (double)i;
-					ky = (double)j;
-					kz = (double)k;
-					
-					if( kx > nx/2 ) kx -= nx;
-					if( ky > ny/2 ) ky -= ny;
-					
-					size_t q = ((size_t)i*ny+(size_t)j)*nzp+(size_t)k;
-					
-					RE(kdata[q]) = fac*tfk->compute(kfac*sqrt(kx*kx+ky*ky+kz*kz));
-					IM(kdata[q]) = 0.0;
-					
-					if( k==0 || k==nz/2 )
-					{
-						ksum  += RE(kdata[q]);
-						kcount++;
-					}else{
-						ksum  += 2.0*(RE(kdata[q]));
-						kcount+=2;
-					}
-				}
-		
-		delete tfk;
-		
-		return this;
-	}
 	
 	
 	////////////////////////////////////////////////////////////////////////////
@@ -662,12 +558,14 @@ namespace convolution{
 		
 		LOGUSER("Computing fine kernel (level %d)...", levelmax);
 		
+#ifdef OLD_KERNEL_SAMPLING
 		int ref_fac = (deconv&&kspacepoisson)? 2 : 0;
 		const int ql = -ref_fac/2+1, qr = ql+ref_fac;
 		const double rf8 = pow(ref_fac,3);
 		const double dx05 = 0.5*dx, dx025 = 0.25*dx;
         
 		std::cerr << ">>>>>>>>>>>> " << ref_fac << " <<<<<<<<<<<<<<<<" << std::endl;
+#endif
 		
 		if( bperiodic  )
 		{		
@@ -1282,11 +1180,9 @@ namespace
 {
   convolution::kernel_creator_concrete< convolution::kernel_real_cached<double> > creator_d("tf_kernel_real_double");
   convolution::kernel_creator_concrete< convolution::kernel_real_cached<float> > creator_f("tf_kernel_real_float");
+
   convolution::kernel_creator_concrete< convolution::kernel_k<double> > creator_kd("tf_kernel_k_double");
   convolution::kernel_creator_concrete< convolution::kernel_k<float> > creator_kf("tf_kernel_k_float");
-  
-  convolution::kernel_creator_concrete< convolution::kernel_k_new<double> > creator_knd("tf_kernel_k_new_double");
-  convolution::kernel_creator_concrete< convolution::kernel_k_new<float> > creator_knf("tf_kernel_k_new_float");
 }
 
 

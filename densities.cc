@@ -18,6 +18,8 @@
 #define DEF_RAN_CUBE_SIZE	32
 
 
+//#define NO_COARSE_OVERLAP
+
 template< typename m1, typename m2 >
 void fft_interpolate( m1& V, m2& v, bool from_basegrid=false ) 
 {
@@ -27,9 +29,21 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
     
   if( !from_basegrid )
     {
-      oxf += nxF/4;
-      oyf += nyF/4;
-      ozf += nzF/4;
+#ifdef NO_COARSE_OVERLAP
+        oxf += nxF/4;
+        oyf += nyF/4;
+        ozf += nzF/4;
+#else
+        oxf += nxF/4 - nxf/8;
+        oyf += nyF/4 - nyf/8;
+        ozf += nzF/4 - nzf/8;
+        
+
+    }else{
+        oxf -= nxf/8;
+        oyf -= nyf/8;
+        ozf -= nzf/8;
+#endif
     }
   
   LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d",oxf,oyf,ozf,nxf,nyf,nzf);
@@ -47,6 +61,8 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
   
   // copy coarse data to rcoarse[.]
   memset( rcoarse, 0, sizeof(fftw_real) * nxc*nyc*nzcp );
+    
+#ifdef NO_COARSE_OVERLAP
   #pragma omp parallel for
   for( int i=0; i<(int)nxc/2; ++i )
     for( int j=0; j<(int)nyc/2; ++j )
@@ -58,6 +74,20 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
 	  size_t q = ((size_t)ii*nyc+(size_t)jj)*nzcp+(size_t)kk;
 	  rcoarse[q] = V( oxf+i, oyf+j, ozf+k );
 	}
+#else
+#pragma omp parallel for
+    for( int i=0; i<(int)nxc; ++i )
+        for( int j=0; j<(int)nyc; ++j )
+            for( int k=0; k<(int)nzc; ++k )
+            {
+                int ii(i);
+                int jj(j);
+                int kk(k);
+                size_t q = ((size_t)ii*nyc+(size_t)jj)*nzcp+(size_t)kk;
+                rcoarse[q] = V( oxf+i, oyf+j, ozf+k );
+            }
+#endif
+    
     
   #pragma omp parallel for
   for( int i=0; i<(int)nxf; ++i )
@@ -276,9 +306,9 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 		LOGUSER("Using k-space transfer function kernel.");
 		
 		#ifdef SINGLE_PRECISION	
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_float" ];
+		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_float" ];
 		#else
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_double" ];
+		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_double" ];
 		#endif
 	}
 	else
@@ -363,9 +393,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
       LOGUSER("Using k-space transfer function kernel.");
       
 #ifdef SINGLE_PRECISION	
-      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_float" ];
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_float" ];
 #else
-      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_double" ];
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_double" ];
 #endif
     }
   else

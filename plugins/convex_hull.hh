@@ -286,7 +286,7 @@ struct convex_hull{
         for( j=i, l=0; l<npoints_; ++l )
             if( i!=l && turn(&points[3*i],&points[3*j],&points[3*l]) >= 0 ) j=l;
         
-        int nt = omp_get_num_threads();
+        int nt = omp_get_max_threads();
         omp_set_num_threads( std::min(2,omp_get_max_threads()) );
         
         #pragma omp parallel for

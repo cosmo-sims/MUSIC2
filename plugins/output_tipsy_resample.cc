@@ -12,6 +12,7 @@
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <fstream>
+#include <unistd.h>
 
 #include "output.hh"
 

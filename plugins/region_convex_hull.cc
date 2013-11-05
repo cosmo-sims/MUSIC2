@@ -1,3 +1,13 @@
+/*
+ 
+ region_convex_hull.cc - This file is part of MUSIC -
+ a code to generate multi-scale initial conditions 
+ for cosmological simulations 
+ 
+ Copyright (C) 2010-13  Oliver Hahn
+ 
+ */
+
 #include <vector>
 #include <iostream>
 #include <cmath>
@@ -68,7 +78,7 @@ public:
         phull_->expand( sqrt(3.)*dx );
         
         // output the center
-        float c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };
+        double c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };
         LOGINFO("Region center from convex hull centroid determined at\n\t (%f,%f,%f)",c[0],c[1],c[2]);
         
         //-----------------------------------------------------------------
@@ -140,7 +150,7 @@ public:
     void get_center_unshifted( double *xc )
     {
         double dx = 1.0/(1<<shift_level);
-        float c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };
+        double c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };
         xc[0] = c[0]+shift[0]*dx;
         xc[1] = c[1]+shift[1]*dx;
         xc[2] = c[2]+shift[2]*dx;

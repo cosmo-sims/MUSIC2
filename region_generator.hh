@@ -12,7 +12,7 @@
 class region_generator_plugin{
 public:
     config_file *pcf_;
-    int levelmin_, levelmax_;
+    unsigned levelmin_, levelmax_;
     
 public:
     region_generator_plugin( config_file& cf )

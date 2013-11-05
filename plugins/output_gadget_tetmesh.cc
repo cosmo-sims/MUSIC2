@@ -205,7 +205,7 @@ inline real_t get_cic( const grid_hierarchy & gh, int ilevel, real_t u, real_t v
 }
 
 
-MyIDType compute_midpoint( const size_t *connect )
+MyIDType compute_midpoint( const MyIDType *connect )
 {
     
     MyIDType lid1, lid2, newlid, lcoord1[3], lcoord2[3];
@@ -282,7 +282,7 @@ void split_lagrange_cube( size_t ip )
     // insert mass carying "true" particles
     for( k=0; k<nmassc; ++k )
     {
-        size_t edge_ids[2] = { P[ip].get_vertex( massc_edge[k][0] ), P[ip].get_vertex( massc_edge[k][1] ) };
+        MyIDType edge_ids[2] = { P[ip].get_vertex( massc_edge[k][0] ), P[ip].get_vertex( massc_edge[k][1] ) };
         
         P[newi+count].Lagrange_ID = compute_midpoint( edge_ids );
         
@@ -300,7 +300,7 @@ void split_lagrange_cube( size_t ip )
     // insert massless helper particles
     for( k=0; k<nmassl; ++k )
     {
-        size_t edge_ids[2] = { P[ip].get_vertex( massl_edge[k][0] ), P[ip].get_vertex( massl_edge[k][1] ) };
+        MyIDType edge_ids[2] = { P[ip].get_vertex( massl_edge[k][0] ), P[ip].get_vertex( massl_edge[k][1] ) };
         
         //P[newi+count].ID = new_tracer_id+count;
         P[newi+count].Lagrange_ID = compute_midpoint( edge_ids );

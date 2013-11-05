@@ -1,4 +1,14 @@
 #include <vector>
+/*
+ 
+ region_ellipsoid.cc - This file is part of MUSIC -
+ a code to generate multi-scale initial conditions 
+ for cosmological simulations 
+ 
+ Copyright (C) 2010-13  Oliver Hahn
+ 
+ */
+
 #include <iostream>
 #include <cmath>
 #include <cassert>
@@ -53,7 +63,7 @@ void Inverse_4x4( float *mat )
     double det; /* determinant */
     double dst[16];
                 
-/* transpose matrix */
+    /* transpose matrix */
     for (int i = 0; i < 4; i++)
     {
         src[i] = mat[i*4];
@@ -397,9 +407,9 @@ public:
     {
         dist = (dist + 1.0) * detA13;
         
-        float q[3] = {x[0]-c[0],x[1]-c[1],x[2]-c[2]};
+        T q[3] = {x[0]-c[0],x[1]-c[1],x[2]-c[2]};
         
-        double r = 0.0;
+        T r = 0.0;
         for( int i=0; i<3; ++i )
             for( int j=0; j<3; ++j )
                 r += q[i]*A[3*j+i]*q[j];
@@ -517,7 +527,7 @@ public:
     {
         std::vector<double> pp;
         
-        for( int i=0; i<=levelmax_; ++i )
+        for( unsigned i=0; i<=levelmax_; ++i )
             pellip_.push_back( NULL );
         
         
@@ -537,12 +547,10 @@ public:
         padding_ = cf.getValue<int>("setup","padding");
         
         std::string point_file;
-        bool bfrom_file = true;
-        
+              
         if( cf.containsKey("setup", "region_point_file") )
         {
             point_file = cf.getValue<std::string>("setup","region_point_file");
-            bfrom_file = true;
             
             point_reader pfr;
             pfr.read_points_from_file( point_file, vfac_, pp );
@@ -668,14 +676,14 @@ public:
     
     ~region_ellipsoid_plugin()
     {
-        for( int i=0; i<=levelmax_; ++i )
+        for( unsigned i=0; i<=levelmax_; ++i )
             if( pellip_[i] != NULL )
                 delete pellip_[i];
     }
     
     void get_AABB( double *left, double *right, unsigned level )
     {
-        if( level <= levelmin_ )
+      if( level <= levelmin_ )
         {
             left[0] = left[1] = left[2] = 0.0;
             right[0] = right[1] = right[2] = 1.0;

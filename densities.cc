@@ -4,7 +4,7 @@
  a code to generate multi-scale initial conditions 
  for cosmological simulations 
  
- Copyright (C) 2010-13  Oliver Hahn
+ Copyright (C) 2010  Oliver Hahn
  
  */
 
@@ -27,9 +27,9 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
     
   if( !from_basegrid )
     {
-        oxf += nxF/4;
-        oyf += nyF/4;
-        ozf += nzF/4;
+      oxf += nxF/4;
+      oyf += nyF/4;
+      ozf += nzF/4;
     }
   
   LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d",oxf,oyf,ozf,nxf,nyf,nzf);
@@ -58,16 +58,15 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
 	  size_t q = ((size_t)ii*nyc+(size_t)jj)*nzcp+(size_t)kk;
 	  rcoarse[q] = V( oxf+i, oyf+j, ozf+k );
 	}
-  
+    
   #pragma omp parallel for
   for( int i=0; i<(int)nxf; ++i )
     for( int j=0; j<(int)nyf; ++j )
       for( int k=0; k<(int)nzf; ++k ) 
 	{
 	  size_t q = ((size_t)i*nyf+(size_t)j)*nzfp+(size_t)k;
-        rfine[q] = v(i,j,k);
+	  rfine[q] = v(i,j,k);
 	}
-    
 
 #ifdef FFTW3
 #ifdef SINGLE_PRECISION
@@ -244,7 +243,6 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
 	  }
 
     delete[] rfine;
-
 }
 
 
@@ -274,7 +272,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 
 	if( kspace )
 	{
-		std::cout << " - Using new k-space transfer function kernel.\n";
+		std::cout << " - Using k-space transfer function kernel.\n";
 		LOGUSER("Using k-space transfer function kernel.");
 		
 		#ifdef SINGLE_PRECISION	
@@ -334,84 +332,63 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 /*******************************************************************************************/
 
 void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type type, 
-							  refinement_hierarchy& refh, rand_gen& rand, grid_hierarchy& delta, bool smooth, bool shift )
+				refinement_hierarchy& refh, rand_gen& rand, 
+				grid_hierarchy& delta, bool smooth, bool shift )
 {
-	unsigned					levelmin,levelmax,levelminPoisson;
-	std::vector<long>			rngseeds;
-	std::vector<std::string>	rngfnames;
-	bool						kspaceTF;
-	
-	double tstart, tend;
-
+  unsigned levelmin, levelmax, levelminPoisson;
+  std::vector<long> rngseeds;
+  std::vector<std::string> rngfnames;
+  bool kspaceTF;
+  
+  double tstart, tend;
+  
 #ifndef SINGLETHREAD_FFTW
-	tstart = omp_get_wtime();
+  tstart = omp_get_wtime();
 #else
-	tstart = (double)clock() / CLOCKS_PER_SEC;
+  tstart = (double)clock() / CLOCKS_PER_SEC;
 #endif
+  
+  levelminPoisson = cf.getValue<unsigned>("setup","levelmin");
+  levelmin = cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
+  levelmax = cf.getValue<unsigned>("setup","levelmax");
+  kspaceTF = cf.getValueSafe<bool>("setup", "kspace_TF", false);
+  
+  unsigned nbase = 1<<levelmin;
 	
-	levelminPoisson	= cf.getValue<unsigned>("setup","levelmin");
-	levelmin		= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
-	levelmax		= cf.getValue<unsigned>("setup","levelmax");
-	kspaceTF		= cf.getValueSafe<bool>("setup", "kspace_TF", false);
+  convolution::kernel_creator *the_kernel_creator;
 	
-	
-	unsigned	nbase	= 1<<levelmin;
-	
-	convolution::kernel_creator *the_kernel_creator;
-	
-	if( kspaceTF )
-	{
-		if( levelmin!=levelmax )
-		{	
-		  //LOGERR("K-space transfer function can only be used in unigrid density mode!");
-		  //		throw std::runtime_error("k-space transfer function can only be used in unigrid density mode");
-			
-			std::cout << " - Using new k-space transfer function kernel.\n";
-			LOGUSER("Using new k-space transfer function kernel.");
-		
+  if( kspaceTF )
+    {
+      std::cout << " - Using k-space transfer function kernel.\n";
+      LOGUSER("Using k-space transfer function kernel.");
+      
 #ifdef SINGLE_PRECISION	
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_float" ];
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_float" ];
 #else
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_double" ];
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_double" ];
 #endif
-
-		}else{
-		
-		std::cout << " - Using new k-space transfer function kernel.\n";
-		LOGUSER("Using new k-space transfer function kernel.");
-		
+    }
+  else
+    {
+      std::cout << " - Using real-space transfer function kernel.\n";
+      LOGUSER("Using real-space transfer function kernel.");
 #ifdef SINGLE_PRECISION	
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_float" ];
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_float" ];
 #else
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_k_new_double" ];
+      the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_double" ];
 #endif
-
-		}
-	}
-	else
-	{
-		std::cout << " - Using real-space transfer function kernel.\n";
-		LOGUSER("Using real-space transfer function kernel.");
-#ifdef SINGLE_PRECISION	
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_float" ];
-#else
-		the_kernel_creator = convolution::get_kernel_map()[ "tf_kernel_real_double" ];
-#endif
-	}	
+    }	
 	
-	convolution::kernel *the_tf_kernel = the_kernel_creator->create( cf, ptf, refh, type );
+  convolution::kernel *the_tf_kernel = the_kernel_creator->create( cf, ptf, refh, type );
 	
-		
-	/***** PERFORM CONVOLUTIONS *****/
-	
-
+  /***** PERFORM CONVOLUTIONS *****/
   if( kspaceTF ){
 
     //... create and initialize density grids with white noise	
     DensityGrid<real_t> *top(NULL);
     PaddedDensitySubGrid<real_t> *coarse(NULL), *fine(NULL);
     int nlevels = (int)levelmax-(int)levelmin+1;
-
+    
     // do coarse level
     top = new DensityGrid<real_t>( nbase, nbase, nbase );
     LOGINFO("Performing noise convolution on level %3d",levelmin);
@@ -424,34 +401,44 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
     for( int i=1; i<nlevels; ++i )
       {
 	LOGINFO("Performing noise convolution on level %3d...",levelmin+i);
-	
+	/////////////////////////////////////////////////////////////////////////
 	//... add new refinement patch
 	LOGUSER("Allocating refinement patch");
-	LOGUSER("   offset=(%5d,%5d,%5d)",refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2));
-	LOGUSER("   size  =(%5d,%5d,%5d)",refh.size(levelmin+i,0), refh.size(levelmin+i,1), refh.size(levelmin+i,2));
+	LOGUSER("   offset=(%5d,%5d,%5d)",refh.offset(levelmin+i,0), 
+		refh.offset(levelmin+i,1), refh.offset(levelmin+i,2));
+	LOGUSER("   size  =(%5d,%5d,%5d)",refh.size(levelmin+i,0), 
+		refh.size(levelmin+i,1), refh.size(levelmin+i,2));
 	
-	fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2),
-						refh.size(levelmin+i,0), refh.size(levelmin+i,1), refh.size(levelmin+i,2) );
-	
+	fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin+i,0), 
+						refh.offset(levelmin+i,1), 
+						refh.offset(levelmin+i,2),
+						refh.size(levelmin+i,0), 
+						refh.size(levelmin+i,1), 
+						refh.size(levelmin+i,2) );
+	/////////////////////////////////////////////////////////////////////////
+
+	// load white noise for patch
 	rand.load(*fine,levelmin+i);	
 	
-	convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmin+i, true ), reinterpret_cast<void*>( fine->get_data_ptr() ), shift );
+	convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmin+i, true ), 
+				      reinterpret_cast<void*>( fine->get_data_ptr() ), shift );
 	
 	if( i==1 )
 	  fft_interpolate( *top, *fine, true );
 	else
 	  fft_interpolate( *coarse, *fine, false ); 
 	
-
-	delta.add_patch( refh.offset(levelmin+i,0), refh.offset(levelmin+i,1), refh.offset(levelmin+i,2), 
-			 refh.size(levelmin+i,0), refh.size(levelmin+i,1), refh.size(levelmin+i,2) );
+	delta.add_patch( refh.offset(levelmin+i,0), 
+			 refh.offset(levelmin+i,1),
+			 refh.offset(levelmin+i,2), 
+			 refh.size(levelmin+i,0),
+			 refh.size(levelmin+i,1),
+			 refh.size(levelmin+i,2) );
 
 	fine->copy_unpad( *delta.get_grid(levelmin+i) );
 
-	if( i==1 )
-	  delete top;
-	else
-	  delete coarse;
+	if( i==1 ) delete top;
+	else delete coarse;
 
 	coarse = fine;
       }
@@ -466,7 +453,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 
 	if( levelmax == levelmin )
 	{
-		std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmax << " ..." << std::endl;
+		std::cout << " - Performing noise convolution on level " 
+			  << std::setw(2) << levelmax << " ..." << std::endl;
 		LOGUSER("Performing noise convolution on level %3d...",levelmax);
 		
 		top = new DensityGrid<real_t>( nbase, nbase, nbase );
@@ -474,7 +462,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 		rand.load( *top, levelmin );
 
 
-		convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmax ), reinterpret_cast<void*>( top->get_data_ptr() ), shift );
+		convolution::perform<real_t>( the_tf_kernel->fetch_kernel( levelmax ), 
+					      reinterpret_cast<void*>( top->get_data_ptr() ), 
+					      shift );
 		the_tf_kernel->deallocate();
 		
 		delta.create_base_hierarchy(levelmin);
@@ -496,8 +486,12 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			rand.load(*top,levelmin);
 		}
 		
-		fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin+i+1,0), refh.offset(levelmin+i+1,1), refh.offset(levelmin+i+1,2), 
-							 refh.size(levelmin+i+1,0), refh.size(levelmin+i+1,1), refh.size(levelmin+i+1,2) );
+		fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin+i+1,0), 
+							 refh.offset(levelmin+i+1,1),
+							 refh.offset(levelmin+i+1,2), 
+							 refh.size(levelmin+i+1,0), 
+							 refh.size(levelmin+i+1,1),
+							 refh.size(levelmin+i+1,2) );
 
 		rand.load(*fine,levelmin+i+1);
 		
@@ -509,7 +503,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			/**********************************************************************************************************\
 			 *	multi-grid: top-level grid grids .....
 			 \**********************************************************************************************************/ 
-			std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmin+i << " ..." << std::endl;
+			std::cout << " - Performing noise convolution on level " 
+				  << std::setw(2) << levelmin+i << " ..." << std::endl;
 			LOGUSER("Performing noise convolution on level %3d",levelmin+i);
 			
 			LOGUSER("Creating base hierarchy...");
@@ -756,8 +751,8 @@ void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 	}
     }
   
-  for( int i=rh.levelmax(); i>0; --i )
-    mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+    for( int i=rh.levelmax(); i>0; --i )
+        mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
 
 }
 

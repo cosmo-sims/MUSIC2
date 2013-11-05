@@ -17,6 +17,11 @@
 //TODO: this should be a larger number by default, just to maintain consistency with old default
 #define DEF_RAN_CUBE_SIZE	32
 
+double Blend_Function( double k, double kmax )
+{
+    double const eps = 0.333;
+    return -0.5*(tanh((fabs(k)-kmax)/eps)-1.0f);
+}
 
 //#define NO_COARSE_OVERLAP
 
@@ -134,6 +139,45 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
     double fftnorm = 1.0/((double)nxf*(double)nyf*(double)nzf);
     double sqrt8 = 8.0;//sqrt(8.0);
     double phasefac = -0.5;
+
+    // this enables filtered splicing of coarse and fine modes
+#if 1
+    for( int i=0; i<(int)nxc; i++ )
+        for( int j=0; j<(int)nyc; j++ )
+            for( int k=0; k<(int)nzc/2+1; k++ )
+            {
+                int ii(i),jj(j),kk(k);
+                
+                if( i> nxc/2 ) ii += nxf/2;
+                if( j> nyc/2 ) jj += nyf/2;
+                if( k> nzc/2 ) kk += nzf/2;
+                
+                
+                size_t qc,qf;
+                qc = ((size_t)i*(size_t)nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+                qf = ((size_t)ii*(size_t)nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
+                
+                double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+                double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+                double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+                
+                double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
+                std::complex<double> val_phas( cos(phase), sin(phase) );
+                
+                std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+                val *= sqrt8 * val_phas;
+                
+                double blend[3] = {Blend_Function(kx,nxc/2),Blend_Function(ky,nyc/2),Blend_Function(kz,nzc/2)};
+                double blend_coarse = blend[0]*blend[1]*blend[2];
+                double blend_fine = 1.0 - blend_coarse;//(1.0-blend[0])*(1.0-blend[1])*(1.0-blend[2]);
+                
+                
+                
+                RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
+                IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
+            }
+    
+#else
     
      // 0 0
     #pragma omp parallel for
@@ -234,6 +278,7 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
 	    RE(cfine[qf]) = val.real();
 	    IM(cfine[qf]) = val.imag();
 	  }
+#endif
         
     delete[] rcoarse;
 

@@ -97,7 +97,7 @@ public:
         for( int ilevel = levelmax_-1; ilevel > 0; --ilevel )
         {
             dx = 1.0/(1ul<<(ilevel));
-            level_dist_[ilevel-1] = level_dist_[ilevel] + padding_ * dx;
+            level_dist_[ilevel] = level_dist_[ilevel+1] + padding_ * dx;
         }
     }
     

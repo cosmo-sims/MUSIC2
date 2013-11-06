@@ -582,7 +582,7 @@ public:
             
             
             
-            pellip_[levelmax_-1] = new min_ellipsoid( pp.size()/3, &pp[0] );
+            pellip_[levelmax_] = new min_ellipsoid( pp.size()/3, &pp[0] );
             
             
         } else {
@@ -599,7 +599,7 @@ public:
             strtmp = cf.getValue<std::string>("setup","region_ellipsoid_center");
             sscanf( strtmp.c_str(), "%lf,%lf,%lf", &c[0],&c[1],&c[2] );
             
-            pellip_[levelmax_-1] = new min_ellipsoid( A, c );
+            pellip_[levelmax_] = new min_ellipsoid( A, c );
             
         }
         
@@ -635,8 +635,8 @@ public:
         
         // output the center
         float c[3], A[9];
-        pellip_[levelmax_-1]->get_center( c );
-        pellip_[levelmax_-1]->get_matrix( A );
+        pellip_[levelmax_]->get_center( c );
+        pellip_[levelmax_]->get_matrix( A );
         
         LOGINFO("Region center for ellipsoid determined at\n\t xc = ( %f %f %f )",c[0],c[1],c[2]);
         LOGINFO("Ellipsoid matrix determined as\n\t      ( %f %f %f )\n\t  A = ( %f %f %f )\n\t      ( %f %f %f )",
@@ -649,13 +649,13 @@ public:
         unsigned levelmax = cf.getValue<unsigned>("setup","levelmax");
         unsigned npad = cf.getValue<unsigned>("setup","padding");
         double dx = 1.0/(1ul<<levelmax);
-        pellip_[levelmax_-1]->expand_ellipsoid( dx );
+        pellip_[levelmax_]->expand_ellipsoid( dx );
         
         
         // generate the higher level ellipsoids
-        for( int ilevel = levelmax_-1; ilevel > 0; --ilevel )
+        for( int ilevel = levelmax_; ilevel > 0; --ilevel )
         {
-            dx = 1.0/(1ul<<(ilevel));
+            dx = 1.0/(1ul<<(ilevel-1));
             pellip_[ ilevel-1 ] = new min_ellipsoid( *pellip_[ ilevel ] );
             pellip_[ ilevel-1 ]->expand_ellipsoid( npad*dx );
         }
@@ -690,7 +690,7 @@ public:
             return;
         }
         
-        pellip_[level-1]->get_AABB( left, right );
+        pellip_[level]->get_AABB( left, right );
       
         double dx = 1.0/(1ul<<level);
         double pad = (double)(padding_+1) * dx;

@@ -648,6 +648,12 @@ public:
         m_ref_masks.clear();
 	}
     
+    
+    // meaning of the mask:
+    //  -1  =  outside of mask
+    //  0.5 =  in mask and refined (i.e. cell exists also on finer level)
+    //  1   =  in mask and not refined (i.e. cell exists only on this level)
+    
     void add_refinement_mask( const double *shift )
     {
         bhave_refmask = false;
@@ -655,7 +661,7 @@ public:
         //! generate a mask
         if( m_levelmin != levelmax() )
         {
-            for( int ilevel = (int)levelmax()-1; ilevel >= (int)levelmin(); --ilevel )
+            for( int ilevel = (int)levelmax(); ilevel >= (int)levelmin(); --ilevel )
             {
                 double xq[3], dx = 1.0/(1ul<<ilevel); //1.0/(1ul<<(levelmax()-1));
                 
@@ -671,10 +677,10 @@ public:
                         {
                             xq[2] = (offset_abs(ilevel,2) + k)*dx + 0.5*dx + shift[2];
                             
-                            if( the_region_generator->query_point( xq, ilevel ) )
-                                (*m_ref_masks[ilevel])(i,j,k) = 1.0;//true;
+                            if( the_region_generator->query_point( xq, ilevel ) || ilevel == (int)levelmin() )
+                                (*m_ref_masks[ilevel])(i,j,k) = 1.0; // inside mask
                             else
-                                (*m_ref_masks[ilevel])(i,j,k) = 0.0;
+                                (*m_ref_masks[ilevel])(i,j,k) = -1.0; // outside mask
                         }
                     }
                 }
@@ -682,7 +688,47 @@ public:
             
             bhave_refmask = true;
             
-            // do a forward consistency sweep 
+#if 1
+            for( int ilevel = (int)levelmax()-1; ilevel > (int)levelmin(); --ilevel )
+            {
+                for( size_t i=0; i<size(ilevel,0); i+=2 )
+                {
+                    for( size_t j=0; j<size(ilevel,1); j+=2 )
+                    {
+                        for( size_t k=0; k<size(ilevel,2); k+=2 )
+                        {
+                            bool fine_is_flagged = false;
+                            
+                            fine_is_flagged |= (*m_ref_masks[ilevel])(i+0,j+0,k+0)>0.;
+                            fine_is_flagged |= (*m_ref_masks[ilevel])(i+0,j+0,k+1)>0.;
+                            fine_is_flagged |= (*m_ref_masks[ilevel])(i+0,j+1,k+0)>0.;
+                            fine_is_flagged |= (*m_ref_masks[ilevel])(i+0,j+1,k+1)>0.;
+                            fine_is_flagged |= (*m_ref_masks[ilevel])(i+1,j+0,k+0)>0.;
+                            fine_is_flagged |= (*m_ref_masks[ilevel])(i+1,j+0,k+1)>0.;
+                            fine_is_flagged |= (*m_ref_masks[ilevel])(i+1,j+1,k+0)>0.;
+                            fine_is_flagged |= (*m_ref_masks[ilevel])(i+1,j+1,k+1)>0.;
+                            
+                            if( fine_is_flagged )
+                            {
+                                (*m_ref_masks[ilevel-1])(offset(ilevel,0)+i/2,offset(ilevel,1)+j/2,offset(ilevel,2)+k/2) = 0.5;
+                                
+                                (*m_ref_masks[ilevel])(i+0,j+0,k+0) = 1.0;
+                                (*m_ref_masks[ilevel])(i+0,j+0,k+1) = 1.0;
+                                (*m_ref_masks[ilevel])(i+0,j+1,k+0) = 1.0;
+                                (*m_ref_masks[ilevel])(i+0,j+1,k+1) = 1.0;
+                                (*m_ref_masks[ilevel])(i+1,j+0,k+0) = 1.0;
+                                (*m_ref_masks[ilevel])(i+1,j+0,k+1) = 1.0;
+                                (*m_ref_masks[ilevel])(i+1,j+1,k+0) = 1.0;
+                                (*m_ref_masks[ilevel])(i+1,j+1,k+1) = 1.0;
+                            }
+                        }
+                    }
+                }
+                
+            }
+            
+#else
+            // determine the refined cells
             for( int ilevel = (int)levelmin()-1; ilevel < (int)levelmax()-1; ++ilevel )
             {
                 for( size_t i=0; i<size(ilevel,0); i++ )
@@ -703,23 +749,35 @@ public:
                                 ifine[1]>=0 && ifine[1] < size(ilevel+1,1) &&
                                 ifine[2]>=0 && ifine[2] < size(ilevel+1,2) )
                             {
-                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+0);
-                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+1);
-                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+0);
-                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+1);
-                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+0);
-                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+1);
-                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+0);
-                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+1);
-                                
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+0)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+1)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+0)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+1)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+0)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+1)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+0)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+1)>0.;
                             }
                             
-                            if( fine_is_flagged )
-                                (*m_ref_masks[ilevel])(i,j,k) = 0.0;
+                            if( fine_is_flagged && (*m_ref_masks[ilevel])(i,j,k) > 0. )
+                            {
+                                (*m_ref_masks[ilevel])(i,j,k) = 0.5; // cell is refined
+                                
+                                (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+0) = 1.0;
+                                (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+1) = 1.0;
+                                (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+0) = 1.0;
+                                (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+1) = 1.0;
+                                (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+0) = 1.0;
+                                (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+1) = 1.0;
+                                (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+0) = 1.0;
+                                (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+1) = 1.0;
+                                
+                            }
                         }
                     }
                 }
             }
+#endif
             
         }
     }
@@ -817,9 +875,11 @@ public:
         //if( ilevel == levelmax() )
         //    return false;
 
-        if( bhave_refmask )
-            return !(*m_ref_masks[ilevel-1])(offset(ilevel,0)+i/2,offset(ilevel,1)+j/2,offset(ilevel,2)+k/2);
-
+        if( bhave_refmask ){
+            return (*m_ref_masks[ilevel])(i,j,k) < 0.99;
+            //return (*m_ref_masks[ilevel-1])(offset(ilevel,0)+i/2,offset(ilevel,1)+j/2,offset(ilevel,2)+k/2) < 0.99;
+        }
+        
         //if( ilevel == levelmax()-1 && bhave_refmask )
         //    return (*m_ref_masks[ilevel])(i,j,k);
 		
@@ -830,6 +890,15 @@ public:
 		
 		return true;
 	}
+    
+    bool is_masked( unsigned ilevel, int i, int j, int k ) const
+	{
+        if( bhave_refmask ){
+            return (*m_ref_masks[ilevel-1])(offset(ilevel,0)+i/2,offset(ilevel,1)+j/2,offset(ilevel,2)+k/2) > 0.;
+        }
+        
+        return true;
+    }
 	
 	//! sets the values of all grids on all levels to zero
 	void zero( void )
@@ -1634,7 +1703,7 @@ public:
 	  // update the region generator with what has been actually created
 	  double left[3] =  { x0_[levelmax_]+rshift_[0], y0_[levelmax_]+rshift_[1], z0_[levelmax_]+rshift_[2] };
 	  double right[3] = { left[0]+xl_[levelmax_], left[1]+yl_[levelmax_], left[2]+zl_[levelmax_] };
-	  the_region_generator->update_AABB( left, right );
+      the_region_generator->update_AABB( left, right );
 	}
   
   //! asignment operator

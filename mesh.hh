@@ -938,8 +938,9 @@ public:
 			for( unsigned i=0; i<get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<get_grid(ilevel)->size(1); ++j )
 					for( unsigned k=0; k<get_grid(ilevel)->size(2); ++k )
-						if( ! is_refined(ilevel,i,j,k) )
-							++npcount;
+						//if( ! is_refined(ilevel,i,j,k) )
+						if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
+                            ++npcount;
 		
 		return npcount;
 	}

@@ -689,7 +689,7 @@ public:
             bhave_refmask = true;
             
 #if 1
-            for( int ilevel = (int)levelmax()-1; ilevel > (int)levelmin(); --ilevel )
+            for( int ilevel = (int)levelmax(); ilevel > (int)levelmin(); --ilevel )
             {
                 for( size_t i=0; i<size(ilevel,0); i+=2 )
                 {
@@ -872,11 +872,18 @@ public:
 	 */
 	bool is_refined( unsigned ilevel, int i, int j, int k ) const
 	{
+        // meaning of the mask:
+        //  -1  =  outside of mask
+        //  0.5 =  in mask and refined (i.e. cell exists also on finer level)
+        //  1   =  in mask and not refined (i.e. cell exists only on this level)
+
+        
         //if( ilevel == levelmax() )
         //    return false;
 
         if( bhave_refmask ){
-            return (*m_ref_masks[ilevel])(i,j,k) < 0.99;
+            short v = (*m_ref_masks[ilevel])(i,j,k);
+            return (v>0.49 && v<0.51);
             //return (*m_ref_masks[ilevel-1])(offset(ilevel,0)+i/2,offset(ilevel,1)+j/2,offset(ilevel,2)+k/2) < 0.99;
         }
         
@@ -891,10 +898,19 @@ public:
 		return true;
 	}
     
-    bool is_masked( unsigned ilevel, int i, int j, int k ) const
+    bool is_in_mask( unsigned ilevel, int i, int j, int k ) const
 	{
+        // meaning of the mask:
+        //  -1  =  outside of mask
+        //  0.5 =  in mask and refined (i.e. cell exists also on finer level)
+        //  1   =  in mask and not refined (i.e. cell exists only on this level)
+        
+
         if( bhave_refmask ){
-            return (*m_ref_masks[ilevel-1])(offset(ilevel,0)+i/2,offset(ilevel,1)+j/2,offset(ilevel,2)+k/2) > 0.;
+            short v = (*m_ref_masks[ilevel])(i,j,k);
+            return (v>0.);
+
+            //return (*m_ref_masks[ilevel-1])(offset(ilevel,0)+i/2,offset(ilevel,1)+j/2,offset(ilevel,2)+k/2) > 0.;
         }
         
         return true;

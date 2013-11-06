@@ -894,8 +894,9 @@ public:
 				for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 					for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 						for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-							if( ! gh.is_refined(ilevel,i,j,k) )
-							{
+							//if( ! gh.is_refined(ilevel,i,j,k) )
+							if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
+                            {
 								if( temp_dat.size() <  block_buf_size_ )
 									temp_dat.push_back( pmass );	
 								else
@@ -998,8 +999,9 @@ public:
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-						if( ! gh.is_refined(ilevel,i,j,k) )
-						{
+						//if( ! gh.is_refined(ilevel,i,j,k) )
+						if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
+                        {
 							double xx[3];
 							gh.cell_pos(ilevel, i, j, k, xx);
 							if( shift != NULL )
@@ -1087,8 +1089,9 @@ public:
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-						if( ! gh.is_refined(ilevel,i,j,k) )
-						{	
+						//if( ! gh.is_refined(ilevel,i,j,k) )
+						if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
+                        {
 							if( temp_data.size() < block_buf_size_ )
 								temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
 							else 
@@ -1168,8 +1171,9 @@ public:
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-						if( ! gh.is_refined(ilevel,i,j,k) )
-						{	
+						//if( ! gh.is_refined(ilevel,i,j,k) )
+						if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
+                        {
 							if( temp_data.size() < block_buf_size_ )
 								temp_data.push_back( (*gh.get_grid(ilevel))(i,j,k) * vfac );
 							else 
@@ -1265,8 +1269,9 @@ public:
             for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-						if( ! gh.is_refined(ilevel,i,j,k) )
-						{
+						//if( ! gh.is_refined(ilevel,i,j,k) )
+						if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
+                        {
 							double xx[3];
 							gh.cell_pos(ilevel, i, j, k, xx);
 							if( shift != NULL )

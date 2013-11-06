@@ -489,10 +489,9 @@ public:
         
         Inverse_3x3( A, Ainv );
       
-        LOGUSER("computing ellipsoid axes.....");
+        //LOGUSER("computing ellipsoid axes.....");
         compute_axes();
         
-        LOGINFO("mu = %f %f %f -> %f %f %f", muold[0], muold[1], muold[2], mu[0], mu[1], mu[2]);
         //print();
     }
 };

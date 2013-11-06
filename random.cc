@@ -737,7 +737,6 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 	if( kspace )
 	{
 		
-	  LOGINFO("lx = %d,%d,%d  x0 = %d,%d,%d",lx[0],lx[1],lx[2],x0[0],x0[1],x0[2]);
 	  LOGINFO("Generating a constrained random number set with seed %ld\n    using coarse mode replacement...",baseseed);
 	  assert(lx[0]%2==0 && lx[1]%2==0 && lx[2]%2==0);
 	  size_t nx=lx[0], ny=lx[1], nz=lx[2],

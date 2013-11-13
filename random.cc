@@ -1564,7 +1564,7 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 {
 	bool kavg = pcf_->getValueSafe<bool>("random","kaveraging",true);
 	bool rndsign = pcf_->getValueSafe<bool>("random","grafic_sign",false);
-	bool brealspace_tf = !pcf_->getValue<bool>("setup","kspace_tf");
+	bool brealspace_tf = !pcf_->getValue<bool>("setup","kspace_TF");
 	
 	std::vector< rng* > randc(std::max(levelmax_,levelmin_seed_)+1,(rng*)NULL);
 	
@@ -1606,10 +1606,10 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	      LOGINFO("Warning: random seed for level %d will be ignored.\n" \
 		      "            consistency requires that it is obtained by restriction from level %d", ilevel, levelmin_seed_ );
 	    
-	    if( brealspace_tf && ilevel < levelmax_ )
-	      randc[ilevel] = new rng( *randc[ilevel+1], false );
-	    else // do k-space averaging
-	      randc[ilevel] = new rng( *randc[ilevel+1], kavg );
+	    //if( brealspace_tf && ilevel < levelmax_ )
+	    //  randc[ilevel] = new rng( *randc[ilevel+1], false );
+	    //else // do k-space averaging
+	    randc[ilevel] = new rng( *randc[ilevel+1], kavg );
 	    
 	    if( ilevel+1 > levelmax_ )
 	      {

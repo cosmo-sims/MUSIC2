@@ -21,8 +21,18 @@ double blend_sharpness = 0.333;
 
 double Blend_Function( double k, double kmax )
 {
+#if 0 // this should not be used, doesn't go to zero at kmax
     double const eps = blend_sharpness; // this is a global variable
     return -0.5*(tanh((fabs(k)-kmax)/eps)-1.0f);
+#else
+    float kabs = fabs(k);
+    double const eps = blend_sharpness;
+    float kp = (1.0f-2.0f*eps)*kmax;
+
+    if( kabs >= kmax ) return 0.;
+    if( kabs > kp ) return 1.0f/(expf( (kp-kmax)/(k-kp) + (kp-kmax)/(k-kmax) ) + 1.0f);
+    return 1.0f;
+#endif
 }
 
 //#define NO_COARSE_OVERLAP

@@ -320,7 +320,7 @@ public:
 				for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 					for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 						for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-							if( ! gh.is_refined(ilevel,i,j,k) )
+							if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
 							{
 								data[count++] = pmass;
 							}
@@ -359,7 +359,7 @@ public:
 		for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 			for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 				for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-					if( ! gh.is_refined(ilevel,i,j,k) )
+					if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
 					{
 						double xx[3];
 						gh.cell_pos(ilevel, i, j, k, xx);
@@ -385,7 +385,7 @@ public:
 				for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 					for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 						for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-							if( ! gh.is_refined(ilevel,i,j,k) )
+							if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
 							{
 								double xx[3];
 								gh.cell_pos(ilevel, i, j, k, xx);
@@ -418,7 +418,7 @@ public:
 		for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 			for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 				for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-					if( ! gh.is_refined(ilevel,i,j,k) )
+					if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
 					{
 						data[count++] = (*gh.get_grid(ilevel))(i,j,k) * velFac;
 					}
@@ -438,7 +438,7 @@ public:
 				for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 					for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 						for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-							if( ! gh.is_refined(ilevel,i,j,k) )
+							if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
 							{
 								data[count++] = (*gh.get_grid(ilevel))(i,j,k) * velFac;
 							}
@@ -470,7 +470,7 @@ public:
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-						if( ! gh.is_refined(ilevel,i,j,k) )
+						if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
 						{
 							gas_data[count++] = (*gh.get_grid(ilevel))(i,j,k) * velFac;
 						}
@@ -520,7 +520,7 @@ public:
 			for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 				for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 					for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-						if( ! gh.is_refined(ilevel,i,j,k) )
+						if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
 						{
 							double xx[3];
 							gh.cell_pos(ilevel, i, j, k, xx);

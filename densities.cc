@@ -17,9 +17,11 @@
 //TODO: this should be a larger number by default, just to maintain consistency with old default
 #define DEF_RAN_CUBE_SIZE	32
 
+double blend_sharpness = 0.333;
+
 double Blend_Function( double k, double kmax )
 {
-    double const eps = 0.333;
+    double const eps = blend_sharpness; // this is a global variable
     return -0.5*(tanh((fabs(k)-kmax)/eps)-1.0f);
 }
 
@@ -427,6 +429,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
   levelmin = cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
   levelmax = cf.getValue<unsigned>("setup","levelmax");
   kspaceTF = cf.getValueSafe<bool>("setup", "kspace_TF", false);
+    
+  blend_sharpness = cf.getValueSafe<double>("setup","kspace_filter",0.333);
   
   unsigned nbase = 1<<levelmin;
 	
@@ -679,8 +683,8 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 			*coarse = coarse_save;
 			coarse->subtract_oct_mean();
 			convolution::perform<real_t>( the_tf_kernel, reinterpret_cast<void*> (coarse->get_data_ptr()), shift );
-			//coarse->subtract_mean();
-			//coarse->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
+			coarse->subtract_mean();
+			coarse->upload_bnd_add( *delta.get_grid(levelmin+i-1) );
 			
 			//... clean up
 			the_tf_kernel->deallocate();
@@ -729,10 +733,10 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
 
 		the_tf_kernel->deallocate();
 		
-		//coarse->subtract_mean();
+		coarse->subtract_mean();
 		
 		//... upload data to coarser grid
-		//coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );
+		coarse->upload_bnd_add( *delta.get_grid(levelmax-1) );
 			
 		delete coarse;
 	}

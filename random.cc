@@ -1563,7 +1563,8 @@ template< typename rng, typename T >
 void random_number_generator<rng,T>::compute_random_numbers( void )
 {
 	bool kavg = pcf_->getValueSafe<bool>("random","kaveraging",true);
-    bool rndsign = pcf_->getValueSafe<bool>("random","grafic_sign",false);
+	bool rndsign = pcf_->getValueSafe<bool>("random","grafic_sign",false);
+	bool brealspace_tf = !pcf_->getValue<bool>("setup","kspace_tf");
 	
 	std::vector< rng* > randc(std::max(levelmax_,levelmin_seed_)+1,(rng*)NULL);
 	
@@ -1595,28 +1596,27 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	//... seeds are given for a level finer than levelmin, obtain by averaging
 	if( levelmin_seed_ > levelmin_ )
 	{
-        if( rngfnames_[levelmin_seed_].size() > 0 )
+	  if( rngfnames_[levelmin_seed_].size() > 0 )
             randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, rngfnames_[levelmin_seed_], rndsign );
-        else
+	  else
             randc[levelmin_seed_] = new rng( 1<<levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_], true );//, x0, lx );
 		
-		for( int ilevel = levelmin_seed_-1; ilevel >= (int)levelmin_; --ilevel ){
-			if( rngseeds_[ilevel-levelmin_] > 0 )
-				LOGINFO("Warning: random seed for level %d will be ignored.\n" \
-                        "            consistency requires that it is obtained by restriction from level %d", ilevel, levelmin_seed_ );
-			
-			
-			if( ilevel >= levelmax_ )
-				randc[ilevel] = new rng( *randc[ilevel+1], kavg );
-			else
-				randc[ilevel] = new rng( *randc[ilevel+1], kavg );
-			
-			if( ilevel+1 > levelmax_ )
-			{
-				delete randc[ilevel+1];
-				randc[ilevel+1] = NULL;
-			}
-		}
+	  for( int ilevel = levelmin_seed_-1; ilevel >= (int)levelmin_; --ilevel ){
+	    if( rngseeds_[ilevel-levelmin_] > 0 )
+	      LOGINFO("Warning: random seed for level %d will be ignored.\n" \
+		      "            consistency requires that it is obtained by restriction from level %d", ilevel, levelmin_seed_ );
+	    
+	    if( brealspace_tf && ilevel < levelmax_ )
+	      randc[ilevel] = new rng( *randc[ilevel+1], false );
+	    else // do k-space averaging
+	      randc[ilevel] = new rng( *randc[ilevel+1], kavg );
+	    
+	    if( ilevel+1 > levelmax_ )
+	      {
+		delete randc[ilevel+1];
+		randc[ilevel+1] = NULL;
+	      }
+	  }
 		
 	}
 	
@@ -1682,11 +1682,14 @@ void random_number_generator<rng,T>::compute_random_numbers( void )
 	delete randc[levelmax_];
 	randc[levelmax_] = NULL;
     
-    //... make sure that the coarse grid contains oct averages where it overlaps with a fine grid
-    //... this also ensures that constraints enforced on fine grids are carried to the coarser grids
-    //for( int ilevel=levelmax_; ilevel>levelmin_; --ilevel )
-    //    correct_avg( ilevel-1, ilevel );
-	
+	//... make sure that the coarse grid contains oct averages where it overlaps with a fine grid
+	//... this also ensures that constraints enforced on fine grids are carried to the coarser grids
+	if( brealspace_tf )
+	  {
+	    for( int ilevel=levelmax_; ilevel>levelmin_; --ilevel )
+	      correct_avg( ilevel-1, ilevel );
+	  }
+
 	//.. we do not have random numbers for a coarse level, generate them
 	/*if( levelmax_rand_ >= (int)levelmin_ )
 	 {

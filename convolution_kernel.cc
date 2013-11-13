@@ -490,7 +490,7 @@ namespace convolution{
         return eval_split_recurse( tfr, xmid, dx, prevval, nsplit );
     }
     
-#define OLD_KERNEL_SAMPLING
+    #define OLD_KERNEL_SAMPLING
 	
 	template< typename real_t >
 	void kernel_real_cached<real_t>::precompute_kernel( transfer_function* ptf, tf_type type, const refinement_hierarchy& refh )
@@ -1095,7 +1095,9 @@ namespace convolution{
 				}
 			}
 
-			/*			LOGUSER("Averaging fine kernel to coarse kernel...");
+
+#ifdef OLD_KERNEL_SAMPLING
+			LOGUSER("Averaging fine kernel to coarse kernel...");
 
 			//... copy averaged and convolved fine kernel to coarse kernel
 			#pragma omp parallel for
@@ -1132,7 +1134,8 @@ namespace convolution{
 						
 					}
 
-			*/
+#endif // OLD_KERNEL_SAMPLING
+
 			sprintf(cachefname,"temp_kernel_level%03d.tmp",ilevel);
 			LOGUSER("Storing kernel in temp file \'%s\'.",cachefname);
 			fp = fopen(cachefname,"w+");

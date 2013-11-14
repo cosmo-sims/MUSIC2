@@ -393,23 +393,23 @@ namespace convolution{
 		cparam_.lz = dx * cparam_.nz;
 		cparam_.pcf = pcf_;
 		
-		fftw_real		*rkernel	= reinterpret_cast<fftw_real*>( &kdata_[0] );
+		fftw_real *rkernel = reinterpret_cast<fftw_real*>( &kdata_[0] );
 		
 #ifdef FFTW3
 	#ifdef SINGLE_PRECISION
-		fftwf_complex		*kkernel	= reinterpret_cast<fftwf_complex*> (&rkernel[0]);
+		fftwf_complex *kkernel = reinterpret_cast<fftwf_complex*> (&rkernel[0]);
 		fftwf_plan plan = fftwf_plan_dft_r2c_3d( cparam_.nx, cparam_.ny, cparam_.nz, rkernel, kkernel, FFTW_ESTIMATE);
 		fftwf_execute(plan);
 		fftwf_destroy_plan(plan);
 	#else	
-		fftw_complex		*kkernel	= reinterpret_cast<fftw_complex*> (&rkernel[0]);
+		fftw_complex *kkernel = reinterpret_cast<fftw_complex*> (&rkernel[0]);
 		fftw_plan plan = fftw_plan_dft_r2c_3d( cparam_.nx, cparam_.ny, cparam_.nz, rkernel, kkernel, FFTW_ESTIMATE);
 		fftw_execute(plan);
 		fftw_destroy_plan(plan);
 	#endif
 #else
-		rfftwnd_plan	plan		= rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
-														  FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
+		rfftwnd_plan plan = rfftw3d_create_plan( cparam_.nx, cparam_.ny, cparam_.nz,
+							 FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE);
 		
 		
 	#ifndef SINGLETHREAD_FFTW		
@@ -562,9 +562,7 @@ namespace convolution{
 		int ref_fac = (deconv&&kspacepoisson)? 2 : 0;
 		const int ql = -ref_fac/2+1, qr = ql+ref_fac;
 		const double rf8 = pow(ref_fac,3);
-		const double dx05 = 0.5*dx, dx025 = 0.25*dx;
-        
-		std::cerr << ">>>>>>>>>>>> " << ref_fac << " <<<<<<<<<<<<<<<<" << std::endl;
+		const double dx05 = 0.5*dx, dx025 = 0.25*dx;        
 #endif
 		
 		if( bperiodic  )
@@ -1134,8 +1132,7 @@ namespace convolution{
 						
 					}
 
-#endif // OLD_KERNEL_SAMPLING
-
+#endif // #OLD_KERNEL_SAMPLING
 			sprintf(cachefname,"temp_kernel_level%03d.tmp",ilevel);
 			LOGUSER("Storing kernel in temp file \'%s\'.",cachefname);
 			fp = fopen(cachefname,"w+");

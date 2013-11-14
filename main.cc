@@ -37,7 +37,7 @@
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "1.4b"
+#define THE_CODE_VERSION "1.5"
 
 
 namespace music
@@ -359,7 +359,10 @@ int main (int argc, const char * argv[])
 		cf.insertValue("setup","levelmin_TF",cf.getValue<std::string>("setup","levelmin"));
 	}
 	
-	
+	if( cf.getValueSafe<bool>( "setup", "kspace_TF", true ) )
+	  LOGINFO("Using k-space sampled transfer functions...");
+	else
+	  LOGINFO("Using real space sampled transfer functions...");
 		
 	//------------------------------------------------------------------------------
 	//... initialize multithread FFTW

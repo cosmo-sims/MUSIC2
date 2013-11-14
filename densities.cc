@@ -160,9 +160,9 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
             {
                 int ii(i),jj(j),kk(k);
                 
-                if( i> nxc/2 ) ii += nxf/2;
-                if( j> nyc/2 ) jj += nyf/2;
-                if( k> nzc/2 ) kk += nzf/2;
+                if( i> (int)nxc/2 ) ii += (int)nxf/2;
+                if( j> (int)nyc/2 ) jj += (int)nyf/2;
+                if( k> (int)nzc/2 ) kk += (int)nzf/2;
                 
                 
                 size_t qc,qf;
@@ -347,7 +347,7 @@ void GenerateDensityUnigrid( config_file& cf, transfer_function *ptf, tf_type ty
 	levelmin	= cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
 	levelmax	= cf.getValue<unsigned>("setup","levelmax");
 	
-	bool kspace = cf.getValueSafe<unsigned>("setup","kspace_TF",false);
+	bool kspace = cf.getValue<bool>("setup","kspace_TF");
 	
 	unsigned	nbase	= 1<<levelmin;
 	
@@ -438,9 +438,9 @@ void GenerateDensityHierarchy(	config_file& cf, transfer_function *ptf, tf_type 
   levelminPoisson = cf.getValue<unsigned>("setup","levelmin");
   levelmin = cf.getValueSafe<unsigned>("setup","levelmin_TF",levelminPoisson);
   levelmax = cf.getValue<unsigned>("setup","levelmax");
-  kspaceTF = cf.getValueSafe<bool>("setup", "kspace_TF", false);
+  kspaceTF = cf.getValue<bool>("setup", "kspace_TF");
     
-  blend_sharpness = cf.getValueSafe<double>("setup","kspace_filter",0.333);
+  blend_sharpness = cf.getValueSafe<double>("setup","kspace_filter", blend_sharpness);
   
   unsigned nbase = 1<<levelmin;
 	

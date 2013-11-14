@@ -1110,7 +1110,7 @@ public:
                     }
                     
                     
-                    if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
+                    if( gh.is_in_mask(ilevel,ix,iy,iz) && !gh.is_refined(ilevel,ix,iy,iz) )
                     {
                         dorefine = false;
                         break;

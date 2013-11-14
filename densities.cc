@@ -179,11 +179,11 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
                 std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
                 val *= sqrt8 * val_phas;
                 
-                double blend[3] = {Blend_Function(kx,nxc/2),Blend_Function(ky,nyc/2),Blend_Function(kz,nzc/2)};
-                double blend_coarse = blend[0]*blend[1]*blend[2];
-                double blend_fine = 1.0 - blend_coarse;//(1.0-blend[0])*(1.0-blend[1])*(1.0-blend[2]);
-                
-                
+                //double blend[3] = {Blend_Function(kx,nxc/2),Blend_Function(ky,nyc/2),Blend_Function(kz,nzc/2)};
+
+                double blend_coarse = Blend_Function(sqrt(kx*kx+ky*ky+kz*kz),nxc/2);
+		//double blend_coarse = blend[0]*blend[1]*blend[2];
+                double blend_fine = 1.0 - blend_coarse;//(1.0-blend[0])*(1.0-blend[1])*(1.0-blend[2]);                
                 
                 RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
                 IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();

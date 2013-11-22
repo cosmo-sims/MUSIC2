@@ -570,10 +570,10 @@ int main( int argc, char **argv )
   pellip->get_matrix( A );
 
   printf("\n\n\n");
-  printf("region_ellipsoid_matrix[0] = %f %f %f\n", A[0], A[1], A[2] );
-  printf("region_ellipsoid_matrix[1] = %f %f %f\n", A[3], A[4], A[5] );
-  printf("region_ellipsoid_matrix[2] = %f %f %f\n", A[6], A[7], A[8] );
-  printf("region_ellipsoid_center    = %f %f %f\n\n",c[0], c[1], c[2] );
+  printf("region_ellipsoid_matrix[0] = %f, %f, %f\n", A[0], A[1], A[2] );
+  printf("region_ellipsoid_matrix[1] = %f, %f, %f\n", A[3], A[4], A[5] );
+  printf("region_ellipsoid_matrix[2] = %f, %f, %f\n", A[6], A[7], A[8] );
+  printf("region_ellipsoid_center    = %f, %f, %f\n\n",c[0], c[1], c[2] );
 
         
   delete pellip;

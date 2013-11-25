@@ -939,8 +939,7 @@ public:
         //  1   =  in mask and not refined (i.e. cell exists only on this level)
 
         
-        //if( ilevel == levelmax() )
-        //    return false;
+        
 
         if( bhave_refmask ){
             short v = (*m_ref_masks[ilevel])(i,j,k);
@@ -950,6 +949,9 @@ public:
         
         //if( ilevel == levelmax()-1 && bhave_refmask )
         //    return (*m_ref_masks[ilevel])(i,j,k);
+        
+        if( !bhave_refmask && ilevel == levelmax() )
+            return false;
 		
 		if( i < offset(ilevel+1,0) || i >= offset(ilevel+1, 0)+(int)size(ilevel+1,0)/2 ||
 		    j < offset(ilevel+1,1) || j >= offset(ilevel+1, 1)+(int)size(ilevel+1,1)/2 ||

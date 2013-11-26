@@ -359,7 +359,9 @@ int main (int argc, const char * argv[])
 		cf.insertValue("setup","levelmin_TF",cf.getValue<std::string>("setup","levelmin"));
 	}
 	
-	if( cf.getValueSafe<bool>( "setup", "kspace_TF", true ) )
+    bool bspectral_sampling;
+    
+	if( bspectral_sampling = cf.getValueSafe<bool>( "setup", "kspace_TF", true ) )
 	  LOGINFO("Using k-space sampled transfer functions...");
 	else
 	  LOGINFO("Using real space sampled transfer functions...");
@@ -598,7 +600,7 @@ int main (int argc, const char * argv[])
 			
 			
 			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, false, false );
-			coarsen_density(rh_Poisson, f);
+			coarsen_density(rh_Poisson, f, bspectral_sampling);
             f.add_refinement_mask( rh_Poisson.get_coord_shift() );
             
 			normalize_density(f);
@@ -657,7 +659,7 @@ int main (int argc, const char * argv[])
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing baryon density...");
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, false, bbshift );
-				coarsen_density(rh_Poisson, f);
+				coarsen_density(rh_Poisson, f, bspectral_sampling);
                 f.add_refinement_mask( rh_Poisson.get_coord_shift() );
 				normalize_density(f);
 				
@@ -730,7 +732,7 @@ int main (int argc, const char * argv[])
 				if( do_baryons )
 				{
 					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, rand, f, false, false );
-					coarsen_density(rh_Poisson, f);
+					coarsen_density(rh_Poisson, f, bspectral_sampling);
 					f.add_refinement_mask( rh_Poisson.get_coord_shift() );
                     normalize_density(f);
 					
@@ -806,7 +808,7 @@ int main (int argc, const char * argv[])
 				//... we do baryons and have velocity transfer functions, or we do SPH and not to shift
 				//... do DM first
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vcdm , rh_TF, rand, f, false, false );
-				coarsen_density(rh_Poisson, f);
+				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask( rh_Poisson.get_coord_shift() );
                 normalize_density(f);
 				
@@ -869,7 +871,7 @@ int main (int argc, const char * argv[])
 				LOGUSER("Computing baryon velocitites...");
 				//... do baryons
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vbaryon , rh_TF, rand, f, false, bbshift );
-				coarsen_density(rh_Poisson, f);
+				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask( rh_Poisson.get_coord_shift() );
                 normalize_density(f);
 				
@@ -943,7 +945,7 @@ int main (int argc, const char * argv[])
 
 			
 			GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, false, false );
-			coarsen_density(rh_Poisson, f);
+			coarsen_density(rh_Poisson, f, bspectral_sampling);
 			f.add_refinement_mask( rh_Poisson.get_coord_shift() );
             normalize_density(f);
 			
@@ -1077,7 +1079,7 @@ int main (int argc, const char * argv[])
 				LOGUSER("Computing baryon displacements...");
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vbaryon , rh_TF, rand, f, false, bbshift );
-				coarsen_density(rh_Poisson, f);
+				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask( rh_Poisson.get_coord_shift() );
                 normalize_density(f);
 				
@@ -1165,7 +1167,7 @@ int main (int argc, const char * argv[])
 					my_tf_type = total;
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, my_tf_type , rh_TF, rand, f, false, false );
-				coarsen_density(rh_Poisson, f);
+				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask( rh_Poisson.get_coord_shift() );
                 normalize_density(f);
 				
@@ -1252,7 +1254,7 @@ int main (int argc, const char * argv[])
 				LOGUSER("Computing baryon density...");
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, true, false );
-				coarsen_density(rh_Poisson, f);
+				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask( rh_Poisson.get_coord_shift() );
                 normalize_density(f);
 				
@@ -1293,7 +1295,7 @@ int main (int argc, const char * argv[])
 				LOGUSER("Computing baryon displacements...");
 				
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, baryon , rh_TF, rand, f, false, bbshift );
-				coarsen_density(rh_Poisson, f);
+				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask( rh_Poisson.get_coord_shift() );
                 normalize_density(f);
 				

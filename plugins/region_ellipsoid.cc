@@ -469,7 +469,7 @@ public:
             LOGUSER("computing ellipsoid axes.....");
             compute_axes();
         }
-        float muold[3] = {mu[0],mu[1],mu[2]};
+        //float muold[3] = {mu[0],mu[1],mu[2]};
         float munew[3];
         for( int i=0; i<3; ++i )
           munew[i] = sgn(mu[i])/sqr(1.0/sqrt(fabs(mu[i]))+dr);

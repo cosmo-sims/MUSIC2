@@ -1077,7 +1077,7 @@ inline void enforce_mean( M& v, M& V )
 
 
 
-void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u );
+void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u, bool kspace );
 
 
 #endif

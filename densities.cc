@@ -17,13 +17,14 @@
 //TODO: this should be a larger number by default, just to maintain consistency with old default
 #define DEF_RAN_CUBE_SIZE	32
 
-double blend_sharpness = 0.333;
+double blend_sharpness = 0.5;
 
 double Blend_Function( double k, double kmax )
 {
-#if 0 // this should not be used, doesn't go to zero at kmax
-    double const eps = blend_sharpness; // this is a global variable
-    return -0.5*(tanh((fabs(k)-kmax)/eps)-1.0f);
+#if 0
+    const static double pihalf = 0.5*M_PI;
+    if( fabs(k)>kmax ) return 0.0;
+    return cos(k/kmax * pihalf );
 #else
     float kabs = fabs(k);
     double const eps = blend_sharpness;
@@ -34,6 +35,134 @@ double Blend_Function( double k, double kmax )
     return 1.0f;
 #endif
 }
+
+
+template< typename m1, typename m2 >
+void fft_coarsen( m1& v, m2& V )
+{
+    size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf+2;
+    size_t nxF = V.size(0), nyF = V.size(1), nzF = V.size(2), nzFp = nzF+2;
+    
+    fftw_real *rcoarse = new fftw_real[ nxF * nyF * nzFp ];
+    fftw_complex *ccoarse = reinterpret_cast<fftw_complex*> (rcoarse);
+    
+    fftw_real *rfine = new fftw_real[ nxf * nyf * nzfp];
+    fftw_complex *cfine = reinterpret_cast<fftw_complex*> (rfine);
+    
+#ifdef FFTW3
+#ifdef SINGLE_PRECISION
+    fftwf_plan
+    pf = fftwf_plan_dft_r2c_3d(nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
+    ipc= fftwf_plan_dft_c2r_3d(nxF, nyF, nzF, ccoarse, rcoarse, FFTW_ESTIMATE);
+#else
+    fftw_plan
+    pf = fftw_plan_dft_r2c_3d(nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
+    ipc= fftw_plan_dft_c2r_3d(nxF, nyF, nzF, ccoarse, rcoarse, FFTW_ESTIMATE);
+#endif
+    
+#else
+    rfftwnd_plan
+    pf	= rfftw3d_create_plan( nxf, nyf, nzf, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE|FFTW_IN_PLACE),
+    ipc	= rfftw3d_create_plan( nxF, nyF, nzF, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE|FFTW_IN_PLACE);
+#endif
+    
+#pragma omp parallel for
+    for( int i=0; i<(int)nxf; i++ )
+        for( int j=0; j<(int)nyf; j++ )
+            for( int k=0; k<(int)nzf; k++ )
+            {
+                size_t q = ((size_t)i*nyf+(size_t)j)*nzfp+(size_t)k;
+                rfine[q] = v(i,j,k);
+            }
+    
+#ifdef FFTW3
+#ifdef SINGLE_PRECISION
+    fftwf_execute( pf );
+#else
+    fftw_execute( pf );
+#endif
+#else
+#ifndef SINGLETHREAD_FFTW
+    rfftwnd_threads_one_real_to_complex( omp_get_max_threads(), pf, rfine, NULL );
+#else
+    rfftwnd_one_real_to_complex( pf, rfine, NULL );
+#endif
+#endif
+    
+    double fftnorm = 1.0/((double)nxF*(double)nyF*(double)nzF);
+    
+#pragma omp parallel for
+    for( int i=0; i<(int)nxF; i++ )
+        for( int j=0; j<(int)nyF; j++ )
+            for( int k=0; k<(int)nzF/2+1; k++ )
+            {
+                int ii(i),jj(j),kk(k);
+                
+                if( i > (int)nxF/2 ) ii += (int)nxf/2;
+                if( j > (int)nyF/2 ) jj += (int)nyf/2;
+                
+                size_t qc,qf;
+                
+                double kx = (i <= (int)nxF/2)? (double)i : (double)(i-(int)nxF);
+                double ky = (j <= (int)nyF/2)? (double)j : (double)(j-(int)nyF);
+                double kz = (k <= (int)nzF/2)? (double)k : (double)(k-(int)nzF);
+                
+                
+                qc = ((size_t)i*nyF+(size_t)j)*(nzF/2+1)+(size_t)k;
+                qf = ((size_t)ii*nyf+(size_t)jj)*(nzf/2+1)+(size_t)kk;
+                
+                std::complex<double> val_fine(RE(cfine[qf]),IM(cfine[qf]));
+                double phase =  (kx/nxF + ky/nyF + kz/nzF) * 0.5 * M_PI;
+                
+                std::complex<double> val_phas( cos(phase), sin(phase) );
+                
+                val_fine *= val_phas * fftnorm/8.0;//sqrt(8.0);
+                
+                RE(ccoarse[qc]) = val_fine.real();
+                IM(ccoarse[qc]) = val_fine.imag();
+            }
+    
+    delete[] rfine;
+    
+#ifdef FFTW3
+#ifdef SINGLE_PRECISION
+    fftwf_execute( ipc );
+#else
+    fftw_execute( ipc );
+#endif
+#else
+#ifndef SINGLETHREAD_FFTW
+    rfftwnd_threads_one_complex_to_real( omp_get_max_threads(), ipc, ccoarse, NULL );
+#else
+    rfftwnd_one_complex_to_real( ipc, ccoarse, NULL );
+#endif
+#endif
+    
+#pragma omp parallel for
+    for( int i=0; i<(int)nxF; i++ )
+        for( int j=0; j<(int)nyF; j++ )
+            for( int k=0; k<(int)nzF; k++ )
+            {
+                size_t q = ((size_t)i*nyF+(size_t)j)*nzFp+(size_t)k;
+                V(i,j,k) = rcoarse[q];
+            }
+    
+    delete[] rcoarse;
+    
+#ifdef FFTW3
+#ifdef SINGLE_PRECISION
+    fftwf_destroy_plan(pf);
+    fftwf_destroy_plan(ipc);
+#else
+    fftw_destroy_plan(pf);
+    fftw_destroy_plan(ipc);
+#endif
+#else
+    rfftwnd_destroy_plan(pf);
+    rfftwnd_destroy_plan(ipc);
+#endif
+}
+
 
 //#define NO_COARSE_OVERLAP
 
@@ -151,7 +280,8 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
     double fftnorm = 1.0/((double)nxf*(double)nyf*(double)nzf);
     double sqrt8 = 8.0;//sqrt(8.0);
     double phasefac = -0.5;
-
+    
+    
     // this enables filtered splicing of coarse and fine modes
 #if 1
     for( int i=0; i<(int)nxc; i++ )
@@ -174,16 +304,14 @@ void fft_interpolate( m1& V, m2& v, bool from_basegrid=false )
                 double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
                 
                 double phase =  phasefac * (kx/nxc + ky/nyc + kz/nzc) * M_PI;
+                
                 std::complex<double> val_phas( cos(phase), sin(phase) );
                 
                 std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
                 val *= sqrt8 * val_phas;
                 
-                //double blend[3] = {Blend_Function(kx,nxc/2),Blend_Function(ky,nyc/2),Blend_Function(kz,nzc/2)};
-
                 double blend_coarse = Blend_Function(sqrt(kx*kx+ky*ky+kz*kz),nxc/2);
-		//double blend_coarse = blend[0]*blend[1]*blend[2];
-                double blend_fine = 1.0 - blend_coarse;//(1.0-blend[0])*(1.0-blend[1])*(1.0-blend[2]);                
+                double blend_fine = 1.0 - blend_coarse;
                 
                 RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
                 IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
@@ -818,11 +946,12 @@ void coarsen_density( const refinement_hierarchy& rh, GridHierarchy<real_t>& u )
 {
   unsigned levelmin_TF = u.levelmin();//rh.levelmin();
     
-/*    for( int i=rh.levelmax(); i>0; --i )
+    /*for( int i=rh.levelmax(); i>0; --i )
         mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );*/
     
   for( int i=levelmin_TF; i>0; --i )
-    mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+      fft_coarsen( *(u.get_grid(i)), *(u.get_grid(i-1)) );
+    //mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );
     
   
   //for( unsigned i=levelmin_TF+1; i<=rh.levelmax(); ++i )

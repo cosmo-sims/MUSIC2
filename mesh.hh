@@ -699,6 +699,55 @@ public:
             bhave_refmask = true;
             
 #if 1
+            
+            
+#if 1
+            for( int ilevel = (int)levelmin(); ilevel < (int)levelmax(); ++ilevel )
+            {
+                for( size_t i=0; i<size(ilevel,0); i++ )
+                    for( size_t j=0; j<size(ilevel,1); j++ )
+                        for( size_t k=0; k<size(ilevel,2); k++ )
+                        {
+                            bool fine_is_flagged = false;
+                            
+                            int ifine[] = {
+                                2*(int)i-2*(int)offset(ilevel+1,0),
+                                2*(int)j-2*(int)offset(ilevel+1,1),
+                                2*(int)k-2*(int)offset(ilevel+1,2),
+                            };
+                            
+                            if(ifine[0]>=0 && ifine[0] < (int)size(ilevel+1,0) &&
+                               ifine[1]>=0 && ifine[1] < (int)size(ilevel+1,1) &&
+                               ifine[2]>=0 && ifine[2] < (int)size(ilevel+1,2) )
+                            {
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+0)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+1)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+0)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+1)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+0)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+1)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+0)>0.;
+                                fine_is_flagged |= (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+1)>0.;
+                                
+                                if( fine_is_flagged )//&& (*m_ref_masks[ilevel])(i,j,k) > 0. )
+                                {
+                                    (*m_ref_masks[ilevel])(i,j,k) = 0.5; // cell is refined
+                                    
+                                    (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+0) = 1.0;
+                                    (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+0,ifine[2]+1) = 1.0;
+                                    (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+0) = 1.0;
+                                    (*m_ref_masks[ilevel+1])(ifine[0]+0,ifine[1]+1,ifine[2]+1) = 1.0;
+                                    (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+0) = 1.0;
+                                    (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+0,ifine[2]+1) = 1.0;
+                                    (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+0) = 1.0;
+                                    (*m_ref_masks[ilevel+1])(ifine[0]+1,ifine[1]+1,ifine[2]+1) = 1.0;
+                                    
+                                }
+                            }
+                        }
+            }
+            
+#else
             for( int ilevel = (int)levelmin(); ilevel < (int)levelmax(); ++ilevel )
             {
                 for( size_t i=0; i<size(ilevel,0); i++ )
@@ -747,6 +796,7 @@ public:
                     }
                 }
             }
+#endif
             
             
             /*for( int ilevel = (int)levelmax(); ilevel > (int)levelmin(); --ilevel )

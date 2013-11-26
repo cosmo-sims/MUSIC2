@@ -637,7 +637,7 @@ protected:
 	//... particle masses .......................................................
 	if( bmorethan2bnd_ )//bmultimass_ && bmorethan2bnd_ && nc_per_file[ifile] > 0ul)
 	  {
-	    unsigned npcoarse = np_per_file[ifile][5];// nc_per_file[ifile];//header_.npart[5];
+	    unsigned npcoarse = np_per_file[ifile][bndparticletype_];// nc_per_file[ifile];//header_.npart[5];
 	    iffs1.open( fnm, np_per_type_[5], wrote_coarse*sizeof(T_store) );
 	    
 	    npleft  = npcoarse;
@@ -896,7 +896,7 @@ public:
       {
 	header_.mass[5] = 0.;
         
-	size_t npcoarse = np_per_type_[5];
+	size_t npcoarse = np_per_type_[bndparticletype_];
 	size_t nwritten = 0;
 	
 	std::vector<T_store> temp_dat;
@@ -910,7 +910,7 @@ public:
 	
 	ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 	
-	for( int ilevel=gh.levelmax()-5; ilevel>=(int)gh.levelmin(); --ilevel )
+	for( int ilevel=gh.levelmax()-4; ilevel>=(int)gh.levelmin(); --ilevel )
 	  {
 	    // baryon particles live only on finest grid
 	    // these particles here are total matter particles
@@ -919,7 +919,6 @@ public:
 	    for( unsigned i=0; i<gh.get_grid(ilevel)->size(0); ++i )
 	      for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
 		for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
-		  //if( ! gh.is_refined(ilevel,i,j,k) )
 		  if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
 		    {
 		      if( temp_dat.size() <  block_buf_size_ )

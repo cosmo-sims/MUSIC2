@@ -92,7 +92,7 @@ protected:
       }
     
     size_t nnominal = (size_t)((double)ntotal/(double)nfiles);
-    size_t nlast = ntotal - nnominal;
+    size_t nlast = ntotal - nnominal * (nfiles-1);
     
     for( unsigned i=0; i<nfiles; ++i )
       {
@@ -799,12 +799,13 @@ public:
     kpcunits_ = cf.getValueSafe<bool>("output","gadget_usekpc",false);
     msolunits_ = cf.getValueSafe<bool>("output","gadget_usemsol",false);
     spread_coarse_acrosstypes_ = cf.getValueSafe<bool>("output","gadget_spreadcoarse",true);
+    bndparticletype_ = 5;
 
     if( !spread_coarse_acrosstypes_ )
       {
 	bndparticletype_ = cf.getValueSafe<unsigned>("output","gadget_coarsetype",5);
     
-	if( bndparticletype_ == 0 || bndparticletype_ == 1 || bndparticletype_ == 4 ||
+	if( bndparticletype_ == 0 || //bndparticletype_ == 1 || bndparticletype_ == 4 ||
 	    bndparticletype_ > 5 )
 	  {
 	    LOGERR("Coarse particles cannot be of Gadget particle type %d in output plugin.", bndparticletype_);
@@ -865,7 +866,6 @@ public:
       {
 	int itype = std::min<int>((int)gh.levelmax()-ilevel+1,5);
 	np_per_type_[itype] += gh.count_leaf_cells(ilevel,ilevel);
-        
 	if( itype > 1 )
 	  header_.mass[itype] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*ilevel);
       }
@@ -909,6 +909,10 @@ public:
 	size_t blksize = sizeof(T_store)*npcoarse;
 	
 	ofs_temp.write( (char *)&blksize, sizeof(size_t) );
+          
+	int levelmaxcoarse = gh.levelmax()-4;
+	if( !spread_coarse_acrosstypes_ )
+	  levelmaxcoarse = gh.levelmax()-1;
 	
 	for( int ilevel=gh.levelmax()-4; ilevel>=(int)gh.levelmin(); --ilevel )
 	  {
@@ -939,9 +943,11 @@ public:
 	    nwritten+=temp_dat.size();
 	  }
 	
-	if( nwritten != npcoarse )
+	if( nwritten != npcoarse ){
+	  LOGERR("nwritten = %llu != npcoarse = %llu\n",nwritten,npcoarse);
 	  throw std::runtime_error("Internal consistency error while writing temporary file for masses");
-	
+	}
+
 	ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 	
 	if( ofs_temp.bad() )
@@ -955,7 +961,7 @@ public:
   {
     //... count number of leaf cells ...//
     size_t npart = 0;
-    for( int i=1; i<5; ++i )
+    for( int i=1; i<6; ++i )
       npart += np_per_type_[i];
     
     //... determine if we need to shift the coordinates back
@@ -1034,7 +1040,7 @@ public:
   {
     //... count number of leaf cells ...//
     size_t npart = 0;
-    for( int i=1; i<5; ++i )
+    for( int i=1; i<6; ++i )
       npart += np_per_type_[i];
     
     //... collect displacements and convert to absolute coordinates with correct
@@ -1110,7 +1116,7 @@ public:
   void write_gas_velocity( int coord, const grid_hierarchy& gh )
   {	
     size_t npart = 0;
-    for( int i=1; i<5; ++i )
+    for( int i=1; i<6; ++i )
       npart += np_per_type_[i];
     
     //... collect velocities and convert to absolute coordinates with correct
@@ -1177,7 +1183,7 @@ public:
   {	
     //... count number of leaf cells ...//
     size_t npart = 0;
-    for( int i=1; i<5; ++i )
+    for( int i=1; i<6; ++i )
       npart += np_per_type_[i];
     
     //... determine if we need to shift the coordinates back

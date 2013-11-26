@@ -820,6 +820,51 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 	  //if( isolated ) phasefac *= 1.5;
 
         // embedding of coarse white noise by fourier interpolation
+     
+#if 1
+#pragma omp parallel for
+        for( int i=0; i<(int)nxc; i++ )
+            for( int j=0; j<(int)nyc; j++ )
+                for( int k=0; k<(int)nzc/2+1; k++ )
+                {
+                    int ii(i),jj(j),kk(k);
+                    
+                    //if( i==(int)nxc/2 ) continue;
+                    //if( j==(int)nyc/2 ) continue;
+                    
+                    if( i > (int)nxc/2 ) ii += (int)nx/2;
+                    if( j > (int)nyc/2 ) jj += (int)ny/2;
+                    
+                    size_t qc,qf;
+                    
+                    double kx = (i <= (int)nxc/2)? (double)i : (double)(i-(int)nxc);
+                    double ky = (j <= (int)nyc/2)? (double)j : (double)(j-(int)nyc);
+                    double kz = (k <= (int)nzc/2)? (double)k : (double)(k-(int)nzc);
+                    
+                    
+                    qc = ((size_t)i*nyc+(size_t)j)*(nzc/2+1)+(size_t)k;
+                    qf = ((size_t)ii*ny+(size_t)jj)*(nz/2+1)+(size_t)kk;
+                    
+                    std::complex<double> val(RE(ccoarse[qc]),IM(ccoarse[qc]));
+                    double phase =  (kx/nxc + ky/nyc + kz/nzc) * phasefac * M_PI;
+                    
+                    std::complex<double> val_phas( cos(phase), sin(phase) );
+                    
+                    val *= val_phas * sqrt8;
+                    
+                    if( i!=(int)nxc/2 && j!=(int)nyc/2 && k!=(int)nzc/2 )
+                    {
+                        RE(cfine[qf]) = val.real();
+                        IM(cfine[qf]) = val.imag();
+                    }
+                    else
+                    {
+                        //RE(cfine[qf]) = val.real();
+                        //IM(cfine[qf]) = 0.0;
+                    }
+                }
+        
+#else
         
         // 0 0
 #pragma omp parallel for
@@ -927,6 +972,7 @@ random_numbers<T>::random_numbers( random_numbers<T>& rc, unsigned cubesize, lon
 		RE(cfine[qf]) = val.real();
 		IM(cfine[qf]) = val.imag();
 	      }
+#endif
         
 	delete[] rcoarse;
 	

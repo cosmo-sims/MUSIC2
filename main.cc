@@ -640,6 +640,7 @@ int main (int argc, const char * argv[])
 						//... displacement
 						the_poisson_solver->gradient(icoord, u, data_forIO );
 
+                    coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing CDM displacements");
 					the_output_plugin->write_dm_position(icoord, data_forIO );
 				}
@@ -694,7 +695,8 @@ int main (int argc, const char * argv[])
 							//... displacement
 							the_poisson_solver->gradient(icoord, u, data_forIO );
 						
-						LOGUSER("Writing baryon displacements");
+						coarsen_density( rh_Poisson, data_forIO, false );
+                        LOGUSER("Writing baryon displacements");
 						the_output_plugin->write_gas_position(icoord, data_forIO );
 						
 					}	
@@ -781,6 +783,7 @@ int main (int argc, const char * argv[])
 					double sigv = compute_finest_sigma( data_forIO );
 					LOGINFO("sigma of %c-velocity of high-res particles is %f",'x'+icoord, sigv);
 
+					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
 
@@ -789,7 +792,6 @@ int main (int argc, const char * argv[])
 						LOGUSER("Writing baryon velocities");
 						the_output_plugin->write_gas_velocity(icoord, data_forIO);
 					}
-					
 				
 				}
 				
@@ -857,6 +859,7 @@ int main (int argc, const char * argv[])
 					double sigv = compute_finest_sigma( data_forIO );
 					LOGINFO("sigma of %c-velocity of high-res DM is %f",'x'+icoord, sigv);
 
+					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
 				}
@@ -908,6 +911,7 @@ int main (int argc, const char * argv[])
 					double sigv = compute_finest_sigma( data_forIO );
                     LOGINFO("sigma of %c-velocity of high-res baryons is %f",'x'+icoord, sigv);
 					
+					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
 				}
@@ -1057,7 +1061,8 @@ int main (int argc, const char * argv[])
 				double sigv = compute_finest_sigma( data_forIO );
 				std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
 				
-				LOGUSER("Writing CDM velocities");
+				coarsen_density( rh_Poisson, data_forIO, false );
+                LOGUSER("Writing CDM velocities");
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);					
 				
 				if( do_baryons && !the_transfer_function_plugin->tf_has_velocities() && !bsph)
@@ -1144,6 +1149,7 @@ int main (int argc, const char * argv[])
 					double sigv = compute_finest_sigma( data_forIO );
 					std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
 					
+					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);				
 				}
@@ -1238,7 +1244,8 @@ int main (int argc, const char * argv[])
 				else 
 					the_poisson_solver->gradient(icoord, u1, data_forIO );
 				
-				LOGUSER("Writing CDM displacements");
+				coarsen_density( rh_Poisson, data_forIO, false );
+                LOGUSER("Writing CDM displacements");
 				the_output_plugin->write_dm_position(icoord, data_forIO );	
 			}
 			
@@ -1347,6 +1354,7 @@ int main (int argc, const char * argv[])
 					else 
 						the_poisson_solver->gradient(icoord, u1, data_forIO );
 					
+					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing baryon displacements");
 					the_output_plugin->write_gas_position(icoord, data_forIO );	
 				}

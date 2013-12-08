@@ -359,9 +359,13 @@ int main (int argc, const char * argv[])
 		cf.insertValue("setup","levelmin_TF",cf.getValue<std::string>("setup","levelmin"));
 	}
 	
-    bool bspectral_sampling;
+    // .. determine if spectral sampling should be used
+    if( !cf.containsKey( "setup", "kspace_TF" ))
+        cf.insertValue( "setup", "kspace_TF", "yes");
     
-	if( bspectral_sampling = cf.getValueSafe<bool>( "setup", "kspace_TF", true ) )
+    bool bspectral_sampling = cf.getValue<bool>( "setup", "kspace_TF" );
+    
+	if( bspectral_sampling )
 	  LOGINFO("Using k-space sampled transfer functions...");
 	else
 	  LOGINFO("Using real space sampled transfer functions...");

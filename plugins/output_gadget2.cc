@@ -798,7 +798,7 @@ public:
     //... write displacements in kpc/h rather than Mpc/h?
     kpcunits_ = cf.getValueSafe<bool>("output","gadget_usekpc",false);
     msolunits_ = cf.getValueSafe<bool>("output","gadget_usemsol",false);
-    spread_coarse_acrosstypes_ = cf.getValueSafe<bool>("output","gadget_spreadcoarse",true);
+    spread_coarse_acrosstypes_ = cf.getValueSafe<bool>("output","gadget_spreadcoarse",false);
     bndparticletype_ = 5;
 
     if( !spread_coarse_acrosstypes_ )
@@ -914,7 +914,7 @@ public:
 	if( !spread_coarse_acrosstypes_ )
 	  levelmaxcoarse = gh.levelmax()-1;
 	
-	for( int ilevel=gh.levelmax()-4; ilevel>=(int)gh.levelmin(); --ilevel )
+	for( int ilevel=levelmaxcoarse; ilevel>=(int)gh.levelmin(); --ilevel )
 	  {
 	    // baryon particles live only on finest grid
 	    // these particles here are total matter particles

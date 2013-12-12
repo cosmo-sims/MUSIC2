@@ -30,7 +30,7 @@ protected:
   
   std::ofstream ofs_;
   bool blongids_;
-  
+  bool bhave_particlenumbers_;
 	
   typedef struct io_header
   {
@@ -380,7 +380,7 @@ protected:
     std::cout << " - Gadget2 : writing " << nptot << " particles to file...\n";
     for( int i=0; i<6; ++i )
       if( np_per_type_[i] > 0 )
-	LOGINFO("      type   %d : %12llu", i, np_per_type_[i] );
+	LOGINFO("      type   %d : %12llu [m=%g]", i, np_per_type_[i], header_.mass[i] );
     
     bool bbaryons = np_per_type_[0] > 0;
     
@@ -408,7 +408,7 @@ protected:
 	LOGINFO("Gadget2 : distributing particles to %d files", nfiles_ );
 	//<< "                 " << std::setw(12) << "type 0" << "," << std::setw(12) << "type 1" << "," << std::setw(12) << "type " << bndparticletype_ << std::endl;
 	for( unsigned i=0; i<nfiles_; ++i )
-	  LOGINFO("      file %i : %12llu", i, np_tot_per_file[i] );
+	  LOGINFO("      file %i : %12llu", i, np_tot_per_file[i], header_.mass[i] );
       }
     
     
@@ -638,7 +638,7 @@ protected:
 	if( bmorethan2bnd_ )//bmultimass_ && bmorethan2bnd_ && nc_per_file[ifile] > 0ul)
 	  {
 	    unsigned npcoarse = np_per_file[ifile][bndparticletype_];// nc_per_file[ifile];//header_.npart[5];
-	    iffs1.open( fnm, np_per_type_[5], wrote_coarse*sizeof(T_store) );
+	    iffs1.open( fnm, np_per_type_[bndparticletype_], wrote_coarse*sizeof(T_store) );
 	    
 	    npleft  = npcoarse;
 	    n2read  = std::min(curr_block_buf_size,npleft);
@@ -731,6 +731,62 @@ protected:
     
   }
   
+  void determine_particle_numbers( const grid_hierarchy& gh )
+  {
+    if( !bhave_particlenumbers_ )
+      {
+	bhave_particlenumbers_ = true;
+
+	double rhoc = 27.7519737; // in h^2 1e10 M_sol / Mpc^3
+    
+	if( kpcunits_ )
+	  rhoc *= 1e-9; // in h^2 1e10 M_sol / kpc^3
+	
+	if( msolunits_ )
+	  rhoc *= 1e10; // in h^2 M_sol / kpc^3
+	
+	// only type 1 are baryons
+	if( !do_baryons_ )
+	  header_.mass[1] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmax_);
+	else{
+	  header_.mass[0] = (omegab_) * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmax_);
+	  header_.mass[1] = (header_.Omega0-omegab_) * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmax_);
+	}
+
+	//...
+	for( int i=0; i<6; ++i )
+	  np_per_type_[i] = 0;
+	
+	// determine how many particles per type exist, determine their mass
+	for( int ilevel=(int)gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
+	  {
+	    int itype = std::min<int>((int)gh.levelmax()-ilevel+1,5);
+	    np_per_type_[itype] += gh.count_leaf_cells(ilevel,ilevel);
+	    if( itype > 1 )
+	      header_.mass[itype] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*ilevel);
+	  }
+	
+	// if coarse particles should not be spread across types, assign them all to type bndparticletype
+	if( !spread_coarse_acrosstypes_ )
+	  {
+	    if( gh.levelmax() > gh.levelmin()+1 )
+	      bmorethan2bnd_ = true;
+	    else 
+	      bmorethan2bnd_ = false;
+	    
+	    for( unsigned itype=2; itype<6; ++itype )
+	      {
+		if( itype == bndparticletype_ ) continue;
+		np_per_type_[bndparticletype_] += np_per_type_[itype];
+		np_per_type_[itype] = 0;
+		header_.mass[itype] = 0.;
+	      }
+	  }
+	
+	if( do_baryons_ )
+	  np_per_type_[0] = np_per_type_[1];
+      }
+  }
   
 public:
   gadget2_output_plugin( config_file& cf )
@@ -776,6 +832,8 @@ public:
 	}
       ofs_.close();
     }
+
+    bhave_particlenumbers_ = false;
     
     bmorethan2bnd_ = false;
     if( levelmax_ > levelmin_ +4)
@@ -812,6 +870,11 @@ public:
 	    throw std::runtime_error("Specified illegal Gadget particle type for coarse particles");
 	  }
       }
+    else
+      {
+	if( cf.getValueSafe<unsigned>("output","gadget_coarsetype",5) != 5 )
+	  LOGWARN("Gadget: Option \'gadget_spreadcoarse\' forces \'gadget_coarsetype=5\'! Will override.");
+      }
     
     //... set time ......................................................
     header_.redshift = cf.getValue<double>("setup","zstart");
@@ -842,7 +905,9 @@ public:
   }
   
   void write_dm_mass( const grid_hierarchy& gh )
-  {
+  { 
+    determine_particle_numbers( gh );
+
     double rhoc = 27.7519737; // in h^2 1e10 M_sol / Mpc^3
     
     if( kpcunits_ )
@@ -851,50 +916,11 @@ public:
     if( msolunits_ )
       rhoc *= 1e10; // in h^2 M_sol / kpc^3
     
-    // only type 1 are baryons
-    if( !do_baryons_ )
-      header_.mass[1] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmax_);
-    else
-      header_.mass[1] = (header_.Omega0-omegab_) * rhoc * pow(header_.BoxSize,3.)/pow(2,3*levelmax_);
-    
-    //...
-    for( int i=0; i<6; ++i )
-      np_per_type_[i] = 0;
-    
-    // determine how many particles per type exist, determine their mass
-    for( int ilevel=(int)gh.levelmax(); ilevel>=(int)gh.levelmin(); --ilevel )
-      {
-	int itype = std::min<int>((int)gh.levelmax()-ilevel+1,5);
-	np_per_type_[itype] += gh.count_leaf_cells(ilevel,ilevel);
-	if( itype > 1 )
-	  header_.mass[itype] = header_.Omega0 * rhoc * pow(header_.BoxSize,3.)/pow(2,3*ilevel);
-      }
-
-    // if coarse particles should not be spread across types, assign them all to type bndparticletype
-    if( !spread_coarse_acrosstypes_ )
-      {
-	if( gh.levelmax() > gh.levelmin()+1 )
-	  bmorethan2bnd_ = true;
-	else 
-	  bmorethan2bnd_ = false;
-
-	for( unsigned itype=2; itype<6; ++itype )
-	  {
-	    if( itype == bndparticletype_ ) continue;
-	    np_per_type_[bndparticletype_] += np_per_type_[itype];
-	    np_per_type_[itype] = 0;
-	    header_.mass[itype] = 0.;
-	  }
-      }
-    
-    if( do_baryons_ )
-      np_per_type_[0] = np_per_type_[1];
-    
     // if there are more than one kind of coarse particle assigned to the same type,
     // we have to explicitly store their masses
     if( bmorethan2bnd_ )
       {
-	header_.mass[5] = 0.;
+	header_.mass[bndparticletype_] = 0.;
         
 	size_t npcoarse = np_per_type_[bndparticletype_];
 	size_t nwritten = 0;
@@ -960,6 +986,8 @@ public:
   void write_dm_position( int coord, const grid_hierarchy& gh )
   {
     //... count number of leaf cells ...//
+    determine_particle_numbers( gh );
+
     size_t npart = 0;
     for( int i=1; i<6; ++i )
       npart += np_per_type_[i];
@@ -979,7 +1007,6 @@ public:
     //... units
     std::vector<T_store> temp_data;
     temp_data.reserve( block_buf_size_ );
-    
     
     char temp_fname[256];
     sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
@@ -1039,10 +1066,12 @@ public:
   void write_dm_velocity( int coord, const grid_hierarchy& gh )
   {
     //... count number of leaf cells ...//
+    determine_particle_numbers( gh );
+
     size_t npart = 0;
     for( int i=1; i<6; ++i )
       npart += np_per_type_[i];
-    
+      
     //... collect displacements and convert to absolute coordinates with correct
     //... units
     std::vector<T_store> temp_data;
@@ -1088,7 +1117,7 @@ public:
     
     if( nwritten != npart )
       throw std::runtime_error("Internal consistency error while writing temporary file for velocities");
-    
+      
     ofs_temp.write( (char *)&blksize, sizeof(int) );
     
     if( ofs_temp.bad() )
@@ -1115,6 +1144,7 @@ public:
   //... write data for gas -- don't do this
   void write_gas_velocity( int coord, const grid_hierarchy& gh )
   {	
+    determine_particle_numbers( gh );
     size_t npart = 0;
     for( int i=1; i<6; ++i )
       npart += np_per_type_[i];
@@ -1182,6 +1212,8 @@ public:
   void write_gas_position( int coord, const grid_hierarchy& gh )
   {	
     //... count number of leaf cells ...//
+    determine_particle_numbers( gh );
+
     size_t npart = 0;
     for( int i=1; i<6; ++i )
       npart += np_per_type_[i];

@@ -160,9 +160,11 @@ public:
 		if( type == cdm || type == baryon || type == total )
 		{
 			std::ofstream ofs(fname.c_str());
-			double kmin=-3, kmax=3, dk=(kmax-kmin)/100.;
+			double kmin=log10(tf->get_kmin()), kmax= log10(tf->get_kmax());
+            
+            double dk=(kmax-kmin)/300.;
 			
-			for( int i=0; i<100; ++i )
+			for( int i=0; i<300; ++i )
 			{ 
 				double k = pow(10.0,kmin+i*dk);
 				ofs << std::setw(16) << k 

@@ -316,10 +316,64 @@ public:
 	
 };
 
+// CDM Bino type WIMP small-scale damped spectrum from Green, Hofmann & Schwarz (2004)
+class transfer_eisenstein_cdmbino_plugin : public transfer_function_plugin
+{
+protected:
+	real_t m_h0;
+	double omegam_, H0_, omegab_, mcdm_, Tkd_, kfs_, kd_;
+    eisenstein_transfer etf_;
+    
+public:
+	transfer_eisenstein_cdmbino_plugin( config_file &cf )
+	: transfer_function_plugin(cf), m_h0( cosmo_.H0*0.01 )
+	{
+        double Tcmb = pcf_->getValueSafe("cosmology","Tcmb",2.726);
+        etf_.set_parameters( cosmo_, Tcmb );
+        
+		omegam_ = cf.getValue<double>("cosmology","Omega_m");
+		omegab_ = cf.getValue<double>("cosmology","Omega_b");
+		H0_     = cf.getValue<double>("cosmology","H0");
+        
+        mcdm_   = cf.getValueSafe<double>("cosmology","CDM_mass", 100.0); // bino particle mass in GeV
+        Tkd_    = cf.getValueSafe<double>("cosmology","CDM_Tkd", 33.0); // temperature at which CDM particle kinetically decouples (in MeV)
+        
+        kfs_    = 1.7e6 / m_h0 * sqrt( mcdm_ / 100. * Tkd_ / 30. ) / (1.0 + log( Tkd_ / 30. ) / 19.2 );
+        kd_     = 3.8e7 / m_h0 * sqrt( mcdm_ / 100. * Tkd_ / 30. );
+        
+        LOGINFO(" bino CDM: k_fs = %g, k_d = %g", kfs_, kd_ );
+		
+	}
+	
+	inline double compute( double k, tf_type type )
+	{
+        double kkfs = k/kfs_;
+        double kkfs2 = kkfs*kkfs;
+        double kkd2 = (k/kd_)*(k/kd_);
+        
+        // in principle the Green et al. (2004) works only up to k/k_fs < 1
+        // the fit crosses zero at (k/k_fs)**2 = 3/2, we just zero it there...
+        if( kkfs2 < 1.5 )
+            return etf_.at_k( k ) * (1.0-2.0/3.0*kkfs2) * exp( -kkfs2 - kkd2 );
+        else
+            return 0.0;
+	}
+    
+    inline double get_kmin( void ){
+        return 1e-4;
+    }
+    
+    inline double get_kmax( void ){
+        return 1.e8;
+    }
+	
+};
+
 
 
 namespace{
 	transfer_function_plugin_creator_concrete< transfer_eisenstein_plugin > creator("eisenstein");
 	transfer_function_plugin_creator_concrete< transfer_eisenstein_wdm_plugin > creator2("eisenstein_wdm");
+    transfer_function_plugin_creator_concrete< transfer_eisenstein_cdmbino_plugin > creator3("eisenstein_cdmbino");
 }
 

@@ -67,29 +67,38 @@ program get_music_refmask
      stop
   endif
   open(unit=10,file=nomfich,form='formatted',status='old')
-  read(10,'("ncpu        =",I11)')ncpu
-  read(10,'("ndim        =",I11)')ndim
-  read(10,'("levelmin    =",I11)')levelmin
-  read(10,'("levelmax    =",I11)')levelmax
+!  read(10,'("ncpu        =",I11)')ncpu
+  read(10,'(A13,I11)')GMGM,ncpu
+!  read(10,'("ndim        =",I11)')ndim
+  read(10,'(A13,I11)')GMGM,ndim
+!  read(10,'("levelmin    =",I11)')levelmin
+  read(10,'(A13,I11)')GMGM,levelmin
+!  read(10,'("levelmax    =",I11)')levelmax
+  read(10,'(A13,I11)')GMGM,levelmax
   read(10,*)
   read(10,*)
   read(10,*)
   write(*,*)ncpu,ndim,levelmin,levelmax
 
   read(10,*)
-  read(10,'("time        =",E23.15)')t
-  read(10,'("aexp        =",E23.15)')aexp
+!  read(10,'("time        =",E23.15)')t
+  read(10,'(A13,E23.15)')GMGM,t
+!  read(10,'("aexp        =",E23.15)')aexp
+  read(10,'(A13,E23.15)')GMGM,aexp
   read(10,*)
   read(10,*)
   read(10,*)
   read(10,*)
   read(10,*)
-  read(10,'("unit_l      =",E23.15)')unit_l
+!  read(10,'("unit_l      =",E23.15)')unit_l
+  read(10,'(A13,E23.15)')GMGM,unit_l
   read(10,*)
-  read(10,'("unit_t      =",E23.15)')unit_t
+!  read(10,'("unit_t      =",E23.15)')unit_t
+  read(10,'(A13,E23.15)')GMGM,unit_t
 
   read(10,*)
-  read(10,'("ordering type=",A80)'),ordering
+!  read(10,'("ordering type=",A80)'),ordering
+  read(10,'(A14,A80)')GMGM,ordering
   read(10,*)
   write(*,'(" ordering type=",A20)'),TRIM(ordering)
   allocate(cpu_list(1:ncpu))

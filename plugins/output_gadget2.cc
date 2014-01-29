@@ -1156,7 +1156,7 @@ public:
     
     //if( kpcunits_ )
     //  vfac /= 1000.0;
-    vfac *= unit_length_chosen_ * unit_vel_chosen_;
+    vfac *= unit_length_chosen_ / unit_vel_chosen_;
     
     size_t nwritten = 0;
     
@@ -1234,7 +1234,7 @@ public:
     
     //if( kpcunits_ )
     //  vfac /= 1000.0;
-    vfac *= unit_length_chosen_ * unit_vel_chosen_;
+    vfac *= unit_length_chosen_ / unit_vel_chosen_;
     
     //size_t npart = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());;;
     size_t nwritten = 0;

@@ -9,6 +9,7 @@
  */
 
 #include <fstream>
+#include <map>
 #include "log.hh"
 #include "region_generator.hh"
 #include "output.hh"
@@ -31,7 +32,16 @@ protected:
   std::ofstream ofs_;
   bool blongids_;
   bool bhave_particlenumbers_;
+    
+  std::map<std::string,double> units_length_;
+  std::map<std::string,double> units_mass_;
+  std::map<std::string,double> units_vel_;
+
+  double unit_length_chosen_;
+  double unit_mass_chosen_;
+  double unit_vel_chosen_;
 	
+
   typedef struct io_header
   {
     int npart[6];                        
@@ -739,11 +749,13 @@ protected:
 
 	double rhoc = 27.7519737; // in h^2 1e10 M_sol / Mpc^3
     
-	if( kpcunits_ )
+	/*if( kpcunits_ )
 	  rhoc *= 1e-9; // in h^2 1e10 M_sol / kpc^3
 	
 	if( msolunits_ )
-	  rhoc *= 1e10; // in h^2 M_sol / kpc^3
+	rhoc *= 1e10; // in h^2 M_sol / kpc^3*/
+
+	rhoc /= unit_mass_chosen_ / (unit_length_chosen_*unit_length_chosen_*unit_length_chosen_);
 	
 	// only type 1 are baryons
 	if( !do_baryons_ )
@@ -792,6 +804,19 @@ public:
   gadget2_output_plugin( config_file& cf )
   : output_plugin( cf )
   {
+
+    units_mass_.insert( std::pair<std::string,double>( "1e10Msol", 1.0 ) );         // 1e10 M_o/h (default)
+    units_mass_.insert( std::pair<std::string,double>( "Msol", 1.0e-10 ) );         // 1 M_o/h
+    units_mass_.insert( std::pair<std::string,double>( "Mearth", 3.002e-16 ) );     // 1 M_earth/h
+
+    units_length_.insert( std::pair<std::string,double>( "Mpc", 1.0 ) );            // 1 Mpc/h (default)
+    units_length_.insert( std::pair<std::string,double>( "kpc", 1.0e-3 ) );         // 1 kpc/h
+    units_length_.insert( std::pair<std::string,double>( "pc", 1.0e-6 ) );          // 1 pc/h
+
+    units_vel_.insert( std::pair<std::string,double>( "km/s", 1.0 ) );              // 1 km/s (default)
+    units_vel_.insert( std::pair<std::string,double>( "m/s", 1.0e-3 ) );            // 1 m/s
+    units_vel_.insert( std::pair<std::string,double>( "cm/s", 1.0e-5 ) );           // 1 cm/s
+      
     block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",1048576);
     
     //... ensure that everyone knows we want to do SPH
@@ -852,10 +877,54 @@ public:
     
     do_baryons_ = cf.getValueSafe<bool>("setup","baryons",false);
     omegab_ = cf.getValueSafe<double>("cosmology","Omega_b",0.045);
-    
-    //... write displacements in kpc/h rather than Mpc/h?
-    kpcunits_ = cf.getValueSafe<bool>("output","gadget_usekpc",false);
-    msolunits_ = cf.getValueSafe<bool>("output","gadget_usemsol",false);
+
+    //... new way
+    std::string lunitstr = cf.getValueSafe<std::string>("output","gadget_lunit","Mpc");
+    std::string munitstr = cf.getValueSafe<std::string>("output","gadget_munit","1e10Msol");
+    std::string vunitstr = cf.getValueSafe<std::string>("output","gadget_vunit","km/s");
+
+
+    std::map<std::string,double>::iterator mapit;
+
+    if( (mapit=units_length_.find( lunitstr ))!=units_length_.end() )
+      unit_length_chosen_ = (*mapit).second;
+    else{
+      LOGERR("Gadget: length unit \'%s\' unknown in gadget_lunit",lunitstr.c_str() );
+      throw std::runtime_error("Unknown length unit specified for Gadget output plugin");
+    }
+
+    if( (mapit=units_mass_.find( munitstr ))!=units_mass_.end() )
+      unit_mass_chosen_ = (*mapit).second;
+    else{
+      LOGERR("Gadget: mass unit \'%s\' unknown in gadget_munit",munitstr.c_str() );
+      throw std::runtime_error("Unknown mass unit specified for Gadget output plugin");
+    }
+
+    if( (mapit=units_vel_.find( vunitstr ))!=units_vel_.end() )
+      unit_vel_chosen_ = (*mapit).second;
+    else{
+      LOGERR("Gadget: velocity unit \'%s\' unknown in gadget_vunit",munitstr.c_str() );
+      throw std::runtime_error("Unknown velocity unit specified for Gadget output plugin");
+    }
+
+    //... maintain compatibility with old way of setting units
+    if( cf.containsKey("output","gadget_usekpc") )
+      {
+	kpcunits_ = cf.getValueSafe<bool>("output","gadget_usekpc",false);
+	if( kpcunits_ )
+	  unit_length_chosen_ = 1e-3;
+	LOGWARN("Deprecated option \'gadget_usekpc\' may override unit selection. Use \'gadget_lunit\' instead.");
+      }
+    if( cf.containsKey("output","gadget_usemsol") )
+      {
+	msolunits_ = cf.getValueSafe<bool>("output","gadget_usemsol",false);
+	if( msolunits_ )
+	  unit_mass_chosen_ = 1e-10;
+	LOGWARN("Deprecated option \'gadget_usemsol\' may override unit selection. Use \'gadget_munit\' instead.");
+      }
+
+    //... coarse particle properties...
+
     spread_coarse_acrosstypes_ = cf.getValueSafe<bool>("output","gadget_spreadcoarse",false);
     bndparticletype_ = 5;
 
@@ -897,8 +966,9 @@ public:
     
     header_.flag_entropy_instead_u = 0;
     
-    if( kpcunits_ )
-      header_.BoxSize *= 1000.0;
+    //if( kpcunits_ )
+    //  header_.BoxSize *= 1000.0;
+    header_.BoxSize /= unit_length_chosen_;
     
     for( int i=0; i<empty_fill_bytes; ++i )
       header_.fill[i] = 0;
@@ -909,12 +979,16 @@ public:
     determine_particle_numbers( gh );
 
     double rhoc = 27.7519737; // in h^2 1e10 M_sol / Mpc^3
+
+    // adjust units
+    rhoc /= unit_mass_chosen_ / (unit_length_chosen_*unit_length_chosen_*unit_length_chosen_);
     
-    if( kpcunits_ )
+    /*if( kpcunits_ )
       rhoc *= 1e-9; // in h^2 1e10 M_sol / kpc^3
     
     if( msolunits_ )
       rhoc *= 1e10; // in h^2 M_sol / kpc^3
+    */
     
     // if there are more than one kind of coarse particle assigned to the same type,
     // we have to explicitly store their masses
@@ -1080,8 +1154,9 @@ public:
     float isqrta = 1.0f/sqrt(header_.time);
     float vfac = isqrta*header_.BoxSize;
     
-    if( kpcunits_ )
-      vfac /= 1000.0;
+    //if( kpcunits_ )
+    //  vfac /= 1000.0;
+    vfac *= unit_length_chosen_ * unit_vel_chosen_;
     
     size_t nwritten = 0;
     
@@ -1157,8 +1232,9 @@ public:
     float isqrta = 1.0f/sqrt(header_.time);
     float vfac = isqrta*header_.BoxSize;
     
-    if( kpcunits_ )
-      vfac /= 1000.0;
+    //if( kpcunits_ )
+    //  vfac /= 1000.0;
+    vfac *= unit_length_chosen_ * unit_vel_chosen_;
     
     //size_t npart = gh.count_leaf_cells(gh.levelmin(), gh.levelmax());;;
     size_t nwritten = 0;

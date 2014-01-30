@@ -903,7 +903,7 @@ public:
     if( (mapit=units_vel_.find( vunitstr ))!=units_vel_.end() )
       unit_vel_chosen_ = (*mapit).second;
     else{
-      LOGERR("Gadget: velocity unit \'%s\' unknown in gadget_vunit",munitstr.c_str() );
+      LOGERR("Gadget: velocity unit \'%s\' unknown in gadget_vunit",vunitstr.c_str() );
       throw std::runtime_error("Unknown velocity unit specified for Gadget output plugin");
     }
 

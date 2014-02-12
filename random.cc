@@ -241,6 +241,7 @@ random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long basesee
 	LOGINFO("Generating random numbers (2) with seed %ld", baseseed);
     
 	double mean = 0.0;
+	size_t res_l = res;
 
 	bool musicnoise = true;
 	if( !musicnoise )
@@ -271,7 +272,7 @@ random_numbers<T>::random_numbers( unsigned res, unsigned cubesize, long basesee
 				for( unsigned k=0; k<res_; ++k )
 					mean += (*this)(i,j,k);
 		
-		mean *= 1.0/(res_*res_*res_);
+		mean *= 1.0/(double)(res_l*res_l*res_l);
 		
 #pragma omp parallel for
 		for(int i=0; i<(int)res_; ++i )
@@ -389,8 +390,8 @@ random_numbers<T>::random_numbers( unsigned res, std::string randfname, bool ran
 	
 	LOGINFO("Random number file \'%s\'\n   contains %ld numbers. Reading...",randfname.c_str(),nx*ny*nz);
 	
-	double sum = 0.0, sum2 = 0.0;
-	unsigned count = 0;
+	long double sum = 0.0, sum2 = 0.0;
+	size_t count = 0;
 	
     //perform actual reading
 	if( vartype == 4 )
@@ -495,8 +496,8 @@ random_numbers<T>::random_numbers( /*const*/ random_numbers <T>& rc, bool kdegra
 	//if( res > rc.m_res || (res/rc.m_res)%2 != 0 )
 	//			throw std::runtime_error("Invalid restriction in random number container copy constructor.");
 	
-	double sum = 0.0, sum2 = 0.0;
-	unsigned count = 0;
+	long double sum = 0.0, sum2 = 0.0;
+	size_t count = 0;
 	
 	if( kdegrade )
 	{

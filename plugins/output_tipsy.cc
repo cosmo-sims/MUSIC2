@@ -764,15 +764,18 @@ public:
                 for( unsigned j=0; j<gh.get_grid(ilevel)->size(1); ++j )
                     for( unsigned k=0; k<gh.get_grid(ilevel)->size(2); ++k )
                     {
-                        if( temp_dat.size() <  block_buf_size_ )
-                            temp_dat.push_back( pmass );	
-                        else
-                        {
-                            ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );	
-                            nwritten += block_buf_size_;
-                            temp_dat.clear();
-                            temp_dat.push_back( pmass );	
-                        }
+                        if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(ilevel,i,j,k) )
+			  {
+			    if( temp_dat.size() <  block_buf_size_ )
+			      temp_dat.push_back( pmass );	
+			    else
+			      {
+				ofs_temp.write( (char*)&temp_dat[0], sizeof(T_store)*block_buf_size_ );	
+				nwritten += block_buf_size_;
+				temp_dat.clear();
+				temp_dat.push_back( pmass );	
+			      }
+			  }
                     }
 	    
             if( temp_dat.size() > 0 )
@@ -781,13 +784,17 @@ public:
                 nwritten+=temp_dat.size();
             }
 	    
-            if( nwritten != nptot )
-                throw std::runtime_error("Internal consistency error while writing temporary file for baryon masses");
-	    
+            if( nwritten != nptot ){
+	      LOGERR("TIPSY output plugin wrote %ld gas particles, should have %ld", nwritten, nptot);
+	      throw std::runtime_error("Internal consistency error while writing temporary file for baryon masses");
+	    }
+
             ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 	    
-            if( ofs_temp.bad() )
-                throw std::runtime_error("I/O error while writing temporary file for baryon masses");
+            if( ofs_temp.bad() ){
+	      LOGERR("I/O error while writing temporary file for baryon masse");
+	      throw std::runtime_error("I/O error while writing temporary file for baryon masses");
+	    }
         }
 	
     }

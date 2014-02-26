@@ -1384,25 +1384,33 @@ void random_number_generator<rng,T>::parse_rand_parameters( void )
 	{
 		char seedstr[128];
 		std::string tempstr;
+		bool noseed = false;
 		sprintf(seedstr,"seed[%d]",i);
 		if( pcf_->containsKey( "random", seedstr ) )
 			tempstr = pcf_->getValue<std::string>( "random", seedstr );
-		else
-			// "-2" means that no seed entry was found for that level
-			tempstr = std::string("-2");
+		else{
+		  // "-2" means that no seed entry was found for that level
+		  tempstr = std::string("-2");
+		  noseed  = true;
+		}
 		
 		if( is_number( tempstr ) )
 		{	
 			long ltemp;
 			pcf_->convert( tempstr, ltemp );
 			rngfnames_.push_back( "" );
-			if( ltemp < 0 )
+			if( noseed )//ltemp < 0 )
 				//... generate some dummy seed which only depends on the level, negative so we know it's not
 				//... an actual seed and thus should not be used as a constraint for coarse levels
 				//rngseeds_.push_back( -abs((unsigned)(ltemp-i)%123+(unsigned)(ltemp+827342523521*i)%123456789) );
-                rngseeds_.push_back( -abs((long)(ltemp-i)%123+(long)(ltemp+7342523521*i)%123456789) );
-			else
-				rngseeds_.push_back( ltemp );
+			  rngseeds_.push_back( -abs((long)(ltemp-i)%123+(long)(ltemp+7342523521*i)%123456789) );
+			else{
+			  if( ltemp <= 0 ){
+			    LOGERR("Specified seed [random]/%s needs to be a number >0!",seedstr);
+			    throw std::runtime_error("Seed values need to be >0");
+			  }
+			  rngseeds_.push_back( ltemp );
+			}
 		}else{
 			rngfnames_.push_back( tempstr );
 			rngseeds_.push_back(-1);
@@ -1415,7 +1423,7 @@ void random_number_generator<rng,T>::parse_rand_parameters( void )
 	levelmin_seed_ = -1;
 	for( unsigned ilevel = 0; ilevel < rngseeds_.size(); ++ilevel )
 	{	
-		if( levelmin_seed_ < 0 && (rngfnames_[ilevel].size() > 0 || rngseeds_[ilevel] > 0) )
+		if( levelmin_seed_ < 0 && (rngfnames_[ilevel].size() > 0 || rngseeds_[ilevel] >= 0) )
 			levelmin_seed_ = ilevel;
 	}
 }

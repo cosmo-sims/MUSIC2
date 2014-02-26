@@ -94,12 +94,18 @@ public:
             {
                 temp                = pcf_->getValue<std::string>( "setup", "ref_extent" );
                 std::remove_if(temp.begin(),temp.end(),isspace);
-                sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] );
+                if(sscanf( temp.c_str(), "%lf,%lf,%lf", &lxref_[0],&lxref_[1],&lxref_[2] )!=3){
+		  LOGERR("Error parsing triple for ref_extent");
+		  throw std::runtime_error("Error parsing triple for ref_extent");
+		}
                 bhave_nref_ = false;
             }else if( pcf_->containsKey("setup","ref_dims") ){
                 temp = pcf_->getValue<std::string>("setup","ref_dims");
                 std::remove_if(temp.begin(),temp.end(),isspace);
-                sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] );
+                if(sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] )!=3){
+		  LOGERR("Error parsing triple for ref_dims");
+		  throw std::runtime_error("Error parsing triple for ref_dims");
+		}
                 bhave_nref_ = true;
                 
                 lxref_[0] = lnref_[0] * 1.0/(double)(1<<levelmax_);
@@ -111,7 +117,10 @@ public:
             {
                 temp            = pcf_->getValue<std::string>( "setup", "ref_center" );
                 std::remove_if(temp.begin(),temp.end(),isspace);
-                sscanf( temp.c_str(), "%lf,%lf,%lf", &xcref_[0], &xcref_[1], &xcref_[2] );
+                if(sscanf( temp.c_str(), "%lf,%lf,%lf", &xcref_[0], &xcref_[1], &xcref_[2] )!=3){
+		  LOGERR("Error parsing triple for ref_center");
+		  throw std::runtime_error("Error parsing triple for ref_center");
+		}
                 x0ref_[0] = fmod( xcref_[0]-0.5*lxref_[0]+1.0,1.0);
                 x0ref_[1] = fmod( xcref_[1]-0.5*lxref_[1]+1.0,1.0);
                 x0ref_[2] = fmod( xcref_[2]-0.5*lxref_[2]+1.0,1.0);
@@ -119,8 +128,10 @@ public:
             }else if( pcf_->containsKey("setup","ref_offset") ){
                 temp            = pcf_->getValue<std::string>( "setup", "ref_offset" );
                 std::remove_if(temp.begin(),temp.end(),isspace);
-                sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] );
-                
+                if(sscanf( temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2] )!=3){
+		  LOGERR("Error parsing triple for ref_offset");
+		  throw std::runtime_error("Error parsing triple for ref_offset");
+		}
                 xcref_[0] = fmod( x0ref_[0]+0.5*lxref_[0], 1.0 );
                 xcref_[1] = fmod( x0ref_[1]+0.5*lxref_[1], 1.0 );
                 xcref_[2] = fmod( x0ref_[2]+0.5*lxref_[2], 1.0 );

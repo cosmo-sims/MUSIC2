@@ -572,7 +572,10 @@ public:
             if( cf.containsKey("setup","region_point_shift") )
             {
                 std::string point_shift = cf.getValue<std::string>("setup","region_point_shift");
-                sscanf( point_shift.c_str(), "%d,%d,%d", &shift[0],&shift[1],&shift[2] );
+                if(sscanf( point_shift.c_str(), "%d,%d,%d", &shift[0],&shift[1],&shift[2] )!=3){
+		  LOGERR("Error parsing triple for region_point_shift");
+		  throw std::runtime_error("Error parsing triple for region_point_shift");
+		}
                 unsigned point_levelmin = cf.getValue<unsigned>("setup","region_point_levelmin");
                 
                 apply_shift( pp.size()/3, &pp[0], shift, point_levelmin );
@@ -589,14 +592,25 @@ public:
             std::string strtmp;
             
             strtmp = cf.getValue<std::string>("setup","region_ellipsoid_matrix[0]");
-            sscanf( strtmp.c_str(), "%lf,%lf,%lf", &A[0],&A[1],&A[2] );
+            if(sscanf( strtmp.c_str(), "%lf,%lf,%lf", &A[0],&A[1],&A[2] )!=3){
+	      LOGERR("Error parsing triple for region_ellipsoid_matrix[0]");
+	      throw std::runtime_error("Error parsing triple for region_ellipsoid_matrix[0]");
+	    }
             strtmp = cf.getValue<std::string>("setup","region_ellipsoid_matrix[1]");
-            sscanf( strtmp.c_str(), "%lf,%lf,%lf", &A[3],&A[4],&A[5] );
+            if(sscanf( strtmp.c_str(), "%lf,%lf,%lf", &A[3],&A[4],&A[5] )!=3){
+	      LOGERR("Error parsing triple for region_ellipsoid_matrix[1]");
+	      throw std::runtime_error("Error parsing triple for region_ellipsoid_matrix[1]");
+	    }
             strtmp = cf.getValue<std::string>("setup","region_ellipsoid_matrix[2]");
-            sscanf( strtmp.c_str(), "%lf,%lf,%lf", &A[6],&A[7],&A[8] );
-            
+            if(sscanf( strtmp.c_str(), "%lf,%lf,%lf", &A[6],&A[7],&A[8] )!=3){
+	      LOGERR("Error parsing triple for region_ellipsoid_matrix[2]");
+	      throw std::runtime_error("Error parsing triple for region_ellipsoid_matrix[2]");
+	    }
             strtmp = cf.getValue<std::string>("setup","region_ellipsoid_center");
-            sscanf( strtmp.c_str(), "%lf,%lf,%lf", &c[0],&c[1],&c[2] );
+            if(sscanf( strtmp.c_str(), "%lf,%lf,%lf", &c[0],&c[1],&c[2] )!=3){
+	      LOGERR("Error parsing triple for region_ellipsoid_center");
+	      throw std::runtime_error("Error parsing triple for region_ellipsoid_center");
+	    }
             
             pellip_[levelmax_] = new min_ellipsoid( A, c );
             

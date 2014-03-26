@@ -153,7 +153,7 @@ protected:
             for( size_t i=0; i<n1; ++i )
                 for( size_t j=0; j<n2; ++j )
                     for( size_t k=0; k<n3; ++k )
-                        if( !gh.is_refined(gh.levelmax(),i,j,k) )
+                        if( gh.is_in_mask(ilevel,i,j,k) && !gh.is_refined(gh.levelmax(),i,j,k) )
                             data[(i*n2+j)*n3+k] = 1.0;
                         else
                             data[(i*n2+j)*n3+k] = 0.0;

@@ -264,6 +264,21 @@ double compute_finest_sigma( grid_hierarchy& u )
 	return sqrt(sum2-sum*sum);
 }
 
+double compute_finest_max( grid_hierarchy& u )
+{
+	double valmax = 0.0;
+	for( int ix = 0; ix < (int)(*u.get_grid(u.levelmax())).size(0); ++ix )
+		for( int iy = 0; iy < (int)(*u.get_grid(u.levelmax())).size(1); ++iy )
+			for( int iz = 0; iz < (int)(*u.get_grid(u.levelmax())).size(2); ++iz )
+			{
+			  if( (*u.get_grid(u.levelmax()))(ix,iy,iz) > valmax )
+			    valmax = (*u.get_grid(u.levelmax()))(ix,iy,iz);
+			}
+
+	return valmax;
+}
+
+
 
 /*****************************************************************************************************/
 /*****************************************************************************************************/
@@ -642,9 +657,10 @@ int main (int argc, const char * argv[])
 					}
 					else
 						//... displacement
-						the_poisson_solver->gradient(icoord, u, data_forIO );
-
-                    coarsen_density( rh_Poisson, data_forIO, false );
+					        the_poisson_solver->gradient(icoord, u, data_forIO );
+					double dispmax = compute_finest_max( data_forIO );
+					LOGINFO("max. %c-displacement of HR particles is %f [mean dx]",'x'+icoord, dispmax*(double)(1ll<<data_forIO.levelmax()));
+					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing CDM displacements");
 					the_output_plugin->write_dm_position(icoord, data_forIO );
 				}
@@ -1248,8 +1264,11 @@ int main (int argc, const char * argv[])
 				else 
 					the_poisson_solver->gradient(icoord, u1, data_forIO );
 				
+				double dispmax = compute_finest_max( data_forIO );
+				LOGINFO("max. %c-displacement of HR particles is %f [mean dx]",'x'+icoord, dispmax*(double)(1ll<<data_forIO.levelmax()));
+
 				coarsen_density( rh_Poisson, data_forIO, false );
-                LOGUSER("Writing CDM displacements");
+				LOGUSER("Writing CDM displacements");
 				the_output_plugin->write_dm_position(icoord, data_forIO );	
 			}
 			

@@ -565,7 +565,7 @@ int main (int argc, const char * argv[])
 	bool bbshift= bsph && !bglass;
 	
 	bool kspace	= cf.getValueSafe<bool>( "poisson", "kspace", false );
-        bool kspace2LPT = kspace;
+    bool kspace2LPT = kspace;
 
 	bool decic_DM = cf.getValueSafe<bool>( "output", "glass_cicdeconvolve", false );
 	bool decic_baryons = cf.getValueSafe<bool>( "output", "glass_cicdeconvolve", false ) & bsph;
@@ -998,9 +998,11 @@ int main (int argc, const char * argv[])
 				LOGUSER("computing term using FFT");
 				compute_2LPT_source_FFT(cf, u1, f2LPT);
 			}
-			LOGINFO("Solving 2LPT Poisson equation");
+            
+            LOGINFO("Solving 2LPT Poisson equation");
 			u2LPT = u1; u2LPT.zero();
 			err = the_poisson_solver->solve(f2LPT, u2LPT);
+            
 			
 			//... if doing the hybrid step, we need a combined source term
 			if( bdefd )

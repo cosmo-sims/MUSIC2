@@ -790,6 +790,7 @@ protected:
 	      {
 		if( itype == bndparticletype_ ) continue;
 		np_per_type_[bndparticletype_] += np_per_type_[itype];
+		if( !bmorethan2bnd_ ) header_.mass[bndparticletype_] += header_.mass[itype];
 		np_per_type_[itype] = 0;
 		header_.mass[itype] = 0.;
 	      }

@@ -80,7 +80,7 @@ protected:
     size_t npartmax_;
     bool bmorethan2bnd_;
     bool bmultimass_;
-    double epsfac_;
+    double epsfac_, epsfac_coarse_;
     double boxsize_;
     double astart_;
     double omegam_;
@@ -224,7 +224,12 @@ protected:
     
     inline T_store mass2eps( T_store& m )
     {
-	return pow(m/omegam_,0.333333333333)*epsfac_;
+        return pow(m/omegam_,0.333333333333)*epsfac_;
+    }
+    
+    inline T_store mass2eps_coarse( T_store& m )
+    {
+        return pow(m/omegam_,0.333333333333)*epsfac_coarse_;
     }
     
     void combine_components_for_coarse( void )
@@ -356,6 +361,7 @@ protected:
 	
 	unsigned
 	    npleft = nptot, 
+	    npcount = 0,
 	    n2read = std::min((unsigned)block_buf_size_,npleft);
 	
 	//std::cout << " - Writing " << nptot << " particles to tipsy file...\n";
@@ -512,6 +518,7 @@ protected:
             ifs_m.open( fnm, npcdm );
 	    
 	    npleft = npcdm;
+	    npcount = 0;
 	    n2read = std::min(block_buf_size_,npleft);
 	    while( n2read > 0 )
 	    {
@@ -536,10 +543,11 @@ protected:
 			fwrite( &tmp5[i], sizeof(tmp5[i]), 1, fp_); // vy
 			fwrite( &tmp6[i], sizeof(tmp6[i]), 1, fp_); // vz
 
-			T_store eps = mass2eps( tmp7[i] );
+			T_store eps = (npcount<np_fine_dm_)? mass2eps( tmp7[i] ) : mass2eps_coarse( tmp7[i] );
 			
 			fwrite( &eps, sizeof(eps), 1, fp_);
 			fwrite( &zero, sizeof(zero), 1, fp_);
+			++npcount;
 		    }
 		    
 		} else {
@@ -555,11 +563,11 @@ protected:
 			xdr_dump(&xdrs,&tmp5[i]); // vy
 			xdr_dump(&xdrs,&tmp6[i]); // vz
 			
-			T_store eps = mass2eps( tmp7[i] );
+			T_store eps = (npcount<np_fine_dm_)? mass2eps( tmp7[i] ) : mass2eps_coarse( tmp7[i] );
 			
 			xdr_dump(&xdrs, &eps ); // epsilon
 			xdr_dump(&xdrs, &zero ); //potential
-			
+			++npcount;
 		    }
 
 		}		
@@ -632,16 +640,17 @@ public:
 	ofs_.close();
 	
 	double zstart = cf.getValue<double>("setup","zstart");
-	astart_ = 1.0/(1.0+zstart);
+	astart_  = 1.0/(1.0+zstart);
 	omegam_  = cf.getValue<double>("cosmology","Omega_m");
         omegab_  = cf.getValue<double>("cosmology","Omega_b");
 	boxsize_ = cf.getValue<double>("setup","boxlength");
-	epsfac_ = cf.getValueSafe<double>("output","tipsy_eps",0.05);
-        H0_ = cf.getValue<double>("cosmology","H0");
-        YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
-        gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
+	epsfac_  = cf.getValueSafe<double>("output","tipsy_eps",0.05);
+	epsfac_coarse_  = cf.getValueSafe<double>("output","tipsy_eps_coarse",epsfac_);
+        H0_      = cf.getValue<double>("cosmology","H0");
+        YHe_     = cf.getValueSafe<double>("cosmology","YHe",0.248);
+        gamma_   = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
 		
-	native_ = cf.getValueSafe<bool>("output","tipsy_native",false);
+	native_  = cf.getValueSafe<bool>("output","tipsy_native",false);
 
 	
     }

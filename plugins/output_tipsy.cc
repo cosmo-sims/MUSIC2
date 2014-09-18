@@ -80,7 +80,7 @@ protected:
     size_t npartmax_;
     bool bmorethan2bnd_;
     bool bmultimass_;
-    double epsfac_, epsfac_coarse_;
+    double epsfac_, epsfac_coarse_, epsfac_gas_;
     double boxsize_;
     double astart_;
     double omegam_;
@@ -230,6 +230,11 @@ protected:
     inline T_store mass2eps_coarse( T_store& m )
     {
         return pow(m/omegam_,0.333333333333)*epsfac_coarse_;
+    }
+
+    inline T_store mass2eps_gas( T_store& m )
+    {
+        return pow(m/omegab_,0.333333333333)*epsfac_gas_;
     }
     
     void combine_components_for_coarse( void )
@@ -459,7 +464,7 @@ protected:
 			    fwrite( &zero, sizeof(zero), 1, fp_);       // rho
 			    fwrite( &temperature, sizeof(temperature), 1, fp_); // temp
 			    
-			    T_store eps = mass2eps( tmp7[i] );
+			    T_store eps = mass2eps_gas( tmp7[i] );
 			    
 			    fwrite( &eps, sizeof(eps), 1, fp_);
 			    fwrite( &zero, sizeof(zero), 1, fp_);
@@ -480,7 +485,7 @@ protected:
 			    xdr_dump(&xdrs, &zero );  // rho
 			    xdr_dump(&xdrs, &temperature );  // temp
 			    
-			    T_store eps = mass2eps( tmp7[i] );
+			    T_store eps = mass2eps_gas( tmp7[i] );
 			    
 			    xdr_dump(&xdrs, &eps );   // epsilon / hsmooth
 			    xdr_dump(&xdrs, &zero );  // metals
@@ -644,8 +649,11 @@ public:
 	omegam_  = cf.getValue<double>("cosmology","Omega_m");
         omegab_  = cf.getValue<double>("cosmology","Omega_b");
 	boxsize_ = cf.getValue<double>("setup","boxlength");
+
 	epsfac_  = cf.getValueSafe<double>("output","tipsy_eps",0.05);
 	epsfac_coarse_  = cf.getValueSafe<double>("output","tipsy_eps_coarse",epsfac_);
+	epsfac_gas_     = cf.getValueSafe<double>("output","tipsy_eps_gas",epsfac_);
+
         H0_      = cf.getValue<double>("cosmology","H0");
         YHe_     = cf.getValueSafe<double>("cosmology","YHe",0.248);
         gamma_   = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);

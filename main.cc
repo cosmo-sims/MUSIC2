@@ -271,7 +271,7 @@ double compute_finest_max( grid_hierarchy& u )
 		for( int iy = 0; iy < (int)(*u.get_grid(u.levelmax())).size(1); ++iy )
 			for( int iz = 0; iz < (int)(*u.get_grid(u.levelmax())).size(2); ++iz )
 			{
-			  if( (*u.get_grid(u.levelmax()))(ix,iy,iz) > valmax )
+			  if( fabs((*u.get_grid(u.levelmax()))(ix,iy,iz)) > fabs(valmax) )
 			    valmax = (*u.get_grid(u.levelmax()))(ix,iy,iz);
 			}
 

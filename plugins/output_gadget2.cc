@@ -16,7 +16,7 @@
 #include "mg_interp.hh"
 #include "mesh.hh"
 
-const int empty_fill_bytes = 60;
+const int empty_fill_bytes = 56;
 
 template< typename T_store=float >
 class gadget2_output_plugin : public output_plugin
@@ -60,7 +60,8 @@ protected:
     int flag_stellarage;                 
     int flag_metals;                     
     unsigned int npartTotalHighWord[6];  
-    int  flag_entropy_instead_u;         
+    int flag_entropy_instead_u;
+    int flag_doubleprecision;
     char fill[empty_fill_bytes];                       
   }header;                       
   
@@ -872,6 +873,15 @@ public:
 	header_.npartTotalHighWord[i] = 0;
 	header_.mass[i] = 0.0;
       }
+      
+    if( typeid(T_store)==typeid(float) )
+        header_.flag_doubleprecision = 0;
+    else if( typeid(T_store)==typeid(double) )
+        header_.flag_doubleprecision = 1;
+    else{
+        LOGERR("Internal error: gadget-2 output plug-in called for neither \'float\' nor \'double\'");
+        throw std::runtime_error("Internal error: gadget-2 output plug-in called for neither \'float\' nor \'double\'");
+    }
     
     YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
     gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);

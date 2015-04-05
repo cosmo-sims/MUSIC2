@@ -162,7 +162,7 @@ struct eisenstein_transfer
   {
     m_h0 = cosmo.H0*0.01;
     TFset_parameters( (cosmo.Omega_m)*cosmo.H0*cosmo.H0*(0.01*0.01),
-                     cosmo.Omega_b/(cosmo.Omega_m-cosmo.Omega_b), Tcmb);
+                     cosmo.Omega_b/cosmo.Omega_m, Tcmb);
     
     fb_ = cosmo.Omega_b/(cosmo.Omega_m);
     fc_ = (cosmo.Omega_m-cosmo.Omega_b)/(cosmo.Omega_m) ;
@@ -299,6 +299,7 @@ public:
                         *pow(1.5/wdmgx_,0.29);
                 break;
         }
+        std::cerr << "WDM alpha = " << m_WDMalpha << std::endl;
 	}
 	
 	inline double compute( double k, tf_type type )

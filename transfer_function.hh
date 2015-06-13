@@ -57,7 +57,7 @@ public:
 		cosmo_.astart		= 1.0/(1.0+zstart);
 		cosmo_.Omega_b		= pcf_->getValue<real_t>( "cosmology", "Omega_b" );
 		cosmo_.Omega_m		= pcf_->getValue<real_t>( "cosmology", "Omega_m" );
-		cosmo_.Omega_L		= pcf_->getValue<real_t>( "cosmology", "Omega_L" );
+		cosmo_.Omega_DE		= pcf_->getValue<real_t>( "cosmology", "Omega_L" );
 		cosmo_.H0			= pcf_->getValue<real_t>( "cosmology", "H0" );
 		cosmo_.sigma8		= pcf_->getValue<real_t>( "cosmology", "sigma_8" );
 		cosmo_.nspect		= pcf_->getValue<real_t>( "cosmology", "nspec" );
@@ -150,29 +150,56 @@ public:
 		sqrtpnorm_ = sqrt( pnorm_ );
 		type_ = type;
 
-		std::string fname("input_powerspec_cdm.txt");
-		
-		if( type == baryon )
-			fname = "input_powerspec_baryon.txt";
-		if( type == total )
-			fname = "input_powerspec_total.txt";
-		
-		if( type == cdm || type == baryon || type == total )
-		{
-			std::ofstream ofs(fname.c_str());
-			double kmin=log10(tf->get_kmin()), kmax= log10(tf->get_kmax());
-            
-            double dk=(kmax-kmin)/300.;
+		std::string fname("input_powerspec.txt");
+		if( type == cdm )
+		  {
+		    std::ofstream ofs(fname.c_str());
+		    double kmin=log10(tf->get_kmin()), kmax= log10(tf->get_kmax());
+		    double dk=(kmax-kmin)/300.;
+		    
+		    if( tf->tf_is_distinct() )
+		      {
+			ofs << "#"
+			    << std::setw(15) << "k [h/Mpc]"
+			    << std::setw(16) << "P_cdm"
+			    << std::setw(16) << "P_vcdm"
+			    << std::setw(16) << "P_bar"
+			    << std::setw(16) << "P_vbar"
+			    << std::setw(16) << "P_total"
+			    << std::endl;
 			
 			for( int i=0; i<300; ++i )
 			{ 
 				double k = pow(10.0,kmin+i*dk);
 				ofs << std::setw(16) << k 
-			    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,type_),2)
-			    << std::endl;
+				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,cdm),2)
+				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,vcdm),2)
+				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,baryon),2)
+				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,vbaryon),2)
+				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,total),2)
+				    << std::endl;
 			}
-			
-		}
+		      }
+		    else
+		      {
+			for( int i=0; i<300; ++i )
+			{
+			  ofs << "#"
+			      << std::setw(16) << "k [h/Mpc]"
+			      << std::setw(16) << "P_cdm"
+			      << std::setw(16) << "P_vcdm"
+			      << std::setw(16) << "P_total"
+			      << std::endl;
+
+				double k = pow(10.0,kmin+i*dk);
+				ofs << std::setw(16) << k 
+				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,cdm),2)
+				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,vcdm),2)
+				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,total),2)
+				    << std::endl;
+			}
+		      }
+		  }
 
 
 	}

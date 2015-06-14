@@ -60,115 +60,106 @@ public:
 		real_t scale = m_Dplus/m_DplusOne;
 		return m_pNorm*scale*scale*TransferSq(k)*pow((double)k,(double)m_Cosmology.nspect);
 	}
+
+  inline static double H_of_a( double a, void *Params )
+  {
+    Cosmology *cosm = (Cosmology*)Params;
+    double a2 = a*a;
+    double Ha = sqrt(cosm->Omega_m/(a2*a) + cosm->Omega_k/a2
+		     + cosm->Omega_DE * pow(a,3.+3.*cosm->w_0) * exp(-3.*(a-1.0)*cosm->w_a) );
+    return Ha;
+  }
+
+  inline static double Hprime_of_a( double a, void *Params )
+  {
+    Cosmology *cosm = (Cosmology*)Params;
+    double a2 = a*a;
+    double H  = H_of_a( a, Params );
+    double Hprime = -1.5 * cosm->Omega_m / (a2*a2*H) - cosm->Omega_k / (a2*a*H) 
+      + 0.5 * cosm->Omega_DE * pow( a, 3.+3.*cosm->w_0 ) * exp( -3.*(a-1.)*cosm->w_a )
+      * 1.5 / a * ( 1. + cosm->w_0 - a * cosm->w_a );
+    return Hprime;
+  }
+
+
+  //! Integrand used by function CalcGrowthFactor to determine the linear growth factor D+
+  inline static double GrowthIntegrand( double a, void *Params )
+  {
+    double Ha = a * H_of_a( a, Params );
+    return 2.5/( Ha * Ha * Ha );
+  }
+  
+  //! Computes the linear theory growth factor D+
+  /*! Function integrates over member function GrowthIntegrand and computes
+   *                      /a
+   *   D+(a) = 5/2 H(a) * |  [a'^3 * H(a')^3]^(-1) da'
+   *                      /0
+   */
+  real_t CalcGrowthFactor( real_t a )
+  {
+    real_t integral = integrate( &GrowthIntegrand, 0.0, a, (void*)&m_Cosmology );
+    return H_of_a( a, (void*)&m_Cosmology ) * integral;
+  }
+
+  //! Compute the factor relating particle displacement and velocity
+  /*! Function computes
+   *
+   *  vfac = a * H(a) * dlogD+ / d log a = a^3 * H'(a) + 5/2 * [ a^2 * D+(a) * H(a) ]^(-1)
+   *
+   */
+  real_t CalcVFact( real_t a )
+  {
+    real_t Dp = CalcGrowthFactor( a );
+    real_t H  = H_of_a( a, (void*)&m_Cosmology );
+    real_t Hp = Hprime_of_a( a, (void*)&m_Cosmology );
+    real_t a2 = a*a;
+
+    return a2*a * Hp + 2.5 / ( a2 * Dp * H );
+  }
+
+
+
+#if 0
 	
-	//! integrand function for Calc_fPeebles
-	/*!
-	 * @sa Calc_fPeebles
-	 */
-	inline static double fy( double a, void *Params )
+	//! Integrand used by function CalcGrowthFactor to determine the linear growth factor D+
+	inline static double GrowthIntegrand( double a, void *Params )
 	{
 		Cosmology *cosm = (Cosmology*)Params;
-		double y = cosm->Omega_m*(1.0/a-1.0) + cosm->Omega_L*(a*a-1.0) + 1.0;
-		return 1.0/pow(y,1.5);
+		double eta = sqrt((double)(cosm->Omega_r/a/a+cosm->Omega_m/a+cosm->Omega_DE*a*a
+								   +1.0-cosm->Omega_m-cosm->Omega_DE));
+		return 2.5/(eta*eta*eta);
 	}
-	
-	//! calculates d log D+/d log a
-	/*! this version follows the Peebles (TBD: add citation)
-	 *  formula to compute Bertschinger's vfact
-	 */
-	inline real_t Calc_fPeebles( real_t a )
-	{
-		real_t y = m_Cosmology.Omega_m*(1.0/a-1.0) + m_Cosmology.Omega_L*(a*a-1.0) + 1.0;
-		real_t fact = integrate( &fy, 1e-6, a, (void*)&m_Cosmology );
-		return (m_Cosmology.Omega_L*a*a-0.5*m_Cosmology.Omega_m/a)/y - 1.0 + a*fy(a,(void*)&m_Cosmology)/fact;
-	}
+  
 	
 	//! Computes the linear theory growth factor D+
 	/*! Function integrates over member function GrowthIntegrand */
 	inline real_t CalcGrowthFactor( real_t a )
 	{ 
-		real_t eta =  sqrt((double)(m_Cosmology.Omega_r/a/a+m_Cosmology.Omega_m/a+m_Cosmology.Omega_L*a*a
-								  +1.0-m_Cosmology.Omega_m-m_Cosmology.Omega_L));
+		real_t eta =  sqrt((double)(m_Cosmology.Omega_r/a/a+m_Cosmology.Omega_m/a+m_Cosmology.Omega_DE*a*a
+								  +1.0-m_Cosmology.Omega_m-m_Cosmology.Omega_DE));
 		
 		real_t integral = integrate( &GrowthIntegrand, 0.0, a, (void*)&m_Cosmology );
 		return eta/a*integral;
 	}
-    
-    inline static double InvHubble( double a, void *Params )
-    {
-        Cosmology *cosm = (Cosmology*)Params;
-		double eta = 1.0/(100.0*sqrt((double)(cosm->Omega_m/(a*a*a)+cosm->Omega_L
-								   +(1.0-cosm->Omega_m-cosm->Omega_L)/(a*a))));
-        return eta;
-    }
-    
-    inline real_t CalcTFac( real_t a0, real_t a1 )
-    {
-        real_t fact = integrate( &InvHubble, a0, a1, (void*)&m_Cosmology );
-        return 1.0/fact;
-    }
-    
-	//! Integrand used by function CalcGrowthFactor to determine the linear growth factor D+
-	inline static double GrowthIntegrand( double a, void *Params )
-	{
-		Cosmology *cosm = (Cosmology*)Params;
-		double eta = sqrt((double)(cosm->Omega_r/a/a+cosm->Omega_m/a+cosm->Omega_L*a*a
-								   +1.0-cosm->Omega_m-cosm->Omega_L));
-		return 2.5/(eta*eta*eta);
-	}
-    
-    //! Computes the linear theory growth factor D+
-	/*! Function integrates over member function GrowthIntegrand */
-	inline real_t CalcGrowthFactor_Matter( real_t a )
-	{ 
-		real_t eta =  sqrt((double)(m_Cosmology.Omega_m/a+m_Cosmology.Omega_L*a*a
-                                    +1.0-m_Cosmology.Omega_m-m_Cosmology.Omega_L));
-		
-		real_t integral = integrate( &GrowthIntegrand_Matter, 0.0, a, (void*)&m_Cosmology );
-		return eta/a*integral;
-	}
-    
-	//! Integrand used by function CalcGrowthFactor to determine the linear growth factor D+
-	inline static double GrowthIntegrand_Matter( double a, void *Params )
-	{
-		Cosmology *cosm = (Cosmology*)Params;
-		double eta = sqrt((double)(cosm->Omega_m/a+cosm->Omega_L*a*a
-								   +1.0-cosm->Omega_m-cosm->Omega_L));
-		return 2.5/(eta*eta*eta);
-	}
-	
-    real_t ComputeVFactnew( real_t a ){
-     return Calc_fPeebles(a)*sqrt(m_Cosmology.Omega_m/a+m_Cosmology.Omega_L*a*a+1.0-m_Cosmology.Omega_m-m_Cosmology.Omega_L)*100.0;
-    }
-     
-     real_t ComputedDdt( real_t a )
-     {
-     return Calc_fPeebles(a);
-     }
-    
+       
 	//! Compute the factor relating particle displacement and velocity
 	real_t ComputeVFact( real_t a ){
 		real_t fomega, dlogadt, eta;
-		real_t Omega_k = 1.0 - m_Cosmology.Omega_m - m_Cosmology.Omega_L;
+		real_t Omega_k = 1.0 - m_Cosmology.Omega_m - m_Cosmology.Omega_DE;
 		
 		real_t Dplus = CalcGrowthFactor( a );
 		
-		eta     = sqrt( (double)(m_Cosmology.Omega_r/a/a+m_Cosmology.Omega_m/a+ m_Cosmology.Omega_L*a*a + Omega_k ));
+		eta     = sqrt( (double)(m_Cosmology.Omega_r/a/a+m_Cosmology.Omega_m/a+ m_Cosmology.Omega_DE*a*a + Omega_k ));
 		fomega  = (2.5/Dplus-1.5*m_Cosmology.Omega_m/a-Omega_k)/eta/eta;
 		dlogadt = a*eta;
 		
 		//... /100.0 since we would have to multiply by H0 to convert
 		//... the displacement to velocity units. But displacement is
-		//... in Mpc/h, and H0 in units of h is 100.
-        
-        //std::cerr << "vfact1 = " << fomega * dlogadt/a *100.0 << "\n";
-        //std::cerr << "vfact2 = " << ComputeVFactnew(a) << "\n";
-        
+		//... in Mpc/h, and H0 in units of h is 100.        
 		return fomega * dlogadt/a *100.0;
 	}
-	
-	
-	
+#endif
+		
 	
 	//! Integrand for the sigma_8 normalization of the power spectrum
 	/*! Returns the value of the primordial power spectrum multiplied with 
@@ -243,39 +234,6 @@ public:
 		
         return m_Cosmology.sigma8*m_Cosmology.sigma8/sigma0;
 	}
-    
-    
-	
-    
-	//! integrand function for comoving line element
-	inline static double dline( double a, void *Params )
-	{
-		Cosmology *cosm = (Cosmology*)Params;
-		double y = (cosm->Omega_m + cosm->Omega_L*a*a*a)*a;
-		
-		return 1./sqrt(y);
-	}
-	
-	//! compute necessary initial velocity kick to prevent motion of zoom region 
-	real_t ComputeVelocityCompensation( double astart, double afinal )
-	{
-		double s = integrate( &dline, astart, afinal, (void*)&m_Cosmology );
-		//std::cerr << "s      = " << s << std::endl;
-		//std::cerr << "D(z_f) = " << CalcGrowthFactor(afinal) << std::endl;
-		//std::cerr << "D(z_i) = " << CalcGrowthFactor(astart) << std::endl;
-		return m_Cosmology.H0 * CalcGrowthFactor(afinal)/CalcGrowthFactor(astart)/s;
-	}
-	
-	real_t ComputeVelocityCompensation_2LPT( double astart, double afinal )
-	{
-		double s = integrate( &dline, astart, afinal, (void*)&m_Cosmology );
-		//std::cerr << "s      = " << s << std::endl;
-		//std::cerr << "D(z_f) = " << CalcGrowthFactor(afinal) << std::endl;
-		//std::cerr << "D(z_i) = " << CalcGrowthFactor(astart) << std::endl;
-		return m_Cosmology.H0 * pow(CalcGrowthFactor(afinal)/CalcGrowthFactor(astart),2.0)/s;
-	}
-	
-
 	
 };
 

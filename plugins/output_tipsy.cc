@@ -843,7 +843,7 @@ public:
 			    gh.cell_pos(ilevel, i, j, k, xx);
 			    
 			    //xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) + 1.0, 1.0 ) - 0.5;
-			    xx[coord] = (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) - 0.5;
+			    xx[coord] = (xx[coord]+(T_store)(*gh.get_grid(ilevel))(i,j,k)) - 0.5;
 			    
 			    if( temp_data.size() < block_buf_size_ )
 				temp_data.push_back( xx[coord] );
@@ -1044,7 +1044,7 @@ public:
 			    xx[coord] += 0.5*h;
 			    
 			    //xx[coord] = fmod( (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) + 1.0, 1.0 ) - 0.5;
-			    xx[coord] = (xx[coord]+(*gh.get_grid(ilevel))(i,j,k)) - 0.5;
+			    xx[coord] = (xx[coord]+(T_store)(*gh.get_grid(ilevel))(i,j,k)) - 0.5;
 			    
 			    if( temp_data.size() < block_buf_size_ )
 				temp_data.push_back( xx[coord] );
@@ -1105,7 +1105,7 @@ int tipsy_output_plugin<double>::xdr_dump( XDR *xdrs, double*p )
 
 namespace{
     output_plugin_creator_concrete< tipsy_output_plugin<float> > creator1("tipsy");
-#ifndef SINGLE_PRECISION
+    //#ifndef SINGLE_PRECISION
     output_plugin_creator_concrete< tipsy_output_plugin<double> > creator2("tipsy_double");
-#endif
+    //#endif
 }

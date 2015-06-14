@@ -101,46 +101,76 @@ typedef struct cosmology{
   double 
     Omega_m,		//!< baryon+dark matter density
     Omega_b,		//!< baryon matter density
-    Omega_L,		//!< dark energy density
-    Omega_r,        //!< photon + relativistic particle density
-    H0,				//!< Hubble constant
-    nspect,			//!< long-wave spectral index (scale free is nspect=1) 
-    sigma8,			//!< power spectrum normalization
-	//Gamma,		//!< shape parameter (of historical interest, as a free parameter)
-    //fnl,			//!< non-gaussian contribution parameter
-	//w0,			//!< dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
-	//wa,			//!< dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
-	dplus,			//!< linear perturbation growth factor
-	pnorm,			//!< actual power spectrum normalisation factor
-	vfact,			//!< velocity<->displacement conversion factor in Zel'dovich approx.
-	WDMmass,		//!< Warm DM particle mass
-	WDMg_x,			//!< Warm DM particle degrees of freedom
-	astart;			//!< expansion factor a for which to generate initial conditions
-	
-	cosmology( config_file cf )
-	{
-		double zstart = cf.getValue<double>( "setup", "zstart" );
-		
-		astart		= 1.0/(1.0+zstart);
-		Omega_b		= cf.getValue<double>( "cosmology", "Omega_b" );
-		Omega_m		= cf.getValue<double>( "cosmology", "Omega_m" );
-		Omega_L		= cf.getValue<double>( "cosmology", "Omega_L" );
-        Omega_r     = cf.getValueSafe<double>( "cosmology", "Omega_r", 0.0 ); // no longer default to nonzero (8.3e-5)
-		H0			= cf.getValue<double>( "cosmology", "H0" );
-		sigma8		= cf.getValue<double>( "cosmology", "sigma_8" );
-		nspect		= cf.getValue<double>( "cosmology", "nspec" );
-		WDMg_x		= cf.getValueSafe<double>( "cosmology", "WDMg_x", 1.5 );
-		WDMmass		= cf.getValueSafe<double>( "cosmology", "WDMmass", 0.0 );
-		
-		dplus			= 0.0;
-		pnorm			= 0.0;
-		vfact			= 0.0;
-	}
-	
-	cosmology( void )
-	{
-		
-	}
+    Omega_DE,		//!< dark energy density (cosmological constant or parameterised)
+    Omega_r,            //!< photon + relativistic particle density
+    Omega_k,            //!< curvature density
+    H0,			//!< Hubble constant in km/s/Mpc
+    nspect,		//!< long-wave spectral index (scale free is nspect=1) 
+    sigma8,		//!< power spectrum normalization
+    w_0,                //!< dark energy equation of state parameter 1: w = w0 + a * wa
+    w_a,                //!< dark energy equation of state parameter 2: w = w0 + a * wa
+
+  //Gamma,		//!< shape parameter (of historical interest, as a free parameter)
+  //fnl,			//!< non-gaussian contribution parameter
+  //w0,			//!< dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
+  //wa,			//!< dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
+    dplus,			//!< linear perturbation growth factor
+    pnorm,			//!< actual power spectrum normalisation factor
+    vfact,			//!< velocity<->displacement conversion factor in Zel'dovich approx.
+    WDMmass,		//!< Warm DM particle mass
+    WDMg_x,			//!< Warm DM particle degrees of freedom
+    astart;			//!< expansion factor a for which to generate initial conditions
+  
+  cosmology( config_file cf )
+  {
+    double zstart = cf.getValue<double>( "setup", "zstart" );
+    
+    astart     	= 1.0/(1.0+zstart);
+    Omega_b    	= cf.getValue<double>( "cosmology", "Omega_b" );
+    Omega_m    	= cf.getValue<double>( "cosmology", "Omega_m" );
+    w_0         = -1.0;
+    w_a         = 0.0;
+
+    bool DEerr = false;
+
+    if( cf.containsKey( "cosmology", "Omega_L" ) )
+      {
+	if( cf.containsKey( "cosmology", "Omega_w" ) ) DEerr = true;
+	Omega_DE    = cf.getValue<double>( "cosmology", "Omega_L" );
+      }
+    else if( cf.containsKey( "cosmology", "Omega_w" ) ) 
+      {
+	if( cf.containsKey( "cosmology", "Omega_L" ) ) DEerr = true; 
+	Omega_DE    = cf.getValue<double>( "cosmology", "Omega_w" );
+	w_0         = cf.getValue<double>( "cosmology", "w0" );
+	w_a         = cf.getValue<double>( "cosmology", "wa" );	
+      }
+    else
+      DEerr = true;
+
+    if( DEerr )
+      throw std::runtime_error("Need to specify either \'[cosmology]/Omega_L\' or \'[cosmology]/Omega_w\'");
+
+    Omega_r     = cf.getValueSafe<double>( "cosmology", "Omega_r", 0.0 ); // no longer default to nonzero (8.3e-5)
+
+    Omega_k = 1.0 - Omega_m - Omega_DE - Omega_r;
+
+
+    H0	       	= cf.getValue<double>( "cosmology", "H0" );
+    sigma8     	= cf.getValue<double>( "cosmology", "sigma_8" );
+    nspect      = cf.getValue<double>( "cosmology", "nspec" );
+    WDMg_x     	= cf.getValueSafe<double>( "cosmology", "WDMg_x", 1.5 );
+    WDMmass    	= cf.getValueSafe<double>( "cosmology", "WDMmass", 0.0 );
+    
+    dplus      	= 0.0;
+    pnorm      	= 0.0;
+    vfact      	= 0.0;
+  }
+  
+  cosmology( void )
+  {
+    
+  }
 }Cosmology;
 
 //! basic box/grid/refinement structure parameters

@@ -407,11 +407,9 @@ int main (int argc, const char * argv[])
 	//... initialize cosmology
 	//------------------------------------------------------------------------------
 	bool 
-		do_baryons	= cf.getValue<bool>("setup","baryons"),
-		do_2LPT		= cf.getValueSafe<bool>("setup","use_2LPT",false),
-		do_LLA		= cf.getValueSafe<bool>("setup","use_LLA",false),
-		do_CVM		= cf.getValueSafe<bool>("setup","center_vel",false),
-        do_CVMfrompos = false;
+	  do_baryons	= cf.getValue<bool>("setup","baryons"),
+	  do_2LPT	= cf.getValueSafe<bool>("setup","use_2LPT",false),
+	  do_LLA       	= cf.getValueSafe<bool>("setup","use_LLA",false);
 	
 	transfer_function_plugin *the_transfer_function_plugin
 		= select_transfer_function_plugin( cf );
@@ -423,7 +421,7 @@ int main (int argc, const char * argv[])
 	CosmoCalc ccalc(cosmo,the_transfer_function_plugin);
 	cosmo.pnorm	= ccalc.ComputePNorm( 2.0*M_PI/boxlength );
 	cosmo.dplus	= ccalc.CalcGrowthFactor( cosmo.astart )/ccalc.CalcGrowthFactor( 1.0 );
-	cosmo.vfact = ccalc.ComputeVFact( cosmo.astart );
+	cosmo.vfact = ccalc.CalcVFact( cosmo.astart );
 	
 	if( !the_transfer_function_plugin->tf_has_total0() )
 	        cosmo.pnorm *= cosmo.dplus*cosmo.dplus;
@@ -466,66 +464,13 @@ int main (int argc, const char * argv[])
 		<< "            Perturbation amplitudes will be identical!" << std::endl;
 	
 
-	double kickfac = 0.0, kickfac_2LPT = 0.0;
-    double velocity_restframe[3] = {0.0,0.0,0.0};
-    
-	if( do_CVM )
-	{
-		double ztarget = 0.0;//cf.getValueSafe<double>("setup","center_vel_zfinal",0.0);
-		kickfac = ccalc.ComputeVelocityCompensation( cosmo.astart, 1./(1.+ztarget) )/cosmo.vfact;
-		kickfac_2LPT = ccalc.ComputeVelocityCompensation_2LPT( cosmo.astart, 1./(1.+ztarget) )/cosmo.vfact;
-		std::cout	<< " - Will center velocities for target redshift " << ztarget << std::endl;
-		LOGUSER("Will center velocities for target redshift %f.",ztarget);
-        
-        double atarget = 1.0;
-        
-        if( cf.containsKey("setup", "center_vel_posfinal" ) )
-        {
-            double CVM_x0final[3], CVM_x0initial[3], dx[3];
-            
-            do_CVMfrompos = true;
-            atarget = cf.getValueSafe("setup", "center_vel_afinal", atarget );
-            
-            std::string strtemp;
-            strtemp            = cf.getValue<std::string>( "setup", "center_vel_posfinal" );
-            sscanf( strtemp.c_str(), "%lf,%lf,%lf", &CVM_x0final[0], &CVM_x0final[1], &CVM_x0final[2] );
-            
-            kickfac = ccalc.CalcTFac( cosmo.astart, atarget );
-            
-            LOGINFO("Will center velocities for target position\n     (%f,%f,%f) at a=%f.",CVM_x0final[0],CVM_x0final[1],CVM_x0final[2],atarget);
-            
-            
-            LOGINFO("kick factor is %f",kickfac);
-            // initial center definition goes here:
-            the_region_generator->get_center_unshifted( CVM_x0initial );
-            
-            LOGINFO("Will center velocities for initial position\n     (%f,%f,%f) at a=%f.",CVM_x0initial[0],CVM_x0initial[1],CVM_x0initial[2],cosmo.astart);
-            
-            dx[0] = (CVM_x0final[0] - CVM_x0initial[0]);
-            dx[1] = (CVM_x0final[1] - CVM_x0initial[1]);
-            dx[2] = (CVM_x0final[2] - CVM_x0initial[2]);
-            
-            velocity_restframe[0] = -dx[0] * kickfac;
-            velocity_restframe[1] = -dx[1] * kickfac;
-            velocity_restframe[2] = -dx[2] * kickfac;
-            
-            LOGINFO("Setting initial velocity rest frame to (%f,%f,%f)", velocity_restframe[0],velocity_restframe[1],velocity_restframe[2]);
-            
-            
-        }else{
-            LOGINFO("Will zero initial velocities, no target center specified.");
-            
-        }
-        
-	}
-	
 	
 	
 	//------------------------------------------------------------------------------
 	//... determine the refinement hierarchy
 	//------------------------------------------------------------------------------
 	
-    refinement_hierarchy rh_Poisson( cf );
+	refinement_hierarchy rh_Poisson( cf );
 	store_grid_structure(cf, rh_Poisson);
 	//rh_Poisson.output();
 	print_hierarchy_stats( cf, rh_Poisson );
@@ -787,19 +732,7 @@ int main (int argc, const char * argv[])
 					data_forIO *= cosmo.vfact;
 					
 					//... velocity kick to keep refined region centered?
-					if(do_CVM)
-					{	
-					    
-						double ukick = 0.0;
-                        if( !do_CVMfrompos )
-                            ukick = compute_finest_mean(data_forIO);
-                        else{
-                            ukick = compute_finest_mean(data_forIO);
-                            LOGINFO("mean of %c-velocity of high-res particles is %f",'x'+icoord,ukick);
-                            ukick = -velocity_restframe[icoord];
-                        }
-						data_forIO -= ukick;
-					}
+					
 					double sigv = compute_finest_sigma( data_forIO );
 					LOGINFO("sigma of %c-velocity of high-res particles is %f",'x'+icoord, sigv);
 
@@ -832,17 +765,15 @@ int main (int argc, const char * argv[])
 				GenerateDensityHierarchy(	cf, the_transfer_function_plugin, vcdm , rh_TF, rand, f, false, false );
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask( rh_Poisson.get_coord_shift() );
-                normalize_density(f);
+				normalize_density(f);
 				
 				u = f;	u.zero();
 				
 				err = the_poisson_solver->solve(f, u);
 				
 				if(!bdefd)
-					f.deallocate();
-				
-				double uref[3];
-				
+				  f.deallocate();
+								
 				grid_hierarchy data_forIO(u);
 				for( int icoord = 0; icoord < 3; ++icoord )
 				{
@@ -861,20 +792,6 @@ int main (int argc, const char * argv[])
 					
 					//... multiply to get velocity
 					data_forIO *= cosmo.vfact;
-					
-					//... velocity kick to keep refined region centered?
-					if(do_CVM)
-					{
-					    if( !do_CVMfrompos )
-                            uref[icoord] = compute_finest_mean(data_forIO);
-                        else{
-                            double umean = compute_finest_mean(data_forIO);
-                            LOGINFO("mean of %c-velocity of high-res particles is %f",'x'+icoord,umean);
-                            
-                            uref[icoord] = -velocity_restframe[icoord];
-                        }
-						data_forIO -= uref[icoord];
-					}
 				
 					double sigv = compute_finest_sigma( data_forIO );
 					LOGINFO("sigma of %c-velocity of high-res DM is %f",'x'+icoord, sigv);
@@ -923,13 +840,9 @@ int main (int argc, const char * argv[])
 					
 					//... multiply to get velocity
 					data_forIO *= cosmo.vfact;
-					
-					//... velocity kick to keep refined region centered?
-					if( do_CVM )
-						data_forIO -= uref[icoord];
-					
+										
 					double sigv = compute_finest_sigma( data_forIO );
-                    LOGINFO("sigma of %c-velocity of high-res baryons is %f",'x'+icoord, sigv);
+					LOGINFO("sigma of %c-velocity of high-res baryons is %f",'x'+icoord, sigv);
 					
 					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing baryon velocities");
@@ -1018,24 +931,6 @@ int main (int argc, const char * argv[])
 			u2LPT *= 6.0/7.0/vfac2lpt;
 			u1 += u2LPT;
 			
-			double uref_2LPT[3];
-			
-			if( !dm_only )
-			{
-				if( do_CVM )
-				{
-					grid_hierarchy data_forIO(u1);
-					for( int icoord = 0; icoord < 3; ++icoord )
-					{
-						the_poisson_solver->gradient(icoord, u2LPT, data_forIO );
-						uref_2LPT[icoord] = kickfac * compute_finest_mean(data_forIO);
-					}
-					data_forIO.deallocate();
-				}
-				u2LPT.deallocate();	
-			}
-			
-			double uref[3];
 			
 			grid_hierarchy data_forIO(u1);
 			for( int icoord = 0; icoord < 3; ++icoord )
@@ -1054,37 +949,11 @@ int main (int argc, const char * argv[])
 				
 				data_forIO *= cosmo.vfact;
 				
-				//... velocity kick to keep refined region centered?
-#if 0
-				if( do_CVM )
-				{
-					/*uref[icoord] = kickfac * compute_finest_mean(data_forIO);
-					//std::cerr << "uref_old[" << icoord << "] = " << uref[icoord] << std::endl;
-					uref[icoord] = kickfac * compute_finest_mean(data_forIO) - 6./7. * uref_2LPT[icoord];
-					uref_2LPT[icoord] = 6./7. * kickfac_2LPT/kickfac * uref_2LPT[icoord];
-					uref[icoord] += uref_2LPT[icoord];
-					//std::cerr << "uref_new[" << icoord << "] = " << uref[icoord] << std::endl; */
-					uref[icoord] = compute_finest_mean(data_forIO);
-
-					data_forIO -= uref[icoord];
-				}
-#endif
-                if(do_CVM)
-                {
-                    if( !do_CVMfrompos )
-                        uref[icoord] = compute_finest_mean(data_forIO);
-                    else
-                        uref[icoord] = -velocity_restframe[icoord];
-                    
-                    data_forIO -= uref[icoord];
-                }
-				
-					
 				double sigv = compute_finest_sigma( data_forIO );
 				std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
 				
 				coarsen_density( rh_Poisson, data_forIO, false );
-                LOGUSER("Writing CDM velocities");
+				LOGUSER("Writing CDM velocities");
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);					
 				
 				if( do_baryons && !the_transfer_function_plugin->tf_has_velocities() && !bsph)
@@ -1163,11 +1032,7 @@ int main (int argc, const char * argv[])
 						the_poisson_solver->gradient(icoord, u1, data_forIO );
 					
 					data_forIO *= cosmo.vfact;
-					
-					//... velocity kick to keep refined region centered?
-					if( do_CVM )
-						data_forIO -= uref[icoord];
-					
+										
 					double sigv = compute_finest_sigma( data_forIO );
 					std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
 					

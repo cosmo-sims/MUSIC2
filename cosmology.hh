@@ -66,7 +66,7 @@ public:
     Cosmology *cosm = (Cosmology*)Params;
     double a2 = a*a;
     double Ha = sqrt(cosm->Omega_m/(a2*a) + cosm->Omega_k/a2
-		     + cosm->Omega_DE * pow(a,3.+3.*cosm->w_0) * exp(3.*(a-1.0)*cosm->w_a) );
+		     + cosm->Omega_DE * pow(a,-3.*(1.+cosm->w_0+cosm->w_a)) * exp(-3.*(1.0-a)*cosm->w_a) );
     return Ha;
   }
 
@@ -76,8 +76,8 @@ public:
     double a2 = a*a;
     double H  = H_of_a( a, Params );
     double Hprime = 1/(a*H) * ( -1.5 * cosm->Omega_m / (a2*a) - cosm->Omega_k / a2
-      + 1.5 * cosm->Omega_DE * pow( a, 3.+3.*cosm->w_0 ) * exp( 3.*(a-1.)*cosm->w_a )
-      * ( 1. + cosm->w_0 + a * cosm->w_a ) );
+      - 1.5 * cosm->Omega_DE * pow( a, -3.*(1.+cosm->w_0+cosm->w_a) ) * exp( -3.*(1.0-a)*cosm->w_a )
+      * ( 1. + cosm->w_0 + (1.-a) * cosm->w_a ) );
     return Hprime;
   }
 

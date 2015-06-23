@@ -104,7 +104,7 @@ public:
   //! Compute the factor relating particle displacement and velocity
   /*! Function computes
    *
-   *  vfac = a * H(a) * dlogD+ / d log a = a^3 * H'(a) + 5/2 * [ a^2 * D+(a) * H(a) ]^(-1)
+   *  vfac = a^2 * H(a) * dlogD+ / d log a = a^2 * H'(a) + 5/2 * [ a * D+(a) * H(a) ]^(-1)
    *
    */
   real_t CalcVFact( real_t a )
@@ -114,51 +114,8 @@ public:
     real_t Hp = Hprime_of_a( a, (void*)&m_Cosmology );
     real_t a2 = a*a;
 
-    return a2*a * Hp + 2.5 / ( a2 * Dp * H );
+    return ( a2 * Hp + 2.5 / ( a * Dp * H ) ) * 100.0;
   }
-
-
-
-#if 0
-	
-	//! Integrand used by function CalcGrowthFactor to determine the linear growth factor D+
-	inline static double GrowthIntegrand( double a, void *Params )
-	{
-		Cosmology *cosm = (Cosmology*)Params;
-		double eta = sqrt((double)(cosm->Omega_r/a/a+cosm->Omega_m/a+cosm->Omega_DE*a*a
-								   +1.0-cosm->Omega_m-cosm->Omega_DE));
-		return 2.5/(eta*eta*eta);
-	}
-  
-	
-	//! Computes the linear theory growth factor D+
-	/*! Function integrates over member function GrowthIntegrand */
-	inline real_t CalcGrowthFactor( real_t a )
-	{ 
-		real_t eta =  sqrt((double)(m_Cosmology.Omega_r/a/a+m_Cosmology.Omega_m/a+m_Cosmology.Omega_DE*a*a
-								  +1.0-m_Cosmology.Omega_m-m_Cosmology.Omega_DE));
-		
-		real_t integral = integrate( &GrowthIntegrand, 0.0, a, (void*)&m_Cosmology );
-		return eta/a*integral;
-	}
-       
-	//! Compute the factor relating particle displacement and velocity
-	real_t ComputeVFact( real_t a ){
-		real_t fomega, dlogadt, eta;
-		real_t Omega_k = 1.0 - m_Cosmology.Omega_m - m_Cosmology.Omega_DE;
-		
-		real_t Dplus = CalcGrowthFactor( a );
-		
-		eta     = sqrt( (double)(m_Cosmology.Omega_r/a/a+m_Cosmology.Omega_m/a+ m_Cosmology.Omega_DE*a*a + Omega_k ));
-		fomega  = (2.5/Dplus-1.5*m_Cosmology.Omega_m/a-Omega_k)/eta/eta;
-		dlogadt = a*eta;
-		
-		//... /100.0 since we would have to multiply by H0 to convert
-		//... the displacement to velocity units. But displacement is
-		//... in Mpc/h, and H0 in units of h is 100.        
-		return fomega * dlogadt/a *100.0;
-	}
-#endif
 		
 	
 	//! Integrand for the sigma_8 normalization of the power spectrum

@@ -131,9 +131,7 @@ typedef struct cosmology{
     Omega_DE    = cf.getValue<double>( "cosmology", "Omega_L" );
     w_0         = cf.getValueSafe<double>( "cosmology", "w0", -1.0 );
     w_a         = cf.getValueSafe<double>( "cosmology", "wa", 0.0 );	
-    w_0         = -1.0;
-    w_a         = 0.0;
-
+    
     Omega_r     = cf.getValueSafe<double>( "cosmology", "Omega_r", 0.0 ); // no longer default to nonzero (8.3e-5)
     Omega_k     = 1.0 - Omega_m - Omega_DE - Omega_r;
 

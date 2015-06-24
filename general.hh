@@ -128,33 +128,14 @@ typedef struct cosmology{
     astart     	= 1.0/(1.0+zstart);
     Omega_b    	= cf.getValue<double>( "cosmology", "Omega_b" );
     Omega_m    	= cf.getValue<double>( "cosmology", "Omega_m" );
+    Omega_DE    = cf.getValue<double>( "cosmology", "Omega_L" );
+    w_0         = cf.getValueSafe<double>( "cosmology", "w0", -1.0 );
+    w_a         = cf.getValueSafe<double>( "cosmology", "wa", 0.0 );	
     w_0         = -1.0;
     w_a         = 0.0;
 
-    bool DEerr = false;
-
-    if( cf.containsKey( "cosmology", "Omega_L" ) )
-      {
-	if( cf.containsKey( "cosmology", "Omega_w" ) ) DEerr = true;
-	Omega_DE    = cf.getValue<double>( "cosmology", "Omega_L" );
-      }
-    else if( cf.containsKey( "cosmology", "Omega_w" ) ) 
-      {
-	if( cf.containsKey( "cosmology", "Omega_L" ) ) DEerr = true; 
-	Omega_DE    = cf.getValue<double>( "cosmology", "Omega_w" );
-	w_0         = cf.getValue<double>( "cosmology", "w0" );
-	w_a         = cf.getValue<double>( "cosmology", "wa" );	
-      }
-    else
-      DEerr = true;
-
-    if( DEerr )
-      throw std::runtime_error("Need to specify either \'[cosmology]/Omega_L\' or \'[cosmology]/Omega_w\'");
-
     Omega_r     = cf.getValueSafe<double>( "cosmology", "Omega_r", 0.0 ); // no longer default to nonzero (8.3e-5)
-
-    Omega_k = 1.0 - Omega_m - Omega_DE - Omega_r;
-
+    Omega_k     = 1.0 - Omega_m - Omega_DE - Omega_r;
 
     H0	       	= cf.getValue<double>( "cosmology", "H0" );
     sigma8     	= cf.getValue<double>( "cosmology", "sigma_8" );

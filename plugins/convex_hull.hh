@@ -5,7 +5,9 @@
 #include <set>
 #include <cmath>
 
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 #include "log.hh"
 
@@ -285,9 +287,11 @@ struct convex_hull{
             if( points[3*i] > points[3*l] ) i=l;
         for( j=i, l=0; l<npoints_; ++l )
             if( i!=l && turn(&points[3*i],&points[3*j],&points[3*l]) >= 0 ) j=l;
-        
+
+#ifdef _OPENMP	
         int nt = omp_get_max_threads();
         omp_set_num_threads( std::min(2,omp_get_max_threads()) );
+#endif
         
         #pragma omp parallel for
         for( int thread=0; thread<2; ++thread )
@@ -297,8 +301,10 @@ struct convex_hull{
             if( thread==1 )
                 wrap<false>( points, i, j, faceidx_U_ );
         }
-        
+
+#ifdef _OPENMP
         omp_set_num_threads(nt);
+#endif
         
         compute_face_normals( points );
         compute_center( points );

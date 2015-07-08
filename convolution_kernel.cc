@@ -97,6 +97,9 @@ namespace convolution{
 		}
 		
 		//.............................................
+
+		std::complex<double> dcmode(RE(cdata[0]),IM(cdata[0]));
+
 		if( !pk->is_ksampled() ) {
 		  
                   #pragma omp parallel for
@@ -130,8 +133,7 @@ namespace convolution{
 		}else{
 		  
             
-		  std::complex<double> dcmode(RE(cdata[0]),IM(cdata[0]));
-
+		  
                   #pragma omp parallel
 		  {
 
@@ -181,10 +183,10 @@ namespace convolution{
 		    delete[] argvec;
 		  }
 
-            
-		  RE(cdata[0]) = dcmode.real() * fftnorm;
-		  IM(cdata[0]) = dcmode.imag() * fftnorm;
-        }
+		  // we now set the correct DC mode below...
+		  RE(cdata[0]) = 0.0;
+		  IM(cdata[0]) = 0.0;
+		}
 
 
 		LOGUSER("Performing backward FFT...");
@@ -210,6 +212,17 @@ namespace convolution{
 		rfftwnd_destroy_plan(plan);
 		rfftwnd_destroy_plan(iplan);
 #endif
+
+
+		// set the DC mode here to avoid a possible truncation error in single precision
+		if( pk->is_ksampled() ) {
+		  size_t nelem = (size_t)cparam_.nx * (size_t)cparam_.ny * (size_t)cparam_.nz;
+		  real_t mean = dcmode.real() * fftnorm / (real_t)nelem;
+		  
+                  #pragma omp parallel for
+		  for( size_t i=0; i<nelem; ++i )
+		    data[i] += mean;
+		}
 	}
 	
 	

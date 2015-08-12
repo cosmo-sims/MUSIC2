@@ -186,8 +186,9 @@ public:
     
     bool query_point( double *x, int ilevel )
     {
-        return true;
-/*
+        if( !do_extra_padding_ )
+            return true;
+
         bool check = true;
         double dx;
         for( int i=0; i<3; ++i )
@@ -199,7 +200,6 @@ public:
             check &= ((dx >= padding_fine_) & (dx <= lxref_[i]-padding_fine_));
         }
         return check;
-  */      
         
     }
     

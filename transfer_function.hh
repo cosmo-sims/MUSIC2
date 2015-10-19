@@ -28,7 +28,7 @@
 
 
 enum tf_type{
-	total, cdm, baryon, vcdm, vbaryon, total0
+	total, cdm, baryon, vtotal, vcdm, vbaryon, total0
 };
 
 #define GSL_INTEGRATION_ERR 1e-5
@@ -151,7 +151,7 @@ public:
 		type_ = type;
 
 		std::string fname("input_powerspec.txt");
-		if( type == cdm )
+		if( type == cdm || type == total )
 		  {
 		    std::ofstream ofs(fname.c_str());
 		    double kmin=log10(tf->get_kmin()), kmax= log10(tf->get_kmax());
@@ -166,7 +166,8 @@ public:
 			    << std::setw(16) << "P_bar"
 			    << std::setw(16) << "P_vbar"
 			    << std::setw(16) << "P_total"
-			    << std::endl;
+                << std::setw(16) << "P_vtotal"
+                << std::endl;
 			
 			for( int i=0; i<300; ++i )
 			{ 
@@ -177,6 +178,7 @@ public:
 				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,baryon),2)
 				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,vbaryon),2)
 				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,total),2)
+                    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,vtotal),2)
 				    << std::endl;
 			}
 		      }

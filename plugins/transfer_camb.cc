@@ -17,11 +17,11 @@ class transfer_CAMB_plugin : public transfer_function_plugin
 private:
   std::string m_filename_Pk, m_filename_Tk;
   std::vector<double> m_tab_k, m_tab_Tk_tot, m_tab_Tk_cdm, m_tab_Tk_baryon;
-  std::vector<double> m_tab_Tvk_cdm, m_tab_Tvk_baryon; //>[150609SH: add]
+  std::vector<double> m_tab_Tvk_tot, m_tab_Tvk_cdm, m_tab_Tvk_baryon;
   gsl_interp_accel *acc_tot, *acc_cdm, *acc_baryon;
-  gsl_interp_accel *acc_vcdm, *acc_vbaryon; //>[150609SH: add]
+  gsl_interp_accel *acc_vtot, *acc_vcdm, *acc_vbaryon;
   gsl_spline *spline_tot, *spline_cdm, *spline_baryon;
-  gsl_spline *spline_vcdm, *spline_vbaryon; //>[150609SH: add]
+  gsl_spline *spline_vtot, *spline_vcdm, *spline_vbaryon;
   
   double m_kmin, m_kmax;
   unsigned m_nlines;
@@ -46,11 +46,11 @@ private:
       m_tab_Tk_tot.clear();
       m_tab_Tk_cdm.clear();
       m_tab_Tk_baryon.clear();
+      m_tab_Tvk_tot.clear();
       m_tab_Tvk_cdm.clear(); //>[150609SH: add]
       m_tab_Tvk_baryon.clear(); //>[150609SH: add]
   
 
-      //>[150609SH: add]
       m_kmin = 1e30;
       m_kmax = -1e30;
 
@@ -61,7 +61,7 @@ private:
 	
 	std::stringstream ss(line);
 	
-	double k, Tkc, Tkb, Tktot, Tkvc, Tkvb, dummy;
+	double k, Tkc, Tkb, Tktot, Tkvtot, Tkvc, Tkvb, dummy;
 
 	ss >> k;
 	ss >> Tkc;
@@ -76,6 +76,8 @@ private:
 	ss >> Tkvc; //>[150609SH: add]
 	ss >> Tkvb; //>[150609SH: add]
 	ss >> dummy;
+          
+    Tkvtot = Tktot;
 
 	m_linbaryoninterp |= Tkb < 0.0 || Tkvb < 0.0;
 	
@@ -84,6 +86,7 @@ private:
 	m_tab_Tk_tot.push_back( Tktot );
 	m_tab_Tk_baryon.push_back( Tkb );
 	m_tab_Tk_cdm.push_back( Tkc );
+	m_tab_Tvk_tot.push_back( Tkvtot );
 	m_tab_Tvk_baryon.push_back( Tkvb );
 	m_tab_Tvk_cdm.push_back( Tkvc );
 
@@ -94,19 +97,20 @@ private:
       }
       
       for( size_t i=0; i<m_tab_k.size(); ++i ){
-	m_tab_Tk_tot[i]     = log10( m_tab_Tk_tot[i] );
-	m_tab_Tk_cdm[i]     = log10( m_tab_Tk_cdm[i] );
-	m_tab_Tvk_cdm[i]    = log10( m_tab_Tvk_cdm[i] );
-
-	if( !m_linbaryoninterp )
-	  {
-	    m_tab_Tk_baryon[i]  = log10( m_tab_Tk_baryon[i] );
-	    m_tab_Tvk_baryon[i] = log10( m_tab_Tvk_baryon[i] );
-	  }
-	}
+        m_tab_Tk_tot[i]     = log10( m_tab_Tk_tot[i] );
+        m_tab_Tk_cdm[i]     = log10( m_tab_Tk_cdm[i] );
+        m_tab_Tvk_cdm[i]    = log10( m_tab_Tvk_cdm[i] );
+        m_tab_Tvk_tot[i]    = log10( m_tab_Tvk_tot[i] );
+	
+        if( !m_linbaryoninterp )
+          {
+            m_tab_Tk_baryon[i]  = log10( m_tab_Tk_baryon[i] );
+            m_tab_Tvk_baryon[i] = log10( m_tab_Tvk_baryon[i] );
+          }
+      }
       
       ifs.close();
-
+      
       LOGINFO("Read CAMB transfer function table with %d rows", m_nlines);
 
       if( m_linbaryoninterp )
@@ -123,6 +127,7 @@ private:
       m_tab_Tk_tot.assign(n,0);
       m_tab_Tk_cdm.assign(n,0);
       m_tab_Tk_baryon.assign(n,0);
+      m_tab_Tvk_tot.assign(n,0);
       m_tab_Tvk_cdm.assign(n,0); //>[150609SH: add]
       m_tab_Tvk_baryon.assign(n,0); //>[150609SH: add]
     }
@@ -131,6 +136,7 @@ private:
     MPI::COMM_WORLD.Bcast( &m_tab_Tk_tot[0], n, MPI_DOUBLE, 0 );
     MPI::COMM_WORLD.Bcast( &m_tab_Tk_cdm[0], n, MPI_DOUBLE, 0 );
     MPI::COMM_WORLD.Bcast( &m_tab_Tk_baryon[0], n, MPI_DOUBLE, 0 );
+    MPI::COMM_WORLD.Bcast( &m_tab_Tvk_tot[0], n, MPI_DOUBLE, 0 );
     MPI::COMM_WORLD.Bcast( &m_tab_Tvk_cdm[0], n, MPI_DOUBLE, 0 ); //>[150609SH: add]
     MPI::COMM_WORLD.Bcast( &m_tab_Tvk_baryon[0], n, MPI_DOUBLE, 0 ); //>[150609SH: add]
     
@@ -149,18 +155,21 @@ public:
     acc_tot     = gsl_interp_accel_alloc();
     acc_cdm     = gsl_interp_accel_alloc();
     acc_baryon  = gsl_interp_accel_alloc();
+    acc_vtot    = gsl_interp_accel_alloc(); //>[150609SH: add]
     acc_vcdm    = gsl_interp_accel_alloc(); //>[150609SH: add]
     acc_vbaryon = gsl_interp_accel_alloc(); //>[150609SH: add]
         
     spline_tot     = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
     spline_cdm     = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
     spline_baryon  = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
+    spline_vtot    = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() );
     spline_vcdm    = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() ); //>[150609SH: add]
     spline_vbaryon = gsl_spline_alloc( gsl_interp_cspline, m_tab_k.size() ); //>[150609SH: add]
     
     gsl_spline_init (spline_tot,     &m_tab_k[0], &m_tab_Tk_tot[0],     m_tab_k.size() );
     gsl_spline_init (spline_cdm,     &m_tab_k[0], &m_tab_Tk_cdm[0],     m_tab_k.size() );
     gsl_spline_init (spline_baryon,  &m_tab_k[0], &m_tab_Tk_baryon[0],  m_tab_k.size() );
+    gsl_spline_init (spline_vtot,    &m_tab_k[0], &m_tab_Tvk_tot[0],    m_tab_k.size() ); //>[150609SH: add]
     gsl_spline_init (spline_vcdm,    &m_tab_k[0], &m_tab_Tvk_cdm[0],    m_tab_k.size() ); //>[150609SH: add]
     gsl_spline_init (spline_vbaryon, &m_tab_k[0], &m_tab_Tvk_baryon[0], m_tab_k.size() ); //>[150609SH: add]
     
@@ -173,12 +182,14 @@ public:
     gsl_spline_free (spline_tot);
     gsl_spline_free (spline_cdm);
     gsl_spline_free (spline_baryon);
+    gsl_spline_free (spline_vtot);
     gsl_spline_free (spline_vcdm); //>[150609SH: add]
     gsl_spline_free (spline_vbaryon); //>[150609SH: add]
     
     gsl_interp_accel_free (acc_tot);
     gsl_interp_accel_free (acc_cdm);
     gsl_interp_accel_free (acc_baryon);
+    gsl_interp_accel_free (acc_vtot);
     gsl_interp_accel_free (acc_vcdm); //>[150609SH: add]
     gsl_interp_accel_free (acc_vbaryon); //>[150609SH: add]
   }
@@ -205,6 +216,10 @@ public:
 	v2 = m_tab_Tk_baryon[n];
 	if( m_linbaryoninterp)
 	  return std::max((v2-v1)/dk*(delk)+v2,tiny);
+	return pow(10.0,(v2-v1)/dk*(delk)+v2);
+      case vtotal: //>[150609SH: add]
+	v1 = m_tab_Tvk_tot[n1];
+	v2 = m_tab_Tvk_tot[n];
 	return pow(10.0,(v2-v1)/dk*(delk)+v2);
       case vcdm: //>[150609SH: add]
 	v1 = m_tab_Tvk_baryon[n1];
@@ -238,6 +253,8 @@ public:
 	if( m_linbaryoninterp )
 	  return m_tab_Tk_baryon[0];
 	return pow(10.0,m_tab_Tk_baryon[0]);
+      case vtotal:
+	return pow(10.0,m_tab_Tvk_tot[0]);
       case vcdm:
 	return pow(10.0,m_tab_Tvk_cdm[0]);
       case vbaryon:
@@ -263,6 +280,8 @@ public:
       if( m_linbaryoninterp )
 	return gsl_spline_eval (spline_baryon, lk, acc_baryon);
       return pow(10.0, gsl_spline_eval (spline_baryon, lk, acc_baryon) );
+    case vtotal:
+      return pow(10.0, gsl_spline_eval (spline_vtot,    lk, acc_vcdm) );
     case vcdm:
       return pow(10.0, gsl_spline_eval (spline_vcdm,    lk, acc_vcdm) );
     case vbaryon:

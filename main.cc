@@ -696,19 +696,19 @@ int main (int argc, const char * argv[])
 				std::cout << "-------------------------------------------------------------\n";
 				LOGUSER("Computing velocitites...");
 				
-				if( do_baryons )
+				if( do_baryons || the_transfer_function_plugin->tf_has_velocities() )
 				{
-					GenerateDensityHierarchy(	cf, the_transfer_function_plugin, total , rh_TF, rand, f, false, false );
-					coarsen_density(rh_Poisson, f, bspectral_sampling);
-					f.add_refinement_mask( rh_Poisson.get_coord_shift() );
-                    normalize_density(f);
-					
-					u = f;	u.zero();
-					
-					err = the_poisson_solver->solve(f, u);
-					
-					if(!bdefd)
-						f.deallocate();
+				  LOGUSER("Generating velocity perturbations...");
+				  GenerateDensityHierarchy( cf, the_transfer_function_plugin, vtotal , rh_TF, rand, f, false, false );
+				  coarsen_density(rh_Poisson, f, bspectral_sampling);
+				  f.add_refinement_mask( rh_Poisson.get_coord_shift() );
+				  normalize_density(f);					
+				  u = f;
+				  u.zero();
+				  err = the_poisson_solver->solve(f, u);
+				  
+				  if(!bdefd)
+				    f.deallocate();
 				}
 				grid_hierarchy data_forIO(u);
 				for( int icoord = 0; icoord < 3; ++icoord )
@@ -1178,7 +1178,7 @@ int main (int argc, const char * argv[])
 					u2LPT.deallocate();
 					
 					compute_LLA_density( u1, f, grad_order );
-					normalize_density(f);
+                    normalize_density(f);
 					
 					LOGUSER("Writing baryon density");
 					the_output_plugin->write_gas_density(f);

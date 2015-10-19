@@ -170,6 +170,7 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 	
 	unsigned i=0;
 	
+    double astart = 1.0/(1.0+pcf_->getValue<unsigned>("setup","zstart"));
     unsigned levelmin = pcf_->getValue<unsigned>("setup","levelmin");
 	unsigned levelmin_TF = pcf_->getValueSafe<unsigned>("setup","levelmin_TF",levelmin);
 	constr_level_ = pcf_->getValueSafe<unsigned>("constraints","level",levelmin_TF);
@@ -177,7 +178,7 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 	constr_level_ = std::max(constr_level_,levelmin_TF);
 	
 	double omegam = pcf_->getValue<double>("cosmology","Omega_m");
-	double rhom = omegam*2.77519737e11; //... mean matter density
+	double rhom = omegam*2.77519737e11; //... mean matter density in Msun/Mpc^3
 	
 	//... use EdS density for estimation
 	//double rhom = 2.77519737e11;
@@ -218,7 +219,8 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 				new_c.Rg = pow((mass/pow(2.*M_PI,1.5)/rhom),1./3.);
 				
 				new_c.sigma = 1.686/(pccalc_->CalcGrowthFactor(1./(1.+zcoll))/pccalc_->CalcGrowthFactor(1.0));
-				
+                LOGINFO("sigma of constraint : %g", new_c.sigma );
+                new_c.sigma *=pccalc_->CalcGrowthFactor(astart)/pccalc_->CalcGrowthFactor(1.0);
 				LOGINFO("Constraint %d : halo with %g h-1 M_o",i,pow(2.*M_PI,1.5)*rhom*pow(new_c.Rg,3));
 			}
 			else if( new_c.type == peak )

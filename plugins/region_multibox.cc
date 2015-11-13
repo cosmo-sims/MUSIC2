@@ -38,6 +38,7 @@ class region_multibox_plugin : public region_generator_plugin{
 private:
     int res, reflevel;
     grid refgrid;
+    
     region find_equal(grid ingrid, int level)
     {
         slice curslice;
@@ -64,6 +65,24 @@ private:
         }
         return equal_region;
     }
+    //This function takes the grid, a vector of doubles containing the particle
+    //coordinates, and sets each particle-containing gridcell to maxlevel.
+    void deposit_particles(grid ingrid, std::vector<double> pp, int maxlevel, int res)
+    {
+        int i,j,k;
+        std::vector<double>::iterator cp = pp.begin();
+        while(cp != pp.end())
+        {
+            i = *(cp);
+            cp++;
+            j = *(cp);
+            cp++;
+            k = *(cp);
+            cp++;
+            ingrid[int((i+0.5)*res)][int((j+0.5)*res)][int((k+0.5)*res)] = maxlevel;
+        }
+    }
+
     //This function takes the grid, which has been already had particles
     //deposited onto it, and set to the maximum refinement level.  It then
     //fills the remaining refinement levels
@@ -96,9 +115,12 @@ public:
     explicit region_multibox_plugin( config_file& cf )
     : region_generator_plugin( cf )
     {
+        std::vector<double> pp;
         res = 128;
         //Initialize the grid with zeros, the base level
         refgrid = grid(res,slice(res,col(res,0)));
+        deposit_particles(refgrid, pp, reflevel, res);
+        build_refgrid(refgrid, reflevel);
     }
     
     

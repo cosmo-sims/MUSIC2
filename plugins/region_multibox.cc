@@ -18,42 +18,42 @@
 #include <algorithm>
 
 #include "region_generator.hh"
-
 #include "point_file_reader.hh"
 
 
-typedef std::vector<int> col;
+typedef std::vector<unsigned> col;
 typedef std::vector<col> slice;
 typedef std::vector<slice> grid;
 
 typedef struct {
-    int x;
-    int y;
-    int z;
+    unsigned x;
+    unsigned y;
+    unsigned z;
 } coord;
 
 typedef std::vector<coord> region;
 
 class region_multibox_plugin : public region_generator_plugin{
 private:
-    int res, reflevel;
+    unsigned res;
+    double vfac_;
     grid refgrid;
     
-    region find_equal(grid ingrid, int level)
+    region where(unsigned level)
     {
         slice curslice;
         col curcol;
         region equal_region;
         coord cp;
-        for(int i=0;i<ingrid.size();i++)
+        for(unsigned i=0;i<refgrid.size();i++)
         {
             cp.x = i;
-            curslice = ingrid[i];
-            for(int j=0;j<curslice.size();j++)
+            curslice = refgrid[i];
+            for(unsigned j=0;j<curslice.size();j++)
             {
                 cp.y = j;
                 curcol = curslice[j];
-                for(int k=0;k<curcol.size();k++)
+                for(unsigned k=0;k<curcol.size();k++)
                 {
                     cp.z = k;
                     if(curcol[k] == level)
@@ -66,32 +66,32 @@ private:
         return equal_region;
     }
     //This function takes the grid, a vector of doubles containing the particle
-    //coordinates, and sets each particle-containing gridcell to maxlevel.
-    void deposit_particles(grid ingrid, std::vector<double> pp, int maxlevel, int res)
+    //coordinates, and sets each particle-containing gridcell to levelmax_.
+    void deposit_particles(std::vector<double> pp, unsigned res)
     {
-        int i,j,k;
+        unsigned i,j,k;
         std::vector<double>::iterator cp = pp.begin();
         while(cp != pp.end())
         {
-            i = *(cp);
+            i = (*(cp)+0.5)*res;
             cp++;
-            j = *(cp);
+            j = (*(cp)+0.5)*res;
             cp++;
-            k = *(cp);
+            k = (*(cp)+0.5)*res;
             cp++;
-            ingrid[int((i+0.5)*res)][int((j+0.5)*res)][int((k+0.5)*res)] = maxlevel;
+            refgrid[i][j][k] = levelmax_;
         }
     }
 
     //This function takes the grid, which has been already had particles
     //deposited onto it, and set to the maximum refinement level.  It then
     //fills the remaining refinement levels
-    void build_refgrid(grid ingrid, int maxlevel)
+    void build_refgrid()
     {
         region curregion;
-        for(int curlevel=maxlevel; curlevel>2; curlevel--)
+        for(unsigned curlevel=levelmax_; curlevel>(levelmin_+1); curlevel--)
         {
-            curregion = find_equal(ingrid, curlevel);
+            curregion = where(curlevel);
             for(region::iterator cp= curregion.begin(); cp != curregion.end(); ++cp)
             {
                 for(int i=-1; i<2; i++)
@@ -100,9 +100,9 @@ private:
                     {
                         for(int k=-1; k<2; k++)
                         {
-                            if(ingrid[cp->x+i][cp->y+j][cp->z+k] == 0)
+                            if(refgrid[cp->x+i][cp->y+j][cp->z+k] == levelmin_)
                             {
-                                ingrid[cp->x+i][cp->y+j][cp->z+k] = curlevel-1;
+                                refgrid[cp->x+i][cp->y+j][cp->z+k] = curlevel-1;
                             }
                         }
                     }
@@ -115,33 +115,103 @@ public:
     explicit region_multibox_plugin( config_file& cf )
     : region_generator_plugin( cf )
     {
+        //check parameters
+        if ( !cf.containsKey("setup", "region_point_file"))
+        {
+            LOGERR("Missing parameter \'region_point_file\' needed for region=multibox");
+            throw std::runtime_error("Missing parameter for region=multibox");
+        }
+        vfac_ = cf.getValue<double>("cosmology","vfact");
+        if (levelmin_ >= levelmax_)
+        {
+            LOGERR("Why are you specifying a region if you aren't refining?");
+            throw std::runtime_error("region=multibox needs levelmax>levelmin");
+        }
         std::vector<double> pp;
-        res = 128;
+        point_reader pfr;
+        pfr.read_points_from_file(cf.getValue<std::string>("setup", "region_point_file"), vfac_, pp);
+        res = 1<<(levelmin_-1);
+        LOGINFO("Multibox Resolution: %d", res);
         //Initialize the grid with zeros, the base level
-        refgrid = grid(res,slice(res,col(res,0)));
-        deposit_particles(refgrid, pp, reflevel, res);
-        build_refgrid(refgrid, reflevel);
+        refgrid = grid(res,slice(res,col(res,levelmin_)));
+        //Build the highest refinement region
+        deposit_particles(pp, res);
+        LOGINFO("Deposited Multigrid Particles");
+        //Build the intermediate refinement regions
+        build_refgrid();
+        LOGINFO("Built Multigrid");
     }
     
     
     void get_AABB( double *left, double *right, unsigned level )
     {
+        left[0] = left[1] = left[2] = 0.5;
+        right[0] = right[1] = right[2] = -0.5;
+        if( level <= levelmin_ )
+        {
+            left[0] = left[1] = left[2] = 0.0;
+            right[0] = right[1] = right[2] = 1.0;
+            return;
+        }
+        region myres = where(level);
+        std::vector<coord>::iterator cp = myres.begin();
+        while (cp != myres.end())
+        {
+            //Check left side
+            if ((cp->x-0.5)/res-0.5 < left[0])
+                left[0] = (cp->x-0.5)/res-0.5;
+            if ((cp->y-0.5)/res-0.5 < left[1])
+                left[1] = (cp->y-0.5)/res-0.5;
+            if ((cp->z-0.5)/res-0.5 < left[2])
+                left[2] = (cp->z-0.5)/res-0.5;
+            //Check right side
+            if ((cp->x+0.5)/res-0.5 > right[0])
+                right[0] = (cp->x+0.5)/res-0.5;
+            if ((cp->y+0.5)/res-0.5 > right[1])
+                right[1] = (cp->y+0.5)/res-0.5;
+            if ((cp->z+0.5)/res-0.5 > right[2])
+                right[2] = (cp->z+0.5)/res-0.5;
+            cp++;
+        }
     }
   
     void update_AABB( double *left, double *right )
     {
+        //no need for this I think?
     }
   
     bool query_point( double *x, int level )
     {
+        if(fabs(x[0]) > 0.5 || fabs(x[1]) > 0.5 || fabs(x[2]) > 0.5)
+        {
+            printf("Outside point: %3.2e %3.2e %3.2e\n", x[0], x[1], x[2]);
+            return 0;
+        }
+        return (level == int(refgrid[(x[0]+0.5)*res][(x[1]+0.5)*res][(x[2]+0.5)*res]));
     }
     
     bool is_grid_dim_forced( size_t* ndims )
     {   
+        return false; //is this true?
     }
     
     void get_center( double *xc )
     {
+        region hires = where(levelmax_);
+        std::vector<coord>::iterator cp = hires.begin();
+        int n=0;
+        while(cp != hires.end())
+        {
+            xc[0] += cp->x-0.5;
+            xc[1] += cp->y-0.5;
+            xc[2] += cp->z-0.5;
+            n++;
+            cp++;
+        }
+            xc[0] /= n;
+            xc[1] /= n;
+            xc[2] /= n;
+
     }
 
   void get_center_unshifted( double *xc )

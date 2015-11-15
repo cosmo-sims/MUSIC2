@@ -145,8 +145,8 @@ public:
     
     void get_AABB( double *left, double *right, unsigned level )
     {
-        left[0] = left[1] = left[2] = 0.5;
-        right[0] = right[1] = right[2] = -0.5;
+        left[0] = left[1] = left[2] = 0.0;
+        right[0] = right[1] = right[2] = 0.0;
         if( level <= levelmin_ )
         {
             left[0] = left[1] = left[2] = 0.0;
@@ -182,10 +182,11 @@ public:
   
     bool query_point( double *x, int level )
     {
-        if(fabs(x[0]) > 0.5 || fabs(x[1]) > 0.5 || fabs(x[2]) > 0.5)
+        //Roll for periodicity
+        for(int i=0; i<3; ++i)
         {
-            printf("Outside point: %3.2e %3.2e %3.2e\n", x[0], x[1], x[2]);
-            return 0;
+            if( x[i] < -0.5) x[i] += 1.0;
+            if( x[i] > 0.5) x[i] -= 1.0;
         }
         return (level == int(refgrid[(x[0]+0.5)*res][(x[1]+0.5)*res][(x[2]+0.5)*res]));
     }

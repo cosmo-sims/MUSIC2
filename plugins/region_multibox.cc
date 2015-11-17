@@ -35,6 +35,7 @@ typedef std::vector<coord> region;
 
 class region_multibox_plugin : public region_generator_plugin{
 private:
+    double cen[3];
     unsigned res;
     double vfac_;
     grid refgrid;
@@ -140,13 +141,14 @@ public:
         //Build the intermediate refinement regions
         build_refgrid();
         LOGINFO("Built Multigrid");
+        get_center(cen);
     }
     
     
     void get_AABB( double *left, double *right, unsigned level )
     {
-        left[0] = left[1] = left[2] = 0.0;
-        right[0] = right[1] = right[2] = 0.0;
+        left[0] = left[1] = left[2] = 0.5;
+        right[0] = right[1] = right[2] = -0.5;
         if( level <= levelmin_ )
         {
             left[0] = left[1] = left[2] = 0.0;
@@ -182,13 +184,9 @@ public:
   
     bool query_point( double *x, int level )
     {
-        //Roll for periodicity
-        for(int i=0; i<3; ++i)
-        {
-            if( x[i] < -0.5) x[i] += 1.0;
-            if( x[i] > 0.5) x[i] -= 1.0;
-        }
-        return (level == int(refgrid[(x[0]+0.5)*res][(x[1]+0.5)*res][(x[2]+0.5)*res]));
+        printf("DEBUGR: %3.2e %3.2e %3.2e %d\n", x[0]-cen[0], x[1]-cen[1], x[2]-cen[2], level);
+        //return 0;
+        return (level == int(refgrid[(x[0]+0.5-cen[0])*res][(x[1]+0.5-cen[1])*res][(x[2]+0.5-cen[2])*res]));
     }
     
     bool is_grid_dim_forced( size_t* ndims )
@@ -198,25 +196,18 @@ public:
     
     void get_center( double *xc )
     {
-        region hires = where(levelmax_);
-        std::vector<coord>::iterator cp = hires.begin();
-        int n=0;
-        while(cp != hires.end())
+        double xc2[3];
+        get_AABB(xc, xc2, levelmax_);
+        for(int i=0; i<3; ++i)
         {
-            xc[0] += cp->x-0.5;
-            xc[1] += cp->y-0.5;
-            xc[2] += cp->z-0.5;
-            n++;
-            cp++;
+            xc[i] += xc2[i];
+            xc[i] *= 0.5;
         }
-            xc[0] /= n;
-            xc[1] /= n;
-            xc[2] /= n;
-
     }
 
   void get_center_unshifted( double *xc )
   {
+      get_center(xc);
   }
 
 };

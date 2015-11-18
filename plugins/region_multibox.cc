@@ -184,9 +184,11 @@ public:
   
     bool query_point( double *x, int level )
     {
-        printf("DEBUGR: %3.2e %3.2e %3.2e %d\n", x[0]-cen[0], x[1]-cen[1], x[2]-cen[2], level);
-        //return 0;
-        return (level == int(refgrid[(x[0]+0.5-cen[0])*res][(x[1]+0.5-cen[1])*res][(x[2]+0.5-cen[2])*res]));
+        for(int i=0; i<3; ++i)
+        {
+            if(x[i] > 0.5 || x[i] < -0.5) return false;
+        }
+        return (level == int(refgrid[(x[0]+0.5)*res][(x[1]+0.5)*res][(x[2]+0.5)*res]));
     }
     
     bool is_grid_dim_forced( size_t* ndims )

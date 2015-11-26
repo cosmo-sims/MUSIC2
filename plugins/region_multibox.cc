@@ -116,11 +116,17 @@ public:
     explicit region_multibox_plugin( config_file& cf )
     : region_generator_plugin( cf )
     {
+        res = 1<<(levelmin_-1);
         //check parameters
         if ( !cf.containsKey("setup", "region_point_file"))
         {
             LOGERR("Missing parameter \'region_point_file\' needed for region=multibox");
             throw std::runtime_error("Missing parameter for region=multibox");
+        }
+        if ( cf.containsKey("setup", "region_point_level"))
+        {
+        res = 1<<(levelmin_-1);
+        res = 1<<(cf.getValue<int>("setup","region_point_level")-1);
         }
         vfac_ = cf.getValue<double>("cosmology","vfact");
         if (levelmin_ >= levelmax_)
@@ -131,7 +137,6 @@ public:
         std::vector<double> pp;
         point_reader pfr;
         pfr.read_points_from_file(cf.getValue<std::string>("setup", "region_point_file"), vfac_, pp);
-        res = 1<<(levelmin_-1);
         LOGINFO("Multibox Resolution: %d", res);
         //Initialize the grid with zeros, the base level
         refgrid = grid(res,slice(res,col(res,levelmin_)));
@@ -142,6 +147,7 @@ public:
         build_refgrid();
         LOGINFO("Built Multigrid");
         get_center(cen);
+        dump_grid();
     }
     
     
@@ -176,6 +182,21 @@ public:
             cp++;
         }
     }
+    void dump_grid()
+    {
+        FILE * gridfile = fopen("griddump.dat", "w");
+        for(unsigned i=0;i<res;i++)
+        {
+            for(unsigned j=0; j<res; j++)
+            {
+                for(unsigned k=0;k<res;k++)
+                {
+                    fprintf(gridfile, "%03d %03d %03d %1d\n", i-int(res*cen[0]),j-int(res*cen[1]),k-int(res*cen[2]), refgrid[i][j][k]);
+                }
+            }
+        }
+        fclose(gridfile);
+    }
   
     void update_AABB( double *left, double *right )
     {
@@ -186,9 +207,9 @@ public:
     {
         for(int i=0; i<3; ++i)
         {
-            if(x[i] > 0.5 || x[i] < -0.5) return false;
+            if(x[i] >= 0.5 || x[i] <= -0.5) return false;
         }
-        return (level == int(refgrid[(x[0]+0.5)*res][(x[1]+0.5)*res][(x[2]+0.5)*res]));
+        return (level <= int(refgrid[(x[0]+0.5)*res][(x[1]+0.5)*res][(x[2]+0.5)*res]));
     }
     
     bool is_grid_dim_forced( size_t* ndims )

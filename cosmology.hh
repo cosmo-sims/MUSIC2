@@ -89,55 +89,55 @@ public:
     return 2.5/( Ha * Ha * Ha );
   }
   
-  //! Computes the linear theory growth factor D+
-  /*! Function integrates over member function GrowthIntegrand and computes
-   *                      /a
-   *   D+(a) = 5/2 H(a) * |  [a'^3 * H(a')^3]^(-1) da'
-   *                      /0
-   */
-  real_t CalcGrowthFactor( real_t a )
-  {
-    real_t integral = integrate( &GrowthIntegrand, 0.0, a, (void*)&m_Cosmology );
-    return H_of_a( a, (void*)&m_Cosmology ) * integral;
-  }
+    //! Computes the linear theory growth factor D+
+    /*! Function integrates over member function GrowthIntegrand and computes
+    *                      /a
+    *   D+(a) = 5/2 H(a) * |  [a'^3 * H(a')^3]^(-1) da'
+    *                      /0
+    */
+    real_t CalcGrowthFactor( real_t a )
+    {
+        real_t integral = integrate( &GrowthIntegrand, 0.0, a, (void*)&m_Cosmology );
+        return H_of_a( a, (void*)&m_Cosmology ) * integral;
+    }
 
-  //! Compute the factor relating particle displacement and velocity
-  /*! Function computes
-   *
-   *  vfac = a^2 * H(a) * dlogD+ / d log a = a^2 * H'(a) + 5/2 * [ a * D+(a) * H(a) ]^(-1)
-   *
-   */
-  real_t CalcVFact( real_t a )
-  {
-    real_t Dp = CalcGrowthFactor( a );
-    real_t H  = H_of_a( a, (void*)&m_Cosmology );
-    real_t Hp = Hprime_of_a( a, (void*)&m_Cosmology );
-    real_t a2 = a*a;
+    //! Compute the factor relating particle displacement and velocity
+    /*! Function computes
+    *
+    *  vfac = a^2 * H(a) * dlogD+ / d log a = a^2 * H'(a) + 5/2 * [ a * D+(a) * H(a) ]^(-1)
+    *
+    */
+        real_t CalcVFact( real_t a )
+        {
+        real_t Dp = CalcGrowthFactor( a );
+        real_t H  = H_of_a( a, (void*)&m_Cosmology );
+        real_t Hp = Hprime_of_a( a, (void*)&m_Cosmology );
+        real_t a2 = a*a;
 
-    return ( a2 * Hp + 2.5 / ( a * Dp * H ) ) * 100.0;
-  }
+        return ( a2 * Hp + 2.5 / ( a * Dp * H ) ) * 100.0;
+    }
 		
 	
-	//! Integrand for the sigma_8 normalization of the power spectrum
-	/*! Returns the value of the primordial power spectrum multiplied with 
-	 the transfer function and the window function of 8 Mpc/h at wave number k */
-	static double dSigma8( double k, void *Params )
-	{
-		if( k<=0.0 )
-			return 0.0f;
-		
-		transfer_function *ptf = (transfer_function *)Params;
-		
-		double x = k*8.0;
-		double w = 3.0*(sin(x)-x*cos(x))/(x*x*x);
-		static double nspect = (double)ptf->cosmo_.nspect;
-		
-		double tf = ptf->compute(k, total);
-		
-		//... no growth factor since we compute at z=0 and normalize so that D+(z=0)=1
-		return k*k * w*w * pow((double)k,(double)nspect) * tf*tf;
-		
-	}
+    //! Integrand for the sigma_8 normalization of the power spectrum
+    /*! Returns the value of the primordial power spectrum multiplied with 
+     the transfer function and the window function of 8 Mpc/h at wave number k */
+    static double dSigma8( double k, void *Params )
+    {
+        if( k<=0.0 )
+            return 0.0f;
+        
+        transfer_function *ptf = (transfer_function *)Params;
+        
+        double x = k*8.0;
+        double w = 3.0*(sin(x)-x*cos(x))/(x*x*x);
+        static double nspect = (double)ptf->cosmo_.nspect;
+        
+        double tf = ptf->compute(k, total);
+        
+        //... no growth factor since we compute at z=0 and normalize so that D+(z=0)=1
+        return k*k * w*w * pow((double)k,(double)nspect) * tf*tf;
+        
+    }
     
     //! Integrand for the sigma_8 normalization of the power spectrum
 	/*! Returns the value of the primordial power spectrum multiplied with 

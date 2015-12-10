@@ -74,11 +74,11 @@ private:
         std::vector<double>::iterator cp = pp.begin();
         while(cp != pp.end())
         {
-            i = (*(cp)+0.5)*res;
+            i = (*(cp))*res;
             cp++;
-            j = (*(cp)+0.5)*res;
+            j = (*(cp))*res;
             cp++;
-            k = (*(cp)+0.5)*res;
+            k = (*(cp))*res;
             cp++;
             refgrid[i][j][k] = levelmax_;
         }

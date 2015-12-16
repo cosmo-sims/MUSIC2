@@ -153,8 +153,8 @@ public:
     
     void get_AABB( double *left, double *right, unsigned level )
     {
-        left[0] = left[1] = left[2] = 0.5;
-        right[0] = right[1] = right[2] = -0.5;
+        left[0] = left[1] = left[2] = 1.0;
+        right[0] = right[1] = right[2] = 0.0;
         if( level <= levelmin_ )
         {
             left[0] = left[1] = left[2] = 0.0;
@@ -166,19 +166,19 @@ public:
         while (cp != myres.end())
         {
             //Check left side
-            if ((cp->x-0.5)/res-0.5 < left[0])
-                left[0] = (cp->x-0.5)/res-0.5;
-            if ((cp->y-0.5)/res-0.5 < left[1])
-                left[1] = (cp->y-0.5)/res-0.5;
-            if ((cp->z-0.5)/res-0.5 < left[2])
-                left[2] = (cp->z-0.5)/res-0.5;
+            if (float(cp->x)/res < left[0])
+                left[0] = float(cp->x)/res;
+            if (float(cp->y)/res < left[1])
+                left[1] = float(cp->y)/res;
+            if (float(cp->z)/res < left[2])
+                left[2] = float(cp->z)/res;
             //Check right side
-            if ((cp->x+0.5)/res-0.5 > right[0])
-                right[0] = (cp->x+0.5)/res-0.5;
-            if ((cp->y+0.5)/res-0.5 > right[1])
-                right[1] = (cp->y+0.5)/res-0.5;
-            if ((cp->z+0.5)/res-0.5 > right[2])
-                right[2] = (cp->z+0.5)/res-0.5;
+            if (float(cp->x)/res > right[0])
+                right[0] = float(cp->x)/res;
+            if (float(cp->y)/res > right[1])
+                right[1] = float(cp->y)/res;
+            if (float(cp->z)/res > right[2])
+                right[2] = float(cp->z)/res;
             cp++;
         }
     }
@@ -207,9 +207,9 @@ public:
     {
         for(int i=0; i<3; ++i)
         {
-            if(x[i] >= 0.5 || x[i] <= -0.5) return false;
+            if(x[i] >= 1.0 || x[i] <= 0.0) return false;
         }
-        return (level <= int(refgrid[(x[0]+0.5)*res][(x[1]+0.5)*res][(x[2]+0.5)*res]));
+        return (level <= int(refgrid[(x[0])*res][(x[1])*res][(x[2])*res]));
     }
     
     bool is_grid_dim_forced( size_t* ndims )

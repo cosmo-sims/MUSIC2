@@ -90,6 +90,24 @@ private:
     void build_refgrid()
     {
         region curregion;
+        //Build an extra layer about the maxlevel layer.
+        curregion = where(levelmax_);
+        for(region::iterator cp= curregion.begin(); cp != curregion.end(); ++cp)
+        {
+            for(int i=-1; i<2; i++)
+            {
+                for(int j=-1; j<2; j++)
+                {
+                    for(int k=-1; k<2; k++)
+                    {
+                        if(refgrid[cp->x+i][cp->y+j][cp->z+k] == levelmin_)
+                        {
+                            refgrid[cp->x+i][cp->y+j][cp->z+k] = levelmax_;
+                        }
+                    }
+                }
+            }
+        }
         for(unsigned curlevel=levelmax_; curlevel>(levelmin_+1); curlevel--)
         {
             curregion = where(curlevel);

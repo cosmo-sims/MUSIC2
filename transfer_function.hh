@@ -184,16 +184,16 @@ public:
 		      }
 		    else
 		      {
+                  ofs << "#"
+                  << std::setw(16) << "k [h/Mpc]"
+                  << std::setw(16) << "P_cdm"
+                  << std::setw(16) << "P_vcdm"
+                  << std::setw(16) << "P_total"
+                  << std::endl;
+                  
 			for( int i=0; i<300; ++i )
 			{
-			  ofs << "#"
-			      << std::setw(16) << "k [h/Mpc]"
-			      << std::setw(16) << "P_cdm"
-			      << std::setw(16) << "P_vcdm"
-			      << std::setw(16) << "P_total"
-			      << std::endl;
-
-				double k = pow(10.0,kmin+i*dk);
+                double k = pow(10.0,kmin+i*dk);
 				ofs << std::setw(16) << k 
 				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,cdm),2)
 				    << std::setw(16) << pow(sqrtpnorm_*pow(k,0.5*nspec_)*ptf_->compute(k,vcdm),2)

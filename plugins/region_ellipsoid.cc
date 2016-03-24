@@ -239,7 +239,7 @@ protected:
     }
   
     // use the Khachiyan Algorithm to find the minimum bounding ellipsoid
-    void compute( double tol = 0.001, int maxit = 10000 )
+    void compute( double tol = 1e-4, int maxit = 10000 )
     {
         double err = 10.0 * tol;
         float *unew = new float[N];
@@ -306,6 +306,33 @@ public:
         Q = new float[4*N];
         u = new float[N];
         
+        // normalize coordinate frame
+        double xcenter[3] = {0.0,0.0,0.0};
+        double pmax = -1e30, pmin = 1e30;
+        for( size_t i=0; i<N; ++i )
+        {
+            int i3=3*i;
+            for( size_t j=0; j<3; ++j )
+            {
+                xcenter[j] += P[i3+j];
+                pmax = P[i3+j] > pmax ? P[i3+j] : pmax;
+                pmin = P[i3+j] < pmin ? P[i3+j] : pmin;
+            }
+        }
+        double L = 2.0*(pmax - pmin);
+        xcenter[0] /= N;
+        xcenter[1] /= N;
+        xcenter[2] /= N;
+        
+        
+        for( size_t i=0; i<N; ++i )
+        {
+            int i3=3*i;
+            for( size_t j=0; j<3; ++j )
+                P[i3+j] = (P[i3+j]-xcenter[j])/L + 0.5;
+        }
+        
+        
         for( size_t i=0; i<N; ++i )
             u[i] = 1.0/N;
         
@@ -347,7 +374,11 @@ public:
             }
       
         for( int i=0;i<9;++i)
-          Ainv[i] = Atmp[i];
+          Ainv[i] = Atmp[i] * L * L;
+        
+        c[0] = L*(c[0]-0.5) + xcenter[0];
+        c[1] = L*(c[1]-0.5) + xcenter[1];
+        c[2] = L*(c[2]-0.5) + xcenter[2];
         
         Inverse_3x3( Ainv, A );
         for( size_t i=0; i<9; ++i ){ A[i] /= 3.0; Ainv[i] *= 3.0; }

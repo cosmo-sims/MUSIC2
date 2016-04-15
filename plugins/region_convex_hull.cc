@@ -31,6 +31,8 @@ private:
     double vfac_;
     bool do_extra_padding_;
     
+    double anchor_pt_[3];
+    
     std::vector<float> level_dist_;
     
     void apply_shift( size_t Np, double *p, int *shift, int levelmin )
@@ -72,8 +74,20 @@ public:
             shift_level = point_levelmin;
         }
         
+        // take care of possibly cutting across a periodic boundary
+        anchor_pt_[0] = pp[0];
+        anchor_pt_[1] = pp[1];
+        anchor_pt_[2] = pp[2];
+        
+        for( size_t i = 0; i < pp.size(); ++i )
+        {
+            double d = pp[i] - anchor_pt_[i%3];
+            if( d > 0.5  ) pp[i] -= 1.0;
+            if( d < -0.5 ) pp[i] += 1.0;
+        }
+        
         // compute the convex hull
-        phull_ =  new convex_hull<double>(  &pp[0], pp.size()/3 );
+        phull_ =  new convex_hull<double>(  &pp[0], pp.size()/3, anchor_pt_ );
         
         //expand the ellipsoid by one grid cell
         unsigned levelmax = cf.getValue<unsigned>("setup","levelmax");

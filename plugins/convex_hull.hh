@@ -32,6 +32,7 @@ struct convex_hull{
     std::vector<real_t> x0_L_, x0_U_;
     real_t centroid_[3], volume_;
     real_t left_[3], right_[3];
+    real_t anchor_pt_[3];
     
     inline double turn( cpr_ p, cpr_ q, cpr_ r ) const
     {   return (q[0]-p[0])*(r[1]-p[1]) - (r[0]-p[0])*(q[1]-p[1]);   }
@@ -183,8 +184,8 @@ struct convex_hull{
             xcp[2] += vol * xct[2];
         }
         
-        
         volume_ = totvol;
+        
         centroid_[0] = xcp[0] / totvol;
         centroid_[1] = xcp[1] / totvol;
         centroid_[2] = xcp[2] / totvol;
@@ -218,10 +219,19 @@ struct convex_hull{
     }
     
     template< typename T >
-    bool check_point( const T* x, double dist = 0.0 ) const
+    bool check_point( const T* xp, double dist = 0.0 ) const
     {
         dist *= -1.0;
         
+        // take care of possible periodic boundaries
+        T x[3];
+        for( size_t p=0; p<3; ++p )
+        {
+            T d = xp[p] - anchor_pt_[p];
+            if( d>0.5 ) x[p] = xp[p]-1.0; else if ( d<-0.5 ) x[p] = xp[p]+1.0; else x[p] = xp[p];
+        }
+
+        // check for inside vs. outside
         for( size_t i=0; i<normals_L_.size()/3; ++i )
         {
             double xp[3] = {x[0]-x0_L_[3*i+0],x[1]-x0_L_[3*i+1],x[2]-x0_L_[3*i+2]};
@@ -272,9 +282,13 @@ struct convex_hull{
             unique.insert( faceidx_U_[i] );
     }
     
-    convex_hull( cpr_ points, size_t npoints )
+    convex_hull( cpr_ points, size_t npoints, const double* anchor )
     : npoints_( npoints )
     {
+        anchor_pt_[0] = anchor[0];
+        anchor_pt_[1] = anchor[1];
+        anchor_pt_[2] = anchor[2];
+        
         faceidx_L_.reserve(npoints_*3);
         faceidx_U_.reserve(npoints_*3);
         normals_L_.reserve(npoints_*3);
@@ -320,6 +334,14 @@ struct convex_hull{
                     right_[p] = points[3*q+p];
                 if( points[3*q+p] < left_[p] )
                     left_[p] = points[3*q+p];
+            }
+        
+        // make sure left point is inside box
+        for( size_t p=0; p<3; ++p )
+            if( left_[p] >= 1.0 ){
+                left_[p]  -= 1.0; right_[p] -= 1.0;
+            }else if( left_[p] < 0.0 ){
+                left_[p] += 1.0; right_[p]+= 1.0;
             }
         
     }

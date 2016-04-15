@@ -314,22 +314,29 @@ public:
             int i3=3*i;
             for( size_t j=0; j<3; ++j )
             {
-                xcenter[j] += P[i3+j];
-                pmax = P[i3+j] > pmax ? P[i3+j] : pmax;
-                pmin = P[i3+j] < pmin ? P[i3+j] : pmin;
+                double d = P[i3+j] - P[j];
+                double p = (d>0.5)? P[i3+j]-1.0 : (d<-0.5)? P[i3+j]+1.0 : P[i3+j];
+                
+                xcenter[j] += p;
+                pmax = p > pmax ? p : pmax;
+                pmin = p < pmin ? p : pmin;
             }
         }
         double L = 2.0*(pmax - pmin);
-        xcenter[0] /= N;
-        xcenter[1] /= N;
-        xcenter[2] /= N;
+        xcenter[0] = fmod(xcenter[0]/N+1.0,1.0);
+        xcenter[1] = fmod(xcenter[1]/N+1.0,1.0);
+        xcenter[2] = fmod(xcenter[2]/N+1.0,1.0);
         
         
         for( size_t i=0; i<N; ++i )
         {
             int i3=3*i;
-            for( size_t j=0; j<3; ++j )
-                P[i3+j] = (P[i3+j]-xcenter[j])/L + 0.5;
+            for( size_t j=0; j<3; ++j ){
+                double d = P[i3+j]-xcenter[j];
+                d = (d>0.5)? d-1.0 : (d<-0.5)? d+1.0 : d;
+                
+                P[i3+j] = d/L + 0.5;
+            }
         }
         
         
@@ -442,8 +449,12 @@ public:
         
         T r = 0.0;
         for( int i=0; i<3; ++i )
+            q[i] = (q[i]>0.5)?q[i]-1.0:(q[i]<-0.5)?q[i]+1.0:q[i];
+        
+        for( int i=0; i<3; ++i )
             for( int j=0; j<3; ++j )
                 r += q[i]*A[3*j+i]*q[j];
+        
         
         return r <= 1.0;
     }
@@ -474,6 +485,9 @@ public:
         {
             left[i]  = c[i] - sqrt(Ainv[3*i+i]);
             right[i] = c[i] + sqrt(Ainv[3*i+i]);
+            
+            if( left[i] < 0.0 ){ left[i] += 1.0; right[i] += 1.0; }
+            if( left[i] >= 1.0 ){ left[i] -= 1.0; right[i] -= 1.0; }
         }
     }
     
@@ -529,7 +543,10 @@ public:
 
 
 #include "point_file_reader.hh"
+
+#if 0
 #include "convex_hull.hh"
+#endif
 
 //! Minimum volume enclosing ellipsoid plugin
 class region_ellipsoid_plugin : public region_generator_plugin{
@@ -648,7 +665,7 @@ public:
         }
         
         
-
+#if 0
         if( false )
         {
             // compute convex hull and use only hull points to speed things up
@@ -675,6 +692,7 @@ public:
             
             pphull.swap( pp );
         }
+#endif
         
         
         // output the center

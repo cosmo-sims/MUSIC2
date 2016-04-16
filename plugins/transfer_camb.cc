@@ -24,11 +24,10 @@ private:
   gsl_spline *spline_vtot, *spline_vcdm, *spline_vbaryon;
   
   double m_kmin, m_kmax;
-  unsigned m_nlines;
+  unsigned m_nlines = 0;
 
-  bool m_linbaryoninterp;
+  bool m_linbaryoninterp = false;
 
-  double m_velunits;
   
   void read_table( void ){
 #ifdef WITH_MPI

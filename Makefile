@@ -3,7 +3,7 @@
 FFTW3		= yes
 MULTITHREADFFTW	= yes
 SINGLEPRECISION	= no
-HAVEHDF5        = no
+HAVEHDF5        = yes
 HAVEBOXLIB	= no
 BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 

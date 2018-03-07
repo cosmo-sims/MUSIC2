@@ -90,7 +90,7 @@ private:
                                    m_filename_Tk + "\'");
         }
 
-	if( Omega_b < 1e-6 ) Tkvtot = Tktot;
+	if( m_Omega_b < 1e-6 ) Tkvtot = Tktot;
 	else Tkvtot=((m_Omega_m-m_Omega_b)*Tkvc+m_Omega_b*Tkvb)/m_Omega_m; //MvD
 
         m_linbaryoninterp |= Tkb < 0.0 || Tkvb < 0.0;

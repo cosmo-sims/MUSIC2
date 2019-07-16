@@ -241,7 +241,7 @@ public:
 		T r;
 		try{
 		  r = getValue<T>( section, key );
-		} catch( ErrItemNotFound ) {
+		} catch( ErrItemNotFound& ) {
 		  r = default_value;
 		}
 		return r;
@@ -340,7 +340,7 @@ inline bool config_file::getValueSafe<bool>( std::string const& strSection, std:
       return true;
     if( r1=="false" || r1=="no" || r1=="off" || r1=="0" )
       return false;
-  } catch( ErrItemNotFound ) {
+  } catch( ErrItemNotFound& ) {
     return defaultValue;
   }
   return defaultValue;

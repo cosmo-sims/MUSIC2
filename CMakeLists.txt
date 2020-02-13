@@ -7,15 +7,7 @@ find_package(PkgConfig REQUIRED)
 
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}")
 
-########################################################################################################################
-# Add a custom command that produces version.cc, plus
-# a dummy output that's not actually produced, in order
-# to force version.cmake to always be re-run before the build
-ADD_CUSTOM_COMMAND(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.cc
-           ${CMAKE_CURRENT_BINARY_DIR}/_version.cc
-    COMMAND ${CMAKE_COMMAND} -P
-            ${CMAKE_CURRENT_SOURCE_DIR}/version.cmake)
+option(MUSIC_ENABLE_SINGLE_PRECISION "Enable Single Precision Mode" OFF)
 
 ########################################################################################################################
 # OpenMP
@@ -35,11 +27,24 @@ find_package(Threads REQUIRED)
 if(POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
 endif()
-if(ENABLE_MPI)
-  find_package(FFTW3 COMPONENTS SINGLE DOUBLE OPENMP THREADS MPI)
-else()
-  find_package(FFTW3 COMPONENTS SINGLE DOUBLE OPENMP THREADS)
-endif(ENABLE_MPI)
+if( MUSIC_ENABLE_SINGLE_PRECISION )
+  find_package(FFTW3 COMPONENTS SINGLE THREADS)
+else(MUSIC_ENABLE_SINGLE_PRECISION )
+  find_package(FFTW3 COMPONENTS DOUBLE THREADS)
+endif(MUSIC_ENABLE_SINGLE_PRECISION)
+
+
+########################################################################################################################
+# Add a custom command that produces version.cc, plus
+# a dummy output that's not actually produced, in order
+# to force version.cmake to always be re-run before the build
+ADD_CUSTOM_COMMAND(
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/version.cc
+           ${CMAKE_CURRENT_BINARY_DIR}/_version.cc
+    COMMAND ${CMAKE_COMMAND} -P
+            ${CMAKE_CURRENT_SOURCE_DIR}/version.cmake)
+
+
 
 ########################################################################################################################
 # GSL
@@ -73,12 +78,22 @@ set_target_properties(${PRGNAME} PROPERTIES CXX_STANDARD 11)
 
 if(FFTW3_FOUND)
   target_compile_options(${PRGNAME} PRIVATE "-DFFTW3")
-endif(FFTW3_FOUND)
 
-if(FFTW3_DOUBLE_THREADS_FOUND) 
-  target_link_libraries(${PRGNAME} ${FFTW3_DOUBLE_THREADS_LIBRARY})
-  target_compile_options(${PRGNAME} PRIVATE "-DUSE_FFTW_THREADS")
-endif(FFTW3_DOUBLE_THREADS_FOUND)
+  if( MUSIC_ENABLE_SINGLE_PRECISION )
+    target_compile_options(${PRGNAME} PRIVATE "-DSINGLE_PRECISION")
+  endif(MUSIC_ENABLE_SINGLE_PRECISION)
+
+  if(FFTW3_DOUBLE_THREADS_FOUND) 
+    target_link_libraries(${PRGNAME} ${FFTW3_DOUBLE_THREADS_LIBRARY})
+    target_compile_options(${PRGNAME} PRIVATE "-DUSE_FFTW_THREADS")
+  endif(FFTW3_DOUBLE_THREADS_FOUND)
+
+  if(FFTW3_SINGLE_THREADS_FOUND) 
+    target_link_libraries(${PRGNAME} ${FFTW3_SINGLE_THREADS_LIBRARY})
+    target_compile_options(${PRGNAME} PRIVATE "-DUSE_FFTW_THREADS")
+  endif(FFTW3_SINGLE_THREADS_FOUND)
+
+endif(FFTW3_FOUND)
 
 if(HDF5_FOUND)
   # target_link_libraries(${PRGNAME} ${HDF5_C_LIBRARY_DIRS})

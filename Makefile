@@ -9,7 +9,7 @@ BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################
 ### compiler and path settings
-CC      = g++-9
+CC      = g++
 OPT     = -Wall -Wno-unknown-pragmas -O3 -g -mtune=native
 CFLAGS  =  
 LFLAGS  = -lgsl -lgslcblas 

@@ -90,9 +90,13 @@ void splash(void)
 		<< "                            this is " << THE_CODE_NAME << " version " << THE_CODE_VERSION << "\n\n";
 
 	#if defined(CMAKE_BUILD)
-		LOGINFO("Version built from git rev.: %s, tag: %s, branch: %s\n", GIT_REV, GIT_TAG, GIT_BRANCH);
+		LOGINFO("Version built from git rev.: %s, tag: %s, branch: %s", GIT_REV, GIT_TAG, GIT_BRANCH);
 	#endif
-	
+	#if defined(SINGLE_PRECISION)
+		LOGINFO("Version was compiled for single precision.");
+	#else
+		LOGINFO("Version was compiled for double precision.");
+	#endif
 	std::cout << "\n\n";
 }
 

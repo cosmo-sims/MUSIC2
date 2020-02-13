@@ -102,7 +102,7 @@ public:
             }else if( pcf_->containsKey("setup","ref_dims") ){
                 temp = pcf_->getValue<std::string>("setup","ref_dims");
                 std::remove_if(temp.begin(),temp.end(),isspace);
-                if(sscanf( temp.c_str(), "%ld,%ld,%ld", &lnref_[0],&lnref_[1],&lnref_[2] )!=3){
+                if(sscanf( temp.c_str(), "%lu,%lu,%lu", &lnref_[0],&lnref_[1],&lnref_[2] )!=3){
 		  LOGERR("Error parsing triple for ref_dims");
 		  throw std::runtime_error("Error parsing triple for ref_dims");
 		}

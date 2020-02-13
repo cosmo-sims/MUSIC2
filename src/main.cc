@@ -18,7 +18,14 @@
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_integration.h>
 
-
+#if defined(CMAKE_BUILD)
+	extern "C"
+	{
+			extern const char* GIT_TAG;
+			extern const char* GIT_REV;
+			extern const char* GIT_BRANCH;
+	}
+#endif
 
 #include "general.hh"
 #include "defaults.hh"
@@ -75,14 +82,18 @@ void splash(void)
 {
 	
 	std::cout 
-	<< "\n    __    __     __  __     ______     __     ______      \n"
-	<< "   /\\ \"-./  \\   /\\ \\/\\ \\   /\\  ___\\   /\\ \\   /\\  ___\\  \n"   
-	<< "   \\ \\ \\-./\\ \\  \\ \\ \\_\\ \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\____ \n"
-	<< "    \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\/\\_____\\  \\ \\_\\  \\ \\_____\\ \n"
-	<< "     \\/_/  \\/_/   \\/_____/   \\/_____/   \\/_/   \\/_____/ \n\n"
-	<< "                            this is " << THE_CODE_NAME << " version " << THE_CODE_VERSION << "\n\n\n";
+		<< "\n    __    __     __  __     ______     __     ______      \n"
+		<< "   /\\ \"-./  \\   /\\ \\/\\ \\   /\\  ___\\   /\\ \\   /\\  ___\\  \n"   
+		<< "   \\ \\ \\-./\\ \\  \\ \\ \\_\\ \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\____ \n"
+		<< "    \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\/\\_____\\  \\ \\_\\  \\ \\_____\\ \n"
+		<< "     \\/_/  \\/_/   \\/_____/   \\/_____/   \\/_/   \\/_____/ \n\n"
+		<< "                            this is " << THE_CODE_NAME << " version " << THE_CODE_VERSION << "\n\n";
+
+	#if defined(CMAKE_BUILD)
+		LOGINFO("Version built from git rev.: %s, tag: %s, branch: %s\n", GIT_REV, GIT_TAG, GIT_BRANCH);
+	#endif
 	
-	
+	std::cout << "\n\n";
 }
 
 void modify_grid_for_TF( const refinement_hierarchy& rh_full, refinement_hierarchy& rh_TF, config_file& cf )

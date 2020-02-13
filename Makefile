@@ -9,11 +9,11 @@ BOXLIB_HOME     = ${HOME}/nyx_tot_sterben/BoxLib
 
 ##############################################################################
 ### compiler and path settings
-CC      = g++
+CC      = g++-9
 OPT     = -Wall -Wno-unknown-pragmas -O3 -g -mtune=native
 CFLAGS  =  
 LFLAGS  = -lgsl -lgslcblas 
-CPATHS  = -I. -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
+CPATHS  = -I./src -I$(HOME)/local/include -I/opt/local/include -I/usr/local/include
 LPATHS  = -L$(HOME)/local/lib -L/opt/local/lib -L/usr/local/lib
 
 ##############################################################################
@@ -78,20 +78,20 @@ TARGET  = MUSIC
 OBJS    = output.o transfer_function.o Numerics.o defaults.o constraints.o random.o\
 		convolution_kernel.o region_generator.o densities.o cosmology.o poisson.o\
 		densities.o cosmology.o poisson.o log.o main.o \
-		$(patsubst plugins/%.cc,plugins/%.o,$(wildcard plugins/*.cc))
+		$(patsubst src/plugins/%.cc,src/plugins/%.o,$(wildcard src/plugins/*.cc))
 
 ##############################################################################
 # stuff for BoxLib
 BLOBJS = ""
 ifeq ($(strip $(HAVEBOXLIB)), yes)
   IN_MUSIC = YES
-  TOP = ${PWD}/plugins/nyx_plugin
+  TOP = ${PWD}/src/plugins/nyx_plugin
   CCbla := $(CC)
-  include plugins/nyx_plugin/Make.ic
+  include src/plugins/nyx_plugin/Make.ic
   CC  := $(CCbla)
   CPATHS += $(INCLUDE_LOCATIONS)
   LPATHS += -L$(objEXETempDir)
-  BLOBJS = $(foreach obj,$(objForExecs),plugins/boxlib_stuff/$(obj))
+  BLOBJS = $(foreach obj,$(objForExecs),src/plugins/boxlib_stuff/$(obj))
 #
 endif
 
@@ -102,23 +102,29 @@ all: $(OBJS) $(TARGET) Makefile
 bla:
 	echo $(BLOBJS)
 
+blabla:
+	echo $(OBJS)
+
 ifeq ($(strip $(HAVEBOXLIB)), yes)
-$(TARGET): $(OBJS) plugins/nyx_plugin/*.cpp
-	cd plugins/nyx_plugin; make BOXLIB_HOME=$(BOXLIB_HOME) FFTW3=$(FFTW3) SINGLE=$(SINGLEPRECISION)
+$(TARGET): $(OBJS) src/plugins/nyx_plugin/*.cpp
+	cd src/plugins/nyx_plugin; make BOXLIB_HOME=$(BOXLIB_HOME) FFTW3=$(FFTW3) SINGLE=$(SINGLEPRECISION)
 	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS) $(BLOBJS) -lifcore
 else
 $(TARGET): $(OBJS)
 	$(CC) $(LPATHS) -o $@ $^ $(LFLAGS)
 endif
 
-%.o: %.cc *.hh Makefile 
+%.o: src/%.cc src/*.hh Makefile 
+	$(CC) $(CFLAGS) $(CPATHS) -c $< -o $@
+
+src/plugins/%.o: src/plugins/%.cc src/*.hh Makefile 
 	$(CC) $(CFLAGS) $(CPATHS) -c $< -o $@
 
 clean:
 	rm -rf $(OBJS)
 ifeq ($(strip $(HAVEBOXLIB)), yes)
 	oldpath=`pwd`
-	cd plugins/nyx_plugin; make realclean BOXLIB_HOME=$(BOXLIB_HOME)
+	cd src/plugins/nyx_plugin; make realclean BOXLIB_HOME=$(BOXLIB_HOME)
 endif
 	cd $(oldpath)
 	

@@ -4,7 +4,7 @@ MUSIC - multi-scale cosmological initial conditions
 MUSIC is a computer program to generate nested grid initial conditions for
 high-resolution "zoom" cosmological simulations. A detailed description
 of the algorithms can be found in [Hahn & Abel (2011)][1]. You can
-download the user's guide [here][3]. Please consider joining the
+download the user's guide [here][3], or [read the Wiki](https://bitbucket.org/ohahn/music/wiki/Home) instead. Please consider joining the
 [user mailing list][2].
 
 Current MUSIC key features are:

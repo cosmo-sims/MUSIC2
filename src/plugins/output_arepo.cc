@@ -752,7 +752,7 @@ public:
       HDFWriteGroupAttribute(filename, "Header", "NumPart_Total", nPartTotalLW);
       HDFWriteGroupAttribute(filename, "Header", "NumPart_Total_HighWord", nPartTotalHW);
       HDFWriteGroupAttribute(filename, "Header", "MassTable", massTable);
-      HDFWriteGroupAttribute(filename, "Header", "BoxSize", boxSize);
+      HDFWriteGroupAttribute(filename, "Header", "BoxSize", boxSize * posFac);
       HDFWriteGroupAttribute(filename, "Header", "NumFilesPerSnapshot", numFiles);
       HDFWriteGroupAttribute(filename, "Header", "Time", time);
       HDFWriteGroupAttribute(filename, "Header", "Redshift", redshift);

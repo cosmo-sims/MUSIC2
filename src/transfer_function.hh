@@ -157,6 +157,9 @@ public:
 		    double kmin=log10(tf->get_kmin()), kmax= log10(tf->get_kmax());
 		    double dk=(kmax-kmin)/300.;
 		    
+		    ofs << "# The power spectrum definition is smaller than CAMB by a factor 8 pi^3."
+		        << std::endl;
+
 		    if( tf->tf_is_distinct() )
 		      {
 			ofs << "#"
@@ -320,6 +323,9 @@ protected:
 		std::ofstream ofsk(ofname.c_str());
 		double sum_in = 0.0;
 		
+		ofsk << "# The power spectrum definition is smaller than CAMB by a factor 8 pi^3."
+		    << std::endl;
+
 		for( unsigned i=0; i<N; ++i )
 		{
 			double k = k0*exp(((int)i - (int)N/2+1) * dlnk);

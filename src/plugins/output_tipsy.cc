@@ -7,6 +7,8 @@
 //  Copyright 2011 KIPAC/SLAC. All rights reserved.
 //
 
+#if defined(HAVE_TIRPC) // needed for RPC/XDR functions
+
 #include <unistd.h>
 #include <stdio.h>
 #include <rpc/types.h>
@@ -1109,3 +1111,6 @@ namespace{
     output_plugin_creator_concrete< tipsy_output_plugin<double> > creator2("tipsy_double");
     //#endif
 }
+
+
+#endif //defined(HAVE_TIRPC) 

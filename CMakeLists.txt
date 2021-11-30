@@ -30,6 +30,10 @@ endif()
 find_package(FFTW3 COMPONENTS SINGLE DOUBLE THREADS)
 
 ########################################################################################################################
+# TIRPC, needed only for Tipsy format
+find_package(TIRPC)
+
+########################################################################################################################
 # Add a custom command that produces version.cc, plus
 # a dummy output that's not actually produced, in order
 # to force version.cmake to always be re-run before the build
@@ -105,6 +109,12 @@ if(HDF5_FOUND)
   target_compile_options(${PRGNAME} PRIVATE "-DHAVE_HDF5")
   target_compile_options(${PRGNAME} PRIVATE "-DH5_USE_16_API")
 endif(HDF5_FOUND)
+
+if(TIRPC_FOUND)
+  target_link_libraries(${PRGNAME} ${TIRPC_LIBRARIES})
+  target_include_directories(${PRGNAME} PRIVATE ${TIRPC_INCLUDE_DIRS})
+  target_compile_options(${PRGNAME} PRIVATE "-DHAVE_TIRPC")
+endif(TIRPC_FOUND)
 
 target_link_libraries(${PRGNAME} ${FFTW3_LIBRARIES})
 target_include_directories(${PRGNAME} PRIVATE ${FFTW3_INCLUDE_DIRS})

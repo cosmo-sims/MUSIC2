@@ -8,6 +8,8 @@
 //
 
 
+#if defined(HAVE_TIRPC) // needed for RPC/XDR functions
+
 #include <stdio.h>
 #include <rpc/types.h>
 #include <rpc/xdr.h>
@@ -1398,3 +1400,5 @@ namespace
   output_plugin_creator_concrete< tipsy_output_plugin_res<double> >creator2 ("tipsy_double_resample");
 #endif
 }
+
+#endif // defined(HAVE_TIRPC) 

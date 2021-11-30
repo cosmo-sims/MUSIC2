@@ -47,8 +47,6 @@ public:
 	
 };
 
-#pragma mark -
-
 /*!
  * @brief implements abstract factory design pattern for poisson solver plug-ins
  */
@@ -89,7 +87,6 @@ struct poisson_plugin_creator_concrete : public poisson_plugin_creator
 
 /**************************************************************************************/
 /**************************************************************************************/
-#pragma mark -
 
 //! adaptive FAS multigrid implementation of abstract base class poisson_plugin
 class multigrid_poisson_plugin : public poisson_plugin
@@ -146,7 +143,6 @@ protected:
 
 /**************************************************************************************/
 /**************************************************************************************/
-#pragma mark -
 
 //! FFT based implementation of abstract base class poisson_plugin
 class fft_poisson_plugin : public poisson_plugin
@@ -172,17 +168,9 @@ public:
 
 /**************************************************************************************/
 /**************************************************************************************/
-#pragma mark -
 
 template< typename T >
 void poisson_hybrid( T& f, int idir, int order, bool periodic, bool deconvolve_cic );
-
-
-
-
-
-
-
 
 
 #endif // __POISSON_HH

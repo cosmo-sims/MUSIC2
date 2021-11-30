@@ -57,7 +57,6 @@ typedef multigrid::solver< stencil_19P<double>, interp_O7_fluxcorr, mg_straight,
 
 /**************************************************************************************/
 /**************************************************************************************/
-#pragma mark -
 
 
 double multigrid_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
@@ -479,7 +478,6 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6( int dir, grid_hi
 
 /**************************************************************************************/
 /**************************************************************************************/
-#pragma mark -
 #include "general.hh"
 
 double fft_poisson_plugin::solve( grid_hierarchy& f, grid_hierarchy& u )
@@ -840,7 +838,6 @@ double fft_poisson_plugin::gradient( int dir, grid_hierarchy& u, grid_hierarchy&
 
 /**************************************************************************************/
 /**************************************************************************************/
-#pragma mark -
 
 
 template<int order>
@@ -1186,7 +1183,6 @@ void poisson_hybrid( T& f, int idir, int order, bool periodic, bool deconvolve_c
 	   
 /**************************************************************************************/
 /**************************************************************************************/
-#pragma mark -
 
 template void poisson_hybrid< MeshvarBnd<double> >( MeshvarBnd<double>& f, int idir, int order, bool periodic, bool deconvolve_cic );
 template void poisson_hybrid< MeshvarBnd<float> >( MeshvarBnd<float>& f, int idir, int order, bool periodic, bool deconvolve_cic );

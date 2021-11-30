@@ -175,8 +175,6 @@ void compute_Lu_density( const grid_hierarchy& u, grid_hierarchy& fnew, unsigned
 	
 }
 
-#pragma mark -
-
 
 void compute_2LPT_source_FFT( config_file& cf_, const grid_hierarchy& u, grid_hierarchy& fnew )
 {

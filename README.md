@@ -64,7 +64,8 @@ or FITNESS FOR A PARTICULAR PURPOSE. By downloading and using MUSIC, you
 agree to the LICENSE, distributed with the source code in a text 
 file of the same name.
 
-## References
+
+
 [1]: http://arxiv.org/abs/1103.6031
 [2]: https://groups.google.com/forum/#!forum/cosmo_music
 [3]: https://bitbucket.org/ohahn/music/downloads/MUSIC_Users_Guide.pdf

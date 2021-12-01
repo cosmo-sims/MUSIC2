@@ -1,0 +1,33 @@
+# Template C++ Application
+
+# This template allows you to validate your C++ application.
+# The workflow allows running tests and code linting on the default branch.
+
+
+image: debian:latest
+
+pipelines:
+  default:
+    - parallel:
+      - step:
+          script:
+            # Print the Linux version.
+            - uname -a
+            # Print the gcc version.
+            - apt-get update -qq
+            - apt-get install gcc g++ gfortran -qq -y
+            - gcc --version
+            #  Install a CMake 3.0.2 version.
+            - apt-get install git cmake pkg-config cmake-data -y --force-yes
+            # Print the CMake version.
+            - cmake --version   
+            # Install the necessary libraries
+            - apt-get install libfftw3-dev -y
+            - apt-get install libgsl-dev -y
+            - apt-get install libhdf5-serial-dev -y
+            - mkdir build
+            - cd build
+            # Call the CMake.
+            - cmake ..
+            # Build the project.
+            - make

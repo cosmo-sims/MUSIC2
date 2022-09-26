@@ -1293,6 +1293,7 @@ class refinement_hierarchy
 	config_file& cf_;	//!< reference to config_file
 	
 	bool align_top_,	//!< bool whether to align all grids with coarsest grid cells
+         preserve_dims_, //!< bool whether to preserve user-specified grid dimensions
 	     equal_extent_; //!< bool whether the simulation code requires squared refinement regions (e.g. RAMSES)
 	
 	double 
@@ -1323,6 +1324,7 @@ public:
 	  levelmax_	= cf_.getValue<unsigned>("setup","levelmax");
 	  levelmin_tf_= cf_.getValueSafe<unsigned>("setup","levelmin_TF",levelmin_);
 	  align_top_	= cf_.getValueSafe<bool>("setup","align_top",false);
+      preserve_dims_ = cf_.getValueSafe<bool>("setup","preserve_dims",false);
 	  equal_extent_ = cf_.getValueSafe<bool>("setup","force_equal_extent",false);
 	  blocking_factor_= cf.getValueSafe<unsigned>( "setup", "blocking_factor",0);
 		
@@ -1477,9 +1479,14 @@ public:
 	      if( krr < kr )
 		kr = (int)((double)kr/nref + 1.0)*nref;
 	      else
-		kr = krr;
-	      
-	      
+			  kr = krr;
+		}else if (preserve_dims_) {
+		  //... require alignment with coarser grid
+		  int alx = (xshift_[0] >= 0) - (xshift_[0] < 0);
+		  int aly = (xshift_[1] >= 0) - (xshift_[1] < 0);
+		  int alz = (xshift_[2] >= 0) - (xshift_[2] < 0);
+		  il += alx*(il%2); jl += aly*(jl%2); kl += alz*(kl%2);
+		  ir += alx*(ir%2); jr += aly*(jr%2); kr += alz*(kr%2);
 	    }else{
 	    //... require alignment with coarser grid
 	    il -= il%2; jl -= jl%2; kl -= kl%2;
@@ -1579,8 +1586,17 @@ public:
 		  kr = (int)((double)kr/nref+1.0)*nref;
 		  
 		}
-	      else
-		{
+
+		  else if (preserve_dims_) {
+              //... require alignment with coarser grid
+              int alx = (xshift_[0] >= 0) - (xshift_[0] < 0);
+              int aly = (xshift_[1] >= 0) - (xshift_[1] < 0);
+              int alz = (xshift_[2] >= 0) - (xshift_[2] < 0);
+			  il += alx*(il%2); jl += aly*(jl%2); kl += alz*(kl%2);
+			  ir += alx*(ir%2); jr += aly*(jr%2); kr += alz*(kr%2);
+		  }
+		  else
+		  {
 		  //... require alignment with coarser grid
 		  il -= il%2; jl -= jl%2; kl -= kl%2;
 		  ir += ir%2; jr += jr%2; kr += kr%2; 
@@ -1687,6 +1703,7 @@ public:
     padding_  = o.padding_;
     cf_ = o.cf_;
     align_top_ = o.align_top_;
+    preserve_dims_ = o.preserve_dims_;
     for( int i=0; i<3; ++i )
       {
 	x0ref_[i] = o.x0ref_[i];

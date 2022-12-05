@@ -751,6 +751,14 @@ int main (int argc, const char * argv[])
 					double sigv = compute_finest_sigma( data_forIO );
 					LOGINFO("sigma of %c-velocity of high-res particles is %f",'x'+icoord, sigv);
 
+					double meanv = compute_finest_mean( data_forIO );
+					LOGINFO("mean of %c-velocity of high-res particles is %f",'x'+icoord, meanv);
+					LOGUSER("mean of %c-velocity of high-res particles is %f",'x'+icoord, meanv);
+
+					double maxv = compute_finest_max( data_forIO );
+					LOGINFO("max of abs of %c-velocity of high-res particles is %f",'x'+icoord, maxv);
+
+
 					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -811,6 +819,13 @@ int main (int argc, const char * argv[])
 					double sigv = compute_finest_sigma( data_forIO );
 					LOGINFO("sigma of %c-velocity of high-res DM is %f",'x'+icoord, sigv);
 
+					double meanv = compute_finest_mean( data_forIO );
+					LOGINFO("mean of %c-velocity of high-res particles is %f",'x'+icoord, meanv);
+					LOGUSER("mean of %c-velocity of high-res particles is %f",'x'+icoord, meanv);
+
+					double maxv = compute_finest_max( data_forIO );
+					LOGINFO("max of abs of %c-velocity of high-res particles is %f",'x'+icoord, maxv);
+
 					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -859,6 +874,14 @@ int main (int argc, const char * argv[])
 					double sigv = compute_finest_sigma( data_forIO );
 					LOGINFO("sigma of %c-velocity of high-res baryons is %f",'x'+icoord, sigv);
 					
+					double meanv = compute_finest_mean( data_forIO );
+					LOGINFO("mean of %c-velocity of high-res baryons is %f",'x'+icoord, meanv);
+					LOGUSER("mean of %c-velocity of high-res baryons is %f",'x'+icoord, meanv);
+
+					double maxv = compute_finest_max( data_forIO );
+					LOGINFO("max of abs of %c-velocity of high-res baryons is %f",'x'+icoord, maxv);
+
+
 					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
@@ -965,8 +988,17 @@ int main (int argc, const char * argv[])
 				data_forIO *= cosmo.vfact;
 				
 				double sigv = compute_finest_sigma( data_forIO );
+
+				double meanv = compute_finest_mean( data_forIO );
+				LOGINFO("mean of %c-velocity of high-res particles is %f",'x'+icoord, meanv);
+				LOGUSER("mean of %c-velocity of high-res particles is %f",'x'+icoord, meanv);
+
+				double maxv = compute_finest_max( data_forIO );
+				LOGINFO("max of abs of %c-velocity of high-res particles is %f",'x'+icoord, maxv);
+
 				std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
-				
+				std::cerr << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
+
 				coarsen_density( rh_Poisson, data_forIO, false );
 				LOGUSER("Writing CDM velocities");
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);					
@@ -1049,8 +1081,18 @@ int main (int argc, const char * argv[])
 					data_forIO *= cosmo.vfact;
 										
 					double sigv = compute_finest_sigma( data_forIO );
+
+					double meanv = compute_finest_mean( data_forIO );
+					LOGINFO("mean of %c-velocity of high-res baryons is %f",'x'+icoord, meanv);
+					LOGUSER("mean of %c-velocity of high-res baryons is %f",'x'+icoord, meanv);
+
+					double maxv = compute_finest_max( data_forIO );
+					LOGINFO("max of abs of %c-velocity of high-res baryons is %f",'x'+icoord, maxv);
+
 					std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
-					
+					std::cerr << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
+
+
 					coarsen_density( rh_Poisson, data_forIO, false );
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);				

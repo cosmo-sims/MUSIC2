@@ -191,7 +191,7 @@ inline void HDFReadDataset( const std::string Filename, const std::string ObjNam
 
   int ndims = H5Sget_simple_extent_ndims( HDF_DataspaceID );
   
-  hsize_t dimsize[ndims];
+  hsize_t *dimsize = new hsize_t[ndims];
 
   H5Sget_simple_extent_dims( HDF_DataspaceID, dimsize, NULL );
 
@@ -220,6 +220,7 @@ inline void HDFReadDataset( const std::string Filename, const std::string ObjNam
   H5Sclose( HDF_DataspaceID );
   H5Dclose( HDF_DatasetID );
   H5Fclose( HDF_FileID );
+  delete[] dimsize;
 }
 
 template<typename T >
@@ -321,7 +322,7 @@ inline void HDFReadVectorSelect( const std::string Filename, const std::string O
   //... get space associated with dataset and its extensions
   HDF_DataspaceID = H5Dget_space( HDF_DatasetID );
   int ndims = H5Sget_simple_extent_ndims( HDF_DataspaceID );
-  hsize_t dimsize[ndims];
+  hsize_t *dimsize = new hsize_t[ndims];
   H5Sget_simple_extent_dims( HDF_DataspaceID, dimsize, NULL );
 
   hsize_t block[2];
@@ -372,7 +373,7 @@ inline void HDFReadVectorSelect( const std::string Filename, const std::string O
   H5Sclose( HDF_MemspaceID );
   H5Dclose( HDF_DatasetID );
   H5Fclose( HDF_FileID );
-
+  delete[] dimsize;
 }
 
 template< typename T >
@@ -599,7 +600,7 @@ inline void HDFReadGroupAttribute( const std::string Filename, const std::string
 
   int ndims = H5Sget_simple_extent_ndims( HDF_DataspaceID );
   
-  hsize_t dimsize[ndims];
+  hsize_t *dimsize = new hsize_t[ndims];
 
   H5Sget_simple_extent_dims( HDF_DataspaceID, dimsize, NULL );
 
@@ -621,6 +622,7 @@ inline void HDFReadGroupAttribute( const std::string Filename, const std::string
   H5Sclose( HDF_DataspaceID );
   H5Gclose( HDF_GroupID );
   H5Fclose( HDF_FileID );
+  delete[] dimsize;
 }
 
 template< typename T >

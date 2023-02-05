@@ -605,9 +605,8 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create(cf, ptf, refh, type);
 
 	/***** PERFORM CONVOLUTIONS *****/
-	if (kspaceTF)
+	assert(kspaceTF);
 	{
-
 		//... create and initialize density grids with white noise
 		DensityGrid<real_t> *top(NULL);
 		PaddedDensitySubGrid<real_t> *coarse(NULL), *fine(NULL);
@@ -634,11 +633,11 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 					refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
 
 			fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
-													refh.offset(levelmin + i, 1),
-													refh.offset(levelmin + i, 2),
-													refh.size(levelmin + i, 0),
-													refh.size(levelmin + i, 1),
-													refh.size(levelmin + i, 2));
+																							refh.offset(levelmin + i, 1),
+																							refh.offset(levelmin + i, 2),
+																							refh.size(levelmin + i, 0),
+																							refh.size(levelmin + i, 1),
+																							refh.size(levelmin + i, 2));
 			/////////////////////////////////////////////////////////////////////////
 
 			// load white noise for patch
@@ -670,216 +669,6 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 		}
 
 		delete coarse;
-	}
-	else
-	{
-
-		//... create and initialize density grids with white noise
-		PaddedDensitySubGrid<real_t> *coarse(NULL), *fine(NULL);
-		DensityGrid<real_t> *top(NULL);
-
-		if (levelmax == levelmin)
-		{
-			std::cout << " - Performing noise convolution on level "
-					  << std::setw(2) << levelmax << " ..." << std::endl;
-			LOGUSER("Performing noise convolution on level %3d...", levelmax);
-
-			top = new DensityGrid<real_t>(nbase, nbase, nbase);
-			//rand_gen.load( *top, levelmin );
-			rand.load(*top, levelmin);
-
-			convolution::perform<real_t>(the_tf_kernel->fetch_kernel(levelmax),
-										 reinterpret_cast<void *>(top->get_data_ptr()),
-										 shift, fix, flip);
-			the_tf_kernel->deallocate();
-
-			delta.create_base_hierarchy(levelmin);
-			top->copy(*delta.get_grid(levelmin));
-			delete top;
-		}
-
-		for (int i = 0; i < (int)levelmax - (int)levelmin; ++i)
-		{
-			//.......................................................................................................//
-			//... GENERATE/FILL WITH RANDOM NUMBERS .................................................................//
-			//.......................................................................................................//
-
-			if (i == 0)
-			{
-				top = new DensityGrid<real_t>(nbase, nbase, nbase);
-				rand.load(*top, levelmin);
-			}
-
-			fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i + 1, 0),
-													refh.offset(levelmin + i + 1, 1),
-													refh.offset(levelmin + i + 1, 2),
-													refh.size(levelmin + i + 1, 0),
-													refh.size(levelmin + i + 1, 1),
-													refh.size(levelmin + i + 1, 2));
-
-			rand.load(*fine, levelmin + i + 1);
-
-			//.......................................................................................................//
-			//... PERFORM CONVOLUTIONS ..............................................................................//
-			//.......................................................................................................//
-			if (i == 0)
-			{
-				/**********************************************************************************************************\
-			 *	multi-grid: top-level grid grids .....
-			 \**********************************************************************************************************/
-				std::cout << " - Performing noise convolution on level "
-						  << std::setw(2) << levelmin + i << " ..." << std::endl;
-				LOGUSER("Performing noise convolution on level %3d", levelmin + i);
-
-				LOGUSER("Creating base hierarchy...");
-				delta.create_base_hierarchy(levelmin);
-
-				DensityGrid<real_t> top_save(*top);
-
-				the_tf_kernel->fetch_kernel(levelmin);
-
-				//... 1) compute standard convolution for levelmin
-				LOGUSER("Computing density self-contribution");
-				convolution::perform<real_t>(the_tf_kernel, reinterpret_cast<void *>(top->get_data_ptr()), shift, fix, flip);
-				top->copy(*delta.get_grid(levelmin));
-
-				//... 2) compute contribution to finer grids from non-refined region
-				LOGUSER("Computing long-range component for finer grid.");
-				*top = top_save;
-				top_save.clear();
-				top->zero_subgrid(refh.offset(levelmin + i + 1, 0), refh.offset(levelmin + i + 1, 1), refh.offset(levelmin + i + 1, 2),
-								  refh.size(levelmin + i + 1, 0) / 2, refh.size(levelmin + i + 1, 1) / 2, refh.size(levelmin + i + 1, 2) / 2);
-
-				convolution::perform<real_t>(the_tf_kernel, reinterpret_cast<void *>(top->get_data_ptr()), shift, fix, flip);
-				the_tf_kernel->deallocate();
-
-				meshvar_bnd delta_longrange(*delta.get_grid(levelmin));
-				top->copy(delta_longrange);
-				delete top;
-
-				//... inject these contributions to the next level
-				LOGUSER("Allocating refinement patch");
-				LOGUSER("   offset=(%5d,%5d,%5d)", refh.offset(levelmin + 1, 0), refh.offset(levelmin + 1, 1), refh.offset(levelmin + 1, 2));
-				LOGUSER("   size  =(%5d,%5d,%5d)", refh.size(levelmin + 1, 0), refh.size(levelmin + 1, 1), refh.size(levelmin + 1, 2));
-
-				delta.add_patch(refh.offset(levelmin + 1, 0), refh.offset(levelmin + 1, 1), refh.offset(levelmin + 1, 2),
-								refh.size(levelmin + 1, 0), refh.size(levelmin + 1, 1), refh.size(levelmin + 1, 2));
-
-				LOGUSER("Injecting long range component");
-				//mg_straight().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
-				//mg_cubic_mult().prolong( delta_longrange, *delta.get_grid(levelmin+1) );
-
-				mg_cubic().prolong(delta_longrange, *delta.get_grid(levelmin + 1));
-			}
-			else
-			{
-				/**********************************************************************************************************\
-			 *	multi-grid: intermediate sub-grids .....
-			 \**********************************************************************************************************/
-
-				std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmin + i << " ..." << std::endl;
-				LOGUSER("Performing noise convolution on level %3d", levelmin + i);
-
-				//... add new refinement patch
-				LOGUSER("Allocating refinement patch");
-				LOGUSER("   offset=(%5d,%5d,%5d)", refh.offset(levelmin + i + 1, 0), refh.offset(levelmin + i + 1, 1), refh.offset(levelmin + i + 1, 2));
-				LOGUSER("   size  =(%5d,%5d,%5d)", refh.size(levelmin + i + 1, 0), refh.size(levelmin + i + 1, 1), refh.size(levelmin + i + 1, 2));
-
-				delta.add_patch(refh.offset(levelmin + i + 1, 0), refh.offset(levelmin + i + 1, 1), refh.offset(levelmin + i + 1, 2),
-								refh.size(levelmin + i + 1, 0), refh.size(levelmin + i + 1, 1), refh.size(levelmin + i + 1, 2));
-
-				//... copy coarse grid long-range component to fine grid
-				LOGUSER("Injecting long range component");
-				//mg_straight().prolong( *delta.get_grid(levelmin+i), *delta.get_grid(levelmin+i+1) );
-				mg_cubic().prolong(*delta.get_grid(levelmin + i), *delta.get_grid(levelmin + i + 1));
-
-				PaddedDensitySubGrid<real_t> coarse_save(*coarse);
-				the_tf_kernel->fetch_kernel(levelmin + i);
-
-				//... 1) the inner region
-				LOGUSER("Computing density self-contribution");
-				coarse->subtract_boundary_oct_mean();
-				convolution::perform<real_t>(the_tf_kernel, reinterpret_cast<void *>(coarse->get_data_ptr()), shift, fix, flip);
-				coarse->copy_add_unpad(*delta.get_grid(levelmin + i));
-
-				//... 2) the 'BC' for the next finer grid
-				LOGUSER("Computing long-range component for finer grid.");
-				*coarse = coarse_save;
-				coarse->subtract_boundary_oct_mean();
-				coarse->zero_subgrid(refh.offset(levelmin + i + 1, 0), refh.offset(levelmin + i + 1, 1), refh.offset(levelmin + i + 1, 2),
-									 refh.size(levelmin + i + 1, 0) / 2, refh.size(levelmin + i + 1, 1) / 2, refh.size(levelmin + i + 1, 2) / 2);
-
-				convolution::perform<real_t>(the_tf_kernel, reinterpret_cast<void *>(coarse->get_data_ptr()), shift, fix, flip);
-
-				//... interpolate to finer grid(s)
-				meshvar_bnd delta_longrange(*delta.get_grid(levelmin + i));
-				coarse->copy_unpad(delta_longrange);
-
-				LOGUSER("Injecting long range component");
-				//mg_straight().prolong_add( delta_longrange, *delta.get_grid(levelmin+i+1) );
-
-				mg_cubic().prolong_add(delta_longrange, *delta.get_grid(levelmin + i + 1));
-
-				//... 3) the coarse-grid correction
-				LOGUSER("Computing coarse grid correction");
-				*coarse = coarse_save;
-				coarse->subtract_oct_mean();
-				convolution::perform<real_t>(the_tf_kernel, reinterpret_cast<void *>(coarse->get_data_ptr()), shift, fix, flip);
-				coarse->subtract_mean();
-				coarse->upload_bnd_add(*delta.get_grid(levelmin + i - 1));
-
-				//... clean up
-				the_tf_kernel->deallocate();
-				delete coarse;
-			}
-
-			coarse = fine;
-		}
-
-		//... and convolution for finest grid (outside loop)
-		if (levelmax > levelmin)
-		{
-			/**********************************************************************************************************\
-			 *	multi-grid: finest sub-grid .....
-			\**********************************************************************************************************/
-			std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmax << " ..." << std::endl;
-			LOGUSER("Performing noise convolution on level %3d", levelmax);
-
-			//... 1) grid self-contribution
-			LOGUSER("Computing density self-contribution");
-			PaddedDensitySubGrid<real_t> coarse_save(*coarse);
-
-			//... create convolution kernel
-			the_tf_kernel->fetch_kernel(levelmax);
-
-			//... subtract oct mean on boundary but not in interior
-			coarse->subtract_boundary_oct_mean();
-
-			//... perform convolution
-			convolution::perform<real_t>(the_tf_kernel, reinterpret_cast<void *>(coarse->get_data_ptr()), shift, fix, flip);
-
-			//... copy to grid hierarchy
-			coarse->copy_add_unpad(*delta.get_grid(levelmax));
-
-			//... 2) boundary correction to top grid
-			LOGUSER("Computing coarse grid correction");
-			*coarse = coarse_save;
-
-			//... subtract oct mean
-			coarse->subtract_oct_mean();
-
-			//... perform convolution
-			convolution::perform<real_t>(the_tf_kernel, reinterpret_cast<void *>(coarse->get_data_ptr()), shift, fix, flip);
-
-			the_tf_kernel->deallocate();
-
-			coarse->subtract_mean();
-
-			//... upload data to coarser grid
-			coarse->upload_bnd_add(*delta.get_grid(levelmax - 1));
-
-			delete coarse;
-		}
 	}
 
 	delete the_tf_kernel;

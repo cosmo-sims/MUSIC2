@@ -1641,15 +1641,6 @@ public:
 		absoffsets_ = o.absoffsets_;
 		len_ = o.len_;
 		margin_ = o.margin_;
-		// ox_ = o.ox_;
-		// oy_ = o.oy_;
-		// oz_ = o.oz_;
-		// oax_ = o.oax_;
-		// oay_ = o.oay_;
-		// oaz_ = o.oaz_;
-		// nx_ = o.nx_;
-		// ny_ = o.ny_;
-		// nz_ = o.nz_;
 
 		return *this;
 	}

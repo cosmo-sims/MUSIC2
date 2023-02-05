@@ -16,8 +16,6 @@
 typedef fftw_complex fftwf_complex;
 #endif
 
-double T0 = 1.0;
-
 namespace convolution
 {
 

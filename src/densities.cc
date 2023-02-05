@@ -173,6 +173,8 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 	size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf + 2;
 	size_t nxF = V.size(0), nyF = V.size(1), nzF = V.size(2);
 
+	size_t mxf = v.margin(0), myf = v.margin(1), mzf = v.margin(2);
+
 	if (!from_basegrid)
 	{
 #ifdef NO_COARSE_OVERLAP
@@ -180,19 +182,20 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 		oyf += nyF / 4;
 		ozf += nzF / 4;
 #else
-		oxf += nxF / 4 - nxf / 8;
-		oyf += nyF / 4 - nyf / 8;
-		ozf += nzF / 4 - nzf / 8;
+		oxf += nxF / 4 - nxf / 8; //mxf / 2;
+		oyf += nyF / 4 - nyf / 8; //myf / 2;
+		ozf += nzF / 4 - nzf / 8; //mzf / 2;
 	}
 	else
 	{
-		oxf -= nxf / 8;
-		oyf -= nyf / 8;
-		ozf -= nzf / 8;
+		oxf -= mxf/2; //nxf / 8; 
+		oyf -= myf/2; //nyf / 8; 
+		ozf -= mzf/2; //nzf / 8; 
 #endif
 	}
 
-	LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d", oxf, oyf, ozf, nxf, nyf, nzf);
+	// LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d", oxf, oyf, ozf, nxf, nyf, nzf);
+	LOGINFO("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d", oxf, oyf, ozf, nxf, nyf, nzf);
 
 	// cut out piece of coarse grid that overlaps the fine:
 	assert(nxf % 2 == 0 && nyf % 2 == 0 && nzf % 2 == 0);
@@ -632,7 +635,7 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 			LOGUSER("   size  =(%5d,%5d,%5d)", refh.size(levelmin + i, 0),
 					refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
 
-			if( refh.get_margin() > 0 )
+			if( refh.get_margin() > 0 ){
 				fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
 																								refh.offset(levelmin + i, 1),
 																								refh.offset(levelmin + i, 2),
@@ -640,14 +643,16 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 																								refh.size(levelmin + i, 1),
 																								refh.size(levelmin + i, 2),
 																								refh.get_margin(), refh.get_margin(), refh.get_margin() );
-			else
+				LOGUSER("    margin = %d",refh.get_margin());
+			}else{
 				fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
 																								refh.offset(levelmin + i, 1),
 																								refh.offset(levelmin + i, 2),
 																								refh.size(levelmin + i, 0),
 																								refh.size(levelmin + i, 1),
 																								refh.size(levelmin + i, 2));
-				
+				LOGUSER("    margin = %d",refh.size(levelmin + i, 0)/2);
+			}
 			/////////////////////////////////////////////////////////////////////////
 
 			// load white noise for patch

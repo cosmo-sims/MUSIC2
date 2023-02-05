@@ -245,7 +245,7 @@ public:
 	using DensityGrid<real_t>::oz_;
 	using DensityGrid<real_t>::data_;
 
-	size_t padx_, pady_, padz_;
+	std::array<size_t,3> pad_;
 
 	using DensityGrid<real_t>::fill_rand;
 	using DensityGrid<real_t>::get_data_ptr;
@@ -253,26 +253,31 @@ public:
 public:
 	PaddedDensitySubGrid(int ox, int oy, int oz, unsigned nx, unsigned ny, unsigned nz )
 			: DensityGrid<real_t>(nx*2, ny*2, nz*2, ox, oy, oz),
-				padx_(nx / 2), pady_(ny / 2), padz_(nz / 2)
+				pad_{{ nx / 2, ny / 2, nz / 2 }}
 	{ }
 
 	PaddedDensitySubGrid(int ox, int oy, int oz, unsigned nx, unsigned ny, unsigned nz, unsigned padx, unsigned pady, unsigned padz )
 			: DensityGrid<real_t>(nx + 2 * padx, ny + 2 * pady, nz + 2 * padz, ox, oy, oz),
-				padx_(padx), pady_(pady), padz_(padz)
+				pad_{{ padx, pady, padz }}
 	{ }
 
 	PaddedDensitySubGrid(const PaddedDensitySubGrid<real_t> &o)
 			: DensityGrid<real_t>(o)
 	{ }
 
+	size_t margin(int i) const
+	{
+		return pad_[i];
+	}
+
 	template <class array3>
 	void copy_unpad(array3 &v)
 	{
 		#pragma omp parallel for
-		for (size_t ix = padx_; ix < nx_-padx_; ++ix){
-			const size_t ixu = ix - padx_;
-			for (size_t iy = pady_, iyu = 0; iy < ny_-pady_; ++iy, ++iyu)
-				for (size_t iz = padz_, izu = 0; iz < nz_-padz_; ++iz, ++izu)
+		for (size_t ix = pad_[0]; ix < nx_-pad_[0]; ++ix){
+			const size_t ixu = ix - pad_[0];
+			for (size_t iy = pad_[1], iyu = 0; iy < ny_-pad_[1]; ++iy, ++iyu)
+				for (size_t iz = pad_[2], izu = 0; iz < nz_-pad_[2]; ++iz, ++izu)
 					v(ixu, iyu, izu) = (*this)(ix, iy, iz);
 		}
 	}
@@ -281,10 +286,10 @@ public:
 	void copy_add_unpad(array3 &v)
 	{
 		#pragma omp parallel for
-		for (size_t ix = padx_; ix < nx_-padx_; ++ix){
-			const size_t ixu = ix - padx_;
-			for (size_t iy = pady_, iyu = 0; iy < ny_-pady_; ++iy, ++iyu)
-				for (size_t iz = padz_, izu = 0; iz < nz_-padz_; ++iz, ++izu)
+		for (size_t ix = pad_[0]; ix < nx_-pad_[0]; ++ix){
+			const size_t ixu = ix - pad_[0];
+			for (size_t iy = pad_[1], iyu = 0; iy < ny_-pad_[1]; ++iy, ++iyu)
+				for (size_t iz = pad_[2], izu = 0; iz < nz_-pad_[2]; ++iz, ++izu)
 					v(ixu, iyu, izu) += (*this)(ix, iy, iz);
 		}
 	}
@@ -293,10 +298,10 @@ public:
 	void copy_subtract_unpad(array3 &v)
 	{
 		#pragma omp parallel for
-		for (size_t ix = padx_; ix < nx_-padx_; ++ix){
-			const size_t ixu = ix - padx_;
-			for (size_t iy = pady_, iyu = 0; iy < ny_-pady_; ++iy, ++iyu)
-				for (size_t iz = padz_, izu = 0; iz < nz_-padz_; ++iz, ++izu)
+		for (size_t ix = pad_[0]; ix < nx_-pad_[0]; ++ix){
+			const size_t ixu = ix - pad_[0];
+			for (size_t iy = pad_[1], iyu = 0; iy < ny_-pad_[1]; ++iy, ++iyu)
+				for (size_t iz = pad_[2], izu = 0; iz < nz_-pad_[2]; ++iz, ++izu)
 					v(ixu, iyu, izu) -= (*this)(ix, iy, iz);
 		}
 	}

@@ -230,7 +230,7 @@ void store_grid_structure( config_file& cf, const refinement_hierarchy& rh )
 		for( int j=0; j<3; ++j )
 		{
 			sprintf(str1,"offset(%d,%d)",i,j);	
-			sprintf(str2,"%d",rh.offset(i,j));
+			sprintf(str2,"%ld",rh.offset(i,j));
 			cf.insertValue("setup",str1,str2);
 
 			sprintf(str1,"size(%d,%d)",i,j);	

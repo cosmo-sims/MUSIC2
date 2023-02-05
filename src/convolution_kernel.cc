@@ -298,9 +298,15 @@ public:
 		}
 		else
 		{
-			cparam_.nx = 2 * prefh_->size(ilevel, 0);
-			cparam_.ny = 2 * prefh_->size(ilevel, 1);
-			cparam_.nz = 2 * prefh_->size(ilevel, 2);
+			if( prefh_->get_margin() < 0 ){
+				cparam_.nx = 2 * prefh_->size(ilevel, 0);
+				cparam_.ny = 2 * prefh_->size(ilevel, 1);
+				cparam_.nz = 2 * prefh_->size(ilevel, 2);
+			}else{
+				cparam_.nx = prefh_->size(ilevel, 0) + 2*prefh_->get_margin();
+				cparam_.ny = prefh_->size(ilevel, 1) + 2*prefh_->get_margin();
+				cparam_.nz = prefh_->size(ilevel, 2) + 2*prefh_->get_margin();
+			}
 
 			cparam_.lx = (double)cparam_.nx / (double)(1 << ilevel) * boxlength_;
 			cparam_.ly = (double)cparam_.ny / (double)(1 << ilevel) * boxlength_;

@@ -1697,12 +1697,26 @@ void random_number_generator<rng, T>::compute_random_numbers(void)
 
 		int lfac = 1 << (ilevel - levelmin_poisson);
 
-		lx[0] = 2 * prefh_->size(ilevel, 0);
-		lx[1] = 2 * prefh_->size(ilevel, 1);
-		lx[2] = 2 * prefh_->size(ilevel, 2);
-		x0[0] = prefh_->offset_abs(ilevel, 0) - lfac * shift[0] - lx[0] / 4;
-		x0[1] = prefh_->offset_abs(ilevel, 1) - lfac * shift[1] - lx[1] / 4;
-		x0[2] = prefh_->offset_abs(ilevel, 2) - lfac * shift[2] - lx[2] / 4;
+		int margin[3];
+		if (prefh_->get_margin()>0){
+			margin[0] = prefh_->get_margin();
+			margin[1] = prefh_->get_margin();
+			margin[2] = prefh_->get_margin();
+		}else{
+			margin[0] = prefh_->size(ilevel, 0)/2;
+			margin[1] = prefh_->size(ilevel, 1)/2;
+			margin[2] = prefh_->size(ilevel, 2)/2;
+		}
+
+		lx[0] = prefh_->size(ilevel, 0) + 2*margin[0];
+		lx[1] = prefh_->size(ilevel, 1) + 2*margin[1];
+		lx[2] = prefh_->size(ilevel, 2) + 2*margin[2];
+		x0[0] = prefh_->offset_abs(ilevel, 0) - lfac * shift[0] - margin[0];//lx[0] / 4;
+		x0[1] = prefh_->offset_abs(ilevel, 1) - lfac * shift[1] - margin[1];//lx[1] / 4;
+		x0[2] = prefh_->offset_abs(ilevel, 2) - lfac * shift[2] - margin[2];//lx[2] / 4;
+
+		LOGINFO("margin=%ld",prefh_->get_margin());
+		LOGINFO("x0=(%ld,%ld,%ld) lx=(%ld,%ld,%ld)",x0[0],x0[1],x0[2],lx[0],lx[1],lx[2]);
 
 		if (randc[ilevel] == NULL)
 			randc[ilevel] = new rng(*randc[ilevel - 1], ran_cube_size_, rngseeds_[ilevel], kavg, ilevel == levelmin_ + 1, x0, lx);
@@ -1812,7 +1826,7 @@ void random_number_generator<rng, T>::store_rnd(int ilevel, rng *prng)
 			char fname[128];
 			sprintf(fname, "grafic_wnoise_%04d.bin", ilevel);
 
-			LOGUSER("Storing white noise field for grafic in file \'%s\'...", fname);
+			LOGINFO("Storing white noise field for grafic in file \'%s\'...", fname);
 			LOGDEBUG("(%d,%d,%d) -- (%d,%d,%d) -- lfac = %d", nx, ny, nz, i0, j0, k0, lfac);
 
 			std::ofstream ofs(fname, std::ios::binary | std::ios::trunc);
@@ -1884,12 +1898,23 @@ void random_number_generator<rng, T>::store_rnd(int ilevel, rng *prng)
 			int nx, ny, nz;
 			int i0, j0, k0;
 
-			nx = 2 * prefh_->size(ilevel, 0);
-			ny = 2 * prefh_->size(ilevel, 1);
-			nz = 2 * prefh_->size(ilevel, 2);
-			i0 = prefh_->offset_abs(ilevel, 0) - lfac * shift[0] - nx / 4;
-			j0 = prefh_->offset_abs(ilevel, 1) - lfac * shift[1] - ny / 4; // was nx/4
-			k0 = prefh_->offset_abs(ilevel, 2) - lfac * shift[2] - nz / 4; // was nx/4
+			int margin[3];
+			if (prefh_->get_margin()>0){
+				margin[0] = prefh_->get_margin();
+				margin[1] = prefh_->get_margin();
+				margin[2] = prefh_->get_margin();
+			}else{
+				margin[0] = prefh_->size(ilevel, 0)/2;
+				margin[1] = prefh_->size(ilevel, 1)/2;
+				margin[2] = prefh_->size(ilevel, 2)/2;
+			}
+
+			nx = prefh_->size(ilevel, 0) + 2*margin[0];
+			ny = prefh_->size(ilevel, 1) + 2*margin[1];
+			nz = prefh_->size(ilevel, 2) + 2*margin[2];
+			i0 = prefh_->offset_abs(ilevel, 0) - lfac * shift[0] - margin[0]; //nx / 4;
+			j0 = prefh_->offset_abs(ilevel, 1) - lfac * shift[1] - margin[1]; //ny / 4; // was nx/4
+			k0 = prefh_->offset_abs(ilevel, 2) - lfac * shift[2] - margin[2]; //nz / 4; // was nx/4
 
 			char fname[128];
 			sprintf(fname, "wnoise_%04d.bin", ilevel);
@@ -1930,12 +1955,22 @@ void random_number_generator<rng, T>::store_rnd(int ilevel, rng *prng)
 		}
 		else
 		{
-			nx = 2 * prefh_->size(ilevel, 0);
-			ny = 2 * prefh_->size(ilevel, 1);
-			nz = 2 * prefh_->size(ilevel, 2);
-			i0 = prefh_->offset_abs(ilevel, 0) - lfac * shift[0] - nx / 4;
-			j0 = prefh_->offset_abs(ilevel, 1) - lfac * shift[1] - ny / 4; // was nx/4
-			k0 = prefh_->offset_abs(ilevel, 2) - lfac * shift[2] - nz / 4; // was nx/4
+			int margin[3];
+			if (prefh_->get_margin()>0){
+				margin[0] = prefh_->get_margin();
+				margin[1] = prefh_->get_margin();
+				margin[2] = prefh_->get_margin();
+			}else{
+				margin[0] = prefh_->size(ilevel, 0)/2;
+				margin[1] = prefh_->size(ilevel, 1)/2;
+				margin[2] = prefh_->size(ilevel, 2)/2;
+			}
+			nx = prefh_->size(ilevel, 0) + 2*margin[0];
+			ny = prefh_->size(ilevel, 1) + 2*margin[1];
+			nz = prefh_->size(ilevel, 2) + 2*margin[2];
+			i0 = prefh_->offset_abs(ilevel, 0) - lfac * shift[0] - margin[0];//nx / 4;
+			j0 = prefh_->offset_abs(ilevel, 1) - lfac * shift[1] - margin[1];//ny / 4; // was nx/4
+			k0 = prefh_->offset_abs(ilevel, 2) - lfac * shift[2] - margin[2];//nz / 4; // was nx/4
 		}
 
 		mem_cache_[ilevel - levelmin_] = new std::vector<T>(nx * ny * nz, 0.0);

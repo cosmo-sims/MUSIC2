@@ -632,12 +632,22 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 			LOGUSER("   size  =(%5d,%5d,%5d)", refh.size(levelmin + i, 0),
 					refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
 
-			fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
-																							refh.offset(levelmin + i, 1),
-																							refh.offset(levelmin + i, 2),
-																							refh.size(levelmin + i, 0),
-																							refh.size(levelmin + i, 1),
-																							refh.size(levelmin + i, 2));
+			if( refh.get_margin() > 0 )
+				fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
+																								refh.offset(levelmin + i, 1),
+																								refh.offset(levelmin + i, 2),
+																								refh.size(levelmin + i, 0),
+																								refh.size(levelmin + i, 1),
+																								refh.size(levelmin + i, 2),
+																								refh.get_margin(), refh.get_margin(), refh.get_margin() );
+			else
+				fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
+																								refh.offset(levelmin + i, 1),
+																								refh.offset(levelmin + i, 2),
+																								refh.size(levelmin + i, 0),
+																								refh.size(levelmin + i, 1),
+																								refh.size(levelmin + i, 2));
+				
 			/////////////////////////////////////////////////////////////////////////
 
 			// load white noise for patch

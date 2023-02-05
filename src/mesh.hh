@@ -1207,17 +1207,6 @@ class refinement_hierarchy
 	std::vector<index3_t> absoffsets_;
 	std::vector<index3_t> len_;
 
-	// std::vector<unsigned>
-	// 	ox_,	//!< relative x-coordinates of grid origins (in coarser grid cells)
-	// 	oy_,	//!< relative y-coordinates of grid origins (in coarser grid cells)
-	// 	oz_,	//!< relative z-coordinates of grid origins (in coarser grid cells)
-	// 	oax_,	//!< absolute x-coordinates of grid origins (in fine grid cells)
-	// 	oay_,	//!< absolute y-coordinates of grid origins (in fine grid cells)
-	// 	oaz_,	//!< absolute z-coordinates of grid origins (in fine grid cells)
-	// 	nx_,	//!< x-extent of grids (in fine grid cells)
-	// 	ny_,	//!< y-extent of grids (in fine grid cells)
-	// 	nz_;	//!< z-extent of grids (in fine grid cells)
-
 	unsigned
 			levelmin_,		//!< minimum grid level for Poisson solver
 			levelmax_,		//!< maximum grid level for all operations
@@ -1225,15 +1214,13 @@ class refinement_hierarchy
 			padding_,			//!< padding in number of coarse cells between refinement levels
 			blocking_factor_;
 
+	int margin_;      //!< number of cells used for additional padding for convolutions with isolated boundaries (-1 = double padding)
+
 	config_file &cf_; //!< reference to config_file
 
 	bool align_top_,		//!< bool whether to align all grids with coarsest grid cells
 			preserve_dims_, //!< bool whether to preserve user-specified grid dimensions
 			equal_extent_;	//!< bool whether the simulation code requires squared refinement regions (e.g. RAMSES)
-
-	// double
-	// 	x0ref_[3],	//!< coordinates of refinement region origin (in [0..1[)
-	// 	lxref_[3];	//!< extent of refinement region (int [0..1[)
 
 	vec3_t x0ref_; //!< coordinates of refinement region origin (in [0..1[)
 	vec3_t lxref_; //!< extent of refinement region (int [0..1[)
@@ -1264,6 +1251,7 @@ public:
 		preserve_dims_ = cf_.getValueSafe<bool>("setup", "preserve_dims", false);
 		equal_extent_ = cf_.getValueSafe<bool>("setup", "force_equal_extent", false);
 		blocking_factor_ = cf.getValueSafe<unsigned>("setup", "blocking_factor", 0);
+		margin_          = cf.getValueSafe<int>("setup","convolution_margin",32);
 
 		bool bnoshift = cf_.getValueSafe<bool>("setup", "no_shift", false);
 		bool force_shift = cf_.getValueSafe<bool>("setup", "force_shift", false);
@@ -1289,14 +1277,8 @@ public:
 		// if not doing any refinement levels, set extent to full box
 		if (levelmin_ == levelmax_)
 		{
-			x0ref_ = {0.0, 0.0, 0.0};
-			// x0ref_[0] = 0.0;
-			// x0ref_[1] = 0.0;
-			// x0ref_[2] = 0.0;
-
-			lxref_[0] = 1.0;
-			lxref_[1] = 1.0;
-			lxref_[2] = 1.0;
+			x0ref_ = { 0.0, 0.0, 0.0 };
+			lxref_ = { 1.0, 1.0, 1.0 };
 		}
 
 		unsigned ncoarse = 1 << levelmin_;
@@ -1658,6 +1640,7 @@ public:
 		offsets_ = o.offsets_;
 		absoffsets_ = o.absoffsets_;
 		len_ = o.len_;
+		margin_ = o.margin_;
 		// ox_ = o.ox_;
 		// oy_ = o.oy_;
 		// oz_ = o.oz_;
@@ -1774,6 +1757,12 @@ public:
 	int get_shift(int idim) const
 	{
 		return xshift_[idim];
+	}
+
+	//! get the margin reserved for isolated convolutions (-1=double pad)
+	int get_margin() const
+	{
+		return margin_;
 	}
 
 	//! get the total shift of the coordinate system in box coordinates

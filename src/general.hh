@@ -54,6 +54,8 @@
 	typedef double real_t;
 #endif
 
+#include <array>
+using vec3_t = std::array<real_t,3>;
 
 #ifdef FFTW3
 	#define RE(x) ((x)[0])

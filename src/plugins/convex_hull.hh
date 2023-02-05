@@ -11,6 +11,9 @@
 
 #include "log.hh"
 
+#include <array>
+
+
 /***** Slow but short convex hull Implementation ******/
 /* 
  * Finds the convex hull of a set of data points.
@@ -25,14 +28,16 @@
 template< typename real_t >
 struct convex_hull{
     typedef const real_t *cpr_;
+    using vec3_t = std::array<real_t,3>;
     
     size_t npoints_;
     std::vector<int> faceidx_L_, faceidx_U_;
     std::vector<real_t> normals_L_, normals_U_;
     std::vector<real_t> x0_L_, x0_U_;
-    real_t centroid_[3], volume_;
-    real_t left_[3], right_[3];
-    real_t anchor_pt_[3];
+    vec3_t centroid_;
+    real_t volume_;
+    vec3_t left_, right_;
+    vec3_t anchor_pt_;
     
     inline double turn( cpr_ p, cpr_ q, cpr_ r ) const
     {   return (q[0]-p[0])*(r[1]-p[1]) - (r[0]-p[0])*(q[1]-p[1]);   }
@@ -224,32 +229,33 @@ struct convex_hull{
         dist *= -1.0;
         
         // take care of possible periodic boundaries
-        T x[3];
+        std::array<T,3> x;
         for( size_t p=0; p<3; ++p )
         {
-            T d = xp[p] - anchor_pt_[p];
+            real_t d = xp[p] - anchor_pt_[p];
             if( d>0.5 ) x[p] = xp[p]-1.0; else if ( d<-0.5 ) x[p] = xp[p]+1.0; else x[p] = xp[p];
         }
 
         // check for inside vs. outside
         for( size_t i=0; i<normals_L_.size()/3; ++i )
         {
-            double xp[3] = {x[0]-x0_L_[3*i+0],x[1]-x0_L_[3*i+1],x[2]-x0_L_[3*i+2]};
-            if( dot( xp, &normals_L_[3*i]) < dist ) return false;
+            std::array<T,3> xp{{x[0]-x0_L_[3*i+0],x[1]-x0_L_[3*i+1],x[2]-x0_L_[3*i+2]}};
+            if( dot( &xp[0], &normals_L_[3*i]) < dist ) return false;
         }
         
         for( size_t i=0; i<normals_U_.size()/3; ++i )
         {
-            double xp[3] = {x[0]-x0_U_[3*i+0],x[1]-x0_U_[3*i+1],x[2]-x0_U_[3*i+2]};
-            if( dot( xp, &normals_U_[3*i]) < dist ) return false;
+            std::array<T,3> xp{{x[0]-x0_U_[3*i+0],x[1]-x0_U_[3*i+1],x[2]-x0_U_[3*i+2]}};
+            if( dot( &xp[0], &normals_U_[3*i]) < dist ) return false;
         }
         
         return true;
     }
     
-    void expand_vector_from_centroid( real_t *v, double dr  )
+    void expand_vector_from_centroid( real_t* v, double dr  )
     {
-        double dx[3], d = 0.0;
+        vec3_t dx;
+        real_t d = 0.0;
         for( int i=0; i<3; ++i )
         {
             dx[i] = v[i]-centroid_[i];
@@ -267,9 +273,8 @@ struct convex_hull{
         for( size_t i=0; i<normals_U_.size(); i+=3 )
             expand_vector_from_centroid( &x0_U_[i], dr );
         
-        expand_vector_from_centroid( left_, dr );
-        expand_vector_from_centroid( right_, dr );
-        
+        expand_vector_from_centroid( &left_[0], dr );
+        expand_vector_from_centroid( &right_[0], dr );
     }
     
     void get_defining_indices( std::set<int>& unique ) const
@@ -282,7 +287,7 @@ struct convex_hull{
             unique.insert( faceidx_U_[i] );
     }
     
-    convex_hull( cpr_ points, size_t npoints, const double* anchor )
+    convex_hull( cpr_ points, size_t npoints, const vec3_t& anchor )
     : npoints_( npoints )
     {
         anchor_pt_[0] = anchor[0];

@@ -31,7 +31,7 @@ private:
     double vfac_;
     bool do_extra_padding_;
     
-    double anchor_pt_[3];
+    convex_hull<double>::vec3_t anchor_pt_;
     
     std::vector<float> level_dist_;
     
@@ -123,7 +123,7 @@ public:
         delete phull_;
     }
     
-    void get_AABB( double *left, double *right, unsigned level )
+    void get_AABB( vec3_t& left, vec3_t& right, unsigned level ) const 
     {
         for( int i=0; i<3; ++i )
         {
@@ -145,26 +145,26 @@ public:
         
     }
     
-    void update_AABB( double *left, double *right )
+    void update_AABB( vec3_t& left, vec3_t& right )
     {
         // we ignore this, the grid generator must have generated a grid that contains the ellipsoid
         // it might have enlarged it, but who cares...
     }
 
-    bool query_point( double *x, int ilevel )
-    {   return phull_->check_point( x, level_dist_[ilevel] );   }
+    bool query_point( const vec3_t& x, int ilevel ) const
+    {   return phull_->check_point( &x[0], level_dist_[ilevel] );   }
     
-    bool is_grid_dim_forced( size_t* ndims )
+    bool is_grid_dim_forced( index3_t& ndims ) const
     {   return false;   }
     
-    void get_center( double *xc )
+    void get_center( vec3_t& xc ) const
     {
         xc[0] = phull_->centroid_[0];
         xc[1] = phull_->centroid_[1];
         xc[2] = phull_->centroid_[2];
     }
     
-    void get_center_unshifted( double *xc )
+    void get_center_unshifted( vec3_t& xc ) const
     {
         double dx = 1.0/(1<<shift_level);
         double c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };

@@ -4,6 +4,10 @@
 #include <vector>
 #include "config_file.hh"
 
+#include <array>
+using vec3_t = std::array<double,3>;
+using index3_t = std::array<ptrdiff_t,3>;
+
 //! Abstract base class for region generators
 /*!
  This class implements a purely virtual interface that can be
@@ -26,22 +30,22 @@ public:
     virtual ~region_generator_plugin() { };
     
     //! compute the bounding box of the region
-    virtual void get_AABB( double *left, double *right, unsigned level) = 0;
+    virtual void get_AABB( vec3_t& left, vec3_t& right, unsigned level) const = 0;
     
     //! query whether a point intersects the region
-    virtual bool query_point( double *x, int level ) = 0;
+    virtual bool query_point( const vec3_t& x, int level ) const = 0;
     
     //! query whether the region generator explicitly forces the grid dimensions
-    virtual bool is_grid_dim_forced( size_t *ndims ) = 0;
+    virtual bool is_grid_dim_forced( index3_t& ndims ) const = 0;
     
     //! get the center of the region
-    virtual void get_center( double *xc ) = 0;
+    virtual void get_center( vec3_t& xc ) const = 0;
 
     //! get the center of the region with a possible re-centering unapplied
-    virtual void get_center_unshifted( double *xc ) = 0;
+    virtual void get_center_unshifted( vec3_t& xc ) const = 0;
   
     //! update the highres bounding box to what the grid generator actually uses
-    virtual void update_AABB( double *left, double *right ) = 0;
+    virtual void update_AABB( vec3_t& left, vec3_t& right ) = 0;
 };
 
 //! Implements abstract factory design pattern for region generator plug-ins

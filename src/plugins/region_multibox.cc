@@ -35,12 +35,12 @@ typedef std::vector<coord> region;
 
 class region_multibox_plugin : public region_generator_plugin{
 private:
-    double cen[3];
+    vec3_t cen;
     unsigned res;
     double vfac_;
     grid refgrid;
     
-    region where(unsigned level)
+    region where(unsigned level) const
     {
         slice curslice;
         col curcol;
@@ -169,7 +169,7 @@ public:
     }
     
     
-    void get_AABB( double *left, double *right, unsigned level )
+    void get_AABB( vec3_t& left, vec3_t &right, unsigned level ) const
     {
         left[0] = left[1] = left[2] = 1.0;
         right[0] = right[1] = right[2] = 0.0;
@@ -216,12 +216,12 @@ public:
         fclose(gridfile);
     }
   
-    void update_AABB( double *left, double *right )
+    void update_AABB( vec3_t& left, vec3_t& right )
     {
         //no need for this I think?
     }
   
-    bool query_point( double *x, int level )
+    bool query_point( const vec3_t& x, int level ) const
     {
         for(int i=0; i<3; ++i)
         {
@@ -230,14 +230,14 @@ public:
         return (level <= int(refgrid[(x[0])*res][(x[1])*res][(x[2])*res]));
     }
     
-    bool is_grid_dim_forced( size_t* ndims )
+    bool is_grid_dim_forced( index3_t& ndims ) const
     {   
         return false; //is this true?
     }
     
-    void get_center( double *xc )
+    void get_center( vec3_t& xc ) const
     {
-        double xc2[3];
+        vec3_t xc2;
         get_AABB(xc, xc2, levelmax_);
         for(int i=0; i<3; ++i)
         {
@@ -246,7 +246,7 @@ public:
         }
     }
 
-  void get_center_unshifted( double *xc )
+  void get_center_unshifted( vec3_t& xc ) const
   {
       get_center(xc);
   }

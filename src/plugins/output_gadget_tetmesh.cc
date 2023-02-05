@@ -375,7 +375,7 @@ void delete_duplicates( void )
     {
         if( REMOVE_DECORATION_BITS(P[i].Lagrange_ID) != REMOVE_DECORATION_BITS(P[j-1].Lagrange_ID) )
         {
-            memcpy( &P[j], &P[i], sizeof(particle) );
+            memcpy( reinterpret_cast<void*>(&P[j]), reinterpret_cast<void*>(&P[i]), sizeof(particle) );
             idmap[ REMOVE_DECORATION_BITS(P[j].Lagrange_ID) ] = j;
             ++j;
         }else{
@@ -1124,7 +1124,7 @@ public:
                 
                 if( num_p + newnum_p_per_split > num_p_alloc )
                 {
-                    P = (particle*) realloc( P, (num_p_alloc+=num_p_realloc_blocksize)*sizeof(particle) );
+                    P = reinterpret_cast<particle*>( realloc( reinterpret_cast<void*>(P), (num_p_alloc+=num_p_realloc_blocksize)*sizeof(particle) ) );
                     LOGINFO("reallocated particle buffer. new size = %llu MBytes.",  num_p_alloc * sizeof(particle)/1024/1024 );
                 }
                 split_lagrange_cube( ip );

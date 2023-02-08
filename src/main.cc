@@ -307,7 +307,6 @@ int main (int argc, const char * argv[])
 	const unsigned nbnd = 4;
 	
 	unsigned lbase, lmax, lbaseTF;
-	double   err = 1.0;
 	
 	//------------------------------------------------------------------------------
 	//... parse command line options
@@ -519,7 +518,8 @@ int main (int argc, const char * argv[])
 	//------------------------------------------------------------------------------
 	//... initialize the Poisson solver
 	//------------------------------------------------------------------------------
-	bool bdefd	= cf.getValueSafe<bool> ( "poisson" , "fft_fine", true );
+	// bool bdefd	= cf.getValueSafe<bool> ( "poisson" , "fft_fine", true );
+  bool bdefd = true; // we set this by default and don't allow it to be changed outside any more
 	bool bglass = cf.getValueSafe<bool>("output","glass", false);
 	bool bsph	= cf.getValueSafe<bool>("setup","do_SPH",false) && do_baryons;
 	bool bbshift= bsph && !bglass;
@@ -589,7 +589,7 @@ int main (int argc, const char * argv[])
 			the_output_plugin->write_dm_density(f);
 			
 			grid_hierarchy u( f );	u.zero();
-			err = the_poisson_solver->solve(f, u);
+			the_poisson_solver->solve(f, u);
 			
 			if(!bdefd)
 				f.deallocate();	
@@ -653,7 +653,7 @@ int main (int argc, const char * argv[])
 				if( bsph )
 				{
 					u = f;	u.zero();
-					err = the_poisson_solver->solve(f, u);					
+					the_poisson_solver->solve(f, u);					
 					
 					if(!bdefd)
 						f.deallocate();
@@ -688,7 +688,7 @@ int main (int argc, const char * argv[])
 				else if( do_LLA )
 				{
 					u = f;	u.zero();
-					err = the_poisson_solver->solve(f, u);
+					the_poisson_solver->solve(f, u);
 					compute_LLA_density( u, f,grad_order );
 					u.deallocate();
 					normalize_density(f);
@@ -720,7 +720,7 @@ int main (int argc, const char * argv[])
 				  normalize_density(f);					
 				  u = f;
 				  u.zero();
-				  err = the_poisson_solver->solve(f, u);
+				  the_poisson_solver->solve(f, u);
 				  
 				  if(!bdefd)
 				    f.deallocate();
@@ -792,7 +792,7 @@ int main (int argc, const char * argv[])
 				
 				u = f;	u.zero();
 				
-				err = the_poisson_solver->solve(f, u);
+				the_poisson_solver->solve(f, u);
 				
 				if(!bdefd)
 				  f.deallocate();
@@ -847,7 +847,7 @@ int main (int argc, const char * argv[])
 				
 				u = f;	u.zero();
 				
-				err = the_poisson_solver->solve(f, u);
+				the_poisson_solver->solve(f, u);
 				
 				if(!bdefd)
 					f.deallocate();
@@ -933,7 +933,7 @@ int main (int argc, const char * argv[])
 			u1 = f;	u1.zero();
 			
 			//... compute 1LPT term
-			err = the_poisson_solver->solve(f, u1);
+			the_poisson_solver->solve(f, u1);
 			
 			
 			//... compute 2LPT term
@@ -952,7 +952,7 @@ int main (int argc, const char * argv[])
             
             LOGINFO("Solving 2LPT Poisson equation");
 			u2LPT = u1; u2LPT.zero();
-			err = the_poisson_solver->solve(f2LPT, u2LPT);
+			the_poisson_solver->solve(f2LPT, u2LPT);
             
 			
 			//... if doing the hybrid step, we need a combined source term
@@ -1032,7 +1032,7 @@ int main (int argc, const char * argv[])
 					f2LPT=f;
 				
 				//... compute 1LPT term
-				err = the_poisson_solver->solve(f, u1);
+				the_poisson_solver->solve(f, u1);
 
 				LOGINFO("Writing baryon potential");
 				the_output_plugin->write_gas_potential(u1);
@@ -1046,7 +1046,7 @@ int main (int argc, const char * argv[])
 					compute_2LPT_source_FFT(cf, u1, f2LPT);
 				
 				
-				err = the_poisson_solver->solve(f2LPT, u2LPT);
+				the_poisson_solver->solve(f2LPT, u2LPT);
 				
 				//... if doing the hybrid step, we need a combined source term
 				if( bdefd )
@@ -1130,7 +1130,7 @@ int main (int argc, const char * argv[])
 					f2LPT=f;
 				
 				//... compute 1LPT term
-				err = the_poisson_solver->solve(f, u1);
+				the_poisson_solver->solve(f, u1);
 				
 				//... compute 2LPT term
 				u2LPT = f; u2LPT.zero();
@@ -1140,7 +1140,7 @@ int main (int argc, const char * argv[])
 				else
 					compute_2LPT_source_FFT(cf, u1, f2LPT);
 				
-				err = the_poisson_solver->solve(f2LPT, u2LPT);
+				the_poisson_solver->solve(f2LPT, u2LPT);
 				
 				if( bdefd )
 				{
@@ -1219,7 +1219,7 @@ int main (int argc, const char * argv[])
 					u1 = f;	u1.zero();
 					
 					//... compute 1LPT term
-					err = the_poisson_solver->solve(f, u1);
+					the_poisson_solver->solve(f, u1);
 					
 					//... compute 2LPT term
 					u2LPT = f; u2LPT.zero();
@@ -1229,7 +1229,7 @@ int main (int argc, const char * argv[])
 					else
 						compute_2LPT_source_FFT(cf, u1, f2LPT);
 					
-					err = the_poisson_solver->solve(f2LPT, u2LPT);
+					the_poisson_solver->solve(f2LPT, u2LPT);
 					u2LPT *= 3.0/7.0;
 					u1 += u2LPT;
 					u2LPT.deallocate();
@@ -1261,7 +1261,7 @@ int main (int argc, const char * argv[])
 					f2LPT=f;
 				
 				//... compute 1LPT term
-				err = the_poisson_solver->solve(f, u1);
+				the_poisson_solver->solve(f, u1);
 				
 				//... compute 2LPT term
 				u2LPT = f; u2LPT.zero();
@@ -1271,7 +1271,7 @@ int main (int argc, const char * argv[])
 				else
 					compute_2LPT_source_FFT(cf, u1, f2LPT);
 				
-				err = the_poisson_solver->solve(f2LPT, u2LPT);
+				the_poisson_solver->solve(f2LPT, u2LPT);
 				
 				if( bdefd )
 				{

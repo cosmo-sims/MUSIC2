@@ -16,25 +16,19 @@
 //TODO: this should be a larger number by default, just to maintain consistency with old default
 #define DEF_RAN_CUBE_SIZE 32
 
-double blend_sharpness = 0.5;
-
-double Blend_Function(double k, double kmax)
+double Meyer_scaling_function( double k, double kmax )
 {
-#if 0
-    const static double pihalf = 0.5*M_PI;
-    if( fabs(k)>kmax ) return 0.0;
-    return cos(k/kmax * pihalf );
-#else
-	float kabs = fabs(k);
-	double const eps = blend_sharpness;
-	float kp = (1.0f - 2.0f * eps) * kmax;
+	constexpr double twopithirds{2.0*M_PI/3.0};
+	constexpr double fourpithirds{4.0*M_PI/3.0};
+	auto nu = []( double x ){ return x<0.0?0.0:(x<1.0?x:1.0); };
 
-	if (kabs >= kmax)
-		return 0.;
-	if (kabs > kp)
-		return 1.0f / (expf((kp - kmax) / (k - kp) + (kp - kmax) / (k - kmax)) + 1.0f);
-	return 1.0f;
-#endif
+	k = k/kmax * fourpithirds;
+
+	if( k < twopithirds ) return 1.0;
+	else if( k< fourpithirds ){
+		return std::cos( 0.5*M_PI * nu(3*k/(2*M_PI)-1.0) );
+	}
+	return 0.0;
 }
 
 template <typename m1, typename m2>
@@ -117,7 +111,7 @@ void fft_coarsen(m1 &v, m2 &V)
 
 				std::complex<double> val_phas(cos(phase), sin(phase));
 
-				val_fine *= val_phas * fftnorm / 8.0; //sqrt(8.0);
+				val_fine *= val_phas * fftnorm / 8.0; 
 
 				RE(ccoarse[qc]) = val_fine.real();
 				IM(ccoarse[qc]) = val_fine.imag();
@@ -164,38 +158,27 @@ void fft_coarsen(m1 &v, m2 &V)
 #endif
 }
 
-//#define NO_COARSE_OVERLAP
-
 template <typename m1, typename m2>
 void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 {
 	int oxf = v.offset(0), oyf = v.offset(1), ozf = v.offset(2);
 	size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf + 2;
-	size_t nxF = V.size(0), nyF = V.size(1), nzF = V.size(2);
-
 	size_t mxf = v.margin(0), myf = v.margin(1), mzf = v.margin(2);
 
 	if (!from_basegrid)
 	{
-#ifdef NO_COARSE_OVERLAP
-		oxf += nxF / 4;
-		oyf += nyF / 4;
-		ozf += nzF / 4;
-#else
-		oxf += nxF / 4 - nxf / 8; //mxf / 2;
-		oyf += nyF / 4 - nyf / 8; //myf / 2;
-		ozf += nzF / 4 - nzf / 8; //mzf / 2;
+		oxf +=  mxf - mxf/2;
+		oyf +=  myf - myf/2;
+		ozf +=  mzf - mzf/2;
 	}
 	else
 	{
 		oxf -= mxf/2; //nxf / 8; 
 		oyf -= myf/2; //nyf / 8; 
 		ozf -= mzf/2; //nzf / 8; 
-#endif
 	}
 
-	// LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d", oxf, oyf, ozf, nxf, nyf, nzf);
-	LOGINFO("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d", oxf, oyf, ozf, nxf, nyf, nzf);
+	LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d", oxf, oyf, ozf, nxf, nyf, nzf);
 
 	// cut out piece of coarse grid that overlaps the fine:
 	assert(nxf % 2 == 0 && nyf % 2 == 0 && nzf % 2 == 0);
@@ -211,19 +194,6 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 	// copy coarse data to rcoarse[.]
 	memset(rcoarse, 0, sizeof(fftw_real) * nxc * nyc * nzcp);
 
-#ifdef NO_COARSE_OVERLAP
-#pragma omp parallel for
-	for (int i = 0; i < (int)nxc / 2; ++i)
-		for (int j = 0; j < (int)nyc / 2; ++j)
-			for (int k = 0; k < (int)nzc / 2; ++k)
-			{
-				int ii(i + nxc / 4);
-				int jj(j + nyc / 4);
-				int kk(k + nzc / 4);
-				size_t q = ((size_t)ii * nyc + (size_t)jj) * nzcp + (size_t)kk;
-				rcoarse[q] = V(oxf + i, oyf + j, ozf + k);
-			}
-#else
 #pragma omp parallel for
 	for (int i = 0; i < (int)nxc; ++i)
 		for (int j = 0; j < (int)nyc; ++j)
@@ -235,7 +205,6 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 				size_t q = ((size_t)ii * nyc + (size_t)jj) * nzcp + (size_t)kk;
 				rcoarse[q] = V(oxf + i, oyf + j, ozf + k);
 			}
-#endif
 
 #pragma omp parallel for
 	for (int i = 0; i < (int)nxf; ++i)
@@ -284,7 +253,6 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 	double phasefac = -0.5;
 
 	// this enables filtered splicing of coarse and fine modes
-#if 1
 	for (int i = 0; i < (int)nxc; i++)
 		for (int j = 0; j < (int)nyc; j++)
 			for (int k = 0; k < (int)nzc / 2 + 1; k++)
@@ -313,115 +281,14 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 				std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
 				val *= sqrt8 * val_phas;
 
-				double blend_coarse = Blend_Function(sqrt(kx * kx + ky * ky + kz * kz), nxc / 2);
-				double blend_fine = 1.0 - blend_coarse;
-
-				RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
-				IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
+				if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
+					double blend_coarse = Meyer_scaling_function(kx, nxc / 2) * Meyer_scaling_function(ky, nyc / 2) * Meyer_scaling_function(kz, nzc / 2);
+					double blend_fine = 1.0 - blend_coarse; 
+				
+					RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
+					IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
+				}
 			}
-
-#else
-
-	// 0 0
-#pragma omp parallel for
-	for (int i = 0; i < (int)nxc / 2 + 1; i++)
-		for (int j = 0; j < (int)nyc / 2 + 1; j++)
-			for (int k = 0; k < (int)nzc / 2 + 1; k++)
-			{
-				int ii(i), jj(j), kk(k);
-				size_t qc, qf;
-				qc = ((size_t)i * (size_t)nyc + (size_t)j) * (nzc / 2 + 1) + (size_t)k;
-				qf = ((size_t)ii * (size_t)nyf + (size_t)jj) * (nzf / 2 + 1) + (size_t)kk;
-
-				double kx = (i <= (int)nxc / 2) ? (double)i : (double)(i - (int)nxc);
-				double ky = (j <= (int)nyc / 2) ? (double)j : (double)(j - (int)nyc);
-				double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
-
-				double phase = phasefac * (kx / nxc + ky / nyc + kz / nzc) * M_PI;
-				std::complex<double> val_phas(cos(phase), sin(phase));
-
-				std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
-				val *= sqrt8 * val_phas;
-
-				RE(cfine[qf]) = val.real();
-				IM(cfine[qf]) = val.imag();
-			}
-
-// 1 0
-#pragma omp parallel for
-	for (int i = nxc / 2; i < (int)nxc; i++)
-		for (int j = 0; j < (int)nyc / 2 + 1; j++)
-			for (int k = 0; k < (int)nzc / 2 + 1; k++)
-			{
-				int ii(i + nxf / 2), jj(j), kk(k);
-				size_t qc, qf;
-				qc = ((size_t)i * (size_t)nyc + (size_t)j) * (nzc / 2 + 1) + (size_t)k;
-				qf = ((size_t)ii * (size_t)nyf + (size_t)jj) * (nzf / 2 + 1) + (size_t)kk;
-
-				double kx = (i <= (int)nxc / 2) ? (double)i : (double)(i - (int)nxc);
-				double ky = (j <= (int)nyc / 2) ? (double)j : (double)(j - (int)nyc);
-				double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
-
-				double phase = phasefac * (kx / nxc + ky / nyc + kz / nzc) * M_PI;
-				std::complex<double> val_phas(cos(phase), sin(phase));
-
-				std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
-				val *= sqrt8 * val_phas;
-
-				RE(cfine[qf]) = val.real();
-				IM(cfine[qf]) = val.imag();
-			}
-
-// 0 1
-#pragma omp parallel for
-	for (int i = 0; i < (int)nxc / 2 + 1; i++)
-		for (int j = nyc / 2; j < (int)nyc; j++)
-			for (int k = 0; k < (int)nzc / 2 + 1; k++)
-			{
-				int ii(i), jj(j + nyf / 2), kk(k);
-				size_t qc, qf;
-				qc = ((size_t)i * (size_t)nyc + (size_t)j) * (nzc / 2 + 1) + (size_t)k;
-				qf = ((size_t)ii * (size_t)nyf + (size_t)jj) * (nzf / 2 + 1) + (size_t)kk;
-
-				double kx = (i <= (int)nxc / 2) ? (double)i : (double)(i - (int)nxc);
-				double ky = (j <= (int)nyc / 2) ? (double)j : (double)(j - (int)nyc);
-				double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
-
-				double phase = phasefac * (kx / nxc + ky / nyc + kz / nzc) * M_PI;
-				std::complex<double> val_phas(cos(phase), sin(phase));
-
-				std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
-				val *= sqrt8 * val_phas;
-
-				RE(cfine[qf]) = val.real();
-				IM(cfine[qf]) = val.imag();
-			}
-
-// 1 1
-#pragma omp parallel for
-	for (int i = nxc / 2; i < (int)nxc; i++)
-		for (int j = nyc / 2; j < (int)nyc; j++)
-			for (int k = 0; k < (int)nzc / 2 + 1; k++)
-			{
-				int ii(i + nxf / 2), jj(j + nyf / 2), kk(k);
-				size_t qc, qf;
-				qc = ((size_t)i * (size_t)nyc + (size_t)j) * (nzc / 2 + 1) + (size_t)k;
-				qf = ((size_t)ii * (size_t)nyf + (size_t)jj) * (nzf / 2 + 1) + (size_t)kk;
-
-				double kx = (i <= (int)nxc / 2) ? (double)i : (double)(i - (int)nxc);
-				double ky = (j <= (int)nyc / 2) ? (double)j : (double)(j - (int)nyc);
-				double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
-
-				double phase = phasefac * (kx / nxc + ky / nyc + kz / nzc) * M_PI;
-				std::complex<double> val_phas(cos(phase), sin(phase));
-
-				std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
-				val *= sqrt8 * val_phas;
-
-				RE(cfine[qf]) = val.real();
-				IM(cfine[qf]) = val.imag();
-			}
-#endif
 
 	delete[] rcoarse;
 
@@ -576,8 +443,6 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 	if( fix && levelmin != levelmax ){
 		LOGWARN("You have chosen mode fixing for a zoom. This is not well tested,\n please proceed at your own risk...");
 	}
-
-	blend_sharpness = cf.getValueSafe<double>("setup", "kspace_filter", blend_sharpness);
 
 	unsigned nbase = 1 << levelmin;
 

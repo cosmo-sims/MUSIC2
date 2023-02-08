@@ -103,7 +103,7 @@ void rapid_proto_ngenic_rng(size_t res, long baseseed, random_numbers<T> &R)
 
 	double fnorm = 1. / sqrt(res * res * res);
 
-#warning need to check for race conditions below
+// #warning need to check for race conditions below
 	//#pragma omp parallel for
 	for (size_t i = 0; i < res; i++)
 	{
@@ -819,9 +819,7 @@ random_numbers<T>::random_numbers(random_numbers<T> &rc, unsigned cubesize, long
 		//if( isolated ) phasefac *= 1.5;
 
 		// embedding of coarse white noise by fourier interpolation
-
-#if 1
-#pragma omp parallel for
+		#pragma omp parallel for
 		for (int i = 0; i < (int)nxc; i++)
 			for (int j = 0; j < (int)nyc; j++)
 				for (int k = 0; k < (int)nzc / 2 + 1; k++)
@@ -859,120 +857,11 @@ random_numbers<T>::random_numbers(random_numbers<T> &rc, unsigned cubesize, long
 					}
 					else
 					{
-						//RE(cfine[qf]) = val.real();
-						//IM(cfine[qf]) = 0.0;
+						// RE(cfine[qf]) = val.real();
+						// IM(cfine[qf]) = 0.0;
 					}
 				}
 
-#else
-
-		// 0 0
-#pragma omp parallel for
-		for (int i = 0; i < (int)nxc / 2 + 1; i++)
-			for (int j = 0; j < (int)nyc / 2 + 1; j++)
-				for (int k = 0; k < (int)nzc / 2 + 1; k++)
-				{
-					int ii(i), jj(j), kk(k);
-					size_t qc, qf;
-					qc = ((size_t)i * (size_t)nyc + (size_t)j) * (nzc / 2 + 1) + (size_t)k;
-					qf = ((size_t)ii * (size_t)ny + (size_t)jj) * (nz / 2 + 1) + (size_t)kk;
-
-					double kx = (i <= (int)nxc / 2) ? (double)i : (double)(i - (int)nxc);
-					double ky = (j <= (int)nyc / 2) ? (double)j : (double)(j - (int)nyc);
-					double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
-
-					double phase = phasefac * (kx / nxc + ky / nyc + kz / nzc) * M_PI;
-					std::complex<double> val_phas(cos(phase), sin(phase));
-
-					std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
-					val *= sqrt8 * val_phas;
-
-					RE(cfine[qf]) = val.real();
-					IM(cfine[qf]) = val.imag();
-
-					//if( k==0 & (i==(int)nxc/2 || j==(int)nyc/2) )
-					//  IM(cfine[qf]) *= -1.0;
-				}
-				// 1 0
-#pragma omp parallel for
-		for (int i = nxc / 2; i < (int)nxc; i++)
-			for (int j = 0; j < (int)nyc / 2 + 1; j++)
-				for (int k = 0; k < (int)nzc / 2 + 1; k++)
-				{
-					int ii(i + nx / 2), jj(j), kk(k);
-					size_t qc, qf;
-					qc = ((size_t)i * (size_t)nyc + (size_t)j) * (nzc / 2 + 1) + (size_t)k;
-					qf = ((size_t)ii * (size_t)ny + (size_t)jj) * (nz / 2 + 1) + (size_t)kk;
-
-					double kx = (i <= (int)nxc / 2) ? (double)i : (double)(i - (int)nxc);
-					double ky = (j <= (int)nyc / 2) ? (double)j : (double)(j - (int)nyc);
-					double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
-
-					double phase = phasefac * (kx / nxc + ky / nyc + kz / nzc) * M_PI;
-					std::complex<double> val_phas(cos(phase), sin(phase));
-
-					std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
-					val *= sqrt8 * val_phas;
-
-					RE(cfine[qf]) = val.real();
-					IM(cfine[qf]) = val.imag();
-
-					//if( k==0 & (i==(int)nxc/2 || j==(int)nyc/2) )
-					//IM(cfine[qf]) *= -1.0;
-				}
-				// 0 1
-#pragma omp parallel for
-		for (int i = 0; i < (int)nxc / 2 + 1; i++)
-			for (int j = nyc / 2; j < (int)nyc; j++)
-				for (int k = 0; k < (int)nzc / 2 + 1; k++)
-				{
-					int ii(i), jj(j + ny / 2), kk(k);
-					size_t qc, qf;
-					qc = ((size_t)i * (size_t)nyc + (size_t)j) * (nzc / 2 + 1) + (size_t)k;
-					qf = ((size_t)ii * (size_t)ny + (size_t)jj) * (nz / 2 + 1) + (size_t)kk;
-
-					double kx = (i <= (int)nxc / 2) ? (double)i : (double)(i - (int)nxc);
-					double ky = (j <= (int)nyc / 2) ? (double)j : (double)(j - (int)nyc);
-					double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
-
-					double phase = phasefac * (kx / nxc + ky / nyc + kz / nzc) * M_PI;
-					std::complex<double> val_phas(cos(phase), sin(phase));
-
-					std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
-					val *= sqrt8 * val_phas;
-
-					RE(cfine[qf]) = val.real();
-					IM(cfine[qf]) = val.imag();
-
-					//if( k==0 && (i==(int)nxc/2 || j==(int)nyc/2) )
-					//  IM(cfine[qf]) *= -1.0;
-				}
-
-				// 1 1
-#pragma omp parallel for
-		for (int i = nxc / 2; i < (int)nxc; i++)
-			for (int j = nyc / 2; j < (int)nyc; j++)
-				for (int k = 0; k < (int)nzc / 2 + 1; k++)
-				{
-					int ii(i + nx / 2), jj(j + ny / 2), kk(k);
-					size_t qc, qf;
-					qc = ((size_t)i * (size_t)nyc + (size_t)j) * (nzc / 2 + 1) + (size_t)k;
-					qf = ((size_t)ii * (size_t)ny + (size_t)jj) * (nz / 2 + 1) + (size_t)kk;
-
-					double kx = (i <= (int)nxc / 2) ? (double)i : (double)(i - (int)nxc);
-					double ky = (j <= (int)nyc / 2) ? (double)j : (double)(j - (int)nyc);
-					double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
-
-					double phase = phasefac * (kx / nxc + ky / nyc + kz / nzc) * M_PI;
-					std::complex<double> val_phas(cos(phase), sin(phase));
-
-					std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
-					val *= sqrt8 * val_phas;
-
-					RE(cfine[qf]) = val.real();
-					IM(cfine[qf]) = val.imag();
-				}
-#endif
 
 		delete[] rcoarse;
 
@@ -1711,12 +1600,9 @@ void random_number_generator<rng, T>::compute_random_numbers(void)
 		lx[0] = prefh_->size(ilevel, 0) + 2*margin[0];
 		lx[1] = prefh_->size(ilevel, 1) + 2*margin[1];
 		lx[2] = prefh_->size(ilevel, 2) + 2*margin[2];
-		x0[0] = prefh_->offset_abs(ilevel, 0) - lfac * shift[0] - margin[0];//lx[0] / 4;
-		x0[1] = prefh_->offset_abs(ilevel, 1) - lfac * shift[1] - margin[1];//lx[1] / 4;
-		x0[2] = prefh_->offset_abs(ilevel, 2) - lfac * shift[2] - margin[2];//lx[2] / 4;
-
-		LOGINFO("margin=%ld",prefh_->get_margin());
-		LOGINFO("x0=(%ld,%ld,%ld) lx=(%ld,%ld,%ld)",x0[0],x0[1],x0[2],lx[0],lx[1],lx[2]);
+		x0[0] = prefh_->offset_abs(ilevel, 0) - lfac * shift[0] - margin[0];
+		x0[1] = prefh_->offset_abs(ilevel, 1) - lfac * shift[1] - margin[1];
+		x0[2] = prefh_->offset_abs(ilevel, 2) - lfac * shift[2] - margin[2];
 
 		if (randc[ilevel] == NULL)
 			randc[ilevel] = new rng(*randc[ilevel - 1], ran_cube_size_, rngseeds_[ilevel], kavg, ilevel == levelmin_ + 1, x0, lx);

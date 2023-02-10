@@ -212,11 +212,11 @@ public:
 	}
 	
 	inline double get_kmin( void ){
-		return 1e-4;
+		return 1e-5;
 	}
 	
 	inline double get_kmax( void ){
-		return 1.e4;
+		return 1.e5;
 	}
 	
 };

@@ -289,7 +289,7 @@ void add_constant_value( grid_hierarchy &u, const double val )
 			for (int iy = 0; iy < (int)(*u.get_grid(ilvl)).size(1); ++iy)
 				for (int iz = 0; iz < (int)(*u.get_grid(ilvl)).size(2); ++iz)
 				{
-					(*u.get_grid(u.levelmax()))(ix, iy, iz) += val;
+					(*u.get_grid(ilvl))(ix, iy, iz) += val;
 				}
 	}
 }

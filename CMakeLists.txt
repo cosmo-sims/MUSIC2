@@ -71,6 +71,22 @@ file( GLOB PLUGINS
   ${PROJECT_SOURCE_DIR}/src/plugins/*.cc
 )
 
+# PANPHASIA
+option(ENABLE_PANPHASIA "Enable PANPHASIA random number generator" ON)
+if(ENABLE_PANPHASIA)
+enable_language(Fortran)
+if ("${CMAKE_Fortran_COMPILER_ID}" MATCHES "Intel")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -132 -implicit-none")
+elseif("${CMAKE_Fortran_COMPILER_ID}" MATCHES "GNU")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffixed-line-length-132 -fimplicit-none")
+endif()
+list (APPEND SOURCES
+  ${PROJECT_SOURCE_DIR}/ext/panphasia/panphasia_routines.f
+  ${PROJECT_SOURCE_DIR}/ext/panphasia/generic_lecuyer.f90
+)
+# target_include_directories(${PRGNAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/panphasia_ho)
+endif(ENABLE_PANPHASIA)
+
 add_executable(${PRGNAME} ${SOURCES} ${PLUGINS})
 
 set_target_properties(${PRGNAME} PROPERTIES CXX_STANDARD 11)
@@ -115,6 +131,10 @@ if(TIRPC_FOUND)
   target_include_directories(${PRGNAME} PRIVATE ${TIRPC_INCLUDE_DIRS})
   target_compile_options(${PRGNAME} PRIVATE "-DHAVE_TIRPC")
 endif(TIRPC_FOUND)
+
+if(ENABLE_PANPHASIA)
+  target_compile_options(${PRGNAME} PRIVATE "-DHAVE_PANPHASIA")
+endif(ENABLE_PANPHASIA)
 
 target_link_libraries(${PRGNAME} ${FFTW3_LIBRARIES})
 target_include_directories(${PRGNAME} PRIVATE ${FFTW3_INCLUDE_DIRS})

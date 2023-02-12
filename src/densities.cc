@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "densities.hh"
+#include "random.hh"
 #include "convolution_kernel.hh"
 
 //TODO: this should be a larger number by default, just to maintain consistency with old default
@@ -335,7 +336,7 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 /*******************************************************************************************/
 
 void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type type,
-							refinement_hierarchy &refh, rand_gen &rand, grid_hierarchy &delta, bool smooth, bool shift)
+							refinement_hierarchy &refh, noise_generator &rand, grid_hierarchy &delta, bool smooth, bool shift)
 {
 	unsigned levelmin, levelmax, levelminPoisson;
 
@@ -416,7 +417,7 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 /*******************************************************************************************/
 
 void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type type,
-							  refinement_hierarchy &refh, rand_gen &rand,
+							  refinement_hierarchy &refh, noise_generator &rand,
 							  grid_hierarchy &delta, bool smooth, bool shift)
 {
 	unsigned levelmin, levelmax, levelminPoisson;

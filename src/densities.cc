@@ -445,6 +445,7 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 
 	bool fix  = cf.getValueSafe<bool>("setup","fix_mode_amplitude",false);
 	bool flip = cf.getValueSafe<bool>("setup","flip_mode_amplitude",false);
+	bool fourier_splicing = cf.getValueSafe<bool>("setup","fourier_splicing",true);
 
 	if( fix && levelmin != levelmax ){
 		LOGWARN("You have chosen mode fixing for a zoom. This is not well tested,\n please proceed at your own risk...");
@@ -511,10 +512,12 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 			convolution::perform<real_t>(the_tf_kernel->fetch_kernel(levelmin + i, true),
 										 reinterpret_cast<void *>(fine->get_data_ptr()), shift, fix, flip);
 
-			if (i == 1)
-				fft_interpolate(*top, *fine, true);
-			else
-				fft_interpolate(*coarse, *fine, false);
+			if( fourier_splicing ){
+				if (i == 1)
+					fft_interpolate(*top, *fine, true);
+				else
+					fft_interpolate(*coarse, *fine, false);
+			}
 
 			delta.add_patch(refh.offset(levelmin + i, 0),
 							refh.offset(levelmin + i, 1),
@@ -548,6 +551,9 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 		std::cout << " - Density calculation took " << tend - tstart << "s." << std::endl;
 #endif
 
+	if( !fourier_splicing ){
+		coarsen_density(refh,delta,false);
+	}
 	LOGUSER("Finished computing the density field in %fs", tend - tstart);
 }
 

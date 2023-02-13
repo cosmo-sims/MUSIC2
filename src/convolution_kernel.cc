@@ -34,7 +34,8 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 	double fftnormp = 1.0/sqrt((double)cparam_.nx * (double)cparam_.ny * (double)cparam_.nz);
 	double fftnorm = pow(2.0 * M_PI, 1.5) / sqrt(cparam_.lx * cparam_.ly * cparam_.lz) * fftnormp;
 
-	fftw_complex *cdata, *ckernel;
+	fftw_complex *cdata;
+	[[maybe_unused]] fftw_complex *ckernel;
 	fftw_real *data;
 
 	data = reinterpret_cast<fftw_real *>(pd);

@@ -50,6 +50,8 @@ public:
     disk_cached_ = pcf_->getValueSafe<bool>("random", "disk_cached", true);
     restart_ = pcf_->getValueSafe<bool>("random", "restart", false);
 
+    pcf_->insertValue("setup","fourier_splicing","true");
+
     mem_cache_.assign(levelmax_ - levelmin_ + 1, (std::vector<real_t> *)NULL);
 
     if (restart_ && !disk_cached_)

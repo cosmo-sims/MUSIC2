@@ -92,6 +92,7 @@ protected:
   int coordinate_system_shift_[3];
   int ix_abs_[3], ix_per_[3], ix_rel_[3], level_p_, lextra_;
   const refinement_hierarchy *prefh_;
+  std::array<int,3> margins_;
 
   struct panphasia_descriptor
   {
@@ -180,6 +181,8 @@ public:
     ss.str(std::string());
     ss << pdescriptor_->i_base;
     pcf_->insertValue("random", "base_unit", ss.str());
+
+    pcf_->insertValue("setup","fourier_splicing","false");
   }
 
   void initialize_for_grid_structure(const refinement_hierarchy &refh)
@@ -188,6 +191,12 @@ public:
     levelmin_ = prefh_->levelmin();
     levelmin_final_ = pcf_->getValue<unsigned>("setup", "levelmin");
     levelmax_ = prefh_->levelmax();
+
+    if( refh.get_margin() < 0 ){
+      margins_ = {-1,-1,-1};
+    }else{
+      margins_ = { refh.get_margin(), refh.get_margin(), refh.get_margin() };
+    }
 
     clear_panphasia_thread_states();
     LOGINFO("PANPHASIA: running with %d threads", num_threads_);
@@ -318,7 +327,13 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
     }
     else
     {
-      ileft_corner[k] = (ileft[k] - nx[k] / 4 + (1 << level)) % (1 << level); // Isolated
+      if( margins_[0] < 0 ){
+        ileft_corner[k] = (ileft[k] - nx[k] / 4 + (1 << level)) % (1 << level); // Isolated
+        ileft_corner[k] = (ileft[k] - nx[k] / 4 + (1 << level)) % (1 << level); // Isolated
+      }else{
+        ileft_corner[k] = (ileft[k] - margins_[k] + (1 << level)) % (1 << level); // Isolated
+        ileft_corner[k] = (ileft[k] - margins_[k] + (1 << level)) % (1 << level); // Isolated
+      }
     }
     iexpand_left[k] = (ileft_corner[k] % grid_m_ == 0) ? 0 : ileft_corner[k] % grid_m_;
     // fprintf(stderr, "dim=%c : ileft = %d, ileft_corner %d, nx = %d\n", 'x' + k, ileft[k],ileft_corner[k],nx[k]);
@@ -349,7 +364,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
     LOGERR("Fatal error: non-cubic refinement being requested");
 
   inter_grid_phase_adjustment_ = M_PI * (1.0 / (double)nx_m[0] - 1.0 / (double)nxremap[0]);
-  LOGUSER("The value of the phase adjustement is %f\n", inter_grid_phase_adjustment_);
+  // LOGINFO("The value of the phase adjustement is %f\n", inter_grid_phase_adjustment_);
 
   // LOGINFO("ileft[0],ileft[1],ileft[2] %d %d %d", ileft[0], ileft[1], ileft[2]);
   // LOGINFO("ileft_corner[0,1,2] %d %d %d", ileft_corner[0], ileft_corner[1], ileft_corner[2]);
@@ -425,8 +440,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
       set_phases_and_rel_origin_(&lstate[mythread], descriptor, &level_p, &ix_rel[0], &ix_rel[1], &ix_rel[2],
                                  &verbosity);
 
-      LOGUSER(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0],
-              ix_rel[1], ix_rel[2]);
+      // LOGUSER(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0], ix_rel[1], ix_rel[2]);
 
       odd_x = ix_rel[0] % 2;
       odd_y = ix_rel[1] % 2;
@@ -620,8 +634,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
       set_phases_and_rel_origin_(&lstate[mythread], descriptor, &level_p, &ix_rel[0], &ix_rel[1], &ix_rel[2],
                                  &verbosity);
 
-      LOGUSER(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0],
-              ix_rel[1], ix_rel[2]);
+      // LOGINFO(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0], ix_rel[1], ix_rel[2]);
 
       odd_x = ix_rel[0] % 2;
       odd_y = ix_rel[1] % 2;
@@ -769,7 +782,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   if (incongruent_fields_)
   {
 
-    LOGINFO("Remapping fields from dimension %d -> %d", nxremap[0], nx_m[0]);
+    LOGUSER("Remapping fields from dimension %d -> %d", nxremap[0], nx_m[0]);
     memset(pr1, 0, ngp * sizeof(fftw_real));
 
     #pragma omp parallel for
@@ -824,7 +837,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   delete[] pr3;
   delete[] pr4;
 
-  LOGINFO("Copying random field data %d,%d,%d -> %d,%d,%d", nxremap[0], nxremap[1], nxremap[2], nx[0], nx[1], nx[2]);
+  LOGUSER("Copying random field data %d,%d,%d -> %d,%d,%d", nxremap[0], nxremap[1], nxremap[2], nx[0], nx[1], nx[2]);
 
   //    n = 1<<level;
   //    ng = n;

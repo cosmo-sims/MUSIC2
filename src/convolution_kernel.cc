@@ -1,10 +1,9 @@
 /*
  
  convolution_kernel.cc - This file is part of MUSIC -
- a code to generate multi-scale initial conditions 
- for cosmological simulations 
+ a code to generate multi-scale initial conditions for cosmological simulations 
  
- Copyright (C) 2010-19  Oliver Hahn
+ Copyright (C) 2010-23  Oliver Hahn
  
 */
 
@@ -96,16 +95,23 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 
 	std::complex<double> dcmode(RE(cdata[0]), IM(cdata[0]));
 
-	if (!pk->is_ksampled())
+	
+	#pragma omp parallel
 	{
 
-#pragma omp parallel for
+		const size_t veclen = cparam_.nz / 2 + 1;
+
+		double *kvec = new double[veclen];
+		double *Tkvec = new double[veclen];
+		double *argvec = new double[veclen];
+
+		#pragma omp for
 		for (int i = 0; i < cparam_.nx; ++i)
 			for (int j = 0; j < cparam_.ny; ++j)
+			{
+
 				for (int k = 0; k < cparam_.nz / 2 + 1; ++k)
 				{
-					size_t ii = (size_t)(i * cparam_.ny + j) * (size_t)(cparam_.nz / 2 + 1) + (size_t)k;
-
 					double kx, ky, kz;
 
 					kx = (double)i;
@@ -117,92 +123,42 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 					if (ky > cparam_.ny / 2)
 						ky -= cparam_.ny;
 
-					double arg = (kx + ky + kz) * dstag;
-					std::complex<double> carg(cos(arg), sin(arg));
+					kvec[k] = sqrt(kx * kx + ky * ky + kz * kz);
+					argvec[k] = (kx + ky + kz) * dstag;
+				}
 
-					std::complex<double>
-						ccdata(RE(cdata[ii]), IM(cdata[ii])),
-						cckernel(RE(ckernel[ii]), IM(ckernel[ii]));
+				pk->at_k(veclen, kvec, Tkvec);
+
+				for (int k = 0; k < cparam_.nz / 2 + 1; ++k)
+				{
+					size_t ii = (size_t)(i * cparam_.ny + j) * (size_t)(cparam_.nz / 2 + 1) + (size_t)k;
+					std::complex<double> carg(cos(argvec[k]), sin(argvec[k]));
+
+					std::complex<double> ccdata(RE(cdata[ii]), IM(cdata[ii]));
 
 					if( fix ){
-						ccdata = ccdata / std::abs(ccdata);
+						ccdata = ccdata / std::abs(ccdata) / fftnormp;
 					}
 					if( flip ){
 						ccdata = -ccdata;
 					}
 
-					ccdata = ccdata * cckernel * fftnorm * carg;
+					ccdata = ccdata * Tkvec[k] * fftnorm * carg;
 
 					RE(cdata[ii]) = ccdata.real();
 					IM(cdata[ii]) = ccdata.imag();
 				}
+			}
+
+		delete[] kvec;
+		delete[] Tkvec;
+		delete[] argvec;
 	}
-	else
-	{
 
-#pragma omp parallel
-		{
+	// we now set the correct DC mode below...
+	RE(cdata[0]) = 0.0;
+	IM(cdata[0]) = 0.0;
 
-			const size_t veclen = cparam_.nz / 2 + 1;
-
-			double *kvec = new double[veclen];
-			double *Tkvec = new double[veclen];
-			double *argvec = new double[veclen];
-
-#pragma omp for
-			for (int i = 0; i < cparam_.nx; ++i)
-				for (int j = 0; j < cparam_.ny; ++j)
-				{
-
-					for (int k = 0; k < cparam_.nz / 2 + 1; ++k)
-					{
-						double kx, ky, kz;
-
-						kx = (double)i;
-						ky = (double)j;
-						kz = (double)k;
-
-						if (kx > cparam_.nx / 2)
-							kx -= cparam_.nx;
-						if (ky > cparam_.ny / 2)
-							ky -= cparam_.ny;
-
-						kvec[k] = sqrt(kx * kx + ky * ky + kz * kz);
-						argvec[k] = (kx + ky + kz) * dstag;
-					}
-
-					pk->at_k(veclen, kvec, Tkvec);
-
-					for (int k = 0; k < cparam_.nz / 2 + 1; ++k)
-					{
-						size_t ii = (size_t)(i * cparam_.ny + j) * (size_t)(cparam_.nz / 2 + 1) + (size_t)k;
-						std::complex<double> carg(cos(argvec[k]), sin(argvec[k]));
-
-						std::complex<double> ccdata(RE(cdata[ii]), IM(cdata[ii]));
-
-						if( fix ){
-							ccdata = ccdata / std::abs(ccdata) / fftnormp;
-						}
-						if( flip ){
-							ccdata = -ccdata;
-						}
-
-						ccdata = ccdata * Tkvec[k] * fftnorm * carg;
-
-						RE(cdata[ii]) = ccdata.real();
-						IM(cdata[ii]) = ccdata.imag();
-					}
-				}
-
-			delete[] kvec;
-			delete[] Tkvec;
-			delete[] argvec;
-		}
-
-		// we now set the correct DC mode below...
-		RE(cdata[0]) = 0.0;
-		IM(cdata[0]) = 0.0;
-	}
 
 	LOGUSER("Performing backward FFT...");
 
@@ -229,7 +185,6 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 #endif
 
 	// set the DC mode here to avoid a possible truncation error in single precision
-	if (pk->is_ksampled())
 	{
 		size_t nelem = (size_t)cparam_.nx * (size_t)cparam_.ny * (size_t)cparam_.nz;
 		real_t mean = dcmode.real() * fftnorm / (real_t)nelem;

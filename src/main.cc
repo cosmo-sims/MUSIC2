@@ -421,7 +421,8 @@ int main(int argc, const char *argv[])
 	bool
 			do_baryons = cf.getValue<bool>("setup", "baryons"),
 			do_2LPT = cf.getValueSafe<bool>("setup", "use_2LPT", false),
-			do_LLA = cf.getValueSafe<bool>("setup", "use_LLA", false);
+			do_LLA = cf.getValueSafe<bool>("setup", "use_LLA", false),
+			do_counter_mode = cf.getValueSafe<bool>("setup", "zero_zoom_velocity", false);
 
 	transfer_function_plugin *the_transfer_function_plugin = select_transfer_function_plugin(cf);
 
@@ -460,7 +461,7 @@ int main(int argc, const char *argv[])
 	}
 
 	the_region_generator = select_region_generator_plugin(cf);
-	
+
 	//------------------------------------------------------------------------------
 	//... determine run parameters
 	//------------------------------------------------------------------------------
@@ -619,7 +620,7 @@ int main(int argc, const char *argv[])
 					
 					//... compute counter-mode to minimize advection errors
 					counter_mode_amp[icoord] = compute_finest_mean(data_forIO); 
-					add_constant_value( data_forIO, -counter_mode_amp[icoord] );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord] );
 					
 					LOGUSER("Writing CDM displacements");
 					the_output_plugin->write_dm_position(icoord, data_forIO);
@@ -756,7 +757,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity-mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
 
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -826,7 +827,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
 
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -885,7 +886,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
 
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
@@ -1008,7 +1009,7 @@ int main(int argc, const char *argv[])
 
 				//... compute counter-mode to minimize advection errors
 				counter_mode_amp[icoord] = compute_finest_mean(data_forIO); 
-				add_constant_value( data_forIO, -counter_mode_amp[icoord] );
+				if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord] );
 
 				LOGUSER("Writing CDM velocities");
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -1105,7 +1106,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord] );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord] );
 
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
@@ -1210,7 +1211,7 @@ int main(int argc, const char *argv[])
 				coarsen_density(rh_Poisson, data_forIO, false);
 
 				// add counter mode
-				add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
+				if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
 
 				LOGUSER("Writing CDM displacements");
 				the_output_plugin->write_dm_position(icoord, data_forIO);
@@ -1327,7 +1328,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
 
 
 					LOGUSER("Writing baryon displacements");

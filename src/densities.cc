@@ -114,8 +114,13 @@ void fft_coarsen(m1 &v, m2 &V)
 
 				val_fine *= val_phas * fftnorm / 8.0; 
 
-				RE(ccoarse[qc]) = val_fine.real();
-				IM(ccoarse[qc]) = val_fine.imag();
+				if( i!=(int)nxF/2 && j!=(int)nyF/2 && k!=(int)nzF/2 ){
+					RE(ccoarse[qc]) = val_fine.real();
+					IM(ccoarse[qc]) = val_fine.imag();
+				}else{
+					RE(ccoarse[qc]) = 0.0;//val_fine.real();
+					IM(ccoarse[qc]) = 0.0;//val_fine.imag();
+				}
 			}
 
 	delete[] rfine;
@@ -449,27 +454,14 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 
 	convolution::kernel_creator *the_kernel_creator;
 
-	if (kspaceTF)
-	{
-		std::cout << " - Using k-space transfer function kernel.\n";
-		LOGUSER("Using k-space transfer function kernel.");
+	std::cout << " - Using k-space transfer function kernel.\n";
+	LOGUSER("Using k-space transfer function kernel.");
 
 #ifdef SINGLE_PRECISION
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_float"];
+	the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_float"];
 #else
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_double"];
+	the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_double"];
 #endif
-	}
-	else
-	{
-		std::cout << " - Using real-space transfer function kernel.\n";
-		LOGUSER("Using real-space transfer function kernel.");
-#ifdef SINGLE_PRECISION
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_real_float"];
-#else
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_real_double"];
-#endif
-	}
 
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create(cf, ptf, refh, type);
 
@@ -502,21 +494,13 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 					refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
 
 			if( refh.get_margin() > 0 ){
-				fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
-																								refh.offset(levelmin + i, 1),
-																								refh.offset(levelmin + i, 2),
-																								refh.size(levelmin + i, 0),
-																								refh.size(levelmin + i, 1),
-																								refh.size(levelmin + i, 2),
-																								refh.get_margin(), refh.get_margin(), refh.get_margin() );
+				fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin + i, 0), refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2),
+																								 refh.size(levelmin + i, 0), refh.size(levelmin + i, 1), refh.size(levelmin + i, 2),
+																								 refh.get_margin(), refh.get_margin(), refh.get_margin() );
 				LOGUSER("    margin = %d",refh.get_margin());
 			}else{
-				fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
-																								refh.offset(levelmin + i, 1),
-																								refh.offset(levelmin + i, 2),
-																								refh.size(levelmin + i, 0),
-																								refh.size(levelmin + i, 1),
-																								refh.size(levelmin + i, 2));
+				fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin + i, 0), refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2),
+																								 refh.size(levelmin + i, 0), refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
 				LOGUSER("    margin = %d",refh.size(levelmin + i, 0)/2);
 			}
 			/////////////////////////////////////////////////////////////////////////

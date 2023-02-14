@@ -465,7 +465,6 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create(cf, ptf, refh, type);
 
 	/***** PERFORM CONVOLUTIONS *****/
-	assert(kspaceTF);
 	{
 		//... create and initialize density grids with white noise
 		DensityGrid<real_t> *top(NULL);

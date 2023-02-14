@@ -1208,11 +1208,12 @@ class refinement_hierarchy
 	std::vector<index3_t> len_;
 
 	unsigned
-			levelmin_,		//!< minimum grid level for Poisson solver
-			levelmax_,		//!< maximum grid level for all operations
-			levelmin_tf_, //!< minimum grid level for density calculation
-			padding_,			//!< padding in number of coarse cells between refinement levels
-			blocking_factor_;
+			levelmin_,					//!< minimum grid level for Poisson solver
+			levelmax_,					//!< maximum grid level for all operations
+			levelmin_tf_, 			//!< minimum grid level for density calculation
+			padding_,						//!< padding in number of coarse cells between refinement levels
+			blocking_factor_,		//!< blocking factor of grids, necessary fo BoxLib codes such as NyX
+			gridding_unit_;  	  //!< internal blocking factor of grids, necessary for Panphasia
 
 	int margin_;      //!< number of cells used for additional padding for convolutions with isolated boundaries (-1 = double padding)
 
@@ -1230,6 +1231,30 @@ class refinement_hierarchy
 
 	index3_t xshift_; //!< shift of refinement region in coarse cells (in order to center it in the domain)
 	double rshift_[3];
+
+	//! calculates the greatest common divisor
+  int gcd(int a, int b) const {
+    return b == 0 ? a : gcd(b, a % b);
+  }
+
+  // calculates the cell shift in units of levelmin grid cells if there is an additional constraint to be
+  // congruent with another grid that partitions the same space in multiples of "base_unit"
+  int get_shift_unit( int base_unit, int levelmin ) const {
+    /*int Lp = 0;
+    while( base_unit * (1<<Lp) < 1<<(levelmin+1) ){
+      ++Lp;
+    }
+    int U = base_unit * (1<<Lp);
+
+    return std::max<int>( 1, (1<<(levelmin+1)) / (2*gcd(U,1<<(levelmin+1) )) );*/
+
+    int level_m = 0;
+    while( base_unit * (1<<level_m) < (1<<levelmin) )
+      ++level_m;
+
+    return std::max<int>( 1, (1<<levelmin)/gcd(base_unit * (1<<level_m),(1<<levelmin)) );
+
+  }
 
 public:
 	//! copy constructor
@@ -1255,6 +1280,16 @@ public:
 
 		bool bnoshift = cf_.getValueSafe<bool>("setup", "no_shift", false);
 		bool force_shift = cf_.getValueSafe<bool>("setup", "force_shift", false);
+
+		gridding_unit_ = cf.getValueSafe<unsigned>("setup", "gridding_unit", 2);
+
+    if (gridding_unit_ != 2 && blocking_factor_==0) {
+      blocking_factor_ = gridding_unit_; // THIS WILL LIKELY CAUSE PROBLEMS WITH NYX
+    }else if (gridding_unit_ != 2 && blocking_factor_!=0 && gridding_unit_!=blocking_factor_ ) {
+			LOGERR("incompatible gridding unit %d and blocking factor specified", gridding_unit_, blocking_factor_ );
+			throw std::runtime_error("Incompatible gridding unit and blocking factor!");
+		}
+
 
 		//... call the region generator
 		if (levelmin_ != levelmax_)
@@ -1292,9 +1327,18 @@ public:
 
 		if ((levelmin_ != levelmax_) && (!bnoshift || force_shift))
 		{
-			xshift_[0] = (int)((0.5 - xc[0]) * ncoarse);
-			xshift_[1] = (int)((0.5 - xc[1]) * ncoarse);
-			xshift_[2] = (int)((0.5 - xc[2]) * ncoarse);
+			int random_base_grid_unit = cf.getValueSafe<int>("random","base_unit",1);
+      int shift_unit = get_shift_unit( random_base_grid_unit, levelmin_ );
+      if( shift_unit != 1 ){
+        LOGINFO("volume can only be shifted by multiples of %d coarse cells.",shift_unit);
+      }
+			xshift_[0] = (int)((0.5-xc[0]) * (double)ncoarse / shift_unit + 0.5) * shift_unit;//ARJ(int)((0.5 - xc[0]) * ncoarse);
+      xshift_[1] = (int)((0.5-xc[1]) * (double)ncoarse / shift_unit + 0.5) * shift_unit;//ARJ(int)((0.5 - xc[1]) * ncoarse);
+      xshift_[2] = (int)((0.5-xc[2]) * (double)ncoarse / shift_unit + 0.5) * shift_unit;//ARJ(int)((0.5 - xc[2]) * ncoarse);
+
+			// xshift_[0] = (int)((0.5 - xc[0]) * ncoarse);
+      // xshift_[1] = (int)((0.5 - xc[1]) * ncoarse);
+      // xshift_[2] = (int)((0.5 - xc[2]) * ncoarse);
 		}
 		else
 		{
@@ -1414,12 +1458,15 @@ public:
 		else
 		{
 			//... require alignment with coarser grid
-			il -= il % 2;
-			jl -= jl % 2;
-			kl -= kl % 2;
-			ir += ir % 2;
-			jr += jr % 2;
-			kr += kr % 2;
+      LOGINFO("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]", il, ir, jl, jr, kl, kr);
+
+      il -= il % gridding_unit_;
+      jl -= jl % gridding_unit_;
+      kl -= kl % gridding_unit_;
+
+      ir = ((ir%gridding_unit_)!=0)? (ir/gridding_unit_ + 1)*gridding_unit_ : ir;
+      jr = ((jr%gridding_unit_)!=0)? (jr/gridding_unit_ + 1)*gridding_unit_ : jr;
+      kr = ((kr%gridding_unit_)!=0)? (kr/gridding_unit_ + 1)*gridding_unit_ : kr;
 		}
 
 		// if doing unigrid, set region to whole box
@@ -1511,7 +1558,6 @@ public:
 				jr = (int)((double)jr / nref + 1.0) * nref;
 				kr = (int)((double)kr / nref + 1.0) * nref;
 			}
-
 			else if (preserve_dims_)
 			{
 				//... require alignment with coarser grid
@@ -1528,12 +1574,13 @@ public:
 			else
 			{
 				//... require alignment with coarser grid
-				il -= il % 2;
-				jl -= jl % 2;
-				kl -= kl % 2;
-				ir += ir % 2;
-				jr += jr % 2;
-				kr += kr % 2;
+				il -= il % gridding_unit_;
+        jl -= jl % gridding_unit_;
+        kl -= kl % gridding_unit_;
+
+        ir = ((ir%gridding_unit_)!=0)? (ir/gridding_unit_ + 1)*gridding_unit_ : ir;
+        jr = ((jr%gridding_unit_)!=0)? (jr/gridding_unit_ + 1)*gridding_unit_ : jr;
+        kr = ((kr%gridding_unit_)!=0)? (kr/gridding_unit_ + 1)*gridding_unit_ : kr;
 			}
 
 			if (il >= ir || jl >= jr || kl >= kr || il < 0 || jl < 0 || kl < 0)

@@ -4,7 +4,7 @@
  a code to generate multi-scale initial conditions 
  for cosmological simulations 
  
- Copyright (C) 2010-19  Oliver Hahn
+ Copyright (C) 2010-23  Oliver Hahn
  
 */
 
@@ -16,6 +16,7 @@
 
 #include "config_file.hh"
 #include "densities.hh"
+#include "density_grid.hh"
 #include "transfer_function.hh"
 
 #define ACC_RF(i, j, k) (((((size_t)(i) + nx) % nx) * ny + (((size_t)(j) + ny) % ny)) * 2 * (nz / 2 + 1) + (((size_t)(k) + nz) % nz))

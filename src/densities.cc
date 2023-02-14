@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "densities.hh"
+#include "random.hh"
 #include "convolution_kernel.hh"
 
 //TODO: this should be a larger number by default, just to maintain consistency with old default
@@ -113,8 +114,13 @@ void fft_coarsen(m1 &v, m2 &V)
 
 				val_fine *= val_phas * fftnorm / 8.0; 
 
-				RE(ccoarse[qc]) = val_fine.real();
-				IM(ccoarse[qc]) = val_fine.imag();
+				if( i!=(int)nxF/2 && j!=(int)nyF/2 && k!=(int)nzF/2 ){
+					RE(ccoarse[qc]) = val_fine.real();
+					IM(ccoarse[qc]) = val_fine.imag();
+				}else{
+					RE(ccoarse[qc]) = 0.0;//val_fine.real();
+					IM(ccoarse[qc]) = 0.0;//val_fine.imag();
+				}
 			}
 
 	delete[] rfine;
@@ -335,7 +341,7 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 /*******************************************************************************************/
 
 void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type type,
-							refinement_hierarchy &refh, rand_gen &rand, grid_hierarchy &delta, bool smooth, bool shift)
+							refinement_hierarchy &refh, noise_generator &rand, grid_hierarchy &delta, bool smooth, bool shift)
 {
 	unsigned levelmin, levelmax, levelminPoisson;
 
@@ -416,7 +422,7 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 /*******************************************************************************************/
 
 void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type type,
-							  refinement_hierarchy &refh, rand_gen &rand,
+							  refinement_hierarchy &refh, noise_generator &rand,
 							  grid_hierarchy &delta, bool smooth, bool shift)
 {
 	unsigned levelmin, levelmax, levelminPoisson;
@@ -439,6 +445,7 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 
 	bool fix  = cf.getValueSafe<bool>("setup","fix_mode_amplitude",false);
 	bool flip = cf.getValueSafe<bool>("setup","flip_mode_amplitude",false);
+	bool fourier_splicing = cf.getValueSafe<bool>("setup","fourier_splicing",true);
 
 	if( fix && levelmin != levelmax ){
 		LOGWARN("You have chosen mode fixing for a zoom. This is not well tested,\n please proceed at your own risk...");
@@ -448,27 +455,14 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 
 	convolution::kernel_creator *the_kernel_creator;
 
-	if (kspaceTF)
-	{
-		std::cout << " - Using k-space transfer function kernel.\n";
-		LOGUSER("Using k-space transfer function kernel.");
+	std::cout << " - Using k-space transfer function kernel.\n";
+	LOGUSER("Using k-space transfer function kernel.");
 
 #ifdef SINGLE_PRECISION
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_float"];
+	the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_float"];
 #else
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_double"];
+	the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_double"];
 #endif
-	}
-	else
-	{
-		std::cout << " - Using real-space transfer function kernel.\n";
-		LOGUSER("Using real-space transfer function kernel.");
-#ifdef SINGLE_PRECISION
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_real_float"];
-#else
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_real_double"];
-#endif
-	}
 
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create(cf, ptf, refh, type);
 
@@ -501,21 +495,13 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 					refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
 
 			if( refh.get_margin() > 0 ){
-				fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
-																								refh.offset(levelmin + i, 1),
-																								refh.offset(levelmin + i, 2),
-																								refh.size(levelmin + i, 0),
-																								refh.size(levelmin + i, 1),
-																								refh.size(levelmin + i, 2),
-																								refh.get_margin(), refh.get_margin(), refh.get_margin() );
+				fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin + i, 0), refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2),
+																								 refh.size(levelmin + i, 0), refh.size(levelmin + i, 1), refh.size(levelmin + i, 2),
+																								 refh.get_margin(), refh.get_margin(), refh.get_margin() );
 				LOGUSER("    margin = %d",refh.get_margin());
 			}else{
-				fine = new PaddedDensitySubGrid<real_t>(refh.offset(levelmin + i, 0),
-																								refh.offset(levelmin + i, 1),
-																								refh.offset(levelmin + i, 2),
-																								refh.size(levelmin + i, 0),
-																								refh.size(levelmin + i, 1),
-																								refh.size(levelmin + i, 2));
+				fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin + i, 0), refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2),
+																								 refh.size(levelmin + i, 0), refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
 				LOGUSER("    margin = %d",refh.size(levelmin + i, 0)/2);
 			}
 			/////////////////////////////////////////////////////////////////////////
@@ -526,10 +512,12 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 			convolution::perform<real_t>(the_tf_kernel->fetch_kernel(levelmin + i, true),
 										 reinterpret_cast<void *>(fine->get_data_ptr()), shift, fix, flip);
 
-			if (i == 1)
-				fft_interpolate(*top, *fine, true);
-			else
-				fft_interpolate(*coarse, *fine, false);
+			if( fourier_splicing ){
+				if (i == 1)
+					fft_interpolate(*top, *fine, true);
+				else
+					fft_interpolate(*coarse, *fine, false);
+			}
 
 			delta.add_patch(refh.offset(levelmin + i, 0),
 							refh.offset(levelmin + i, 1),
@@ -563,6 +551,9 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 		std::cout << " - Density calculation took " << tend - tstart << "s." << std::endl;
 #endif
 
+	if( !fourier_splicing ){
+		coarsen_density(refh,delta,false);
+	}
 	LOGUSER("Finished computing the density field in %fs", tend - tstart);
 }
 

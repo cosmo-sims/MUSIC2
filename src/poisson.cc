@@ -724,12 +724,16 @@ double fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &
 				}
 #endif
 
-				/*double ktot = sqrt(ii*ii+jj*jj+k*k);
-				if( ktot >= nx/2 )//dir == 0 && i==nx/2 || dir == 1 && j==ny/2 || dir == 2 && k==nz/2 )
+				if( (dir == 0 && i==nx/2) || (dir == 1 && j==ny/2) || (dir == 2 && k==nz/2) )
 				{
+#ifdef FFTW3
+					cdata[idx][0] = 0.0;
+					cdata[idx][1] = 0.0;
+#else
 					cdata[idx].re = 0.0;
 					cdata[idx].im = 0.0;
-				}*/
+#endif
+				}
 			}
 
 	RE(cdata[0]) = 0.0;

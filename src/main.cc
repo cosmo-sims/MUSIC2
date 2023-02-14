@@ -43,7 +43,7 @@ extern "C"
 #include "transfer_function.hh"
 
 #define THE_CODE_NAME "music!"
-#define THE_CODE_VERSION "1.53"
+#define THE_CODE_VERSION "2.0a"
 
 namespace music
 {
@@ -249,7 +249,7 @@ double compute_finest_sigma(grid_hierarchy &u)
 	return sqrt(sum2 - sum * sum);
 }
 
-double compute_finest_max(grid_hierarchy &u)
+double compute_finest_absmax(grid_hierarchy &u)
 {
 	double valmax = 0.0;
 	#pragma omp parallel for reduction(max:valmax)
@@ -257,8 +257,8 @@ double compute_finest_max(grid_hierarchy &u)
 		for (int iy = 0; iy < (int)(*u.get_grid(u.levelmax())).size(1); ++iy)
 			for (int iz = 0; iz < (int)(*u.get_grid(u.levelmax())).size(2); ++iz)
 			{
-				if (fabs((*u.get_grid(u.levelmax()))(ix, iy, iz)) > fabs(valmax))
-					valmax = (*u.get_grid(u.levelmax()))(ix, iy, iz);
+				if (std::fabs((*u.get_grid(u.levelmax()))(ix, iy, iz)) > valmax)
+					valmax = std::fabs((*u.get_grid(u.levelmax()))(ix, iy, iz));
 			}
 
 	return valmax;
@@ -299,7 +299,6 @@ void add_constant_value( grid_hierarchy &u, const double val )
 /*****************************************************************************************************/
 
 region_generator_plugin *the_region_generator;
-RNG_plugin *the_random_number_generator;
 
 int main(int argc, const char *argv[])
 {
@@ -422,7 +421,8 @@ int main(int argc, const char *argv[])
 	bool
 			do_baryons = cf.getValue<bool>("setup", "baryons"),
 			do_2LPT = cf.getValueSafe<bool>("setup", "use_2LPT", false),
-			do_LLA = cf.getValueSafe<bool>("setup", "use_LLA", false);
+			do_LLA = cf.getValueSafe<bool>("setup", "use_LLA", false),
+			do_counter_mode = cf.getValueSafe<bool>("setup", "zero_zoom_velocity", false);
 
 	transfer_function_plugin *the_transfer_function_plugin = select_transfer_function_plugin(cf);
 
@@ -462,7 +462,6 @@ int main(int argc, const char *argv[])
 
 	the_region_generator = select_region_generator_plugin(cf);
 
-	the_random_number_generator = select_RNG_plugin(cf);
 	//------------------------------------------------------------------------------
 	//... determine run parameters
 	//------------------------------------------------------------------------------
@@ -471,6 +470,12 @@ int main(int argc, const char *argv[])
 		std::cout << " - WARNING: The selected transfer function does not support\n"
 							<< "            distinct amplitudes for baryon and DM fields!\n"
 							<< "            Perturbation amplitudes will be identical!" << std::endl;
+
+
+	//------------------------------------------------------------------------------
+	//... start up the random number generator plugin
+	//... see if we need to set some grid building constraints
+	noise_generator rand( cf, the_transfer_function_plugin );
 
 	//------------------------------------------------------------------------------
 	//... determine the refinement hierarchy
@@ -505,7 +510,8 @@ int main(int argc, const char *argv[])
 	std::cout << "   GENERATING WHITE NOISE\n";
 	std::cout << "-------------------------------------------------------------\n";
 	LOGUSER("Computing white noise...");
-	rand_gen rand(cf, rh_TF, the_transfer_function_plugin);
+	// rand_gen rand(cf, rh_TF, the_transfer_function_plugin);
+	rand.initialize_for_grid_structure( rh_TF );
 
 	//------------------------------------------------------------------------------
 	//... initialize the Poisson solver
@@ -608,13 +614,13 @@ int main(int argc, const char *argv[])
 					else
 						//... displacement
 						the_poisson_solver->gradient(icoord, u, data_forIO);
-					double dispmax = compute_finest_max(data_forIO);
+					double dispmax = compute_finest_absmax(data_forIO);
 					LOGINFO("max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
 					coarsen_density(rh_Poisson, data_forIO, false);
 					
 					//... compute counter-mode to minimize advection errors
 					counter_mode_amp[icoord] = compute_finest_mean(data_forIO); 
-					add_constant_value( data_forIO, -counter_mode_amp[icoord] );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord] );
 					
 					LOGUSER("Writing CDM displacements");
 					the_output_plugin->write_dm_position(icoord, data_forIO);
@@ -745,13 +751,13 @@ int main(int argc, const char *argv[])
 					LOGINFO("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 					LOGUSER("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 
-					double maxv = compute_finest_max(data_forIO);
+					double maxv = compute_finest_absmax(data_forIO);
 					LOGINFO("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity-mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
 
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -815,13 +821,13 @@ int main(int argc, const char *argv[])
 					LOGINFO("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 					LOGUSER("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 
-					double maxv = compute_finest_max(data_forIO);
+					double maxv = compute_finest_absmax(data_forIO);
 					LOGINFO("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
 
 					LOGUSER("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -874,13 +880,13 @@ int main(int argc, const char *argv[])
 					LOGINFO("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 					LOGUSER("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 
-					double maxv = compute_finest_max(data_forIO);
+					double maxv = compute_finest_absmax(data_forIO);
 					LOGINFO("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
 
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
@@ -993,7 +999,7 @@ int main(int argc, const char *argv[])
 				LOGINFO("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 				LOGUSER("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 
-				double maxv = compute_finest_max(data_forIO);
+				double maxv = compute_finest_absmax(data_forIO);
 				LOGINFO("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
 				std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
@@ -1003,7 +1009,7 @@ int main(int argc, const char *argv[])
 
 				//... compute counter-mode to minimize advection errors
 				counter_mode_amp[icoord] = compute_finest_mean(data_forIO); 
-				add_constant_value( data_forIO, -counter_mode_amp[icoord] );
+				if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord] );
 
 				LOGUSER("Writing CDM velocities");
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -1091,7 +1097,7 @@ int main(int argc, const char *argv[])
 					LOGINFO("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 					LOGUSER("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 
-					double maxv = compute_finest_max(data_forIO);
+					double maxv = compute_finest_absmax(data_forIO);
 					LOGINFO("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
 
 					std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
@@ -1100,7 +1106,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord] );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord] );
 
 					LOGUSER("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
@@ -1199,13 +1205,13 @@ int main(int argc, const char *argv[])
 				else
 					the_poisson_solver->gradient(icoord, u1, data_forIO);
 
-				double dispmax = compute_finest_max(data_forIO);
+				double dispmax = compute_finest_absmax(data_forIO);
 				LOGINFO("max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
 
 				coarsen_density(rh_Poisson, data_forIO, false);
 
 				// add counter mode
-				add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
+				if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
 
 				LOGUSER("Writing CDM displacements");
 				the_output_plugin->write_dm_position(icoord, data_forIO);
@@ -1322,7 +1328,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter mode
-					add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
 
 
 					LOGUSER("Writing baryon displacements");

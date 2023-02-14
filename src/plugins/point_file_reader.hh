@@ -5,7 +5,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include "log.hh"
+#include <logger.hh>
 
 struct point_reader{
     
@@ -31,7 +31,7 @@ struct point_reader{
         std::ifstream ifs(fname.c_str());
         if( !ifs )
         {
-            LOGERR("region_ellipsoid_plugin::read_points_from_file : Could not open file \'%s\'",fname.c_str());
+            music::elog.Print("region_ellipsoid_plugin::read_points_from_file : Could not open file \'%s\'",fname.c_str());
             throw std::runtime_error("region_ellipsoid_plugin::read_points_from_file : cannot open point file.");
         }
         
@@ -58,16 +58,16 @@ struct point_reader{
             ++row;
             
             if( row>1 && colcount != colcount1 )
-                LOGERR("error on line %d of input file",row);
+                music::elog.Print("error on line %d of input file",row);
             
             //std::cout << std::endl;
         }
         
-        LOGINFO("region point file appears to contain %d columns",colcount);
+        music::ilog.Print("region point file appears to contain %d columns",colcount);
         
         if( p.size()%3 != 0 && p.size()%6 != 0 )
         {
-            LOGERR("Region point file \'%s\' does not contain triplets (%d elems)",fname.c_str(),p.size());
+            music::elog.Print("Region point file \'%s\' does not contain triplets (%d elems)",fname.c_str(),p.size());
             throw std::runtime_error("region_ellipsoid_plugin::read_points_from_file : file does not contain triplets.");
         }
         
@@ -123,7 +123,7 @@ struct point_reader{
             }
         }
         else
-            LOGERR("Problem interpreting the region point file \'%s\'", fname.c_str() );
+            music::elog.Print("Problem interpreting the region point file \'%s\'", fname.c_str() );
         
         num_columns = colcount;
     }

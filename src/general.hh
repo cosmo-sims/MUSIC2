@@ -11,7 +11,7 @@
 #ifndef __GENERAL_HH
 #define __GENERAL_HH
 
-#include "log.hh"
+#include "logger.hh"
 
 #include <cassert>
 #include "omp.h"
@@ -125,23 +125,23 @@ typedef struct cosmology{
   
   cosmology( config_file cf )
   {
-    double zstart = cf.getValue<double>( "setup", "zstart" );
+    double zstart = cf.get_value<double>( "setup", "zstart" );
     
     astart     	= 1.0/(1.0+zstart);
-    Omega_b    	= cf.getValue<double>( "cosmology", "Omega_b" );
-    Omega_m    	= cf.getValue<double>( "cosmology", "Omega_m" );
-    Omega_DE    = cf.getValue<double>( "cosmology", "Omega_L" );
-    w_0         = cf.getValueSafe<double>( "cosmology", "w0", -1.0 );
-    w_a         = cf.getValueSafe<double>( "cosmology", "wa", 0.0 );	
+    Omega_b    	= cf.get_value<double>( "cosmology", "Omega_b" );
+    Omega_m    	= cf.get_value<double>( "cosmology", "Omega_m" );
+    Omega_DE    = cf.get_value<double>( "cosmology", "Omega_L" );
+    w_0         = cf.get_value_safe<double>( "cosmology", "w0", -1.0 );
+    w_a         = cf.get_value_safe<double>( "cosmology", "wa", 0.0 );	
     
-    Omega_r     = cf.getValueSafe<double>( "cosmology", "Omega_r", 0.0 ); // no longer default to nonzero (8.3e-5)
+    Omega_r     = cf.get_value_safe<double>( "cosmology", "Omega_r", 0.0 ); // no longer default to nonzero (8.3e-5)
     Omega_k     = 1.0 - Omega_m - Omega_DE - Omega_r;
 
-    H0	       	= cf.getValue<double>( "cosmology", "H0" );
-    sigma8     	= cf.getValue<double>( "cosmology", "sigma_8" );
-    nspect      = cf.getValue<double>( "cosmology", "nspec" );
-    WDMg_x     	= cf.getValueSafe<double>( "cosmology", "WDMg_x", 1.5 );
-    WDMmass    	= cf.getValueSafe<double>( "cosmology", "WDMmass", 0.0 );
+    H0	       	= cf.get_value<double>( "cosmology", "H0" );
+    sigma8     	= cf.get_value<double>( "cosmology", "sigma_8" );
+    nspect      = cf.get_value<double>( "cosmology", "nspec" );
+    WDMg_x     	= cf.get_value_safe<double>( "cosmology", "WDMg_x", 1.5 );
+    WDMmass    	= cf.get_value_safe<double>( "cosmology", "WDMmass", 0.0 );
     
     dplus      	= 0.0;
     pnorm      	= 0.0;

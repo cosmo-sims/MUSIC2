@@ -120,7 +120,7 @@ public:
 	transfer_MUSIC_plugin( config_file& cf )
 	: transfer_function_plugin( cf )
 	{
-		m_filename_Tk = pcf_->getValue<std::string>("cosmology","transfer_file");
+		m_filename_Tk = pcf_->get_value<std::string>("cosmology","transfer_file");
 		
 		read_table( );
 		

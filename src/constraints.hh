@@ -179,7 +179,7 @@ public:
 			return;
 		
 		unsigned nlvl = 1<<ilevel;
-		double boxlength = pcf_->getValue<double>("setup","boxlength");
+		double boxlength = pcf_->get_value<double>("setup","boxlength");
 		
 		//... compute constraint coordinates for grid
 		for( size_t i=0; i<cset_.size(); ++i )
@@ -191,20 +191,20 @@ public:
 			cset_[i].gRg2 = cset_[i].gRg*cset_[i].gRg;
 			
 			if(cset_[i].gRg > 0.5*lx[0])
-				LOGWARN("Constraint %d appears to be too large scale",i);
+				music::wlog.Print("Constraint %d appears to be too large scale",i);
 		}
 		
 		
 		std::vector<double> g0;
 		
-//		unsigned levelmax = pcf_->getValue<unsigned>("setup","levelmax");
-		unsigned levelmin = pcf_->getValue<unsigned>("setup","levelmin_TF");
+//		unsigned levelmax = pcf_->get_value<unsigned>("setup","levelmax");
+		unsigned levelmin = pcf_->get_value<unsigned>("setup","levelmin_TF");
 		
 		bool bperiodic = ilevel==levelmin;
-		double dx = pcf_->getValue<double>("setup","boxlength")/(1<<ilevel);
+		double dx = pcf_->get_value<double>("setup","boxlength")/(1<<ilevel);
 		
 
-		LOGINFO("Computing constrained realization...");		
+		music::ilog.Print("Computing constrained realization...");		
 		
 		if( bperiodic )
 		{
@@ -284,7 +284,7 @@ public:
 						(*wnoise)((x0[0]+i),(x0[1]+j),(x0[2]+k)) = w[q]*fftnorm;
 					}
 			
-			LOGINFO("Applied constraints to level %d.",ilevel);
+			music::ilog.Print("Applied constraints to level %d.",ilevel);
 			
 						
 			delete[] w;
@@ -397,7 +397,7 @@ public:
 					}
 			
 
-			LOGINFO("Applied constraints to level %d.",ilevel);	
+			music::ilog.Print("Applied constraints to level %d.",ilevel);	
 			
 			delete[] w;
 			

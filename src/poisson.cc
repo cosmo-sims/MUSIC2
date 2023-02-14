@@ -32,7 +32,7 @@ void print_poisson_plugins()
 		if ((*it).second)
 			std::cout << "\t\'" << (*it).first << "\'\n";
 
-		LOGINFO("Poisson plug-in :: %s", std::string((*it).first).c_str());
+		music::ilog.Print("Poisson plug-in :: %s", std::string((*it).first).c_str());
 
 		++it;
 	}
@@ -58,9 +58,9 @@ typedef multigrid::solver<stencil_19P<double>, interp_O7_fluxcorr, mg_straight, 
 
 double multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 {
-	LOGUSER("Initializing multi-grid Poisson solver...");
+	music::ulog.Print("Initializing multi-grid Poisson solver...");
 
-	unsigned verbosity = cf_.getValueSafe<unsigned>("setup", "verbosity", 2);
+	unsigned verbosity = cf_.get_value_safe<unsigned>("setup", "verbosity", 2);
 
 	if (verbosity > 0)
 	{
@@ -72,32 +72,32 @@ double multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 	std::string ps_smoother_name;
 	unsigned ps_presmooth, ps_postsmooth, order;
 
-	acc = cf_.getValueSafe<double>("poisson", "accuracy", acc);
-	ps_presmooth = cf_.getValueSafe<unsigned>("poisson", "pre_smooth", 3);
-	ps_postsmooth = cf_.getValueSafe<unsigned>("poisson", "post_smooth", 3);
-	ps_smoother_name = cf_.getValueSafe<std::string>("poisson", "smoother", "gs");
-	order = cf_.getValueSafe<unsigned>("poisson", "laplace_order", 4);
+	acc = cf_.get_value_safe<double>("poisson", "accuracy", acc);
+	ps_presmooth = cf_.get_value_safe<unsigned>("poisson", "pre_smooth", 3);
+	ps_postsmooth = cf_.get_value_safe<unsigned>("poisson", "post_smooth", 3);
+	ps_smoother_name = cf_.get_value_safe<std::string>("poisson", "smoother", "gs");
+	order = cf_.get_value_safe<unsigned>("poisson", "laplace_order", 4);
 
 	multigrid::opt::smtype ps_smtype = multigrid::opt::sm_gauss_seidel;
 
 	if (ps_smoother_name == std::string("gs"))
 	{
 		ps_smtype = multigrid::opt::sm_gauss_seidel;
-		LOGUSER("Selected Gauss-Seidel multigrid smoother");
+		music::ulog.Print("Selected Gauss-Seidel multigrid smoother");
 	}
 	else if (ps_smoother_name == std::string("jacobi"))
 	{
 		ps_smtype = multigrid::opt::sm_jacobi;
-		LOGUSER("Selected Jacobi multigrid smoother");
+		music::ulog.Print("Selected Jacobi multigrid smoother");
 	}
 	else if (ps_smoother_name == std::string("sor"))
 	{
 		ps_smtype = multigrid::opt::sm_sor;
-		LOGUSER("Selected SOR multigrid smoother");
+		music::ulog.Print("Selected SOR multigrid smoother");
 	}
 	else
 	{
-		LOGWARN("Unknown multigrid smoother \'%s\' specified. Reverting to Gauss-Seidel.", ps_smoother_name.c_str());
+		music::wlog.Print("Unknown multigrid smoother \'%s\' specified. Reverting to Gauss-Seidel.", ps_smoother_name.c_str());
 		std::cerr << " - Warning: unknown smoother \'" << ps_smoother_name << "\' for multigrid solver!\n"
 							<< "            reverting to \'gs\' (Gauss-Seidel)" << std::endl;
 	}
@@ -113,25 +113,25 @@ double multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 	//----- run Poisson solver -----//
 	if (order == 2)
 	{
-		LOGUSER("Running multigrid solver with 2nd order Laplacian...");
+		music::ulog.Print("Running multigrid solver with 2nd order Laplacian...");
 		poisson_solver_O2 ps(f, ps_smtype, ps_presmooth, ps_postsmooth);
 		err = ps.solve(u, acc, true);
 	}
 	else if (order == 4)
 	{
-		LOGUSER("Running multigrid solver with 4th order Laplacian...");
+		music::ulog.Print("Running multigrid solver with 4th order Laplacian...");
 		poisson_solver_O4 ps(f, ps_smtype, ps_presmooth, ps_postsmooth);
 		err = ps.solve(u, acc, true);
 	}
 	else if (order == 6)
 	{
-		LOGUSER("Running multigrid solver with 6th order Laplacian..");
+		music::ulog.Print("Running multigrid solver with 6th order Laplacian..");
 		poisson_solver_O6 ps(f, ps_smtype, ps_presmooth, ps_postsmooth);
 		err = ps.solve(u, acc, true);
 	}
 	else
 	{
-		LOGERR("Invalid order specified for Laplace operator");
+		music::elog.Print("Invalid order specified for Laplace operator");
 		throw std::runtime_error("Invalid order specified for Laplace operator");
 	}
 
@@ -155,7 +155,7 @@ double multigrid_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hiera
 {
 	Du = u;
 
-	unsigned order = cf_.getValueSafe<unsigned>("poisson", "grad_order", 4);
+	unsigned order = cf_.get_value_safe<unsigned>("poisson", "grad_order", 4);
 
 	switch (order)
 	{
@@ -169,7 +169,7 @@ double multigrid_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hiera
 		implementation().gradient_O6(dir, u, Du);
 		break;
 	default:
-		LOGERR("Invalid order %d specified for gradient operator", order);
+		music::elog.Print("Invalid order %d specified for gradient operator", order);
 		throw std::runtime_error("Invalid order specified for gradient operator!");
 	}
 
@@ -180,7 +180,7 @@ double multigrid_poisson_plugin::gradient_add(int dir, grid_hierarchy &u, grid_h
 {
 	// Du = u;
 
-	unsigned order = cf_.getValueSafe<unsigned>("poisson", "grad_order", 4);
+	unsigned order = cf_.get_value_safe<unsigned>("poisson", "grad_order", 4);
 
 	switch (order)
 	{
@@ -194,7 +194,7 @@ double multigrid_poisson_plugin::gradient_add(int dir, grid_hierarchy &u, grid_h
 		implementation().gradient_add_O6(dir, u, Du);
 		break;
 	default:
-		LOGERR("Invalid order %d specified for gradient operator!", order);
+		music::elog.Print("Invalid order %d specified for gradient operator!", order);
 		throw std::runtime_error("Invalid order specified for gradient operator!");
 	}
 
@@ -203,7 +203,7 @@ double multigrid_poisson_plugin::gradient_add(int dir, grid_hierarchy &u, grid_h
 
 void multigrid_poisson_plugin::implementation::gradient_O2(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
-	LOGUSER("Computing a 2nd order finite difference gradient...");
+	music::ulog.Print("Computing a 2nd order finite difference gradient...");
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
@@ -232,12 +232,12 @@ void multigrid_poisson_plugin::implementation::gradient_O2(int dir, grid_hierarc
 						(*pvar)(ix, iy, iz) = 0.5 * ((*u.get_grid(ilevel))(ix, iy, iz + 1) - (*u.get_grid(ilevel))(ix, iy, iz - 1)) * h;
 	}
 
-	LOGUSER("Done computing a 2nd order finite difference gradient.");
+	music::ulog.Print("Done computing a 2nd order finite difference gradient.");
 }
 
 void multigrid_poisson_plugin::implementation::gradient_add_O2(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
-	LOGUSER("Computing a 2nd order finite difference gradient...");
+	music::ulog.Print("Computing a 2nd order finite difference gradient...");
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
@@ -266,12 +266,12 @@ void multigrid_poisson_plugin::implementation::gradient_add_O2(int dir, grid_hie
 						(*pvar)(ix, iy, iz) += 0.5 * ((*u.get_grid(ilevel))(ix, iy, iz + 1) - (*u.get_grid(ilevel))(ix, iy, iz - 1)) * h;
 	}
 
-	LOGUSER("Done computing a 4th order finite difference gradient.");
+	music::ulog.Print("Done computing a 4th order finite difference gradient.");
 }
 
 void multigrid_poisson_plugin::implementation::gradient_O4(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
-	LOGUSER("Computing a 4th order finite difference gradient...");
+	music::ulog.Print("Computing a 4th order finite difference gradient...");
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
@@ -302,12 +302,12 @@ void multigrid_poisson_plugin::implementation::gradient_O4(int dir, grid_hierarc
 						(*pvar)(ix, iy, iz) = ((*u.get_grid(ilevel))(ix, iy, iz - 2) - 8.0 * (*u.get_grid(ilevel))(ix, iy, iz - 1) + 8.0 * (*u.get_grid(ilevel))(ix, iy, iz + 1) - (*u.get_grid(ilevel))(ix, iy, iz + 2)) * h;
 	}
 
-	LOGUSER("Done computing a 4th order finite difference gradient.");
+	music::ulog.Print("Done computing a 4th order finite difference gradient.");
 }
 
 void multigrid_poisson_plugin::implementation::gradient_add_O4(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
-	LOGUSER("Computing a 4th order finite difference gradient...");
+	music::ulog.Print("Computing a 4th order finite difference gradient...");
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
@@ -338,12 +338,12 @@ void multigrid_poisson_plugin::implementation::gradient_add_O4(int dir, grid_hie
 						(*pvar)(ix, iy, iz) += ((*u.get_grid(ilevel))(ix, iy, iz - 2) - 8.0 * (*u.get_grid(ilevel))(ix, iy, iz - 1) + 8.0 * (*u.get_grid(ilevel))(ix, iy, iz + 1) - (*u.get_grid(ilevel))(ix, iy, iz + 2)) * h;
 	}
 
-	LOGUSER("Done computing a 4th order finite difference gradient.");
+	music::ulog.Print("Done computing a 4th order finite difference gradient.");
 }
 
 void multigrid_poisson_plugin::implementation::gradient_O6(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
-	LOGUSER("Computing a 6th order finite difference gradient...");
+	music::ulog.Print("Computing a 6th order finite difference gradient...");
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
@@ -376,12 +376,12 @@ void multigrid_poisson_plugin::implementation::gradient_O6(int dir, grid_hierarc
 								(-(*u.get_grid(ilevel))(ix, iy, iz - 3) + 9.0 * (*u.get_grid(ilevel))(ix, iy, iz - 2) - 45.0 * (*u.get_grid(ilevel))(ix, iy, iz - 1) + 45.0 * (*u.get_grid(ilevel))(ix, iy, iz + 1) - 9.0 * (*u.get_grid(ilevel))(ix, iy, iz + 2) + (*u.get_grid(ilevel))(ix, iy, iz + 3)) * h;
 	}
 
-	LOGUSER("Done computing a 6th order finite difference gradient.");
+	music::ulog.Print("Done computing a 6th order finite difference gradient.");
 }
 
 void multigrid_poisson_plugin::implementation::gradient_add_O6(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
-	LOGUSER("Computing a 6th order finite difference gradient...");
+	music::ulog.Print("Computing a 6th order finite difference gradient...");
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
@@ -414,7 +414,7 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6(int dir, grid_hie
 								(-(*u.get_grid(ilevel))(ix, iy, iz - 3) + 9.0 * (*u.get_grid(ilevel))(ix, iy, iz - 2) - 45.0 * (*u.get_grid(ilevel))(ix, iy, iz - 1) + 45.0 * (*u.get_grid(ilevel))(ix, iy, iz + 1) - 9.0 * (*u.get_grid(ilevel))(ix, iy, iz + 2) + (*u.get_grid(ilevel))(ix, iy, iz + 3)) * h;
 	}
 
-	LOGUSER("Done computing a 6th order finite difference gradient.");
+	music::ulog.Print("Done computing a 6th order finite difference gradient.");
 }
 
 /**************************************************************************************/
@@ -423,13 +423,13 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6(int dir, grid_hie
 
 double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 {
-	LOGUSER("Entering k-space Poisson solver...");
+	music::ulog.Print("Entering k-space Poisson solver...");
 
-	unsigned verbosity = cf_.getValueSafe<unsigned>("setup", "verbosity", 2);
+	unsigned verbosity = cf_.get_value_safe<unsigned>("setup", "verbosity", 2);
 
 	if (f.levelmin() != f.levelmax())
 	{
-		LOGERR("Attempt to run k-space Poisson solver on non unigrid mesh.");
+		music::elog.Print("Attempt to run k-space Poisson solver on non unigrid mesh.");
 		throw std::runtime_error("fft_poisson_plugin::solve : k-space method can only be used in unigrid mode (levelmin=levelmax)");
 	}
 
@@ -459,7 +459,7 @@ double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 			}
 
 	//... perform FFT and Poisson solve................................
-	LOGUSER("Performing forward transform.");
+	music::ulog.Print("Performing forward transform.");
 
 #ifdef FFTW3
 #ifdef SINGLE_PRECISION
@@ -519,7 +519,7 @@ double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 	RE(cdata[0]) = 0.0;
 	IM(cdata[0]) = 0.0;
 
-	LOGUSER("Performing backward transform.");
+	music::ulog.Print("Performing backward transform.");
 
 #ifdef FFTW3
 #ifdef SINGLE_PRECISION
@@ -592,14 +592,14 @@ double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 			}
 		}
 
-	LOGUSER("Done with k-space Poisson solver.");
+	music::ulog.Print("Done with k-space Poisson solver.");
 	return 0.0;
 }
 
 double fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
 
-	LOGUSER("Computing a gradient in k-space...\n");
+	music::ulog.Print("Computing a gradient in k-space...\n");
 
 	if (u.levelmin() != u.levelmax())
 		throw std::runtime_error("fft_poisson_plugin::gradient : k-space method can only be used in unigrid mode (levelmin=levelmax)");
@@ -658,11 +658,11 @@ double fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &
 	double fac = -1.0 / (double)((size_t)nx * (size_t)ny * (size_t)nz);
 	double kfac = 2.0 * M_PI;
 
-	bool do_glass = cf_.getValueSafe<bool>("output", "glass", false);
-	bool deconvolve_cic = do_glass | cf_.getValueSafe<bool>("output", "glass_cicdeconvolve", false);
+	bool do_glass = cf_.get_value_safe<bool>("output", "glass", false);
+	bool deconvolve_cic = do_glass | cf_.get_value_safe<bool>("output", "glass_cicdeconvolve", false);
 
 	if (deconvolve_cic)
-		LOGINFO("CIC deconvolution is enabled for kernel!");
+		music::ilog.Print("CIC deconvolution is enabled for kernel!");
 
 #pragma omp parallel for
 	for (int i = 0; i < nx; ++i)
@@ -775,7 +775,7 @@ double fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &
 
 	delete[] data;
 
-	LOGUSER("Done with k-space gradient.\n");
+	music::ulog.Print("Done with k-space gradient.\n");
 
 	return 0.0;
 }
@@ -903,7 +903,7 @@ void do_poisson_hybrid(fftw_real *data, int idir, int nxp, int nyp, int nzp, boo
 	fftw_complex *cdata = reinterpret_cast<fftw_complex *>(data);
 
 	if (deconvolve_cic)
-		LOGINFO("CIC deconvolution step is enabled.");
+		music::ilog.Print("CIC deconvolution step is enabled.");
 
 #ifdef FFTW3
 #ifdef SINGLE_PRECISION
@@ -1012,7 +1012,7 @@ void poisson_hybrid(T &f, int idir, int order, bool periodic, bool deconvolve_ci
 	int xo = 0, yo = 0, zo = 0;
 	int nmax = std::max(nx, std::max(ny, nz));
 
-	LOGUSER("Entering hybrid Poisson solver...");
+	music::ulog.Print("Entering hybrid Poisson solver...");
 
 	const int boundary = 32;
 
@@ -1074,11 +1074,11 @@ void poisson_hybrid(T &f, int idir, int order, bool periodic, bool deconvolve_ci
 		break;
 	default:
 		std::cerr << " - ERROR: invalid operator order specified in deconvolution.";
-		LOGERR("Invalid operator order specified in deconvolution.");
+		music::elog.Print("Invalid operator order specified in deconvolution.");
 		break;
 	}
 
-	LOGUSER("Copying hybrid correction factor...");
+	music::ulog.Print("Copying hybrid correction factor...");
 
 #pragma omp parallel for
 	for (int i = 0; i < nx; ++i)
@@ -1091,7 +1091,7 @@ void poisson_hybrid(T &f, int idir, int order, bool periodic, bool deconvolve_ci
 
 	delete[] data;
 
-	LOGUSER("Done with hybrid Poisson solve.");
+	music::ulog.Print("Done with hybrid Poisson solve.");
 }
 
 /**************************************************************************************/

@@ -314,11 +314,11 @@ public:
 			throw std::runtime_error("Error in enzo_output_plugin!");
 		}
 
-		bool bhave_hydro = cf_.getValue<bool>("setup", "baryons");
-		bool align_top = cf.getValueSafe<bool>("setup", "align_top", false);
+		bool bhave_hydro = cf_.get_value<bool>("setup", "baryons");
+		bool align_top = cf.get_value_safe<bool>("setup", "align_top", false);
 
 		if (!align_top)
-			LOGWARN("Old ENZO versions may require \'align_top=true\'!");
+			music::wlog.Print("Old ENZO versions may require \'align_top=true\'!");
 
 		the_sim_header.dimensions.push_back(1 << levelmin_);
 		the_sim_header.dimensions.push_back(1 << levelmin_);
@@ -328,18 +328,18 @@ public:
 		the_sim_header.offset.push_back(0);
 		the_sim_header.offset.push_back(0);
 
-		the_sim_header.a_start = 1.0 / (1.0 + cf.getValue<double>("setup", "zstart"));
-		the_sim_header.dx = cf.getValue<double>("setup", "boxlength") / the_sim_header.dimensions[0] / (cf.getValue<double>("cosmology", "H0") * 0.01); // not sure?!?
-		the_sim_header.h0 = cf.getValue<double>("cosmology", "H0") * 0.01;
+		the_sim_header.a_start = 1.0 / (1.0 + cf.get_value<double>("setup", "zstart"));
+		the_sim_header.dx = cf.get_value<double>("setup", "boxlength") / the_sim_header.dimensions[0] / (cf.get_value<double>("cosmology", "H0") * 0.01); // not sure?!?
+		the_sim_header.h0 = cf.get_value<double>("cosmology", "H0") * 0.01;
 
 		if (bhave_hydro)
-			the_sim_header.omega_b = cf.getValue<double>("cosmology", "Omega_b");
+			the_sim_header.omega_b = cf.get_value<double>("cosmology", "Omega_b");
 		else
 			the_sim_header.omega_b = 0.0;
 
-		the_sim_header.omega_m = cf.getValue<double>("cosmology", "Omega_m");
-		the_sim_header.omega_v = cf.getValue<double>("cosmology", "Omega_L");
-		the_sim_header.vfact = cf.getValue<double>("cosmology", "vfact") * the_sim_header.h0; //.. need to multiply by h, ENZO wants this factor for non h-1 units
+		the_sim_header.omega_m = cf.get_value<double>("cosmology", "Omega_m");
+		the_sim_header.omega_v = cf.get_value<double>("cosmology", "Omega_L");
+		the_sim_header.vfact = cf.get_value<double>("cosmology", "vfact") * the_sim_header.h0; //.. need to multiply by h, ENZO wants this factor for non h-1 units
 	}
 
 	~enzo_output_plugin()
@@ -353,8 +353,8 @@ public:
 	void write_dm_density(const grid_hierarchy &gh)
 	{ /* write the parameter file data */
 
-		bool bhave_hydro = cf_.getValue<bool>("setup", "baryons");
-		double refine_region_fraction = cf_.getValueSafe<double>("output", "enzo_refine_region_fraction", 0.8);
+		bool bhave_hydro = cf_.get_value<bool>("setup", "baryons");
+		double refine_region_fraction = cf_.get_value_safe<double>("output", "enzo_refine_region_fraction", 0.8);
 		char filename[256];
 		unsigned nbase = (unsigned)pow(2, levelmin_);
 
@@ -412,9 +412,9 @@ public:
 				<< "CosmologyOmegaMatterNow                  = " << the_sim_header.omega_m << "\n"
 				<< "CosmologyOmegaLambdaNow                  = " << the_sim_header.omega_v << "\n"
 				<< "CosmologyHubbleConstantNow               = " << the_sim_header.h0 << "     // in 100 km/s/Mpc\n"
-				<< "CosmologyComovingBoxSize                 = " << cf_.getValue<double>("setup", "boxlength") << "    // in Mpc/h\n"
+				<< "CosmologyComovingBoxSize                 = " << cf_.get_value<double>("setup", "boxlength") << "    // in Mpc/h\n"
 				<< "CosmologyMaxExpansionRate                = 0.015   // maximum allowed delta(a)/a\n"
-				<< "CosmologyInitialRedshift                 = " << cf_.getValue<double>("setup", "zstart") << "      //\n"
+				<< "CosmologyInitialRedshift                 = " << cf_.get_value<double>("setup", "zstart") << "      //\n"
 				<< "CosmologyFinalRedshift                   = 0       //\n"
 				<< "GravitationalConstant                    = 1       // this must be true for cosmology\n"
 				<< "#\n"
@@ -528,31 +528,31 @@ public:
 
 		double h = 1.0 / (1 << levelmin_);
 		double shift[3];
-		shift[0] = -(double)cf_.getValue<int>("setup", "shift_x") * h;
-		shift[1] = -(double)cf_.getValue<int>("setup", "shift_y") * h;
-		shift[2] = -(double)cf_.getValue<int>("setup", "shift_z") * h;
+		shift[0] = -(double)cf_.get_value<int>("setup", "shift_x") * h;
+		shift[1] = -(double)cf_.get_value<int>("setup", "shift_y") * h;
+		shift[2] = -(double)cf_.get_value<int>("setup", "shift_z") * h;
 
 		if (gh.levelmin() != gh.levelmax())
 		{
-			LOGINFO("Global density extrema: ");
-			LOGINFO("  minimum: delta=%f at (%f,%f,%f) (level=%d)", rhomin, loc_rhomin[0], loc_rhomin[1], loc_rhomin[2], lvl_rhomin);
-			LOGINFO("       shifted back at (%f,%f,%f)", loc_rhomin[0] + shift[0], loc_rhomin[1] + shift[1], loc_rhomin[2] + shift[2]);
-			LOGINFO("  maximum: delta=%f at (%f,%f,%f) (level=%d)", rhomax, loc_rhomax[0], loc_rhomax[1], loc_rhomax[2], lvl_rhomax);
-			LOGINFO("       shifted back at (%f,%f,%f)", loc_rhomax[0] + shift[0], loc_rhomax[1] + shift[1], loc_rhomax[2] + shift[2]);
+			music::ilog.Print("Global density extrema: ");
+			music::ilog.Print("  minimum: delta=%f at (%f,%f,%f) (level=%d)", rhomin, loc_rhomin[0], loc_rhomin[1], loc_rhomin[2], lvl_rhomin);
+			music::ilog.Print("       shifted back at (%f,%f,%f)", loc_rhomin[0] + shift[0], loc_rhomin[1] + shift[1], loc_rhomin[2] + shift[2]);
+			music::ilog.Print("  maximum: delta=%f at (%f,%f,%f) (level=%d)", rhomax, loc_rhomax[0], loc_rhomax[1], loc_rhomax[2], lvl_rhomax);
+			music::ilog.Print("       shifted back at (%f,%f,%f)", loc_rhomax[0] + shift[0], loc_rhomax[1] + shift[1], loc_rhomax[2] + shift[2]);
 
-			LOGINFO("Density extrema on finest level: ");
-			LOGINFO("  minimum: delta=%f at (%f,%f,%f)", rhomin_lm, loc_rhomin_lm[0], loc_rhomin_lm[1], loc_rhomin_lm[2]);
-			LOGINFO("       shifted back at (%f,%f,%f)", loc_rhomin_lm[0] + shift[0], loc_rhomin_lm[1] + shift[1], loc_rhomin_lm[2] + shift[2]);
-			LOGINFO("  maximum: delta=%f at (%f,%f,%f)", rhomax_lm, loc_rhomax_lm[0], loc_rhomax_lm[1], loc_rhomax_lm[2]);
-			LOGINFO("       shifted back at (%f,%f,%f)", loc_rhomax_lm[0] + shift[0], loc_rhomax_lm[1] + shift[1], loc_rhomax_lm[2] + shift[2]);
+			music::ilog.Print("Density extrema on finest level: ");
+			music::ilog.Print("  minimum: delta=%f at (%f,%f,%f)", rhomin_lm, loc_rhomin_lm[0], loc_rhomin_lm[1], loc_rhomin_lm[2]);
+			music::ilog.Print("       shifted back at (%f,%f,%f)", loc_rhomin_lm[0] + shift[0], loc_rhomin_lm[1] + shift[1], loc_rhomin_lm[2] + shift[2]);
+			music::ilog.Print("  maximum: delta=%f at (%f,%f,%f)", rhomax_lm, loc_rhomax_lm[0], loc_rhomax_lm[1], loc_rhomax_lm[2]);
+			music::ilog.Print("       shifted back at (%f,%f,%f)", loc_rhomax_lm[0] + shift[0], loc_rhomax_lm[1] + shift[1], loc_rhomax_lm[2] + shift[2]);
 		}
 		else
 		{
-			LOGINFO("Global density extrema: ");
-			LOGINFO("  minimum: delta=%f at (%f,%f,%f)", rhomin, loc_rhomin[0], loc_rhomin[1], loc_rhomin[2]);
-			LOGINFO("       shifted back at (%f,%f,%f)", loc_rhomin[0] + shift[0], loc_rhomin[1] + shift[1], loc_rhomin[2] + shift[2]);
-			LOGINFO("  maximum: delta=%f at (%f,%f,%f)", rhomax, loc_rhomax[0], loc_rhomax[1], loc_rhomax[2]);
-			LOGINFO("       shifted back at (%f,%f,%f)", loc_rhomax[0] + shift[0], loc_rhomax[1] + shift[1], loc_rhomax[2] + shift[2]);
+			music::ilog.Print("Global density extrema: ");
+			music::ilog.Print("  minimum: delta=%f at (%f,%f,%f)", rhomin, loc_rhomin[0], loc_rhomin[1], loc_rhomin[2]);
+			music::ilog.Print("       shifted back at (%f,%f,%f)", loc_rhomin[0] + shift[0], loc_rhomin[1] + shift[1], loc_rhomin[2] + shift[2]);
+			music::ilog.Print("  maximum: delta=%f at (%f,%f,%f)", rhomax, loc_rhomax[0], loc_rhomax[1], loc_rhomax[2]);
+			music::ilog.Print("       shifted back at (%f,%f,%f)", loc_rhomax[0] + shift[0], loc_rhomax[1] + shift[1], loc_rhomax[2] + shift[2]);
 		}
 	}
 

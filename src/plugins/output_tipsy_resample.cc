@@ -114,7 +114,7 @@ protected:
 
             if (!this->good ())
             {
-                LOGERR ("Could not open buffer file in TIPSY output plug-in");
+                music::elog.Print ("Could not open buffer file in TIPSY output plug-in");
                 throw std::runtime_error("Could not open buffer file in TIPSY output plug-in");
             }
 
@@ -122,8 +122,8 @@ protected:
 
             if (blk != (size_t) (npart * sizeof (T_store)))
             {
-                LOGERR ("Internal consistency error in TIPSY output plug-in");
-                LOGERR ("Expected %d bytes in temp file but found %d", npart * (unsigned) sizeof (T_store), blk);
+                music::elog.Print ("Internal consistency error in TIPSY output plug-in");
+                music::elog.Print ("Expected %d bytes in temp file but found %d", npart * (unsigned) sizeof (T_store), blk);
                 throw std::runtime_error("Internal consistency error in TIPSY output plug-in");
             }
         }
@@ -140,7 +140,7 @@ protected:
 
             if (!this->good ())
             {
-                LOGERR ("Could not open buffer file \'%s\' in TIPSY output plug-in", fname.c_str ());
+                music::elog.Print ("Could not open buffer file \'%s\' in TIPSY output plug-in", fname.c_str ());
                 throw std::runtime_error("Could not open buffer file in TIPSY output plug-in");
             }
 
@@ -148,8 +148,8 @@ protected:
 
             if (blk != (size_t) (npart * sizeof (T_store)))
             {
-                LOGERR ("Internal consistency error in TIPSY output plug-in");
-                LOGERR ("Expected %d bytes in temp file but found %d", npart * (unsigned) sizeof (T_store), blk);
+                music::elog.Print ("Internal consistency error in TIPSY output plug-in");
+                music::elog.Print ("Expected %d bytes in temp file but found %d", npart * (unsigned) sizeof (T_store), blk);
                 throw std::runtime_error("Internal consistency error in TIPSY output plug-in");
             }
         }
@@ -167,7 +167,7 @@ protected:
 
             if (!this->good ())
             {
-                LOGERR ("Could not open buffer file in TIPSY output plug-in");
+                music::elog.Print ("Could not open buffer file in TIPSY output plug-in");
                 throw std::runtime_error("Could not open buffer file in TIPSY output plug-in");
             }
 
@@ -175,8 +175,8 @@ protected:
 
             if (blk != npart * sizeof (T_store))
             {
-                LOGERR ("Internal consistency error in TIPSY output plug-in");
-                LOGERR ("Expected %ld bytes in temp file but found %ld", npart * sizeof (T_store), blk);
+                music::elog.Print ("Internal consistency error in TIPSY output plug-in");
+                music::elog.Print ("Expected %ld bytes in temp file but found %ld", npart * sizeof (T_store), blk);
                 throw std::runtime_error("Internal consistency error in TIPSY output plug-in");
             }
 
@@ -199,7 +199,7 @@ protected:
 
             if (!this->good ())
             {
-                LOGERR ("Could not open buffer file \'%s\' in TIPSY output plug-in", fname.c_str ());
+                music::elog.Print ("Could not open buffer file \'%s\' in TIPSY output plug-in", fname.c_str ());
                 throw std::runtime_error("Could not open buffer file in TIPSY output plug-in");
             }
 
@@ -207,8 +207,8 @@ protected:
 
             if (blk != npart * sizeof (T_store))
             {
-                LOGERR ("Internal consistency error in TIPSY output plug-in");
-                LOGERR ("Expected %ld bytes in temp file but found %ld", npart * sizeof (T_store), blk);
+                music::elog.Print ("Internal consistency error in TIPSY output plug-in");
+                music::elog.Print ("Expected %ld bytes in temp file but found %ld", npart * sizeof (T_store), blk);
                 throw std::runtime_error("Internal consistency error in TIPSY output plug-in");
             }
 
@@ -380,7 +380,7 @@ protected:
 
         //std::cout << " - Writing " << nptot << " particles to tipsy file...\n";
 
-        LOGINFO
+        music::ilog.Print
           ("TIPSY : output plugin will write:\n       DM particles   : %d\n       SPH particles  : %d",
            header_.ndark, header_.nsph);
 
@@ -415,7 +415,7 @@ protected:
         if (with_baryons_)
         {
 
-            LOGINFO ("TIPSY : writing baryon data");
+            music::ilog.Print ("TIPSY : writing baryon data");
 
             // compute gas temperature
 
@@ -434,7 +434,7 @@ protected:
             //const double ceint = 1.3806e-16/1.6726e-24 * Tini * npol / mu / unitv / unitv;
 
             T_store temperature = (T_store) Tini;
-            LOGINFO("TIPSY : set initial gas temperature to %.2f K (mu = %.2f)", Tini, mu);
+            music::ilog.Print("TIPSY : set initial gas temperature to %.2f K (mu = %.2f)", Tini, mu);
 
 
             // write
@@ -503,7 +503,7 @@ protected:
 
 
 	//... dark matter particles ..................................................
-	LOGINFO ("TIPSY : writing DM data");
+	music::ilog.Print ("TIPSY : writing DM data");
 
 	ifs_x.open (fnx, npcdm);
 	ifs_y.open (fny, npcdm);
@@ -592,7 +592,7 @@ protected:
 
 
 
-        LOGINFO ("TIPSY : done writing.");
+        music::ilog.Print ("TIPSY : done writing.");
     }
 
 
@@ -602,66 +602,66 @@ public:
     tipsy_output_plugin_res (config_file & cf)
     : output_plugin (cf), ofs_ (fname_.c_str (), std::ios::binary | std::ios::trunc)
     {
-        block_buf_size_ = cf_.getValueSafe < unsigned >("output", "tipsy_blksize", 10485760);	// default buffer size is 10 MB
+        block_buf_size_ = cf_.get_value_safe < unsigned >("output", "tipsy_blksize", 10485760);	// default buffer size is 10 MB
 
         //... ensure that everyone knows we want to do SPH
-        cf.insertValue ("setup", "do_SPH", "yes");
-        with_baryons_ = cf_.getValue < bool > ("setup", "baryons");
+        cf.insert_value ("setup", "do_SPH", "yes");
+        with_baryons_ = cf_.get_value < bool > ("setup", "baryons");
 
-        //bbndparticles_  = !cf_.getValueSafe<bool>("output","gadget_nobndpart",false);
+        //bbndparticles_  = !cf_.get_value_safe<bool>("output","gadget_nobndpart",false);
         npartmax_ = 1 << 30;
 
         if (!ofs_.good ())
         {
-            LOGERR("tipsy output plug-in could not open output file \'%s\' for writing!",fname_.c_str ());
+            music::elog.Print("tipsy output plug-in could not open output file \'%s\' for writing!",fname_.c_str ());
             throw std::runtime_error (std::string("tipsy output plug-in could not open output file \'")+ fname_ + "\' for writing!\n");
         }
         ofs_.close ();
 
-        double zstart = cf.getValue < double >("setup", "zstart");
+        double zstart = cf.get_value < double >("setup", "zstart");
         astart_ = 1.0 / (1.0 + zstart);
-        omegam_ = cf.getValue < double >("cosmology", "Omega_m");
-        omegab_ = cf.getValue < double >("cosmology", "Omega_b");
-        boxsize_ = cf.getValue < double >("setup", "boxlength");
-        epsfac_ = cf.getValueSafe < double >("output", "tipsy_eps", 0.05);
-        H0_ = cf.getValue < double >("cosmology", "H0");
-        YHe_ = cf.getValueSafe < double >("cosmology", "YHe", 0.248);
-        gamma_ = cf.getValueSafe < double >("cosmology", "gamma", 5.0 / 3.0);
+        omegam_ = cf.get_value < double >("cosmology", "Omega_m");
+        omegab_ = cf.get_value < double >("cosmology", "Omega_b");
+        boxsize_ = cf.get_value < double >("setup", "boxlength");
+        epsfac_ = cf.get_value_safe < double >("output", "tipsy_eps", 0.05);
+        H0_ = cf.get_value < double >("cosmology", "H0");
+        YHe_ = cf.get_value_safe < double >("cosmology", "YHe", 0.248);
+        gamma_ = cf.get_value_safe < double >("cosmology", "gamma", 5.0 / 3.0);
 
-        bresample_ = cf_.containsKey("output","tipsy_resfine");
+        bresample_ = cf_.contains_key("output","tipsy_resfine");
 
         if( bresample_ )
         {
-            LOGINFO("Resampling in high-res region enabled for TIPSY output,\n" \
+            music::ilog.Print("Resampling in high-res region enabled for TIPSY output,\n" \
                     "     Setting option \'[output]/glass_cicdeconvolve=yes\'.");
-            np_resample_ = cf_.getValue<size_t> ("output","tipsy_resfine");
+            np_resample_ = cf_.get_value<size_t> ("output","tipsy_resfine");
             
             unsigned nfine[3];
             char tempstr[256];
             
-            unsigned levelmax = cf_.getValue<unsigned>("setup","levelmax");
+            unsigned levelmax = cf_.get_value<unsigned>("setup","levelmax");
             
             sprintf(tempstr,"size(%d,0)",levelmax);
-            nfine[0] = cf_.getValue<unsigned>("setup",tempstr);
+            nfine[0] = cf_.get_value<unsigned>("setup",tempstr);
             
             sprintf(tempstr,"size(%d,1)",levelmax);
-            nfine[1] = cf_.getValue<unsigned>("setup",tempstr);
+            nfine[1] = cf_.get_value<unsigned>("setup",tempstr);
             
             sprintf(tempstr,"size(%d,2)",levelmax);
-            nfine[2] = cf_.getValue<unsigned>("setup",tempstr);
+            nfine[2] = cf_.get_value<unsigned>("setup",tempstr);
             
             if( nfine[0]!=nfine[1] || nfine[0]!=nfine[2] )
             {
-                LOGERR("Need to set \'[setup]/force_equal_extent=yes\' when using \'tipsy_refine=yes\'!");
+                music::elog.Print("Need to set \'[setup]/force_equal_extent=yes\' when using \'tipsy_refine=yes\'!");
                 throw std::runtime_error("Need to set \'[setup]/force_equal_extent=yes\' when using \'tipsy_refine=yes\'!");
             }
             
             double resfac = (double)nfine[0]/(double)np_resample_;
             
             sprintf(tempstr,"%g",resfac*0.5);
-            cf_.insertValue("setup","baryon_staggering",std::string(tempstr));
+            cf_.insert_value("setup","baryon_staggering",std::string(tempstr));
             
-            cf_.insertValue("output","glass_cicdeconvolve","yes");
+            cf_.insert_value("output","glass_cicdeconvolve","yes");
 
 	}
     }
@@ -781,7 +781,7 @@ public:
       
         if (nwritten != nptot)
         {
-            LOGERR ("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
+            music::elog.Print ("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
             throw std::runtime_error("Internal consistency error while writing temporary file for DM masses");
         }
         ofs_temp.write ((char *) &blksize, sizeof (size_t));
@@ -865,19 +865,19 @@ public:
 	  double cmass, bmass(0.0);
 	  
 	  std::cout << "-------------------------------------------------------------" << std::endl;
-	  LOGINFO("TIPSY: particle resampling is enabled");
-	  LOGINFO("TIPSY: new high-res particles have the masses:");
+	  music::ilog.Print("TIPSY: particle resampling is enabled");
+	  music::ilog.Print("TIPSY: new high-res particles have the masses:");
 	  if( with_baryons_ )
 	  {
 	    cmass = (omegam_-omegab_)*rhom*dx3;
 	    bmass = omegab_*rhom*dx3;
-	    LOGINFO("TIPSY:         DM particle mass =  %g h-1 M_o",cmass);
-	    LOGINFO("TIPSY:     baryon particle mass =  %g h-1 M_o",bmass);
+	    music::ilog.Print("TIPSY:         DM particle mass =  %g h-1 M_o",cmass);
+	    music::ilog.Print("TIPSY:     baryon particle mass =  %g h-1 M_o",bmass);
 	  }
 	  else
 	  {
 	    cmass = omegam_*rhom*dx3;
-	    LOGINFO("TIPSY:            particle mass =  %g h-1 M_o",cmass);
+	    music::ilog.Print("TIPSY:            particle mass =  %g h-1 M_o",cmass);
 	  } 
 	}
     }
@@ -1030,7 +1030,7 @@ public:
 
         if (nwritten != nptot)
           {
-        LOGERR ("TIPSY output plugin wrote %ld, should have %ld", nwritten,
+        music::elog.Print ("TIPSY output plugin wrote %ld, should have %ld", nwritten,
             nptot);
         throw std::
           runtime_error
@@ -1131,7 +1131,7 @@ public:
 
         if (nwritten != nptot)
         {
-            LOGERR ("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
+            music::elog.Print ("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
             throw std::runtime_error("Internal consistency error while writing temporary file for DM velocities");
         }
 
@@ -1240,7 +1240,7 @@ public:
 
         if (nwritten != npart)
         {
-            LOGERR ("TIPSY output plugin wrote %ld, should have %ld", nwritten, npart);
+            music::elog.Print ("TIPSY output plugin wrote %ld, should have %ld", nwritten, npart);
             throw std::runtime_error("Internal consistency error while writing temporary file for baryon velocities");
         }
 
@@ -1356,7 +1356,7 @@ public:
 
         if (nwritten != npart)
         {
-            LOGERR ("TIPSY output plugin wrote %ld, should have %ld", nwritten, npart);
+            music::elog.Print ("TIPSY output plugin wrote %ld, should have %ld", nwritten, npart);
             throw std::runtime_error("Internal consistency error while writing temporary file for baryon positions");
         }
 

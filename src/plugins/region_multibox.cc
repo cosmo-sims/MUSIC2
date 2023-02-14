@@ -136,34 +136,34 @@ public:
     {
         res = 1<<(levelmin_-1);
         //check parameters
-        if ( !cf.containsKey("setup", "region_point_file"))
+        if ( !cf.contains_key("setup", "region_point_file"))
         {
-            LOGERR("Missing parameter \'region_point_file\' needed for region=multibox");
+            music::elog.Print("Missing parameter \'region_point_file\' needed for region=multibox");
             throw std::runtime_error("Missing parameter for region=multibox");
         }
-        if ( cf.containsKey("setup", "region_point_level"))
+        if ( cf.contains_key("setup", "region_point_level"))
         {
         res = 1<<(levelmin_-1);
-        res = 1<<(cf.getValue<int>("setup","region_point_level")-1);
+        res = 1<<(cf.get_value<int>("setup","region_point_level")-1);
         }
-        vfac_ = cf.getValue<double>("cosmology","vfact");
+        vfac_ = cf.get_value<double>("cosmology","vfact");
         if (levelmin_ >= levelmax_)
         {
-            LOGERR("Why are you specifying a region if you aren't refining?");
+            music::elog.Print("Why are you specifying a region if you aren't refining?");
             throw std::runtime_error("region=multibox needs levelmax>levelmin");
         }
         std::vector<double> pp;
         point_reader pfr;
-        pfr.read_points_from_file(cf.getValue<std::string>("setup", "region_point_file"), vfac_, pp);
-        LOGINFO("Multibox Resolution: %d", res);
+        pfr.read_points_from_file(cf.get_value<std::string>("setup", "region_point_file"), vfac_, pp);
+        music::ilog.Print("Multibox Resolution: %d", res);
         //Initialize the grid with zeros, the base level
         refgrid = grid(res,slice(res,col(res,levelmin_)));
         //Build the highest refinement region
         deposit_particles(pp, res);
-        LOGINFO("Deposited Multigrid Particles");
+        music::ilog.Print("Deposited Multigrid Particles");
         //Build the intermediate refinement regions
         build_refgrid();
-        LOGINFO("Built Multigrid");
+        music::ilog.Print("Built Multigrid");
         get_center(cen);
         dump_grid();
     }

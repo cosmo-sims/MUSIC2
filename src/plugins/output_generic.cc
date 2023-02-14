@@ -157,30 +157,30 @@ public:
 
 		double h = 1.0/(1<<levelmin_);
 		double shift[3];
-		shift[0] = -(double)cf_.getValue<int>( "setup", "shift_x" )*h;
-		shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;
-		shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
+		shift[0] = -(double)cf_.get_value<int>( "setup", "shift_x" )*h;
+		shift[1] = -(double)cf_.get_value<int>( "setup", "shift_y" )*h;
+		shift[2] = -(double)cf_.get_value<int>( "setup", "shift_z" )*h;
 			
 		if( gh.levelmin() != gh.levelmax() )
 		  {
-		    LOGINFO("Global density extrema: ");
-		    LOGINFO("  minimum: delta=%f at (%f,%f,%f) (level=%d)",rhomin,loc_rhomin[0],loc_rhomin[1],loc_rhomin[2],lvl_rhomin);
-		    LOGINFO("       shifted back at (%f,%f,%f)",loc_rhomin[0]+shift[0],loc_rhomin[1]+shift[1],loc_rhomin[2]+shift[2]);
-		    LOGINFO("  maximum: delta=%f at (%f,%f,%f) (level=%d)",rhomax,loc_rhomax[0],loc_rhomax[1],loc_rhomax[2],lvl_rhomax);
-		    LOGINFO("       shifted back at (%f,%f,%f)",loc_rhomax[0]+shift[0],loc_rhomax[1]+shift[1],loc_rhomax[2]+shift[2]);
+		    music::ilog.Print("Global density extrema: ");
+		    music::ilog.Print("  minimum: delta=%f at (%f,%f,%f) (level=%d)",rhomin,loc_rhomin[0],loc_rhomin[1],loc_rhomin[2],lvl_rhomin);
+		    music::ilog.Print("       shifted back at (%f,%f,%f)",loc_rhomin[0]+shift[0],loc_rhomin[1]+shift[1],loc_rhomin[2]+shift[2]);
+		    music::ilog.Print("  maximum: delta=%f at (%f,%f,%f) (level=%d)",rhomax,loc_rhomax[0],loc_rhomax[1],loc_rhomax[2],lvl_rhomax);
+		    music::ilog.Print("       shifted back at (%f,%f,%f)",loc_rhomax[0]+shift[0],loc_rhomax[1]+shift[1],loc_rhomax[2]+shift[2]);
 		    
-		    LOGINFO("Density extrema on finest level: ");
-		    LOGINFO("  minimum: delta=%f at (%f,%f,%f)",rhomin_lm,loc_rhomin_lm[0],loc_rhomin_lm[1],loc_rhomin_lm[2]);
-		    LOGINFO("       shifted back at (%f,%f,%f)",loc_rhomin_lm[0]+shift[0],loc_rhomin_lm[1]+shift[1],loc_rhomin_lm[2]+shift[2]);
-		    LOGINFO("  maximum: delta=%f at (%f,%f,%f)",rhomax_lm,loc_rhomax_lm[0],loc_rhomax_lm[1],loc_rhomax_lm[2]);
-		    LOGINFO("       shifted back at (%f,%f,%f)",loc_rhomax_lm[0]+shift[0],loc_rhomax_lm[1]+shift[1],loc_rhomax_lm[2]+shift[2]);
+		    music::ilog.Print("Density extrema on finest level: ");
+		    music::ilog.Print("  minimum: delta=%f at (%f,%f,%f)",rhomin_lm,loc_rhomin_lm[0],loc_rhomin_lm[1],loc_rhomin_lm[2]);
+		    music::ilog.Print("       shifted back at (%f,%f,%f)",loc_rhomin_lm[0]+shift[0],loc_rhomin_lm[1]+shift[1],loc_rhomin_lm[2]+shift[2]);
+		    music::ilog.Print("  maximum: delta=%f at (%f,%f,%f)",rhomax_lm,loc_rhomax_lm[0],loc_rhomax_lm[1],loc_rhomax_lm[2]);
+		    music::ilog.Print("       shifted back at (%f,%f,%f)",loc_rhomax_lm[0]+shift[0],loc_rhomax_lm[1]+shift[1],loc_rhomax_lm[2]+shift[2]);
 		    
 		  }else{
-		  LOGINFO("Global density extrema: ");
-		  LOGINFO("  minimum: delta=%f at (%f,%f,%f)",rhomin,loc_rhomin[0],loc_rhomin[1],loc_rhomin[2]);
-		  LOGINFO("       shifted back at (%f,%f,%f)",loc_rhomin[0]+shift[0],loc_rhomin[1]+shift[1],loc_rhomin[2]+shift[2]);
-		  LOGINFO("  maximum: delta=%f at (%f,%f,%f)",rhomax,loc_rhomax[0],loc_rhomax[1],loc_rhomax[2]);
-		  LOGINFO("       shifted back at (%f,%f,%f)",loc_rhomax[0]+shift[0],loc_rhomax[1]+shift[1],loc_rhomax[2]+shift[2]);
+		  music::ilog.Print("Global density extrema: ");
+		  music::ilog.Print("  minimum: delta=%f at (%f,%f,%f)",rhomin,loc_rhomin[0],loc_rhomin[1],loc_rhomin[2]);
+		  music::ilog.Print("       shifted back at (%f,%f,%f)",loc_rhomin[0]+shift[0],loc_rhomin[1]+shift[1],loc_rhomin[2]+shift[2]);
+		  music::ilog.Print("  maximum: delta=%f at (%f,%f,%f)",rhomax,loc_rhomax[0],loc_rhomax[1],loc_rhomax[2]);
+		  music::ilog.Print("       shifted back at (%f,%f,%f)",loc_rhomax[0]+shift[0],loc_rhomax[1]+shift[1],loc_rhomax[2]+shift[2]);
             
 		}
 	}

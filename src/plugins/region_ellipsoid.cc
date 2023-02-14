@@ -295,7 +295,7 @@ protected:
         }
 
         if (count >= maxit)
-            LOGERR("No convergence in min_ellipsoid::compute: maximum number of iterations reached!");
+            music::elog.Print("No convergence in min_ellipsoid::compute: maximum number of iterations reached!");
 
         delete[] unew;
     }
@@ -305,7 +305,7 @@ public:
         : N(N_), axes_computed(false), hold_point_data(true)
     {
         // --- initialize ---
-        LOGINFO("computing minimum bounding ellipsoid from %lld points", N);
+        music::ilog.Print("computing minimum bounding ellipsoid from %lld points", N);
 
         Q = new float[4 * N];
         u = new float[N];
@@ -536,7 +536,7 @@ public:
     {
         if (!axes_computed)
         {
-            LOGUSER("computing ellipsoid axes.....");
+            music::ulog.Print("computing ellipsoid axes.....");
             compute_axes();
         }
         // float muold[3] = {mu[0],mu[1],mu[2]};
@@ -558,7 +558,7 @@ public:
 
         Inverse_3x3(A, Ainv);
 
-        // LOGUSER("computing ellipsoid axes.....");
+        // music::ulog.Print("computing ellipsoid axes.....");
         compute_axes();
 
         // print();
@@ -583,7 +583,7 @@ private:
     void apply_shift(size_t Np, double *p, int *shift, int levelmin)
     {
         double dx = 1.0 / (1 << levelmin);
-        LOGINFO("unapplying shift of previous zoom region to region particles :\n"
+        music::ilog.Print("unapplying shift of previous zoom region to region particles :\n"
                 "\t [%d,%d,%d] = (%f,%f,%f)",
                 shift[0], shift[1], shift[2], shift[0] * dx, shift[1] * dx, shift[2] * dx);
 
@@ -602,25 +602,25 @@ public:
             pellip_.push_back(NULL);
 
         // sanity check
-        if (!cf.containsKey("setup", "region_point_file") &&
-            !(cf.containsKey("setup", "region_ellipsoid_matrix[0]") &&
-              cf.containsKey("setup", "region_ellipsoid_matrix[1]") &&
-              cf.containsKey("setup", "region_ellipsoid_matrix[2]") &&
-              cf.containsKey("setup", "region_ellipsoid_center")))
+        if (!cf.contains_key("setup", "region_point_file") &&
+            !(cf.contains_key("setup", "region_ellipsoid_matrix[0]") &&
+              cf.contains_key("setup", "region_ellipsoid_matrix[1]") &&
+              cf.contains_key("setup", "region_ellipsoid_matrix[2]") &&
+              cf.contains_key("setup", "region_ellipsoid_center")))
         {
-            LOGERR("Insufficient data for region=ellipsoid\n Need to specify either \'region_point_file\' or the ellipsoid equation.");
+            music::elog.Print("Insufficient data for region=ellipsoid\n Need to specify either \'region_point_file\' or the ellipsoid equation.");
             throw std::runtime_error("Insufficient data for region=ellipsoid");
         }
         //
 
-        vfac_ = cf.getValue<double>("cosmology", "vfact");
-        padding_ = cf.getValue<int>("setup", "padding");
+        vfac_ = cf.get_value<double>("cosmology", "vfact");
+        padding_ = cf.get_value<int>("setup", "padding");
 
         std::string point_file;
 
-        if (cf.containsKey("setup", "region_point_file"))
+        if (cf.contains_key("setup", "region_point_file"))
         {
-            point_file = cf.getValue<std::string>("setup", "region_point_file");
+            point_file = cf.get_value<std::string>("setup", "region_point_file");
 
             point_reader pfr;
             pfr.read_points_from_file(point_file, vfac_, pp);
@@ -639,15 +639,15 @@ public:
                 pp.swap(xx);
             }
 
-            if (cf.containsKey("setup", "region_point_shift"))
+            if (cf.contains_key("setup", "region_point_shift"))
             {
-                std::string point_shift = cf.getValue<std::string>("setup", "region_point_shift");
+                std::string point_shift = cf.get_value<std::string>("setup", "region_point_shift");
                 if (sscanf(point_shift.c_str(), "%d,%d,%d", &shift[0], &shift[1], &shift[2]) != 3)
                 {
-                    LOGERR("Error parsing triple for region_point_shift");
+                    music::elog.Print("Error parsing triple for region_point_shift");
                     throw std::runtime_error("Error parsing triple for region_point_shift");
                 }
-                unsigned point_levelmin = cf.getValue<unsigned>("setup", "region_point_levelmin");
+                unsigned point_levelmin = cf.get_value<unsigned>("setup", "region_point_levelmin");
 
                 apply_shift(pp.size() / 3, &pp[0], shift, point_levelmin);
                 shift_level = point_levelmin;
@@ -660,28 +660,28 @@ public:
             double A[9] = {0}, c[3] = {0};
             std::string strtmp;
 
-            strtmp = cf.getValue<std::string>("setup", "region_ellipsoid_matrix[0]");
+            strtmp = cf.get_value<std::string>("setup", "region_ellipsoid_matrix[0]");
             if (sscanf(strtmp.c_str(), "%lf,%lf,%lf", &A[0], &A[1], &A[2]) != 3)
             {
-                LOGERR("Error parsing triple for region_ellipsoid_matrix[0]");
+                music::elog.Print("Error parsing triple for region_ellipsoid_matrix[0]");
                 throw std::runtime_error("Error parsing triple for region_ellipsoid_matrix[0]");
             }
-            strtmp = cf.getValue<std::string>("setup", "region_ellipsoid_matrix[1]");
+            strtmp = cf.get_value<std::string>("setup", "region_ellipsoid_matrix[1]");
             if (sscanf(strtmp.c_str(), "%lf,%lf,%lf", &A[3], &A[4], &A[5]) != 3)
             {
-                LOGERR("Error parsing triple for region_ellipsoid_matrix[1]");
+                music::elog.Print("Error parsing triple for region_ellipsoid_matrix[1]");
                 throw std::runtime_error("Error parsing triple for region_ellipsoid_matrix[1]");
             }
-            strtmp = cf.getValue<std::string>("setup", "region_ellipsoid_matrix[2]");
+            strtmp = cf.get_value<std::string>("setup", "region_ellipsoid_matrix[2]");
             if (sscanf(strtmp.c_str(), "%lf,%lf,%lf", &A[6], &A[7], &A[8]) != 3)
             {
-                LOGERR("Error parsing triple for region_ellipsoid_matrix[2]");
+                music::elog.Print("Error parsing triple for region_ellipsoid_matrix[2]");
                 throw std::runtime_error("Error parsing triple for region_ellipsoid_matrix[2]");
             }
-            strtmp = cf.getValue<std::string>("setup", "region_ellipsoid_center");
+            strtmp = cf.get_value<std::string>("setup", "region_ellipsoid_center");
             if (sscanf(strtmp.c_str(), "%lf,%lf,%lf", &c[0], &c[1], &c[2]) != 3)
             {
-                LOGERR("Error parsing triple for region_ellipsoid_center");
+                music::elog.Print("Error parsing triple for region_ellipsoid_center");
                 throw std::runtime_error("Error parsing triple for region_ellipsoid_center");
             }
 
@@ -693,7 +693,7 @@ public:
         {
             // compute convex hull and use only hull points to speed things up
             // BUT THIS NEEDS MORE TESTING BEFORE IT GOES IN THE REPO
-            LOGINFO("Computing convex hull for %llu points", pp.size()/3 );
+            music::ilog.Print("Computing convex hull for %llu points", pp.size()/3 );
             convex_hull<double> ch( &pp[0], pp.size()/3 );
             std::set<int> unique;
             ch.get_defining_indices( unique );
@@ -723,14 +723,14 @@ public:
         pellip_[levelmax_]->get_center(c);
         pellip_[levelmax_]->get_matrix(A);
 
-        LOGINFO("Region center for ellipsoid determined at\n\t xc = ( %f %f %f )", c[0], c[1], c[2]);
-        LOGINFO("Ellipsoid matrix determined as\n\t      ( %f %f %f )\n\t  A = ( %f %f %f )\n\t      ( %f %f %f )",
+        music::ilog.Print("Region center for ellipsoid determined at\n\t xc = ( %f %f %f )", c[0], c[1], c[2]);
+        music::ilog.Print("Ellipsoid matrix determined as\n\t      ( %f %f %f )\n\t  A = ( %f %f %f )\n\t      ( %f %f %f )",
                 A[0], A[1], A[2], A[3], A[4], A[5], A[6], A[7], A[8]);
 
         // expand the ellipsoid by one grid cell
 
-        unsigned levelmax = cf.getValue<unsigned>("setup", "levelmax");
-        unsigned npad = cf.getValue<unsigned>("setup", "padding");
+        unsigned levelmax = cf.get_value<unsigned>("setup", "levelmax");
+        unsigned npad = cf.get_value<unsigned>("setup", "padding");
         double dx = 1.0 / (1ul << levelmax);
         pellip_[levelmax_]->expand_ellipsoid(dx);
 
@@ -748,7 +748,7 @@ public:
 
         // conditions should be added here
         {
-            std::string output_plugin = cf.getValue<std::string>("output", "format");
+            std::string output_plugin = cf.get_value<std::string>("output", "format");
             if (output_plugin == std::string("grafic2"))
                 do_extra_padding_ = true;
         }

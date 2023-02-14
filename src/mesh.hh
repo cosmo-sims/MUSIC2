@@ -19,8 +19,6 @@
 #include <math.h>
 
 #include "config_file.hh"
-#include "log.hh"
-
 #include "region_generator.hh"
 
 #include <array>
@@ -239,7 +237,7 @@ public:
 	{
 #ifdef DEBUG
 		if (ix < 0 || ix >= (int)m_nx || iy < 0 || iy >= (int)m_ny || iz < 0 || iz >= (int)m_nz)
-			LOGERR("Array index (%d,%d,%d) out of bounds", ix, iy, iz);
+			music::elog.Print("Array index (%d,%d,%d) out of bounds", ix, iy, iz);
 #endif
 
 		return m_pdata[((size_t)ix * m_ny + (size_t)iy) * m_nz + (size_t)iz];
@@ -250,7 +248,7 @@ public:
 	{
 #ifdef DEBUG
 		if (ix < 0 || ix >= (int)m_nx || iy < 0 || iy >= (int)m_ny || iz < 0 || iz >= (int)m_nz)
-			LOGERR("Array index (%d,%d,%d) out of bounds", ix, iy, iz);
+			music::elog.Print("Array index (%d,%d,%d) out of bounds", ix, iy, iz);
 #endif
 
 		return m_pdata[((size_t)ix * m_ny + (size_t)iy) * m_nz + (size_t)iz];
@@ -293,7 +291,7 @@ public:
 	{
 		if (v.m_nx * v.m_ny * v.m_nz != m_nx * m_ny * m_nz)
 		{
-			LOGERR("Meshvar::operator*= : attempt to operate on incompatible data");
+			music::elog.Print("Meshvar::operator*= : attempt to operate on incompatible data");
 			throw std::runtime_error("Meshvar::operator*= : attempt to operate on incompatible data");
 		}
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
@@ -307,7 +305,7 @@ public:
 	{
 		if (v.m_nx * v.m_ny * v.m_nz != m_nx * m_ny * m_nz)
 		{
-			LOGERR("Meshvar::operator/= : attempt to operate on incompatible data");
+			music::elog.Print("Meshvar::operator/= : attempt to operate on incompatible data");
 			throw std::runtime_error("Meshvar::operator/= : attempt to operate on incompatible data");
 		}
 
@@ -322,7 +320,7 @@ public:
 	{
 		if (v.m_nx * v.m_ny * v.m_nz != m_nx * m_ny * m_nz)
 		{
-			LOGERR("Meshvar::operator+= : attempt to operate on incompatible data");
+			music::elog.Print("Meshvar::operator+= : attempt to operate on incompatible data");
 			throw std::runtime_error("Meshvar::operator+= : attempt to operate on incompatible data");
 		}
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
@@ -336,7 +334,7 @@ public:
 	{
 		if (v.m_nx * v.m_ny * v.m_nz != m_nx * m_ny * m_nz)
 		{
-			LOGERR("Meshvar::operator-= : attempt to operate on incompatible data");
+			music::elog.Print("Meshvar::operator-= : attempt to operate on incompatible data");
 			throw std::runtime_error("Meshvar::operator-= : attempt to operate on incompatible data");
 		}
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
@@ -590,7 +588,7 @@ public:
 
 		if (ilevel >= m_pgrids.size())
 		{
-			LOGERR("Attempt to access level %d but maxlevel = %d", ilevel, m_pgrids.size() - 1);
+			music::elog.Print("Attempt to access level %d but maxlevel = %d", ilevel, m_pgrids.size() - 1);
 			throw std::runtime_error("Fatal: attempt to access non-existent grid");
 		}
 		return m_pgrids[ilevel];
@@ -601,7 +599,7 @@ public:
 	{
 		if (ilevel >= m_pgrids.size())
 		{
-			LOGERR("Attempt to access level %d but maxlevel = %d", ilevel, m_pgrids.size() - 1);
+			music::elog.Print("Attempt to access level %d but maxlevel = %d", ilevel, m_pgrids.size() - 1);
 			throw std::runtime_error("Fatal: attempt to access non-existent grid");
 		}
 
@@ -992,7 +990,7 @@ public:
 	{
 		if (!is_consistent(gh))
 		{
-			LOGERR("GridHierarchy::operator*= : attempt to operate on incompatible data");
+			music::elog.Print("GridHierarchy::operator*= : attempt to operate on incompatible data");
 			throw std::runtime_error("GridHierarchy::operator*= : attempt to operate on incompatible data");
 		}
 		for (unsigned i = 0; i < m_pgrids.size(); ++i)
@@ -1005,7 +1003,7 @@ public:
 	{
 		if (!is_consistent(gh))
 		{
-			LOGERR("GridHierarchy::operator/= : attempt to operate on incompatible data");
+			music::elog.Print("GridHierarchy::operator/= : attempt to operate on incompatible data");
 			throw std::runtime_error("GridHierarchy::operator/= : attempt to operate on incompatible data");
 		}
 		for (unsigned i = 0; i < m_pgrids.size(); ++i)
@@ -1029,7 +1027,7 @@ public:
 	{
 		if (!is_consistent(gh))
 		{
-			LOGERR("GridHierarchy::operator-= : attempt to operate on incompatible data");
+			music::elog.Print("GridHierarchy::operator-= : attempt to operate on incompatible data");
 			throw std::runtime_error("GridHierarchy::operator-= : attempt to operate on incompatible data");
 		}
 		for (unsigned i = 0; i < m_pgrids.size(); ++i)
@@ -1269,24 +1267,24 @@ public:
 			: cf_(cf)
 	{
 		//... query the parameter data we need
-		levelmin_ = cf_.getValue<unsigned>("setup", "levelmin");
-		levelmax_ = cf_.getValue<unsigned>("setup", "levelmax");
-		levelmin_tf_ = cf_.getValueSafe<unsigned>("setup", "levelmin_TF", levelmin_);
-		align_top_ = cf_.getValueSafe<bool>("setup", "align_top", false);
-		preserve_dims_ = cf_.getValueSafe<bool>("setup", "preserve_dims", false);
-		equal_extent_ = cf_.getValueSafe<bool>("setup", "force_equal_extent", false);
-		blocking_factor_ = cf.getValueSafe<unsigned>("setup", "blocking_factor", 0);
-		margin_          = cf.getValueSafe<int>("setup","convolution_margin",32);
+		levelmin_ = cf_.get_value<unsigned>("setup", "levelmin");
+		levelmax_ = cf_.get_value<unsigned>("setup", "levelmax");
+		levelmin_tf_ = cf_.get_value_safe<unsigned>("setup", "levelmin_TF", levelmin_);
+		align_top_ = cf_.get_value_safe<bool>("setup", "align_top", false);
+		preserve_dims_ = cf_.get_value_safe<bool>("setup", "preserve_dims", false);
+		equal_extent_ = cf_.get_value_safe<bool>("setup", "force_equal_extent", false);
+		blocking_factor_ = cf.get_value_safe<unsigned>("setup", "blocking_factor", 0);
+		margin_          = cf.get_value_safe<int>("setup","convolution_margin",32);
 
-		bool bnoshift = cf_.getValueSafe<bool>("setup", "no_shift", false);
-		bool force_shift = cf_.getValueSafe<bool>("setup", "force_shift", false);
+		bool bnoshift = cf_.get_value_safe<bool>("setup", "no_shift", false);
+		bool force_shift = cf_.get_value_safe<bool>("setup", "force_shift", false);
 
-		gridding_unit_ = cf.getValueSafe<unsigned>("setup", "gridding_unit", 2);
+		gridding_unit_ = cf.get_value_safe<unsigned>("setup", "gridding_unit", 2);
 
     if (gridding_unit_ != 2 && blocking_factor_==0) {
       blocking_factor_ = gridding_unit_; // THIS WILL LIKELY CAUSE PROBLEMS WITH NYX
     }else if (gridding_unit_ != 2 && blocking_factor_!=0 && gridding_unit_!=blocking_factor_ ) {
-			LOGERR("incompatible gridding unit %d and blocking factor specified", gridding_unit_, blocking_factor_ );
+			music::elog.Print("incompatible gridding unit %d and blocking factor specified", gridding_unit_, blocking_factor_ );
 			throw std::runtime_error("Incompatible gridding unit and blocking factor!");
 		}
 
@@ -1301,10 +1299,11 @@ public:
 				lxref_[i] = x1ref[i] - x0ref_[i];
 			bhave_nref = false;
 
-			std::string region_type = cf.getValueSafe<std::string>("setup", "region", "box");
+			std::string region_type = cf.get_value_safe<std::string>("setup", "region", "box");
 
-			LOGINFO("refinement region is \'%s\', w/ bounding box\n        left = [%f,%f,%f]\n       right = [%f,%f,%f]",
-							region_type.c_str(), x0ref_[0], x0ref_[1], x0ref_[2], x1ref[0], x1ref[1], x1ref[2]);
+			music::ilog << "    refinement region is \'" << region_type.c_str() << "\', w/ bounding box" << std::endl;
+			music::ilog << "            left = [" << x0ref_[0] << "," << x0ref_[1] << "," << x0ref_[2] << "]" << std::endl;
+			music::ilog << "           right = [" << x1ref[0] << "," << x1ref[1] << "," << x1ref[2] << "]" << std::endl;
 
 			bhave_nref = the_region_generator->is_grid_dim_forced(lnref_);
 		}
@@ -1327,10 +1326,10 @@ public:
 
 		if ((levelmin_ != levelmax_) && (!bnoshift || force_shift))
 		{
-			int random_base_grid_unit = cf.getValueSafe<int>("random","base_unit",1);
+			int random_base_grid_unit = cf.get_value_safe<int>("random","base_unit",1);
       int shift_unit = get_shift_unit( random_base_grid_unit, levelmin_ );
       if( shift_unit != 1 ){
-        LOGINFO("volume can only be shifted by multiples of %d coarse cells.",shift_unit);
+        music::ilog.Print("volume can only be shifted by multiples of %d coarse cells.",shift_unit);
       }
 			xshift_[0] = (int)((0.5-xc[0]) * (double)ncoarse / shift_unit + 0.5) * shift_unit;//ARJ(int)((0.5 - xc[0]) * ncoarse);
       xshift_[1] = (int)((0.5-xc[1]) * (double)ncoarse / shift_unit + 0.5) * shift_unit;//ARJ(int)((0.5 - xc[1]) * ncoarse);
@@ -1349,11 +1348,11 @@ public:
 
 		char strtmp[32];
 		sprintf(strtmp, "%ld", xshift_[0]);
-		cf_.insertValue("setup", "shift_x", strtmp);
+		cf_.insert_value("setup", "shift_x", strtmp);
 		sprintf(strtmp, "%ld", xshift_[1]);
-		cf_.insertValue("setup", "shift_y", strtmp);
+		cf_.insert_value("setup", "shift_y", strtmp);
 		sprintf(strtmp, "%ld", xshift_[2]);
-		cf_.insertValue("setup", "shift_z", strtmp);
+		cf_.insert_value("setup", "shift_z", strtmp);
 
 		rshift_[0] = -(double)xshift_[0] / ncoarse;
 		rshift_[1] = -(double)xshift_[1] / ncoarse;
@@ -1414,7 +1413,7 @@ public:
 						lnref_[1] % (1ul << (levelmax_ - levelmin_)) != 0 ||
 						lnref_[2] % (1ul << (levelmax_ - levelmin_)) != 0)
 				{
-					LOGERR("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
+					music::elog.Print("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
 					throw std::runtime_error("specified ref_dims and align_top=yes but cannot be aligned with coarse grid!");
 				}
 			}
@@ -1458,7 +1457,7 @@ public:
 		else
 		{
 			//... require alignment with coarser grid
-      LOGINFO("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]", il, ir, jl, jr, kl, kr);
+      music::ilog.Print("- Internal refinement bounding box: [%d,%d]x[%d,%d]x[%d,%d]", il, ir, jl, jr, kl, kr);
 
       il -= il % gridding_unit_;
       jl -= jl % gridding_unit_;
@@ -1492,7 +1491,7 @@ public:
 
 		if (il >= ir || jl >= jr || kl >= kr)
 		{
-			LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]", il, ir, jl, jr, kl, kr);
+			music::elog.Print("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d]", il, ir, jl, jr, kl, kr);
 			throw std::runtime_error("refinement_hierarchy: Internal refinement bounding box error 1");
 		}
 		//... determine offsets
@@ -1508,7 +1507,7 @@ public:
 
 				if (bhave_nref && (lnref_[0] != lnref_[1] || lnref_[0] != lnref_[2]))
 				{
-					LOGERR("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
+					music::elog.Print("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
 					throw std::runtime_error("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
 				}
 				size_t ilevel = levelmax_;
@@ -1531,7 +1530,7 @@ public:
 			}
 		}
 
-		padding_ = cf_.getValueSafe<unsigned>("setup", "padding", 8);
+		padding_ = cf_.get_value_safe<unsigned>("setup", "padding", 8);
 
 		//... determine position of coarser grids
 		for (unsigned ilevel = levelmax_ - 1; ilevel > levelmin_; --ilevel)
@@ -1585,7 +1584,7 @@ public:
 
 			if (il >= ir || jl >= jr || kl >= kr || il < 0 || jl < 0 || kl < 0)
 			{
-				LOGERR("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d], level=%d", il, ir, jl, jr, kl, kr, ilevel);
+				music::elog.Print("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d], level=%d", il, ir, jl, jr, kl, kr, ilevel);
 				throw std::runtime_error("refinement_hierarchy: Internal refinement bounding box error 2");
 			}
 			absoffsets_[ilevel] = { il, jl, kl };
@@ -1650,7 +1649,7 @@ public:
 					len_[ilevel][1] > index_t(1ul << (ilevel - 1)) ||
 					len_[ilevel][2] > index_t(1ul << (ilevel - 1)))
 			{
-				LOGERR("On level %d, subgrid is larger than half the box. This is not allowed!", ilevel);
+				music::elog.Print("On level %d, subgrid is larger than half the box. This is not allowed!", ilevel);
 				throw std::runtime_error("Fatal: Subgrid larger than half boxin zoom.");
 			}
 		}
@@ -1758,7 +1757,7 @@ public:
 		}
 
 		if ((old_levelmin != levelmin_) && print)
-			LOGINFO("refinement_hierarchy: set new levelmin to %d", levelmin_);
+			music::ilog.Print("refinement_hierarchy: set new levelmin to %d", levelmin_);
 	}
 
 	//! get absolute grid offset for a specified level along a specified dimension (in fine grid units)
@@ -1832,11 +1831,11 @@ public:
 
 	void output_log(void) const
 	{
-		LOGUSER("   Domain shifted by      (%5d,%5d,%5d)", xshift_[0], xshift_[1], xshift_[2]);
+		music::ulog.Print("   Domain shifted by      (%5d,%5d,%5d)", xshift_[0], xshift_[1], xshift_[2]);
 		for (unsigned ilevel = levelmin_; ilevel <= levelmax_; ++ilevel)
 		{
-			LOGUSER("   Level %3d :   offset = (%5d,%5d,%5d)", ilevel, offsets_[ilevel][0], offsets_[ilevel][1], offsets_[ilevel][2]);
-			LOGUSER("                   size = (%5d,%5d,%5d)", len_[ilevel][0], len_[ilevel][1], len_[ilevel][2]);
+			music::ulog.Print("   Level %3d :   offset = (%5d,%5d,%5d)", ilevel, offsets_[ilevel][0], offsets_[ilevel][1], offsets_[ilevel][2]);
+			music::ulog.Print("                   size = (%5d,%5d,%5d)", len_[ilevel][0], len_[ilevel][1], len_[ilevel][2]);
 		}
 	}
 };

@@ -201,9 +201,9 @@ public:
 	transfer_eisensteinS_plugin( config_file &cf )//Cosmology aCosm, double Tcmb = 2.726 )
     :  transfer_function_plugin(cf)
 	{
-		double Tcmb = pcf_->getValueSafe<double>("cosmology","Tcmb",2.726);
-        //double boxlength = pcf_->getValue<double>("setup","boxlength");
-        ktrunc_ = pcf_->getValue<double>("cosmology","ktrunc");
+		double Tcmb = pcf_->get_value_safe<double>("cosmology","Tcmb",2.726);
+        //double boxlength = pcf_->get_value<double>("setup","boxlength");
+        ktrunc_ = pcf_->get_value<double>("cosmology","ktrunc");
         normfac_ = 2.0/M_PI;
 		
         etf_.set_parameters( cosmo_, Tcmb );

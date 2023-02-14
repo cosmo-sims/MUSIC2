@@ -35,10 +35,10 @@ private:
 #ifdef WITH_MPI
     if (MPI::COMM_WORLD.Get_rank() == 0) {
 #endif
-      LOGINFO("Reading tabulated transfer function data from file \n    \'%s\'",
+      music::ilog.Print("Reading tabulated transfer function data from file \n    \'%s\'",
               m_filename_Tk.c_str());
 
-      LOGINFO("CAUTION: make sure that this transfer function \n\t has been output for z=%f!",m_zstart);
+      music::ilog.Print("CAUTION: make sure that this transfer function \n\t has been output for z=%f!",m_zstart);
 
       std::string line;
       std::ifstream ifs(m_filename_Tk.c_str());
@@ -85,7 +85,7 @@ private:
         ss >> dummy; // v_b-v_cdm
 
         if( ss.bad() || ss.fail() ){
-          LOGERR("Error reading the transfer function file (corrupt or not in expected format)!");
+          music::elog.Print("Error reading the transfer function file (corrupt or not in expected format)!");
           throw std::runtime_error("Error reading transfer function file \'" +
                                    m_filename_Tk + "\'");
         }
@@ -126,10 +126,10 @@ private:
 
       ifs.close();
 
-      LOGINFO("Read CAMB transfer function table with %d rows", m_nlines);
+      music::ilog.Print("Read CAMB transfer function table with %d rows", m_nlines);
 
       if (m_linbaryoninterp)
-        LOGINFO("Using log-lin interpolation for baryons\n    (TF is not "
+        music::ilog.Print("Using log-lin interpolation for baryons\n    (TF is not "
                 "positive definite)");
 
 #ifdef WITH_MPI
@@ -165,10 +165,10 @@ public:
   transfer_CAMB_plugin(config_file &cf)
   : transfer_function_plugin(cf)
   {
-    m_filename_Tk = pcf_->getValue<std::string>("cosmology", "transfer_file");
-    m_Omega_m=cf.getValue<double>("cosmology","Omega_m"); //MvD
-    m_Omega_b=cf.getValue<double>("cosmology","Omega_b"); //MvD
-    m_zstart =cf.getValue<double>("setup","zstart"); //MvD
+    m_filename_Tk = pcf_->get_value<std::string>("cosmology", "transfer_file");
+    m_Omega_m=cf.get_value<double>("cosmology","Omega_m"); //MvD
+    m_Omega_b=cf.get_value<double>("cosmology","Omega_b"); //MvD
+    m_zstart =cf.get_value<double>("setup","zstart"); //MvD
 
     read_table();
 

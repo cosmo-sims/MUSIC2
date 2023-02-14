@@ -124,15 +124,15 @@ public:
 	transfer_LINGERpp_plugin( config_file& cf )
 	: transfer_function_plugin( cf )
 	{
-		m_filename_Tk	= pcf_->getValue<std::string>("cosmology","transfer_file");
+		m_filename_Tk	= pcf_->get_value<std::string>("cosmology","transfer_file");
 		
 		//.. disable the baryon-CDM relative velocity (both follow the total matter potential)
-		m_bnovrel		= pcf_->getValueSafe<bool>("cosmology","no_vrel",false);
+		m_bnovrel		= pcf_->get_value_safe<bool>("cosmology","no_vrel",false);
 		
 		//.. normalize at z=0 rather than using the linearly scaled zini spectrum
 		//.. this can be different due to radiation still being non-negligible at
 		//.. high redshifts
-		m_bz0norm		= pcf_->getValueSafe<bool>("cosmology","z0norm",true);
+		m_bz0norm		= pcf_->get_value_safe<bool>("cosmology","z0norm",true);
 		
 		tf_distinct_   = true;
 		tf_withvel_    = true;

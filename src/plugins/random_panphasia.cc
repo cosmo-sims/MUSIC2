@@ -156,7 +156,7 @@ protected:
 public:
   explicit RNG_panphasia(config_file &cf) : RNG_plugin(cf)
   {
-    descriptor_string_ = pcf_->getValue<std::string>("random", "descriptor");
+    descriptor_string_ = pcf_->get_value<std::string>("random", "descriptor");
 
 #ifdef _OPENMP
     num_threads_ = omp_get_max_threads();
@@ -169,7 +169,7 @@ public:
 
     // parse the descriptor for its properties
     pdescriptor_ = new panphasia_descriptor(descriptor_string_);
-    LOGINFO("PANPHASIA: descriptor \'%s\' is base %d,", pdescriptor_->name.c_str(), pdescriptor_->i_base);
+    music::ilog.Print("PANPHASIA: descriptor \'%s\' is base %d,", pdescriptor_->name.c_str(), pdescriptor_->i_base);
 
     // write panphasia base size into config file for the grid construction
     // as the gridding unit we use the least common multiple of 2 and i_base
@@ -177,19 +177,19 @@ public:
     // ARJ  ss << lcm(2, pdescriptor_->i_base);
     // ss <<  two_or_largest_power_two_less_than(pdescriptor_->i_base);//ARJ
     ss << 2; // ARJ - set gridding unit to two
-    pcf_->insertValue("setup", "gridding_unit", ss.str());
+    pcf_->insert_value("setup", "gridding_unit", ss.str());
     ss.str(std::string());
     ss << pdescriptor_->i_base;
-    pcf_->insertValue("random", "base_unit", ss.str());
+    pcf_->insert_value("random", "base_unit", ss.str());
 
-    pcf_->insertValue("setup","fourier_splicing","false");
+    pcf_->insert_value("setup","fourier_splicing","false");
   }
 
   void initialize_for_grid_structure(const refinement_hierarchy &refh)
   {
     prefh_ = &refh;
     levelmin_ = prefh_->levelmin();
-    levelmin_final_ = pcf_->getValue<unsigned>("setup", "levelmin");
+    levelmin_final_ = pcf_->get_value<unsigned>("setup", "levelmin");
     levelmax_ = prefh_->levelmax();
 
     if( refh.get_margin() < 0 ){
@@ -199,7 +199,7 @@ public:
     }
 
     clear_panphasia_thread_states();
-    LOGINFO("PANPHASIA: running with %d threads", num_threads_);
+    music::ilog.Print("PANPHASIA: running with %d threads", num_threads_);
 
     // if ngrid is not a multiple of i_base, then we need to enlarge and then sample down
     ngrid_ = 1 << levelmin_;
@@ -211,9 +211,9 @@ public:
     int ratio = 1 << lextra_;
     grid_rescale_fac_ = 1.0;
 
-    coordinate_system_shift_[0] = -pcf_->getValue<int>("setup", "shift_x");
-    coordinate_system_shift_[1] = -pcf_->getValue<int>("setup", "shift_y");
-    coordinate_system_shift_[2] = -pcf_->getValue<int>("setup", "shift_z");
+    coordinate_system_shift_[0] = -pcf_->get_value<int>("setup", "shift_x");
+    coordinate_system_shift_[1] = -pcf_->get_value<int>("setup", "shift_y");
+    coordinate_system_shift_[2] = -pcf_->get_value<int>("setup", "shift_z");
 
     incongruent_fields_ = false;
     if (ngrid_ != ratio * pdescriptor_->i_base)
@@ -221,7 +221,7 @@ public:
       incongruent_fields_ = true;
       ngrid_ = 2 * ratio * pdescriptor_->i_base;
       grid_rescale_fac_ = (double)ngrid_ / (1 << levelmin_);
-      LOGINFO("PANPHASIA: will use a higher resolution:\n"
+      music::ilog.Print("PANPHASIA: will use a higher resolution:\n"
               "     (%d -> %d) * 2**ref compatible with PANPHASIA\n"
               "     will Fourier interpolate after.",
               grid_m_, grid_p_);
@@ -361,21 +361,21 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   }
 
   if ((nx_m[0] != nx_m[1]) || (nx_m[0] != nx_m[2]))
-    LOGERR("Fatal error: non-cubic refinement being requested");
+    music::elog.Print("Fatal error: non-cubic refinement being requested");
 
   inter_grid_phase_adjustment_ = M_PI * (1.0 / (double)nx_m[0] - 1.0 / (double)nxremap[0]);
-  // LOGINFO("The value of the phase adjustement is %f\n", inter_grid_phase_adjustment_);
+  // music::ilog.Print("The value of the phase adjustement is %f\n", inter_grid_phase_adjustment_);
 
-  // LOGINFO("ileft[0],ileft[1],ileft[2] %d %d %d", ileft[0], ileft[1], ileft[2]);
-  // LOGINFO("ileft_corner[0,1,2] %d %d %d", ileft_corner[0], ileft_corner[1], ileft_corner[2]);
+  // music::ilog.Print("ileft[0],ileft[1],ileft[2] %d %d %d", ileft[0], ileft[1], ileft[2]);
+  // music::ilog.Print("ileft_corner[0,1,2] %d %d %d", ileft_corner[0], ileft_corner[1], ileft_corner[2]);
 
-  // LOGINFO("iexpand_left[1,2,3] = (%d, %d, %d) Max %d ",iexpand_left[0],iexpand_left[1],iexpand_left[2], ileft_max_expand);
+  // music::ilog.Print("iexpand_left[1,2,3] = (%d, %d, %d) Max %d ",iexpand_left[0],iexpand_left[1],iexpand_left[2], ileft_max_expand);
 
-  // LOGINFO("ileft_corner_m[0,1,2]  = (%d,%d,%d)",ileft_corner_m[0],ileft_corner_m[1],ileft_corner_m[2]);
-  // LOGINFO("grid_m_ %d grid_p_ %d",grid_m_,grid_p_);
-  // LOGINFO("nx_m[0,1,2]  = (%d,%d,%d)",nx_m[0],nx_m[1],nx_m[2]);
-  // LOGINFO("ileft_corner_p[0,1,2]  = (%d,%d,%d)",ileft_corner_p[0],ileft_corner_p[1],ileft_corner_p[2]);
-  // LOGINFO("nxremap[0,1,2]  = (%d,%d,%d)",nxremap[0],nxremap[1],nxremap[2]);
+  // music::ilog.Print("ileft_corner_m[0,1,2]  = (%d,%d,%d)",ileft_corner_m[0],ileft_corner_m[1],ileft_corner_m[2]);
+  // music::ilog.Print("grid_m_ %d grid_p_ %d",grid_m_,grid_p_);
+  // music::ilog.Print("nx_m[0,1,2]  = (%d,%d,%d)",nx_m[0],nx_m[1],nx_m[2]);
+  // music::ilog.Print("ileft_corner_p[0,1,2]  = (%d,%d,%d)",ileft_corner_p[0],ileft_corner_p[1],ileft_corner_p[2]);
+  // music::ilog.Print("nxremap[0,1,2]  = (%d,%d,%d)",nxremap[0],nxremap[1],nxremap[2]);
 
   size_t ngp = nxremap[0] * nxremap[1] * (nxremap[2] + 2);
 
@@ -391,7 +391,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   pc3 = reinterpret_cast<fftw_complex *>(pr3);
   pc4 = reinterpret_cast<fftw_complex *>(pr4);
 
-  LOGINFO("calculating PANPHASIA random numbers for level %d...", level);
+  music::ilog.Print("calculating PANPHASIA random numbers for level %d...", level);
   clear_panphasia_thread_states();
 
   double t1 = get_wtime();
@@ -424,8 +424,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 
       lextra = (log10((double)ng_level / (double)d.i_base) + 0.001) / log10(2.0);
       level_p = d.wn_level_base + lextra;
-      int ratio = 1 << lextra;
-      assert(ng_level == ratio * d.i_base);
+      assert(ng_level == (1 << lextra) * d.i_base);
 
       ix_rel[0] = ileft_corner_p[0];
       ix_rel[1] = ileft_corner_p[1];
@@ -440,7 +439,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
       set_phases_and_rel_origin_(&lstate[mythread], descriptor, &level_p, &ix_rel[0], &ix_rel[1], &ix_rel[2],
                                  &verbosity);
 
-      // LOGUSER(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0], ix_rel[1], ix_rel[2]);
+      // music::ulog.Print(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0], ix_rel[1], ix_rel[2]);
 
       odd_x = ix_rel[0] % 2;
       odd_y = ix_rel[1] % 2;
@@ -493,14 +492,14 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         }
     }
   }
-  LOGUSER("time for calculating PANPHASIA for level %d : %f s, %f µs/cell", level, get_wtime() - t1,
+  music::ulog.Print("time for calculating PANPHASIA for level %d : %f s, %f µs/cell", level, get_wtime() - t1,
           1e6 * (get_wtime() - t1) / ((double)nxremap[2] * (double)nxremap[1] * (double)nxremap[0]));
-  LOGUSER("time for calculating PANPHASIA for level %d : %f s, %f µs/cell", level, get_wtime() - t1,
+  music::ulog.Print("time for calculating PANPHASIA for level %d : %f s, %f µs/cell", level, get_wtime() - t1,
           1e6 * (get_wtime() - t1) / ((double)nxremap[2] * (double)nxremap[1] * (double)nxremap[0]));
 
   //////////////////////////////////////////////////////////////////////////////////////////////
 
-  LOGUSER("\033[31mtiming level %d [adv_panphasia_cell_properties]: %f s\033[0m", level, get_wtime() - tp);
+  music::ulog.Print("\033[31mtiming level %d [adv_panphasia_cell_properties]: %f s\033[0m", level, get_wtime() - tp);
   tp = get_wtime();
 
   /////////////////////////////////////////////////////////////////////////
@@ -585,7 +584,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 
   //                END
 
-  LOGUSER("\033[31mtiming level %d [build panphasia field]: %f s\033[0m", level, get_wtime() - tp);
+  music::ulog.Print("\033[31mtiming level %d [build panphasia field]: %f s\033[0m", level, get_wtime() - tp);
   tp = get_wtime();
 
   //***************************************************************
@@ -618,8 +617,8 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 
       lextra = (log10((double)ng_level / (double)d.i_base) + 0.001) / log10(2.0);
       level_p = d.wn_level_base + lextra;
-      int ratio = 1 << lextra;
-      assert(ng_level == ratio * d.i_base);
+
+      assert(ng_level == (1 << lextra) * d.i_base);
 
       ix_rel[0] = ileft_corner_p[0];
       ix_rel[1] = ileft_corner_p[1];
@@ -634,7 +633,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
       set_phases_and_rel_origin_(&lstate[mythread], descriptor, &level_p, &ix_rel[0], &ix_rel[1], &ix_rel[2],
                                  &verbosity);
 
-      // LOGINFO(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0], ix_rel[1], ix_rel[2]);
+      // music::ilog.Print(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0], ix_rel[1], ix_rel[2]);
 
       odd_x = ix_rel[0] % 2;
       odd_y = ix_rel[1] % 2;
@@ -685,10 +684,10 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         }
     }
   }
-  LOGINFO("time for calculating PANPHASIA for level %d : %f s, %f µs/cell", level, get_wtime() - t1,
+  music::ilog.Print("time for calculating PANPHASIA for level %d : %f s, %f µs/cell", level, get_wtime() - t1,
           1e6 * (get_wtime() - t1) / ((double)nxremap[2] * (double)nxremap[1] * (double)nxremap[0]));
 
-  LOGUSER("\033[31mtiming level %d [adv_panphasia_cell_properties2]: %f s \033[0m", level, get_wtime() - tp);
+  music::ulog.Print("\033[31mtiming level %d [adv_panphasia_cell_properties2]: %f s \033[0m", level, get_wtime() - tp);
   tp = get_wtime();
 
   /////////////////////////////////////////////////////////////////////////
@@ -766,7 +765,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         }
       }
 
-  LOGUSER("\033[31mtiming level %d [build panphasia field2]: %f s\033[0m", level, get_wtime() - tp);
+  music::ulog.Print("\033[31mtiming level %d [build panphasia field2]: %f s\033[0m", level, get_wtime() - tp);
   tp = get_wtime();
 
   //                END
@@ -782,7 +781,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   if (incongruent_fields_)
   {
 
-    LOGUSER("Remapping fields from dimension %d -> %d", nxremap[0], nx_m[0]);
+    music::ulog.Print("Remapping fields from dimension %d -> %d", nxremap[0], nx_m[0]);
     memset(pr1, 0, ngp * sizeof(fftw_real));
 
     #pragma omp parallel for
@@ -818,12 +817,12 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 
   // if (level == 9)
   // {
-  //   LOGUSER("DC mode of level is %g", RE(pc0[0]));
+  //   music::ulog.Print("DC mode of level is %g", RE(pc0[0]));
   //   // RE(pc0[0]) = 1e8;
   //   // IM(pc0[0]) = 0.0;
   // }
 
-  LOGUSER("\033[31mtiming level %d [remap noncongruent]: %f s\033[0m", level, get_wtime() - tp);
+  music::ulog.Print("\033[31mtiming level %d [remap noncongruent]: %f s\033[0m", level, get_wtime() - tp);
   tp = get_wtime();
   /////////////////////////////////////////////////////////////////////////
   // transform back
@@ -837,7 +836,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   delete[] pr3;
   delete[] pr4;
 
-  LOGUSER("Copying random field data %d,%d,%d -> %d,%d,%d", nxremap[0], nxremap[1], nxremap[2], nx[0], nx[1], nx[2]);
+  music::ulog.Print("Copying random field data %d,%d,%d -> %d,%d,%d", nxremap[0], nxremap[1], nxremap[2], nx[0], nx[1], nx[2]);
 
   //    n = 1<<level;
   //    ng = n;
@@ -873,10 +872,10 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 
   sum2 = (sum2 - sum * sum);
 
-  LOGUSER("done with PANPHASIA for level %d:\n       mean=%g, var=%g", level, sum, sum2);
-  LOGUSER("Copying into R array: nx[0],nx[1],nx[2] %d %d %d \n", nx[0], nx[1], nx[2]);
+  music::ulog.Print("done with PANPHASIA for level %d:\n       mean=%g, var=%g", level, sum, sum2);
+  music::ulog.Print("Copying into R array: nx[0],nx[1],nx[2] %d %d %d \n", nx[0], nx[1], nx[2]);
 
-  LOGINFO("PANPHASIA level %d mean and variance are\n       <p> = %g | var(p) = %g", level, sum, sum2);
+  music::ilog.Print("PANPHASIA level %d mean and variance are\n       <p> = %g | var(p) = %g", level, sum, sum2);
 }
 
 namespace

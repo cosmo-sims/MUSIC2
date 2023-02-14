@@ -62,7 +62,7 @@ protected:
 		for( unsigned i=levelmin_; i<=levelmax_; ++i )
 		{
 			sprintf( str, "%s(%u,%d)", name.c_str(), i, icomp );
-			*oit = cf_.getValue<unsigned>( "setup", str );
+			*oit = cf_.get_value<unsigned>( "setup", str );
 			++oit;
 		}
 	}
@@ -73,9 +73,9 @@ public:
 	explicit output_plugin( config_file& cf )
 	: cf_(cf)
 	{ 
-		fname_		= cf.getValue<std::string>("output","filename");
-		levelmin_	= cf.getValue<unsigned>( "setup", "levelmin" );
-		levelmax_	= cf.getValue<unsigned>( "setup", "levelmax" );
+		fname_		= cf.get_value<std::string>("output","filename");
+		levelmin_	= cf.get_value<unsigned>( "setup", "levelmin" );
+		levelmax_	= cf.get_value<unsigned>( "setup", "levelmax" );
 
 		query_grid_prop( "offset", 0, std::back_inserter(offx_) );
 		query_grid_prop( "offset", 1, std::back_inserter(offy_) );

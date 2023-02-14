@@ -107,7 +107,7 @@ protected:
 	    
 	    if( !this->good() )
 	    {	
-		LOGERR("Could not open buffer file in TIPSY output plug-in");
+		music::elog.Print("Could not open buffer file in TIPSY output plug-in");
 		throw std::runtime_error("Could not open buffer file in TIPSY output plug-in");
 	    }
 	    
@@ -115,8 +115,8 @@ protected:
 	    
 	    if( blk != (size_t)(npart*sizeof(T_store)) )
 	    {	
-		LOGERR("Internal consistency error in TIPSY output plug-in");
-		LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
+		music::elog.Print("Internal consistency error in TIPSY output plug-in");
+		music::elog.Print("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
 		throw std::runtime_error("Internal consistency error in TIPSY output plug-in");
 	    }
 	}
@@ -133,7 +133,7 @@ protected:
 	    
 	    if( !this->good() )
 	    {	
-		LOGERR("Could not open buffer file \'%s\' in TIPSY output plug-in",fname.c_str());
+		music::elog.Print("Could not open buffer file \'%s\' in TIPSY output plug-in",fname.c_str());
 		throw std::runtime_error("Could not open buffer file in TIPSY output plug-in");
 	    }
 	    
@@ -141,8 +141,8 @@ protected:
 	    
 	    if( blk != (size_t)(npart*sizeof(T_store)) )
 	    {	
-		LOGERR("Internal consistency error in TIPSY output plug-in");
-		LOGERR("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
+		music::elog.Print("Internal consistency error in TIPSY output plug-in");
+		music::elog.Print("Expected %d bytes in temp file but found %d",npart*(unsigned)sizeof(T_store),blk);
 		throw std::runtime_error("Internal consistency error in TIPSY output plug-in");
 	    }
 	}
@@ -158,7 +158,7 @@ protected:
 	    
 	    if( !this->good() )
 	    {	
-		LOGERR("Could not open buffer file in TIPSY output plug-in");
+		music::elog.Print("Could not open buffer file in TIPSY output plug-in");
 		throw std::runtime_error("Could not open buffer file in TIPSY output plug-in");
 	    }
 	    
@@ -166,8 +166,8 @@ protected:
 	    
 	    if( blk != npart*sizeof(T_store) )
 	    {	
-		LOGERR("Internal consistency error in TIPSY output plug-in");
-		LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
+		music::elog.Print("Internal consistency error in TIPSY output plug-in");
+		music::elog.Print("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 		throw std::runtime_error("Internal consistency error in TIPSY output plug-in");
 	    }
 	    
@@ -190,7 +190,7 @@ protected:
 	    
 	    if( !this->good() )
 	    {	
-		LOGERR("Could not open buffer file \'%s\' in TIPSY output plug-in",fname.c_str());
+		music::elog.Print("Could not open buffer file \'%s\' in TIPSY output plug-in",fname.c_str());
 		throw std::runtime_error("Could not open buffer file in TIPSY output plug-in");
 	    }
 	    
@@ -198,8 +198,8 @@ protected:
 	    
 	    if( blk != npart*sizeof(T_store) )
 	    {	
-		LOGERR("Internal consistency error in TIPSY output plug-in");
-		LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
+		music::elog.Print("Internal consistency error in TIPSY output plug-in");
+		music::elog.Print("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 		throw std::runtime_error("Internal consistency error in TIPSY output plug-in");
 	    }
 	    
@@ -373,7 +373,7 @@ protected:
 	
 	//std::cout << " - Writing " << nptot << " particles to tipsy file...\n";
 	
-	LOGINFO("TIPSY : output plugin will write:\n       DM particles   : %d\n       SPH particles  : %d",header_.ndark, header_.nsph);
+	music::ilog.Print("TIPSY : output plugin will write:\n       DM particles   : %d\n       SPH particles  : %d",header_.ndark, header_.nsph);
 	
 	
 	
@@ -413,7 +413,7 @@ protected:
             if( with_baryons_ )
             {
 		
-		LOGINFO("TIPSY : writing baryon data");
+		music::ilog.Print("TIPSY : writing baryon data");
 		
                 // compute gas temperature
 		
@@ -428,7 +428,7 @@ protected:
 		//const double ceint = 1.3806e-16/1.6726e-24 * Tini * npol / mu / unitv / unitv;
 		
                 T_store temperature = (T_store) Tini;
-                LOGINFO("TIPSY : set initial gas temperature to %.2f K (mu = %.2f)",Tini,mu);
+                music::ilog.Print("TIPSY : set initial gas temperature to %.2f K (mu = %.2f)",Tini,mu);
 		
 		
                 // write
@@ -514,7 +514,7 @@ protected:
 	    
 	    
 	    //... dark matter particles ..................................................
-	    LOGINFO("TIPSY : writing DM data");
+	    music::ilog.Print("TIPSY : writing DM data");
 	    
             ifs_x.open( fnx, npcdm );
             ifs_y.open( fny, npcdm );
@@ -620,7 +620,7 @@ protected:
 	
 	
 	
-	LOGINFO("TIPSY : done writing.");
+	music::ilog.Print("TIPSY : done writing.");
     }
     
     
@@ -630,37 +630,37 @@ public:
     tipsy_output_plugin( config_file& cf )
 	: output_plugin( cf ), ofs_( fname_.c_str(), std::ios::binary|std::ios::trunc )	
     {
-	block_buf_size_ = cf_.getValueSafe<unsigned>("output","tipsy_blksize",10485760); // default buffer size is 10 MB
+	block_buf_size_ = cf_.get_value_safe<unsigned>("output","tipsy_blksize",10485760); // default buffer size is 10 MB
 	
 	//... ensure that everyone knows we want to do SPH
-	cf.insertValue("setup","do_SPH","yes");
-        with_baryons_ = cf_.getValue<bool>("setup","baryons");
+	cf.insert_value("setup","do_SPH","yes");
+        with_baryons_ = cf_.get_value<bool>("setup","baryons");
 	
-	//bbndparticles_  = !cf_.getValueSafe<bool>("output","gadget_nobndpart",false);
+	//bbndparticles_  = !cf_.get_value_safe<bool>("output","gadget_nobndpart",false);
 	npartmax_ = 1<<30;
 	
 	if(!ofs_.good())
 	{	
-	    LOGERR("tipsy output plug-in could not open output file \'%s\' for writing!",fname_.c_str());
+	    music::elog.Print("tipsy output plug-in could not open output file \'%s\' for writing!",fname_.c_str());
 	    throw std::runtime_error(std::string("tipsy output plug-in could not open output file \'")+fname_+"\' for writing!\n");
 	}
 	ofs_.close();
 	
-	double zstart = cf.getValue<double>("setup","zstart");
+	double zstart = cf.get_value<double>("setup","zstart");
 	astart_  = 1.0/(1.0+zstart);
-	omegam_  = cf.getValue<double>("cosmology","Omega_m");
-        omegab_  = cf.getValue<double>("cosmology","Omega_b");
-	boxsize_ = cf.getValue<double>("setup","boxlength");
+	omegam_  = cf.get_value<double>("cosmology","Omega_m");
+        omegab_  = cf.get_value<double>("cosmology","Omega_b");
+	boxsize_ = cf.get_value<double>("setup","boxlength");
 
-	epsfac_  = cf.getValueSafe<double>("output","tipsy_eps",0.05);
-	epsfac_coarse_  = cf.getValueSafe<double>("output","tipsy_eps_coarse",epsfac_);
-	epsfac_gas_     = cf.getValueSafe<double>("output","tipsy_eps_gas",epsfac_);
+	epsfac_  = cf.get_value_safe<double>("output","tipsy_eps",0.05);
+	epsfac_coarse_  = cf.get_value_safe<double>("output","tipsy_eps_coarse",epsfac_);
+	epsfac_gas_     = cf.get_value_safe<double>("output","tipsy_eps_gas",epsfac_);
 
-        H0_      = cf.getValue<double>("cosmology","H0");
-        YHe_     = cf.getValueSafe<double>("cosmology","YHe",0.248);
-        gamma_   = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
+        H0_      = cf.get_value<double>("cosmology","H0");
+        YHe_     = cf.get_value_safe<double>("cosmology","YHe",0.248);
+        gamma_   = cf.get_value_safe<double>("cosmology","gamma",5.0/3.0);
 		
-	native_  = cf.getValueSafe<bool>("output","tipsy_native",false);
+	native_  = cf.get_value_safe<bool>("output","tipsy_native",false);
 
 	
     }
@@ -746,7 +746,7 @@ public:
 	
 	if( nwritten != nptot )
 	{
-	    LOGERR("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
+	    music::elog.Print("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
 	    throw std::runtime_error("Internal consistency error while writing temporary file for DM masses");
 	}
 	ofs_temp.write( (char *)&blksize, sizeof(size_t) );
@@ -804,14 +804,14 @@ public:
             }
 	    
             if( nwritten != nptot ){
-	      LOGERR("TIPSY output plugin wrote %ld gas particles, should have %ld", nwritten, nptot);
+	      music::elog.Print("TIPSY output plugin wrote %ld gas particles, should have %ld", nwritten, nptot);
 	      throw std::runtime_error("Internal consistency error while writing temporary file for baryon masses");
 	    }
 
             ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 	    
             if( ofs_temp.bad() ){
-	      LOGERR("I/O error while writing temporary file for baryon masse");
+	      music::elog.Print("I/O error while writing temporary file for baryon masse");
 	      throw std::runtime_error("I/O error while writing temporary file for baryon masses");
 	    }
         }
@@ -866,7 +866,7 @@ public:
 	
 	if( nwritten != nptot )
 	{
-	    LOGERR("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
+	    music::elog.Print("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
 	    throw std::runtime_error("Internal consistency error while writing temporary file for positions");
 	}
 	
@@ -922,7 +922,7 @@ public:
 	
 	if( nwritten != nptot )
 	{
-	    LOGERR("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
+	    music::elog.Print("TIPSY output plugin wrote %ld, should have %ld", nwritten, nptot);
 	    throw std::runtime_error("Internal consistency error while writing temporary file for DM velocities");
 	}
 	
@@ -996,7 +996,7 @@ public:
 	
 	if( nwritten != npart )
 	{
-	    LOGERR("TIPSY output plugin wrote %ld, should have %ld", nwritten, npart);
+	    music::elog.Print("TIPSY output plugin wrote %ld, should have %ld", nwritten, npart);
 	    throw std::runtime_error("Internal consistency error while writing temporary file for baryon velocities");
 	}
 	
@@ -1068,7 +1068,7 @@ public:
 	
 	if( nwritten != npart )
 	{
-	    LOGERR("TIPSY output plugin wrote %ld, should have %ld", nwritten, npart);
+	    music::elog.Print("TIPSY output plugin wrote %ld, should have %ld", nwritten, npart);
 	    throw std::runtime_error("Internal consistency error while writing temporary file for baryon positions");
 	}
 	

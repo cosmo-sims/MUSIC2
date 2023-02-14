@@ -24,21 +24,21 @@ void print_region_generator_plugins()
 
 region_generator_plugin *select_region_generator_plugin(config_file &cf)
 {
-    std::string rgname = cf.getValueSafe<std::string>("setup", "region", "box");
+    std::string rgname = cf.get_value_safe<std::string>("setup", "region", "box");
 
     region_generator_plugin_creator *the_region_generator_plugin_creator = get_region_generator_plugin_map()[rgname];
 
     if (!the_region_generator_plugin_creator)
     {
         std::cerr << " - Error: region generator plug-in \'" << rgname << "\' not found." << std::endl;
-        LOGERR("Invalid/Unregistered region generator plug-in encountered : %s", rgname.c_str());
+        music::elog.Print("Invalid/Unregistered region generator plug-in encountered : %s", rgname.c_str());
         print_region_generator_plugins();
         throw std::runtime_error("Unknown region generator plug-in");
     }
     else
     {
         std::cout << " - Selecting region generator plug-in \'" << rgname << "\'..." << std::endl;
-        LOGUSER("Selecting region generator plug-in  : %s", rgname.c_str());
+        music::ulog.Print("Selecting region generator plug-in  : %s", rgname.c_str());
     }
 
     region_generator_plugin *the_region_generator_plugin = the_region_generator_plugin_creator->create(cf);
@@ -70,43 +70,43 @@ public:
     region_box_plugin(config_file &cf)
         : region_generator_plugin(cf)
     {
-        levelmin_ = pcf_->getValue<unsigned>("setup", "levelmin");
-        levelmax_ = pcf_->getValue<unsigned>("setup", "levelmax");
+        levelmin_ = pcf_->get_value<unsigned>("setup", "levelmin");
+        levelmax_ = pcf_->get_value<unsigned>("setup", "levelmax");
 
         if (levelmin_ != levelmax_)
         {
-            padding_ = cf.getValue<int>("setup", "padding");
+            padding_ = cf.get_value<int>("setup", "padding");
 
             std::string temp;
 
-            if (!pcf_->containsKey("setup", "ref_offset") && !pcf_->containsKey("setup", "ref_center"))
+            if (!pcf_->contains_key("setup", "ref_offset") && !pcf_->contains_key("setup", "ref_center"))
             {
-                LOGERR("Found levelmin!=levelmax but neither ref_offset nor ref_center was specified.");
+                music::elog.Print("Found levelmin!=levelmax but neither ref_offset nor ref_center was specified.");
                 throw std::runtime_error("Found levelmin!=levelmax but neither ref_offset nor ref_center was specified.");
             }
-            if (!pcf_->containsKey("setup", "ref_extent") && !pcf_->containsKey("setup", "ref_dims"))
+            if (!pcf_->contains_key("setup", "ref_extent") && !pcf_->contains_key("setup", "ref_dims"))
             {
-                LOGERR("Found levelmin!=levelmax but neither ref_extent nor ref_dims was specified.");
+                music::elog.Print("Found levelmin!=levelmax but neither ref_extent nor ref_dims was specified.");
                 throw std::runtime_error("Found levelmin!=levelmax but neither ref_extent nor ref_dims was specified.");
             }
-            if (pcf_->containsKey("setup", "ref_extent"))
+            if (pcf_->contains_key("setup", "ref_extent"))
             {
-                temp = pcf_->getValue<std::string>("setup", "ref_extent");
+                temp = pcf_->get_value<std::string>("setup", "ref_extent");
                 std::remove_if(temp.begin(), temp.end(), isspace);
                 if (sscanf(temp.c_str(), "%lf,%lf,%lf", &lxref_[0], &lxref_[1], &lxref_[2]) != 3)
                 {
-                    LOGERR("Error parsing triple for ref_extent");
+                    music::elog.Print("Error parsing triple for ref_extent");
                     throw std::runtime_error("Error parsing triple for ref_extent");
                 }
                 bhave_nref_ = false;
             }
-            else if (pcf_->containsKey("setup", "ref_dims"))
+            else if (pcf_->contains_key("setup", "ref_dims"))
             {
-                temp = pcf_->getValue<std::string>("setup", "ref_dims");
+                temp = pcf_->get_value<std::string>("setup", "ref_dims");
                 std::remove_if(temp.begin(), temp.end(), isspace);
                 if (sscanf(temp.c_str(), "%lu,%lu,%lu", &lnref_[0], &lnref_[1], &lnref_[2]) != 3)
                 {
-                    LOGERR("Error parsing triple for ref_dims");
+                    music::elog.Print("Error parsing triple for ref_dims");
                     throw std::runtime_error("Error parsing triple for ref_dims");
                 }
                 bhave_nref_ = true;
@@ -116,26 +116,26 @@ public:
                 lxref_[2] = lnref_[2] * 1.0 / (double)(1 << levelmax_);
             }
 
-            if (pcf_->containsKey("setup", "ref_center"))
+            if (pcf_->contains_key("setup", "ref_center"))
             {
-                temp = pcf_->getValue<std::string>("setup", "ref_center");
+                temp = pcf_->get_value<std::string>("setup", "ref_center");
                 std::remove_if(temp.begin(), temp.end(), isspace);
                 if (sscanf(temp.c_str(), "%lf,%lf,%lf", &xcref_[0], &xcref_[1], &xcref_[2]) != 3)
                 {
-                    LOGERR("Error parsing triple for ref_center");
+                    music::elog.Print("Error parsing triple for ref_center");
                     throw std::runtime_error("Error parsing triple for ref_center");
                 }
                 x0ref_[0] = fmod(xcref_[0] - 0.5 * lxref_[0] + 1.0, 1.0);
                 x0ref_[1] = fmod(xcref_[1] - 0.5 * lxref_[1] + 1.0, 1.0);
                 x0ref_[2] = fmod(xcref_[2] - 0.5 * lxref_[2] + 1.0, 1.0);
             }
-            else if (pcf_->containsKey("setup", "ref_offset"))
+            else if (pcf_->contains_key("setup", "ref_offset"))
             {
-                temp = pcf_->getValue<std::string>("setup", "ref_offset");
+                temp = pcf_->get_value<std::string>("setup", "ref_offset");
                 std::remove_if(temp.begin(), temp.end(), isspace);
                 if (sscanf(temp.c_str(), "%lf,%lf,%lf", &x0ref_[0], &x0ref_[1], &x0ref_[2]) != 3)
                 {
-                    LOGERR("Error parsing triple for ref_offset");
+                    music::elog.Print("Error parsing triple for ref_offset");
                     throw std::runtime_error("Error parsing triple for ref_offset");
                 }
                 xcref_[0] = fmod(x0ref_[0] + 0.5 * lxref_[0], 1.0);
@@ -146,7 +146,7 @@ public:
             // conditions should be added here
             {
                 do_extra_padding_ = false;
-                std::string output_plugin = cf.getValue<std::string>("output", "format");
+                std::string output_plugin = cf.get_value<std::string>("output", "format");
                 if (output_plugin == std::string("grafic2"))
                     do_extra_padding_ = true;
                 padding_fine_ = 0.0;

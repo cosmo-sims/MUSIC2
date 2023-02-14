@@ -198,7 +198,7 @@ public:
 	transfer_eisenstein_plugin( config_file &cf )//Cosmology aCosm, double Tcmb = 2.726 )
     :  transfer_function_plugin(cf)
 	{
-		double Tcmb = pcf_->getValueSafe("cosmology","Tcmb",2.726);
+		double Tcmb = pcf_->get_value_safe("cosmology","Tcmb",2.726);
 		
         etf_.set_parameters( cosmo_, Tcmb );
 		
@@ -239,20 +239,20 @@ public:
 	transfer_eisenstein_wdm_plugin( config_file &cf )
 	: transfer_function_plugin(cf), m_h0( cosmo_.H0*0.01 )
 	{
-        double Tcmb = pcf_->getValueSafe("cosmology","Tcmb",2.726);
+        double Tcmb = pcf_->get_value_safe("cosmology","Tcmb",2.726);
         etf_.set_parameters( cosmo_, Tcmb );
       
         typemap_.insert( std::pair<std::string,int>( "BODE", wdm_bode ) );
         typemap_.insert( std::pair<std::string,int>( "VIEL", wdm_viel ) ); // add the other types
         typemap_.insert( std::pair<std::string,int>( "BODE_WRONG", wdm_bode_wrong ) ); // add the other types
         
-		omegam_ = cf.getValue<double>("cosmology","Omega_m");
-		omegab_ = cf.getValue<double>("cosmology","Omega_b");
-		wdmm_   = cf.getValue<double>("cosmology","WDMmass");
+		omegam_ = cf.get_value<double>("cosmology","Omega_m");
+		omegab_ = cf.get_value<double>("cosmology","Omega_b");
+		wdmm_   = cf.get_value<double>("cosmology","WDMmass");
       
 		
-        H0_     = cf.getValue<double>("cosmology","H0");
-        type_   = cf.getValueSafe<std::string>("cosmology","WDMtftype","BODE");
+        H0_     = cf.get_value<double>("cosmology","H0");
+        type_   = cf.get_value_safe<std::string>("cosmology","WDMtftype","BODE");
         
         //type_ = std::string( toupper( type_.c_str() ) );
         
@@ -265,8 +265,8 @@ public:
         {
             //... parameterisation from Bode et al. (2001), ApJ, 556, 93
             case wdm_bode:
-                    wdmnu_  = cf.getValueSafe<double>("cosmology","WDMnu",1.0);
-                    wdmgx_  = cf.getValueSafe<double>("cosmology","WDMg_x",1.5);
+                    wdmnu_  = cf.get_value_safe<double>("cosmology","WDMnu",1.0);
+                    wdmgx_  = cf.get_value_safe<double>("cosmology","WDMg_x",1.5);
                     m_WDMalpha = 0.05 * pow( omegam_/0.4,0.15)
                         *pow(H0_*0.01/0.65,1.3)*pow(wdmm_,-1.15)
                         *pow(1.5/wdmgx_,0.29);
@@ -275,7 +275,7 @@ public:
             
             //... parameterisation from Viel et al. (2005), Phys Rev D, 71
             case wdm_viel:
-                    wdmnu_  = cf.getValueSafe<double>("cosmology","WDMnu",1.12);
+                    wdmnu_  = cf.get_value_safe<double>("cosmology","WDMnu",1.12);
                     m_WDMalpha = 0.049 * pow( omegam_/0.25,0.11)
                         *pow(H0_*0.01/0.7,1.22)*pow(wdmm_,-1.11);
                 break;
@@ -284,16 +284,16 @@ public:
             //.... below is for historical reasons due to the buggy parameterisation
             //.... in early versions of MUSIC, but apart from H instead of h, Bode et al.
             case wdm_bode_wrong:
-                    wdmnu_  = cf.getValueSafe<double>("cosmology","WDMnu",1.0);
-                    wdmgx_  = cf.getValueSafe<double>("cosmology","WDMg_x",1.5);
+                    wdmnu_  = cf.get_value_safe<double>("cosmology","WDMnu",1.0);
+                    wdmgx_  = cf.get_value_safe<double>("cosmology","WDMg_x",1.5);
                     m_WDMalpha = 0.05 * pow( omegam_/0.4,0.15)
                         *pow(H0_/0.65,1.3)*pow(wdmm_,-1.15)
                         *pow(1.5/wdmgx_,0.29);
                 break;
                 
             default:
-                    wdmnu_  = cf.getValueSafe<double>("cosmology","WDMnu",1.0);
-                    wdmgx_  = cf.getValueSafe<double>("cosmology","WDMg_x",1.5);
+                    wdmnu_  = cf.get_value_safe<double>("cosmology","WDMnu",1.0);
+                    wdmgx_  = cf.get_value_safe<double>("cosmology","WDMg_x",1.5);
                     m_WDMalpha = 0.05 * pow( omegam_/0.4,0.15)
                         *pow(H0_*0.01/0.65,1.3)*pow(wdmm_,-1.15)
                         *pow(1.5/wdmgx_,0.29);
@@ -329,20 +329,20 @@ public:
 	transfer_eisenstein_cdmbino_plugin( config_file &cf )
 	: transfer_function_plugin(cf), m_h0( cosmo_.H0*0.01 )
 	{
-        double Tcmb = pcf_->getValueSafe("cosmology","Tcmb",2.726);
+        double Tcmb = pcf_->get_value_safe("cosmology","Tcmb",2.726);
         etf_.set_parameters( cosmo_, Tcmb );
         
-		omegam_ = cf.getValue<double>("cosmology","Omega_m");
-		omegab_ = cf.getValue<double>("cosmology","Omega_b");
-		H0_     = cf.getValue<double>("cosmology","H0");
+		omegam_ = cf.get_value<double>("cosmology","Omega_m");
+		omegab_ = cf.get_value<double>("cosmology","Omega_b");
+		H0_     = cf.get_value<double>("cosmology","H0");
         
-        mcdm_   = cf.getValueSafe<double>("cosmology","CDM_mass", 100.0); // bino particle mass in GeV
-        Tkd_    = cf.getValueSafe<double>("cosmology","CDM_Tkd", 33.0); // temperature at which CDM particle kinetically decouples (in MeV)
+        mcdm_   = cf.get_value_safe<double>("cosmology","CDM_mass", 100.0); // bino particle mass in GeV
+        Tkd_    = cf.get_value_safe<double>("cosmology","CDM_Tkd", 33.0); // temperature at which CDM particle kinetically decouples (in MeV)
         
         kfs_    = 1.7e6 / m_h0 * sqrt( mcdm_ / 100. * Tkd_ / 30. ) / (1.0 + log( Tkd_ / 30. ) / 19.2 );
         kd_     = 3.8e7 / m_h0 * sqrt( mcdm_ / 100. * Tkd_ / 30. );
         
-        LOGINFO(" bino CDM: k_fs = %g, k_d = %g", kfs_, kd_ );
+        music::ilog.Print(" bino CDM: k_fs = %g, k_d = %g", kfs_, kd_ );
 		
 	}
 	

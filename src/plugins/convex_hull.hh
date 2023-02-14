@@ -9,7 +9,7 @@
 #include <omp.h>
 #endif
 
-#include "log.hh"
+#include "logger.hh"
 
 #include <array>
 

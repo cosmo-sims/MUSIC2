@@ -35,12 +35,12 @@ public:
 		bool bSugiyama(true);
 		
 		try{
-			bSugiyama= pcf_->getValue<bool>( "cosmology", "sugiyama_corr" );
+			bSugiyama= pcf_->get_value<bool>( "cosmology", "sugiyama_corr" );
 		}catch(...){
 			throw std::runtime_error("Error in \'tranfer_bbks_plugin\': need to specify \'[cosmology]/sugiyama_corr = [true/false]");
 		}
 		
-		FreeGamma = pcf_->getValueSafe<double>( "cosmology", "gamma", FreeGamma );
+		FreeGamma = pcf_->get_value_safe<double>( "cosmology", "gamma", FreeGamma );
 		
 		if( FreeGamma <= 0.0 ){
 			m_Gamma = Omega0*0.01*cosmo_.H0;

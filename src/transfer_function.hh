@@ -53,14 +53,14 @@ public:
 	: pcf_( &cf ), tf_distinct_(false), tf_withvel_(false), tf_withtotal0_(false), tf_velunits_(false)
 	{
 		real_t zstart;
-		zstart				= pcf_->getValue<real_t>( "setup", "zstart" );
+		zstart				= pcf_->get_value<real_t>( "setup", "zstart" );
 		cosmo_.astart		= 1.0/(1.0+zstart);
-		cosmo_.Omega_b		= pcf_->getValue<real_t>( "cosmology", "Omega_b" );
-		cosmo_.Omega_m		= pcf_->getValue<real_t>( "cosmology", "Omega_m" );
-		cosmo_.Omega_DE		= pcf_->getValue<real_t>( "cosmology", "Omega_L" );
-		cosmo_.H0			= pcf_->getValue<real_t>( "cosmology", "H0" );
-		cosmo_.sigma8		= pcf_->getValue<real_t>( "cosmology", "sigma_8" );
-		cosmo_.nspect		= pcf_->getValue<real_t>( "cosmology", "nspec" );
+		cosmo_.Omega_b		= pcf_->get_value<real_t>( "cosmology", "Omega_b" );
+		cosmo_.Omega_m		= pcf_->get_value<real_t>( "cosmology", "Omega_m" );
+		cosmo_.Omega_DE		= pcf_->get_value<real_t>( "cosmology", "Omega_L" );
+		cosmo_.H0			= pcf_->get_value<real_t>( "cosmology", "H0" );
+		cosmo_.sigma8		= pcf_->get_value<real_t>( "cosmology", "sigma_8" );
+		cosmo_.nspect		= pcf_->get_value<real_t>( "cosmology", "nspec" );
 	}
 	
 	//! destructor

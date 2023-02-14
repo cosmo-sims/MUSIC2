@@ -32,21 +32,21 @@ void print_RNG_plugins()
 
 RNG_plugin *select_RNG_plugin(config_file &cf)
 {
-	std::string rngname = cf.getValueSafe<std::string>("random", "generator", "MUSIC");
+	std::string rngname = cf.get_value_safe<std::string>("random", "generator", "MUSIC");
 
 	RNG_plugin_creator *the_RNG_plugin_creator = get_RNG_plugin_map()[rngname];
 
 	if (!the_RNG_plugin_creator)
 	{
 		std::cerr << " - Error: random number generator plug-in \'" << rngname << "\' not found." << std::endl;
-		LOGERR("Invalid/Unregistered random number generator plug-in encountered : %s", rngname.c_str());
+		music::elog.Print("Invalid/Unregistered random number generator plug-in encountered : %s", rngname.c_str());
 		print_RNG_plugins();
 		throw std::runtime_error("Unknown random number generator plug-in");
 	}
 	else
 	{
 		std::cout << " - Selecting random number generator plug-in \'" << rngname << "\'..." << std::endl;
-		LOGUSER("Selecting random number generator plug-in  : %s", rngname.c_str());
+		music::ulog.Print("Selecting random number generator plug-in  : %s", rngname.c_str());
 	}
 
 	RNG_plugin *the_RNG_plugin = the_RNG_plugin_creator->create(cf);

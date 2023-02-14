@@ -46,17 +46,17 @@ public:
     levelmin_ = prefh_->levelmin();
     levelmax_ = prefh_->levelmax();
 
-    ran_cube_size_ = pcf_->getValueSafe<unsigned>("random", "cubesize", DEF_RAN_CUBE_SIZE);
-    disk_cached_ = pcf_->getValueSafe<bool>("random", "disk_cached", true);
-    restart_ = pcf_->getValueSafe<bool>("random", "restart", false);
+    ran_cube_size_ = pcf_->get_value_safe<unsigned>("random", "cubesize", DEF_RAN_CUBE_SIZE);
+    disk_cached_ = pcf_->get_value_safe<bool>("random", "disk_cached", true);
+    restart_ = pcf_->get_value_safe<bool>("random", "restart", false);
 
-    pcf_->insertValue("setup","fourier_splicing","true");
+    pcf_->insert_value("setup","fourier_splicing","true");
 
     mem_cache_.assign(levelmax_ - levelmin_ + 1, (std::vector<real_t> *)NULL);
 
     if (restart_ && !disk_cached_)
     {
-      LOGERR("Cannot restart from mem cached random numbers.");
+      music::elog.Print("Cannot restart from mem cached random numbers.");
       throw std::runtime_error("Cannot restart from mem cached random numbers.");
     }
 
@@ -93,8 +93,8 @@ void RNG_music::parse_random_parameters(void)
     std::string tempstr;
     bool noseed = false;
     sprintf(seedstr, "seed[%d]", i);
-    if (pcf_->containsKey("random", seedstr))
-      tempstr = pcf_->getValue<std::string>("random", seedstr);
+    if (pcf_->contains_key("random", seedstr))
+      tempstr = pcf_->get_value<std::string>("random", seedstr);
     else
     {
       // "-2" means that no seed entry was found for that level
@@ -116,7 +116,7 @@ void RNG_music::parse_random_parameters(void)
       {
         if (ltemp <= 0)
         {
-          LOGERR("Specified seed [random]/%s needs to be a number >0!", seedstr);
+          music::elog.Print("Specified seed [random]/%s needs to be a number >0!", seedstr);
           throw std::runtime_error("Seed values need to be >0");
         }
         rngseeds_.push_back(ltemp);
@@ -126,7 +126,7 @@ void RNG_music::parse_random_parameters(void)
     {
       rngfnames_.push_back(tempstr);
       rngseeds_.push_back(-1);
-      LOGINFO("Random numbers for level %3d will be read from file.", i);
+      music::ilog.Print("Random numbers for level %3d will be read from file.", i);
     }
   }
 
@@ -141,7 +141,7 @@ void RNG_music::parse_random_parameters(void)
 
 void RNG_music::compute_random_numbers(void)
 {
-  bool rndsign = pcf_->getValueSafe<bool>("random", "grafic_sign", false);
+  bool rndsign = pcf_->get_value_safe<bool>("random", "grafic_sign", false);
 
   std::vector<rng *> randc(std::max(levelmax_, levelmin_seed_) + 1, (rng *)NULL);
 
@@ -160,7 +160,7 @@ void RNG_music::compute_random_numbers(void)
       // #warning add possibility to read noise from file also here!
 
       if (rngfnames_[i].size() > 0)
-        LOGINFO("Warning: Cannot use filenames for higher levels currently! Ignoring!");
+        music::ilog.Print("Warning: Cannot use filenames for higher levels currently! Ignoring!");
 
       randc[i] = new rng(*randc[i - 1], ran_cube_size_, rngseeds_[i]);
       delete randc[i - 1];
@@ -180,7 +180,7 @@ void RNG_music::compute_random_numbers(void)
     for (int ilevel = levelmin_seed_ - 1; ilevel >= (int)levelmin_; --ilevel)
     {
       if (rngseeds_[ilevel - levelmin_] > 0)
-        LOGINFO("Warning: random seed for level %d will be ignored.\n"
+        music::ilog.Print("Warning: random seed for level %d will be ignored.\n"
                 "            consistency requires that it is obtained by restriction from level %d",
                 ilevel, levelmin_seed_);
 
@@ -212,11 +212,11 @@ void RNG_music::compute_random_numbers(void)
   {
     int lx[3], x0[3];
     int shift[3], levelmin_poisson;
-    shift[0] = pcf_->getValue<int>("setup", "shift_x");
-    shift[1] = pcf_->getValue<int>("setup", "shift_y");
-    shift[2] = pcf_->getValue<int>("setup", "shift_z");
+    shift[0] = pcf_->get_value<int>("setup", "shift_x");
+    shift[1] = pcf_->get_value<int>("setup", "shift_y");
+    shift[2] = pcf_->get_value<int>("setup", "shift_z");
 
-    levelmin_poisson = pcf_->getValue<unsigned>("setup", "levelmin");
+    levelmin_poisson = pcf_->get_value<unsigned>("setup", "levelmin");
 
     int lfac = 1 << (ilevel - levelmin_poisson);
 
@@ -255,11 +255,11 @@ void RNG_music::compute_random_numbers(void)
 void RNG_music::store_rnd(int ilevel, rng *prng)
 {
   int shift[3], levelmin_poisson;
-  shift[0] = pcf_->getValue<int>("setup", "shift_x");
-  shift[1] = pcf_->getValue<int>("setup", "shift_y");
-  shift[2] = pcf_->getValue<int>("setup", "shift_z");
+  shift[0] = pcf_->get_value<int>("setup", "shift_x");
+  shift[1] = pcf_->get_value<int>("setup", "shift_y");
+  shift[2] = pcf_->get_value<int>("setup", "shift_z");
 
-  levelmin_poisson = pcf_->getValue<unsigned>("setup", "levelmin");
+  levelmin_poisson = pcf_->get_value<unsigned>("setup", "levelmin");
 
   int lfac = 1 << (ilevel - levelmin_poisson);
 
@@ -279,7 +279,7 @@ void RNG_music::store_rnd(int ilevel, rng *prng)
       char fname[128];
       sprintf(fname, "grafic_wnoise_%04d.bin", ilevel);
 
-      LOGUSER("Storing white noise field for grafic in file \'%s\'...", fname);
+      music::ulog.Print("Storing white noise field for grafic in file \'%s\'...", fname);
 
       std::ofstream ofs(fname, std::ios::binary | std::ios::trunc);
       data.assign(N * N, 0.0);
@@ -325,8 +325,8 @@ void RNG_music::store_rnd(int ilevel, rng *prng)
       char fname[128];
       sprintf(fname, "grafic_wnoise_%04d.bin", ilevel);
 
-      LOGUSER("Storing white noise field for grafic in file \'%s\'...", fname);
-      LOGDEBUG("(%d,%d,%d) -- (%d,%d,%d) -- lfac = %d", nx, ny, nz, i0, j0, k0, lfac);
+      music::ulog.Print("Storing white noise field for grafic in file \'%s\'...", fname);
+      music::dlog.Print("(%d,%d,%d) -- (%d,%d,%d) -- lfac = %d", nx, ny, nz, i0, j0, k0, lfac);
 
       std::ofstream ofs(fname, std::ios::binary | std::ios::trunc);
       data.assign(nx * ny, 0.0);
@@ -372,7 +372,7 @@ void RNG_music::store_rnd(int ilevel, rng *prng)
       char fname[128];
       sprintf(fname, "wnoise_%04d.bin", ilevel);
 
-      LOGUSER("Storing white noise field in file \'%s\'...", fname);
+      music::ulog.Print("Storing white noise field in file \'%s\'...", fname);
 
       std::ofstream ofs(fname, std::ios::binary | std::ios::trunc);
 
@@ -418,7 +418,7 @@ void RNG_music::store_rnd(int ilevel, rng *prng)
       char fname[128];
       sprintf(fname, "wnoise_%04d.bin", ilevel);
 
-      LOGUSER("Storing white noise field in file \'%s\'...", fname);
+      music::ulog.Print("Storing white noise field in file \'%s\'...", fname);
 
       std::ofstream ofs(fname, std::ios::binary | std::ios::trunc);
 
@@ -474,7 +474,7 @@ void RNG_music::store_rnd(int ilevel, rng *prng)
 
     mem_cache_[ilevel - levelmin_] = new std::vector<real_t>(nx * ny * nz, 0.0);
 
-    LOGUSER("Copying white noise to mem cache...");
+    music::ulog.Print("Copying white noise to mem cache...");
 
     #pragma omp parallel for
     for (int i = 0; i < nx; ++i)
@@ -489,12 +489,12 @@ void RNG_music::fill_grid(int ilevel, DensityGrid<real_t> &A)
 {
   if (!initialized_)
   {
-    LOGERR("Call to RNG_music::fill_grid before call to RNG_music::initialize_for_grid_structure");
+    music::elog.Print("Call to RNG_music::fill_grid before call to RNG_music::initialize_for_grid_structure");
     throw std::runtime_error("invalid call order for random number generator");
   }
 
   if (restart_)
-    LOGINFO("Attempting to restart using random numbers for level %d\n     from file \'wnoise_%04d.bin\'.", ilevel,
+    music::ilog.Print("Attempting to restart using random numbers for level %d\n     from file \'wnoise_%04d.bin\'.", ilevel,
             ilevel);
 
   if (disk_cached_)
@@ -502,12 +502,12 @@ void RNG_music::fill_grid(int ilevel, DensityGrid<real_t> &A)
     char fname[128];
     sprintf(fname, "wnoise_%04d.bin", ilevel);
 
-    LOGUSER("Loading white noise from file \'%s\'...", fname);
+    music::ulog.Print("Loading white noise from file \'%s\'...", fname);
 
     std::ifstream ifs(fname, std::ios::binary);
     if (!ifs.good())
     {
-      LOGERR("White noise file \'%s\'was not found.", fname);
+      music::elog.Print("White noise file \'%s\'was not found.", fname);
       throw std::runtime_error("A white noise file was not found. This is an internal inconsistency and bad.");
     }
 
@@ -553,7 +553,7 @@ void RNG_music::fill_grid(int ilevel, DensityGrid<real_t> &A)
       }
       else
       {
-        LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].", nx, ny, nz, A.size(0),
+        music::elog.Print("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].", nx, ny, nz, A.size(0),
                A.size(1), A.size(2));
         throw std::runtime_error(
             "White noise file is not aligned with array. This is an internal inconsistency and bad.");
@@ -577,16 +577,16 @@ void RNG_music::fill_grid(int ilevel, DensityGrid<real_t> &A)
   }
   else
   {
-    LOGUSER("Copying white noise from memory cache...");
+    music::ulog.Print("Copying white noise from memory cache...");
 
     if (mem_cache_[ilevel - levelmin_] == NULL)
-      LOGERR("Tried to access mem-cached random numbers for level %d. But these are not available!\n", ilevel);
+      music::elog.Print("Tried to access mem-cached random numbers for level %d. But these are not available!\n", ilevel);
 
     int nx(A.size(0)), ny(A.size(1)), nz(A.size(2));
 
     if ((size_t)nx * (size_t)ny * (size_t)nz != mem_cache_[ilevel - levelmin_]->size())
     {
-      LOGERR("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].", nx, ny, nz, A.size(0),
+      music::elog.Print("White noise file is not aligned with array. File: [%d,%d,%d]. Mem: [%d,%d,%d].", nx, ny, nz, A.size(0),
              A.size(1), A.size(2));
       throw std::runtime_error("White noise file is not aligned with array. This is an internal inconsistency and bad");
     }

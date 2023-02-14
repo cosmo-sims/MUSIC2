@@ -37,7 +37,7 @@ void print_transfer_function_plugins()
 
 transfer_function_plugin *select_transfer_function_plugin( config_file& cf )
 {
-	std::string tfname = cf.getValue<std::string>( "cosmology", "transfer" );
+	std::string tfname = cf.get_value<std::string>( "cosmology", "transfer" );
 	
 	transfer_function_plugin_creator *the_transfer_function_plugin_creator 
 	= get_transfer_function_plugin_map()[ tfname ];
@@ -45,14 +45,14 @@ transfer_function_plugin *select_transfer_function_plugin( config_file& cf )
 	if( !the_transfer_function_plugin_creator )
 	{	
 		std::cerr << " - Error: transfer function plug-in \'" << tfname << "\' not found." << std::endl;
-		LOGERR("Invalid/Unregistered transfer function plug-in encountered : %s",tfname.c_str() );
+		music::elog.Print("Invalid/Unregistered transfer function plug-in encountered : %s",tfname.c_str() );
 		print_transfer_function_plugins();
 		throw std::runtime_error("Unknown transfer function plug-in");
 		
 	}else
 	{	
 		std::cout << " - Selecting transfer function plug-in \'" << tfname << "\'..." << std::endl;
-		LOGUSER("Selecting transfer function plug-in  : %s",tfname.c_str() );
+		music::ulog.Print("Selecting transfer function plug-in  : %s",tfname.c_str() );
 	}
 	
 	transfer_function_plugin *the_transfer_function_plugin 

@@ -122,7 +122,7 @@ protected:
 
 			if (!this->good())
 			{
-				LOGERR("Could not open buffer file in ART output plug-in");
+				music::elog.Print("Could not open buffer file in ART output plug-in");
 				throw std::runtime_error("Could not open buffer file in ART output plug-in");
 			}
 
@@ -130,8 +130,8 @@ protected:
 
 			if (blk != (size_t)(npart * sizeof(T_store)))
 			{
-				LOGERR("Internal consistency error in ART output plug-in");
-				LOGERR("Expected %d bytes in temp file but found %d", npart * (unsigned)sizeof(T_store), blk);
+				music::elog.Print("Internal consistency error in ART output plug-in");
+				music::elog.Print("Expected %d bytes in temp file but found %d", npart * (unsigned)sizeof(T_store), blk);
 				throw std::runtime_error("Internal consistency error in ART output plug-in");
 			}
 		}
@@ -147,7 +147,7 @@ protected:
 
 			if (!this->good())
 			{
-				LOGERR("Could not open buffer file \'%s\' in ART output plug-in", fname.c_str());
+				music::elog.Print("Could not open buffer file \'%s\' in ART output plug-in", fname.c_str());
 				throw std::runtime_error("Could not open buffer file in ART output plug-in");
 			}
 
@@ -155,8 +155,8 @@ protected:
 
 			if (blk != (size_t)(npart * sizeof(T_store)))
 			{
-				LOGERR("Internal consistency error in ART output plug-in");
-				LOGERR("Expected %d bytes in temp file but found %d", npart * (unsigned)sizeof(T_store), blk);
+				music::elog.Print("Internal consistency error in ART output plug-in");
+				music::elog.Print("Expected %d bytes in temp file but found %d", npart * (unsigned)sizeof(T_store), blk);
 				throw std::runtime_error("Internal consistency error in ART output plug-in");
 			}
 		}
@@ -180,7 +180,7 @@ protected:
 		int blksize = hsize_;
 		if (swap_endianness_)
 		{
-			LOGINFO("ART : swap_endianness option enabled");
+			music::ilog.Print("ART : swap_endianness option enabled");
 			blksize = bytereorder(blksize);
 			this_header.aexpN = bytereorder(this_header.aexpN);
 			this_header.aexp0 = bytereorder(this_header.aexp0);
@@ -243,7 +243,7 @@ protected:
 		ofs.write((char *)&this_header.extras, sizeof(this_header.extras));
 		ofs.write((char *)&blksize, sizeof(int));
 		ofs.close();
-		LOGINFO("ART : done writing header file.");
+		music::ilog.Print("ART : done writing header file.");
 	}
 
 	void write_pt_file(void) //pt.dat
@@ -262,7 +262,7 @@ protected:
 		ofs.write((char *)&this_ptf, sizeof(ptf));
 		ofs.write((char *)&blksize, sizeof(int));
 		ofs.close();
-		LOGINFO("ART : done writing pt file.");
+		music::ilog.Print("ART : done writing pt file.");
 	}
 
 	void adjust_buf_endianness(T_store *buf)
@@ -321,7 +321,7 @@ protected:
 		size_t npleft, n2read;
 		size_t npcdm = npcdm_;
 
-		LOGINFO("writing DM data to ART format file");
+		music::ilog.Print("writing DM data to ART format file");
 		//ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 
 		pistream ifs_x, ifs_y, ifs_z, ifs_vx, ifs_vy, ifs_vz;
@@ -401,7 +401,7 @@ protected:
 		delete[] tmp5;
 		delete[] tmp6;
 
-		LOGINFO("ART : done writing DM file.");
+		music::ilog.Print("ART : done writing DM file.");
 	}
 
 	/*
@@ -441,7 +441,7 @@ protected:
 		size_t npleft, n2read;
 		size_t npcgas = npcdm_; // # of gas elemets should be equal to # of dm elements
 
-		LOGINFO("writing gas data to ART format file");
+		music::ilog.Print("writing gas data to ART format file");
 		//ofs.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 
 		pistream ifs_x, ifs_y, ifs_z, ifs_vx, ifs_vy, ifs_vz;
@@ -521,14 +521,14 @@ protected:
 		delete[] tmp5;
 		delete[] tmp6;
 
-		LOGINFO("ART : done writing gas file.");
+		music::ilog.Print("ART : done writing gas file.");
 		// Temperature
 		const double Tcmb0 = 2.726;
 		const double h2 = header_.hubble * header_.hubble;
 		const double adec = 1.0 / (160. * pow(omegab_ * h2 / 0.022, 2.0 / 5.0));
 		const double Tini = astart_ < adec ? Tcmb0 / astart_ : Tcmb0 / astart_ / astart_ * adec;
 		const double mu = (Tini > 1.e4) ? 4.0 / (8. - 5. * YHe_) : 4.0 / (1. + 3. * (1. - YHe_));
-		LOGINFO("ART : set initial gas temperature to %.3f K (%.3f K/mu)", Tini, Tini / mu);
+		music::ilog.Print("ART : set initial gas temperature to %.3f K (%.3f K/mu)", Tini, Tini / mu);
 	}
 
 public:
@@ -538,29 +538,29 @@ public:
 		if (mkdir(fname_.c_str(), 0777))
 			;
 
-		do_baryons_ = cf.getValueSafe<bool>("setup", "baryons", false);
+		do_baryons_ = cf.get_value_safe<bool>("setup", "baryons", false);
 		// We need to say that we want to do SPH for baryons
 		// because if not MUSIC does not calculate/write gas positions
-		cf.insertValue("setup", "do_SPH", "yes");
+		cf.insert_value("setup", "do_SPH", "yes");
 		// header size (alignment problem)
 		hsize_ = 529; // dm & hydro run
 
-		omegab_ = cf.getValueSafe<double>("cosmology", "Omega_b", 0.0);
-		omegam_ = cf.getValue<double>("cosmology", "Omega_m");
-		zstart_ = cf.getValue<double>("setup", "zstart");
+		omegab_ = cf.get_value_safe<double>("cosmology", "Omega_b", 0.0);
+		omegam_ = cf.get_value<double>("cosmology", "Omega_m");
+		zstart_ = cf.get_value<double>("setup", "zstart");
 		astart_ = 1.0 / (1.0 + zstart_);
 
-		swap_endianness_ = cf.getValueSafe<bool>("output", "art_swap_endian", true);
+		swap_endianness_ = cf.get_value_safe<bool>("output", "art_swap_endian", true);
 
-		int levelmin = cf.getValue<unsigned>("setup", "levelmin");
-		int levelmax = cf.getValue<unsigned>("setup", "levelmax");
+		int levelmin = cf.get_value<unsigned>("setup", "levelmin");
+		int levelmax = cf.get_value<unsigned>("setup", "levelmax");
 		block_buf_size_ = (size_t)(pow(pow(2, levelmax), 2)); //Npage=nrow^2; Number of particles in each page
 
-		YHe_ = cf.getValueSafe<double>("cosmology", "YHe", 0.248);
-		gamma_ = cf.getValueSafe<double>("cosmology", "gamma", 5.0 / 3.0);
+		YHe_ = cf.get_value_safe<double>("cosmology", "YHe", 0.248);
+		gamma_ = cf.get_value_safe<double>("cosmology", "gamma", 5.0 / 3.0);
 		// Set header
 		std::string thead;
-		thead = cf.getValueSafe<std::string>("output", "header", "ICs generated using MUSIC");
+		thead = cf.get_value_safe<std::string>("output", "header", "ICs generated using MUSIC");
 		strcpy(header_.head, thead.c_str()); // text for the header; any easy way to add also the version?
 		std::string ws = " ";								 // Filling with blanks. Any better way?
 		for (int i = thead.size(); i < 45; i++)
@@ -570,7 +570,7 @@ public:
 		header_.aexpN = astart_;
 		header_.aexp0 = header_.aexpN;
 		header_.amplt = 0.0;																		// Amplitude of density fluctuations
-		header_.astep = cf.getValue<double>("output", "astep"); // Seems that this must also be in the config file
+		header_.astep = cf.get_value<double>("output", "astep"); // Seems that this must also be in the config file
 		ptf_.astep = header_.astep;															// to write pt file
 		header_.istep = 0;																			// step (=0 in IC)
 		header_.partw = 0.0;																		// mass of highest res particle. SEE BELOW
@@ -590,12 +590,12 @@ public:
 		//header_.partw  SEE BELOW
 
 		header_.Nseed = 0;																						 // random number used ( 0 for MUSIC? or set the random number used in the lowest level?)
-		header_.Om0 = cf.getValue<double>("cosmology", "Omega_m");		 //Omega_m
-		header_.Oml0 = cf.getValue<double>("cosmology", "Omega_L");		 //Omega_L
-		header_.hubble = cf.getValue<double>("cosmology", "H0") / 100; //hubble constant h=H/100
+		header_.Om0 = cf.get_value<double>("cosmology", "Omega_m");		 //Omega_m
+		header_.Oml0 = cf.get_value<double>("cosmology", "Omega_L");		 //Omega_L
+		header_.hubble = cf.get_value<double>("cosmology", "H0") / 100; //hubble constant h=H/100
 		header_.Wp5 = 0.0;																						 // 0.0
 		header_.Ocurv = 1.0 - header_.Oml0 - header_.Om0;							 //
-		header_.Omb0 = cf.getValue<double>("cosmology", "Omega_b");
+		header_.Omb0 = cf.get_value<double>("cosmology", "Omega_b");
 		; // this parameter only appears in header in hydro runs
 		for (int i = 0; i < 10; i++)
 		{
@@ -611,12 +611,12 @@ public:
 		{
 			header_.extras[i] = 0.0; //extras[20-99]
 		}
-		header_.extras[13] = cf.getValueSafe<double>("cosmology", "Omega_b", 0.0);
-		header_.extras[14] = cf.getValue<double>("cosmology", "sigma_8");
-		header_.extras[15] = cf.getValue<double>("cosmology", "nspec"); //Slope of the Power spectrum
-		header_.extras[79] = cf.getValue<double>("setup", "boxlength");
+		header_.extras[13] = cf.get_value_safe<double>("cosmology", "Omega_b", 0.0);
+		header_.extras[14] = cf.get_value<double>("cosmology", "sigma_8");
+		header_.extras[15] = cf.get_value<double>("cosmology", "nspec"); //Slope of the Power spectrum
+		header_.extras[79] = cf.get_value<double>("setup", "boxlength");
 
-		LOGINFO("ART : done header info.");
+		music::ilog.Print("ART : done header info.");
 	}
 
 	void write_dm_mass(const grid_hierarchy &gh)

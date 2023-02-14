@@ -22,9 +22,9 @@
 #include <gsl/gsl_eigen.h>
 
 
-#define LOGERR printf
-#define LOGINFO printf
-#define LOGUSER printf
+#define music::elog.Print printf
+#define music::ilog.Print printf
+#define music::ulog.Print printf
 
 
 /***** Math helper functions ******/
@@ -295,7 +295,7 @@ protected:
         }
         
         if( count >= maxit )
-            LOGERR("No convergence in min_ellipsoid::compute: maximum number of iterations reached!");
+            music::elog.Print("No convergence in min_ellipsoid::compute: maximum number of iterations reached!");
         
         delete[] unew;
     }
@@ -305,7 +305,7 @@ public:
     : N( N_ ), axes_computed( false ), hold_point_data( true )
     {
         // --- initialize ---
-        LOGINFO("computing minimum bounding ellipsoid from %lld points",N);
+        music::ilog.Print("computing minimum bounding ellipsoid from %lld points",N);
       
         Q = new float[4*N];
         u = new float[N];
@@ -470,7 +470,7 @@ public:
     {
         if( !axes_computed )
         {
-            LOGUSER("computing ellipsoid axes.....");
+            music::ulog.Print("computing ellipsoid axes.....");
             compute_axes();
         }
         float muold[3] = {mu[0],mu[1],mu[2]};
@@ -493,7 +493,7 @@ public:
         
         Inverse_3x3( A, Ainv );
       
-        //LOGUSER("computing ellipsoid axes.....");
+        //music::ulog.Print("computing ellipsoid axes.....");
         compute_axes();
         
         //print();

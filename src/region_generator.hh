@@ -2,7 +2,7 @@
 #define __REGION_GENERATOR_HH
 
 #include <vector>
-#include "config_file.hh"
+#include <config_file.hh>
 
 #include <array>
 using vec3_t = std::array<double,3>;
@@ -22,8 +22,8 @@ public:
     region_generator_plugin( config_file& cf )
     : pcf_( &cf )
     {
-        levelmin_ = cf.getValue<int>("setup","levelmin");
-        levelmax_ = cf.getValue<int>("setup","levelmax");
+        levelmin_ = cf.get_value<int>("setup","levelmin");
+        levelmax_ = cf.get_value<int>("setup","levelmax");
     }
     
     //! destructor

@@ -143,7 +143,7 @@ public:
 		char **argv;
 		BoxLib::Initialize(argc,argv);
 
-		bool bhave_hydro = cf_.getValue<bool>("setup","baryons");
+		bool bhave_hydro = cf_.get_value<bool>("setup","baryons");
 
 		if (bhave_hydro)
 			n_data_items = 10;
@@ -249,11 +249,11 @@ public:
 //			throw std::runtime_error("Error in nyx_output_plugin!");
 //		}
 		
-		bool haveblockingfactor		= cf.containsKey( "setup", "blocking_factor");
+		bool haveblockingfactor		= cf.contains_key( "setup", "blocking_factor");
 		
 		if( !haveblockingfactor )
 		{
-            LOGERR("nyx output plug-in requires that \'blocking_factor\' is set!");
+            music::elog.Print("nyx output plug-in requires that \'blocking_factor\' is set!");
             throw std::runtime_error("nyx output plug-in requires that \'blocking_factor\' is set!");
 		}
         
@@ -265,19 +265,19 @@ public:
 		the_sim_header.offset.push_back( 0 );
 		the_sim_header.offset.push_back( 0 );
 		
-		the_sim_header.a_start		= 1.0/(1.0+cf.getValue<double>("setup","zstart"));
-		the_sim_header.dx			= cf.getValue<double>("setup","boxlength")/the_sim_header.dimensions[0]/(cf.getValue<double>("cosmology","H0")*0.01); // not sure?!?
-		the_sim_header.boxlength=cf.getValue<double>("setup","boxlength");
-		the_sim_header.h0			= cf.getValue<double>("cosmology","H0")*0.01;
+		the_sim_header.a_start		= 1.0/(1.0+cf.get_value<double>("setup","zstart"));
+		the_sim_header.dx			= cf.get_value<double>("setup","boxlength")/the_sim_header.dimensions[0]/(cf.get_value<double>("cosmology","H0")*0.01); // not sure?!?
+		the_sim_header.boxlength=cf.get_value<double>("setup","boxlength");
+		the_sim_header.h0			= cf.get_value<double>("cosmology","H0")*0.01;
 		
 		if( bhave_hydro )
-			the_sim_header.omega_b		= cf.getValue<double>("cosmology","Omega_b");
+			the_sim_header.omega_b		= cf.get_value<double>("cosmology","Omega_b");
 		else
 			the_sim_header.omega_b		= 0.0;
 		
-		the_sim_header.omega_m		= cf.getValue<double>("cosmology","Omega_m");
-		the_sim_header.omega_v		= cf.getValue<double>("cosmology","Omega_L");
-		the_sim_header.vfact		= cf.getValue<double>("cosmology","vfact")*the_sim_header.h0;   //.. need to multiply by h, nyx wants this factor for non h-1 units
+		the_sim_header.omega_m		= cf.get_value<double>("cosmology","Omega_m");
+		the_sim_header.omega_v		= cf.get_value<double>("cosmology","Omega_L");
+		the_sim_header.vfact		= cf.get_value<double>("cosmology","vfact")*the_sim_header.h0;   //.. need to multiply by h, nyx wants this factor for non h-1 units
 		
 		std::cout << "creating output object"  << std::endl;
 	}
@@ -432,7 +432,7 @@ public:
 		inputs << "cosmo.ic-source = MUSIC               " << std::endl;
 		
 
-		inputs << "amr.blocking_factor = " << cf_.getValue<double>("setup","blocking_factor") << std::endl;
+		inputs << "amr.blocking_factor = " << cf_.get_value<double>("setup","blocking_factor") << std::endl;
 			
 		inputs << "nyx.do_hydro = "<< (the_sim_header.omega_b>0?1:0) << std::endl;
 		inputs << "amr.max_level       = " << levelmax_-levelmin_ << std::endl;
@@ -467,7 +467,7 @@ public:
 		const Real cur_time = 0.0;
 
 		std::cout << "in writeLevelPlotFile" << std::endl;
-		double h0 = cf_.getValue<double>("cosmology", "H0")*0.01;
+		double h0 = cf_.get_value<double>("cosmology", "H0")*0.01;
 
 //		for (MFIter mfi(mf); mfi.isValid(); ++mfi)
 //		{ 
@@ -495,7 +495,7 @@ public:
 			for (i = 0; i < BL_SPACEDIM; i++)
 				os << 0 << ' '; //ProbLo
 			os << '\n';
-			double boxlength = cf_.getValue<double>("setup","boxlength");
+			double boxlength = cf_.get_value<double>("setup","boxlength");
 			for (i = 0; i < BL_SPACEDIM; i++)
 				os << boxlength/h0 << ' '; //ProbHi
 			os << '\n';
@@ -522,7 +522,7 @@ public:
 				os << 0 << ' ';
 			os << '\n';
 		
-			double dx = cf_.getValue<double>("setup","boxlength")/gridp/h0;
+			double dx = cf_.get_value<double>("setup","boxlength")/gridp/h0;
 			for (i = 0; i <= f_lev; i++)
 			{
 				for (int k = 0; k < BL_SPACEDIM; k++)
@@ -558,7 +558,7 @@ public:
 		os << 0 << '\n';
 	
 		double cellsize[3];
-		double dx = cf_.getValue<double>("setup","boxlength")/gridp/h0;
+		double dx = cf_.get_value<double>("setup","boxlength")/gridp/h0;
 		for (n = 0; n < BL_SPACEDIM; n++)
 		{
 			cellsize[n] = dx;

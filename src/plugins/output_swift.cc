@@ -523,26 +523,26 @@ public:
   {
     // ensure that everyone knows we want to do SPH, implies: bsph=1, bbshift=1, decic_baryons=1
     // -> instead of just writing gas densities (which are here ignored), the gas displacements are also written
-    cf.insertValue("setup", "do_SPH", "yes");
+    cf.insert_value("setup", "do_SPH", "yes");
 
     // init header and config parameters
     nPartTotal = std::vector<long long>(NTYPES, 0);
     massTable = std::vector<double>(NTYPES, 0.0);
 
-    coarsePartType = cf.getValueSafe<unsigned>("output", "arepo_coarsetype", COARSE_DM_DEFAULT_PARTTYPE);
-    UnitLength_in_cm = cf.getValueSafe<double>("output", "arepo_unitlength", 3.085678e21); // 1.0 kpc
-    UnitMass_in_g = cf.getValueSafe<double>("output", "arepo_unitmass", 1.989e43);         // 1.0e10 solar masses
-    UnitVelocity_in_cm_per_s = cf.getValueSafe<double>("output", "arepo_unitvel", 1e5);    // 1 km/sec
+    coarsePartType = cf.get_value_safe<unsigned>("output", "arepo_coarsetype", COARSE_DM_DEFAULT_PARTTYPE);
+    UnitLength_in_cm = cf.get_value_safe<double>("output", "arepo_unitlength", 3.085678e21); // 1.0 kpc
+    UnitMass_in_g = cf.get_value_safe<double>("output", "arepo_unitmass", 1.989e43);         // 1.0e10 solar masses
+    UnitVelocity_in_cm_per_s = cf.get_value_safe<double>("output", "arepo_unitvel", 1e5);    // 1 km/sec
 
-    omega0 = cf.getValue<double>("cosmology", "Omega_m");
-    omega_b = cf.getValue<double>("cosmology", "Omega_b");
-    omega_L = cf.getValue<double>("cosmology", "Omega_L");
-    redshift = cf.getValue<double>("setup", "zstart");
-    boxSize = cf.getValue<double>("setup", "boxlength");
-    doBaryons = cf.getValueSafe<bool>("setup", "baryons", false);
-    useLongIDs = cf.getValueSafe<bool>("output", "arepo_longids", false);
-    numFiles = cf.getValueSafe<unsigned>("output", "arepo_num_files", 1);
-    doublePrec = cf.getValueSafe<bool>("output", "arepo_doubleprec", 0);
+    omega0 = cf.get_value<double>("cosmology", "Omega_m");
+    omega_b = cf.get_value<double>("cosmology", "Omega_b");
+    omega_L = cf.get_value<double>("cosmology", "Omega_L");
+    redshift = cf.get_value<double>("setup", "zstart");
+    boxSize = cf.get_value<double>("setup", "boxlength");
+    doBaryons = cf.get_value_safe<bool>("setup", "baryons", false);
+    useLongIDs = cf.get_value_safe<bool>("output", "arepo_longids", false);
+    numFiles = cf.get_value_safe<unsigned>("output", "arepo_num_files", 1);
+    doublePrec = cf.get_value_safe<bool>("output", "arepo_doubleprec", 0);
 
     for (unsigned i = 0; i < numFiles; i++)
       nPart.push_back(std::vector<unsigned int>(NTYPES, 0));
@@ -583,7 +583,7 @@ public:
     }
 
     // calculate Tini for gas
-    hubbleParam = cf.getValue<double>("cosmology", "H0") / 100.0;
+    hubbleParam = cf.get_value<double>("cosmology", "H0") / 100.0;
 
     double astart = 1.0 / (1.0 + redshift);
     double h2 = hubbleParam * hubbleParam;
@@ -604,7 +604,7 @@ public:
     if (coarsePartType == GAS_PARTTYPE || coarsePartType == HIGHRES_DM_PARTTYPE)
       throw std::runtime_error("Error: Specified illegal Arepo particle type for coarse particles.");
     if (coarsePartType == STAR_PARTTYPE)
-      LOGWARN("WARNING: Specified coarse particle type will collide with stars if USE_SFR enabled.");
+      music::wlog.Print("WARNING: Specified coarse particle type will collide with stars if USE_SFR enabled.");
 
     // create file(s)
     for (unsigned i = 0; i < numFiles; i++)

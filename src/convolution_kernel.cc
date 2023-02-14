@@ -45,8 +45,8 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 	std::cout << "   - Performing density convolution... ("
 			  << cparam_.nx << ", " << cparam_.ny << ", " << cparam_.nz << ")\n";
 
-	LOGUSER("Performing kernel convolution on (%5d,%5d,%5d) grid", cparam_.nx, cparam_.ny, cparam_.nz);
-	LOGUSER("Performing forward FFT...");
+	music::ulog.Print("Performing kernel convolution on (%5d,%5d,%5d) grid", cparam_.nx, cparam_.ny, cparam_.nz);
+	music::ulog.Print("Performing forward FFT...");
 #ifdef FFTW3
 #ifdef SINGLE_PRECISION
 	fftwf_plan plan, iplan;
@@ -82,13 +82,13 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 
 	if (shift)
 	{
-		double boxlength = pk->pcf_->getValue<double>("setup", "boxlength");
-		double stagfact = pk->pcf_->getValueSafe<double>("setup", "baryon_staggering", 0.5);
-		int lmax = pk->pcf_->getValue<int>("setup", "levelmax");
+		double boxlength = pk->pcf_->get_value<double>("setup", "boxlength");
+		double stagfact = pk->pcf_->get_value_safe<double>("setup", "baryon_staggering", 0.5);
+		int lmax = pk->pcf_->get_value<int>("setup", "levelmax");
 		double dxmax = boxlength / (1 << lmax);
 		double dxcur = cparam_.lx / cparam_.nx;
 		//std::cerr << "Performing staggering shift for SPH\n";
-		LOGUSER("Performing staggering shift for SPH");
+		music::ulog.Print("Performing staggering shift for SPH");
 		dstag = stagfact * 2.0 * M_PI / cparam_.nx * dxmax / dxcur;
 	}
 
@@ -161,7 +161,7 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 	IM(cdata[0]) = 0.0;
 
 
-	LOGUSER("Performing backward FFT...");
+	music::ulog.Print("Performing backward FFT...");
 
 #ifdef FFTW3
 #ifdef SINGLE_PRECISION
@@ -215,9 +215,9 @@ public:
 	kernel_k(config_file &cf, transfer_function *ptf, refinement_hierarchy &refh, tf_type type)
 		: kernel(cf, ptf, refh, type)
 	{
-		boxlength_ = pcf_->getValue<double>("setup", "boxlength");
-		nspec_ = pcf_->getValue<double>("cosmology", "nspec");
-		pnorm_ = pcf_->getValue<double>("cosmology", "pnorm");
+		boxlength_ = pcf_->get_value<double>("setup", "boxlength");
+		nspec_ = pcf_->get_value<double>("cosmology", "nspec");
+		pnorm_ = pcf_->get_value<double>("cosmology", "pnorm");
 		volfac_ = 1.0; //pow(boxlength,3)/pow(2.0*M_PI,3);
 		kfac_ = 2.0 * M_PI / boxlength_;
 		kmax_ = kfac_ / 2;

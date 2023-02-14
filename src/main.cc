@@ -86,12 +86,12 @@ void splash(void)
 			<< "                            this is " << THE_CODE_NAME << " version " << THE_CODE_VERSION << "\n\n";
 
 #if defined(CMAKE_BUILD)
-	LOGINFO("Version built from git rev.: %s, tag: %s, branch: %s", GIT_REV, GIT_TAG, GIT_BRANCH);
+	music::ilog.Print("Version built from git rev.: %s, tag: %s, branch: %s", GIT_REV, GIT_TAG, GIT_BRANCH);
 #endif
 #if defined(SINGLE_PRECISION)
-	LOGINFO("Version was compiled for single precision.");
+	music::ilog.Print("Version was compiled for single precision.");
 #else
-	LOGINFO("Version was compiled for double precision.");
+	music::ilog.Print("Version was compiled for double precision.");
 #endif
 	std::cout << "\n\n";
 }
@@ -100,10 +100,10 @@ void modify_grid_for_TF(const refinement_hierarchy &rh_full, refinement_hierarch
 {
 	unsigned lbase, lbaseTF, lmax, overlap;
 
-	lbase = cf.getValue<unsigned>("setup", "levelmin");
-	lmax = cf.getValue<unsigned>("setup", "levelmax");
-	lbaseTF = cf.getValueSafe<unsigned>("setup", "levelmin_TF", lbase);
-	overlap = cf.getValueSafe<unsigned>("setup", "overlap", 4);
+	lbase = cf.get_value<unsigned>("setup", "levelmin");
+	lmax = cf.get_value<unsigned>("setup", "levelmax");
+	lbaseTF = cf.get_value_safe<unsigned>("setup", "levelmin_TF", lbase);
+	overlap = cf.get_value_safe<unsigned>("setup", "overlap", 4);
 	rh_TF = rh_full;
 
 	unsigned pad = overlap;
@@ -151,10 +151,10 @@ void modify_grid_for_TF(const refinement_hierarchy &rh_full, refinement_hierarch
 
 void print_hierarchy_stats(config_file &cf, const refinement_hierarchy &rh)
 {
-	double omegam = cf.getValue<double>("cosmology", "Omega_m");
-	double omegab = cf.getValue<double>("cosmology", "Omega_b");
-	bool bbaryons = cf.getValue<bool>("setup", "baryons");
-	double boxlength = cf.getValue<double>("setup", "boxlength");
+	double omegam = cf.get_value<double>("cosmology", "Omega_m");
+	double omegab = cf.get_value<double>("cosmology", "Omega_b");
+	bool bbaryons = cf.get_value<bool>("setup", "baryons");
+	double boxlength = cf.get_value<double>("setup", "boxlength");
 
 	unsigned levelmin = rh.levelmin();
 	double dx = boxlength / (double)(1 << levelmin), dx3 = dx * dx * dx;
@@ -221,11 +221,11 @@ void store_grid_structure(config_file &cf, const refinement_hierarchy &rh)
 		{
 			sprintf(str1, "offset(%d,%d)", i, j);
 			sprintf(str2, "%ld", rh.offset(i, j));
-			cf.insertValue("setup", str1, str2);
+			cf.insert_value("setup", str1, str2);
 
 			sprintf(str1, "size(%d,%d)", i, j);
 			sprintf(str2, "%ld", rh.size(i, j));
-			cf.insertValue("setup", str1, str2);
+			cf.insert_value("setup", str1, str2);
 		}
 	}
 }
@@ -306,6 +306,12 @@ int main(int argc, const char *argv[])
 
 	unsigned lbase, lmax, lbaseTF;
 
+#if defined(NDEBUG)
+	music::logger::set_level(music::log_level::info);
+#else
+	music::logger::set_level(music::log_level::debug);
+#endif
+
 	//------------------------------------------------------------------------------
 	//... parse command line options
 	//------------------------------------------------------------------------------
@@ -330,29 +336,29 @@ int main(int argc, const char *argv[])
 
 	char logfname[128];
 	sprintf(logfname, "%s_log.txt", argv[1]);
-	MUSIC::log::setOutput(logfname);
+	music::logger::set_output(logfname);
 	time_t ltime = time(NULL);
-	LOGINFO("Opening log file \'%s\'.", logfname);
-	LOGUSER("Running %s, version %s", THE_CODE_NAME, THE_CODE_VERSION);
-	LOGUSER("Log is for run started %s", asctime(localtime(&ltime)));
+	music::ilog.Print("Opening log file \'%s\'.", logfname);
+	music::ulog.Print("Running %s, version %s", THE_CODE_NAME, THE_CODE_VERSION);
+	music::ulog.Print("Log is for run started %s", asctime(localtime(&ltime)));
 
 #ifdef FFTW3
-	LOGUSER("Code was compiled using FFTW version 3.x");
+	music::ulog.Print("Code was compiled using FFTW version 3.x");
 #else
-	LOGUSER("Code was compiled using FFTW version 2.x");
+	music::ulog.Print("Code was compiled using FFTW version 2.x");
 #endif
 
 #ifdef SINGLETHREAD_FFTW
-	LOGUSER("Code was compiled for single-threaded FFTW");
+	music::ulog.Print("Code was compiled for single-threaded FFTW");
 #else
-	LOGUSER("Code was compiled for multi-threaded FFTW");
-	LOGUSER("Running with a maximum of %d OpenMP threads", omp_get_max_threads());
+	music::ulog.Print("Code was compiled for multi-threaded FFTW");
+	music::ulog.Print("Running with a maximum of %d OpenMP threads", omp_get_max_threads());
 #endif
 
 #ifdef SINGLE_PRECISION
-	LOGUSER("Code was compiled for single precision.");
+	music::ulog.Print("Code was compiled for single precision.");
 #else
-	LOGUSER("Code was compiled for double precision.");
+	music::ulog.Print("Code was compiled for double precision.");
 #endif
 
 	//------------------------------------------------------------------------------
@@ -367,35 +373,35 @@ int main(int argc, const char *argv[])
 	//... initialize some parameters about grid set-up
 	//------------------------------------------------------------------------------
 
-	boxlength = cf.getValue<double>("setup", "boxlength");
-	lbase = cf.getValue<unsigned>("setup", "levelmin");
-	lmax = cf.getValue<unsigned>("setup", "levelmax");
-	lbaseTF = cf.getValueSafe<unsigned>("setup", "levelmin_TF", lbase);
+	boxlength = cf.get_value<double>("setup", "boxlength");
+	lbase = cf.get_value<unsigned>("setup", "levelmin");
+	lmax = cf.get_value<unsigned>("setup", "levelmax");
+	lbaseTF = cf.get_value_safe<unsigned>("setup", "levelmin_TF", lbase);
 
 	if (lbase == lmax && !force_shift)
-		cf.insertValue("setup", "no_shift", "yes");
+		cf.insert_value("setup", "no_shift", "yes");
 
 	if (lbaseTF < lbase)
 	{
 		std::cout << " - WARNING: levelminTF < levelmin. This is not good!\n"
 							<< "            I will set levelminTF = levelmin.\n";
 
-		LOGUSER("levelminTF < levelmin. set levelminTF = levelmin.");
+		music::ulog.Print("levelminTF < levelmin. set levelminTF = levelmin.");
 
 		lbaseTF = lbase;
-		cf.insertValue("setup", "levelmin_TF", cf.getValue<std::string>("setup", "levelmin"));
+		cf.insert_value("setup", "levelmin_TF", cf.get_value<std::string>("setup", "levelmin"));
 	}
 
 	// .. determine if spectral sampling should be used
-	if (!cf.containsKey("setup", "kspace_TF"))
-		cf.insertValue("setup", "kspace_TF", "yes");
+	if (!cf.contains_key("setup", "kspace_TF"))
+		cf.insert_value("setup", "kspace_TF", "yes");
 
-	bool bspectral_sampling = cf.getValue<bool>("setup", "kspace_TF");
+	bool bspectral_sampling = cf.get_value<bool>("setup", "kspace_TF");
 
 	if (bspectral_sampling)
-		LOGINFO("Using k-space sampled transfer functions...");
+		music::ilog.Print("Using k-space sampled transfer functions...");
 	else
-		LOGINFO("Using real space sampled transfer functions...");
+		music::ilog.Print("Using real space sampled transfer functions...");
 
 		//------------------------------------------------------------------------------
 		//... initialize multithread FFTW
@@ -419,10 +425,10 @@ int main(int argc, const char *argv[])
 	//... initialize cosmology
 	//------------------------------------------------------------------------------
 	bool
-			do_baryons = cf.getValue<bool>("setup", "baryons"),
-			do_2LPT = cf.getValueSafe<bool>("setup", "use_2LPT", false),
-			do_LLA = cf.getValueSafe<bool>("setup", "use_LLA", false),
-			do_counter_mode = cf.getValueSafe<bool>("setup", "zero_zoom_velocity", false);
+			do_baryons = cf.get_value<bool>("setup", "baryons"),
+			do_2LPT = cf.get_value_safe<bool>("setup", "use_2LPT", false),
+			do_LLA = cf.get_value_safe<bool>("setup", "use_LLA", false),
+			do_counter_mode = cf.get_value_safe<bool>("setup", "zero_zoom_velocity", false);
 
 	transfer_function_plugin *the_transfer_function_plugin = select_transfer_function_plugin(cf);
 
@@ -439,7 +445,7 @@ int main(int argc, const char *argv[])
 		cosmo.pnorm *= cosmo.dplus * cosmo.dplus;
 
 	//... directly use the normalisation via a parameter rather than the calculated one
-	cosmo.pnorm = cf.getValueSafe<double>("setup", "force_pnorm", cosmo.pnorm);
+	cosmo.pnorm = cf.get_value_safe<double>("setup", "force_pnorm", cosmo.pnorm);
 
 	double vfac2lpt = 1.0;
 
@@ -453,11 +459,11 @@ int main(int argc, const char *argv[])
 	{
 		char tmpstr[128];
 		sprintf(tmpstr, "%.12g", cosmo.pnorm);
-		cf.insertValue("cosmology", "pnorm", tmpstr);
+		cf.insert_value("cosmology", "pnorm", tmpstr);
 		sprintf(tmpstr, "%.12g", cosmo.dplus);
-		cf.insertValue("cosmology", "dplus", tmpstr);
+		cf.insert_value("cosmology", "dplus", tmpstr);
 		sprintf(tmpstr, "%.12g", cosmo.vfact);
-		cf.insertValue("cosmology", "vfact", tmpstr);
+		cf.insert_value("cosmology", "vfact", tmpstr);
 	}
 
 	the_region_generator = select_region_generator_plugin(cf);
@@ -490,17 +496,17 @@ int main(int argc, const char *argv[])
 	modify_grid_for_TF(rh_Poisson, rh_TF, cf);
 	// rh_TF.output();
 
-	LOGUSER("Grid structure for Poisson solver:");
+	music::ulog.Print("Grid structure for Poisson solver:");
 	rh_Poisson.output_log();
-	LOGUSER("Grid structure for density convolution:");
+	music::ulog.Print("Grid structure for density convolution:");
 	rh_TF.output_log();
 
 	//------------------------------------------------------------------------------
 	//... initialize the output plug-in
 	//------------------------------------------------------------------------------
 	std::string outformat, outfname;
-	outformat = cf.getValue<std::string>("output", "format");
-	outfname = cf.getValue<std::string>("output", "filename");
+	outformat = cf.get_value<std::string>("output", "format");
+	outfname = cf.get_value<std::string>("output", "filename");
 	output_plugin *the_output_plugin = select_output_plugin(cf);
 
 	//------------------------------------------------------------------------------
@@ -509,24 +515,24 @@ int main(int argc, const char *argv[])
 	std::cout << "=============================================================\n";
 	std::cout << "   GENERATING WHITE NOISE\n";
 	std::cout << "-------------------------------------------------------------\n";
-	LOGUSER("Computing white noise...");
+	music::ulog.Print("Computing white noise...");
 	// rand_gen rand(cf, rh_TF, the_transfer_function_plugin);
 	rand.initialize_for_grid_structure( rh_TF );
 
 	//------------------------------------------------------------------------------
 	//... initialize the Poisson solver
 	//------------------------------------------------------------------------------
-	// bool bdefd	= cf.getValueSafe<bool> ( "poisson" , "fft_fine", true );
+	// bool bdefd	= cf.get_value_safe<bool> ( "poisson" , "fft_fine", true );
 	bool bdefd = true; // we set this by default and don't allow it to be changed outside any more
-	bool bglass = cf.getValueSafe<bool>("output", "glass", false);
-	bool bsph = cf.getValueSafe<bool>("setup", "do_SPH", false) && do_baryons;
+	bool bglass = cf.get_value_safe<bool>("output", "glass", false);
+	bool bsph = cf.get_value_safe<bool>("setup", "do_SPH", false) && do_baryons;
 	bool bbshift = bsph && !bglass;
 
-	bool kspace = cf.getValueSafe<bool>("poisson", "kspace", false);
+	bool kspace = cf.get_value_safe<bool>("poisson", "kspace", false);
 	bool kspace2LPT = kspace;
 
-	bool decic_DM = cf.getValueSafe<bool>("output", "glass_cicdeconvolve", false);
-	bool decic_baryons = cf.getValueSafe<bool>("output", "glass_cicdeconvolve", false) & bsph;
+	bool decic_DM = cf.get_value_safe<bool>("output", "glass_cicdeconvolve", false);
+	bool decic_baryons = cf.get_value_safe<bool>("output", "glass_cicdeconvolve", false) & bsph;
 
 	std::array<double,3> counter_mode_amp;
 
@@ -544,7 +550,7 @@ int main(int argc, const char *argv[])
 	else
 		poisson_solver_name = std::string("mg_poisson");
 
-	unsigned grad_order = cf.getValueSafe<unsigned>("poisson", "grad_order", 4);
+	unsigned grad_order = cf.get_value_safe<unsigned>("poisson", "grad_order", 4);
 
 	//... switch off if using kspace anyway
 	// bdefd &= !kspace;
@@ -560,7 +566,7 @@ int main(int argc, const char *argv[])
 	{
 		if (!do_2LPT)
 		{
-			LOGUSER("Entering 1LPT branch");
+			music::ulog.Print("Entering 1LPT branch");
 
 			//------------------------------------------------------------------------------
 			//... cdm density and displacements
@@ -568,7 +574,7 @@ int main(int argc, const char *argv[])
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
 			std::cout << "-------------------------------------------------------------\n";
-			LOGUSER("Computing dark matter displacements...");
+			music::ulog.Print("Computing dark matter displacements...");
 
 			grid_hierarchy f(nbnd); //, u(nbnd);
 			tf_type my_tf_type = cdm;
@@ -581,7 +587,7 @@ int main(int argc, const char *argv[])
 
 			normalize_density(f);
 
-			LOGUSER("Writing CDM data");
+			music::ulog.Print("Writing CDM data");
 			the_output_plugin->write_dm_mass(f);
 			the_output_plugin->write_dm_density(f);
 
@@ -592,7 +598,7 @@ int main(int argc, const char *argv[])
 			if (!bdefd)
 				f.deallocate();
 
-			LOGUSER("Writing CDM potential");
+			music::ulog.Print("Writing CDM potential");
 			the_output_plugin->write_dm_potential(u);
 
 			//------------------------------------------------------------------------------
@@ -615,14 +621,14 @@ int main(int argc, const char *argv[])
 						//... displacement
 						the_poisson_solver->gradient(icoord, u, data_forIO);
 					double dispmax = compute_finest_absmax(data_forIO);
-					LOGINFO("max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
+					music::ilog.Print("max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
 					coarsen_density(rh_Poisson, data_forIO, false);
 					
 					//... compute counter-mode to minimize advection errors
 					counter_mode_amp[icoord] = compute_finest_mean(data_forIO); 
 					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord] );
 					
-					LOGUSER("Writing CDM displacements");
+					music::ulog.Print("Writing CDM displacements");
 					the_output_plugin->write_dm_position(icoord, data_forIO);
 				}
 				if (do_baryons)
@@ -638,7 +644,7 @@ int main(int argc, const char *argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON DENSITY\n";
 				std::cout << "-------------------------------------------------------------\n";
-				LOGUSER("Computing baryon density...");
+				music::ulog.Print("Computing baryon density...");
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, baryon, rh_TF, rand, f, false, bbshift);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
@@ -646,7 +652,7 @@ int main(int argc, const char *argv[])
 
 				if (!do_LLA)
 				{
-					LOGUSER("Writing baryon density");
+					music::ulog.Print("Writing baryon density");
 					the_output_plugin->write_gas_density(f);
 				}
 
@@ -676,7 +682,7 @@ int main(int argc, const char *argv[])
 							the_poisson_solver->gradient(icoord, u, data_forIO);
 
 						coarsen_density(rh_Poisson, data_forIO, false);
-						LOGUSER("Writing baryon displacements");
+						music::ulog.Print("Writing baryon displacements");
 						the_output_plugin->write_gas_position(icoord, data_forIO);
 					}
 					u.deallocate();
@@ -692,7 +698,7 @@ int main(int argc, const char *argv[])
 					compute_LLA_density(u, f, grad_order);
 					u.deallocate();
 					normalize_density(f);
-					LOGUSER("Writing baryon density");
+					music::ulog.Print("Writing baryon density");
 					the_output_plugin->write_gas_density(f);
 				}
 
@@ -707,11 +713,11 @@ int main(int argc, const char *argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING VELOCITIES\n";
 				std::cout << "-------------------------------------------------------------\n";
-				LOGUSER("Computing velocitites...");
+				music::ulog.Print("Computing velocitites...");
 
 				if (do_baryons || the_transfer_function_plugin->tf_has_velocities())
 				{
-					LOGUSER("Generating velocity perturbations...");
+					music::ulog.Print("Generating velocity perturbations...");
 					GenerateDensityHierarchy(cf, the_transfer_function_plugin, vtotal, rh_TF, rand, f, false, false);
 					coarsen_density(rh_Poisson, f, bspectral_sampling);
 					f.add_refinement_mask(rh_Poisson.get_coord_shift());
@@ -745,26 +751,26 @@ int main(int argc, const char *argv[])
 					//... velocity kick to keep refined region centered?
 
 					double sigv = compute_finest_sigma(data_forIO);
-					LOGINFO("sigma of %c-velocity of high-res particles is %f", 'x' + icoord, sigv);
+					music::ilog.Print("sigma of %c-velocity of high-res particles is %f", 'x' + icoord, sigv);
 
 					double meanv = compute_finest_mean(data_forIO);
-					LOGINFO("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
-					LOGUSER("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
+					music::ilog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
+					music::ulog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 
 					double maxv = compute_finest_absmax(data_forIO);
-					LOGINFO("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
+					music::ilog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity-mode
 					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
 
-					LOGUSER("Writing CDM velocities");
+					music::ulog.Print("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
 
 					if (do_baryons)
 					{
-						LOGUSER("Writing baryon velocities");
+						music::ulog.Print("Writing baryon velocities");
 						the_output_plugin->write_gas_velocity(icoord, data_forIO);
 					}
 				}
@@ -774,11 +780,11 @@ int main(int argc, const char *argv[])
 			}
 			else
 			{
-				LOGINFO("Computing separate velocities for CDM and baryons:");
+				music::ilog.Print("Computing separate velocities for CDM and baryons:");
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING DARK MATTER VELOCITIES\n";
 				std::cout << "-------------------------------------------------------------\n";
-				LOGUSER("Computing dark matter velocitites...");
+				music::ulog.Print("Computing dark matter velocitites...");
 
 				//... we do baryons and have velocity transfer functions, or we do SPH and not to shift
 				//... do DM first
@@ -815,21 +821,21 @@ int main(int argc, const char *argv[])
 					data_forIO *= cosmo.vfact;
 
 					double sigv = compute_finest_sigma(data_forIO);
-					LOGINFO("sigma of %c-velocity of high-res DM is %f", 'x' + icoord, sigv);
+					music::ilog.Print("sigma of %c-velocity of high-res DM is %f", 'x' + icoord, sigv);
 
 					double meanv = compute_finest_mean(data_forIO);
-					LOGINFO("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
-					LOGUSER("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
+					music::ilog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
+					music::ulog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 
 					double maxv = compute_finest_absmax(data_forIO);
-					LOGINFO("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
+					music::ilog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
 					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
 
-					LOGUSER("Writing CDM velocities");
+					music::ulog.Print("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
 				}
 				u.deallocate();
@@ -839,7 +845,7 @@ int main(int argc, const char *argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON VELOCITIES\n";
 				std::cout << "-------------------------------------------------------------\n";
-				LOGUSER("Computing baryon velocitites...");
+				music::ulog.Print("Computing baryon velocitites...");
 				//... do baryons
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, vbaryon, rh_TF, rand, f, false, bbshift);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
@@ -874,21 +880,21 @@ int main(int argc, const char *argv[])
 					data_forIO *= cosmo.vfact;
 
 					double sigv = compute_finest_sigma(data_forIO);
-					LOGINFO("sigma of %c-velocity of high-res baryons is %f", 'x' + icoord, sigv);
+					music::ilog.Print("sigma of %c-velocity of high-res baryons is %f", 'x' + icoord, sigv);
 
 					double meanv = compute_finest_mean(data_forIO);
-					LOGINFO("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
-					LOGUSER("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
+					music::ilog.Print("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
+					music::ulog.Print("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 
 					double maxv = compute_finest_absmax(data_forIO);
-					LOGINFO("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
+					music::ilog.Print("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
 					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
 
-					LOGUSER("Writing baryon velocities");
+					music::ulog.Print("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
 				}
 				u.deallocate();
@@ -903,7 +909,7 @@ int main(int argc, const char *argv[])
 		else
 		{
 			//.. use 2LPT ...
-			LOGUSER("Entering 2LPT branch");
+			music::ulog.Print("Entering 2LPT branch");
 
 			grid_hierarchy f(nbnd), u1(nbnd), u2LPT(nbnd), f2LPT(nbnd);
 
@@ -916,12 +922,12 @@ int main(int argc, const char *argv[])
 			if (my_tf_type == total)
 			{
 				std::cout << "   COMPUTING VELOCITIES\n";
-				LOGUSER("Computing velocities...");
+				music::ulog.Print("Computing velocities...");
 			}
 			else
 			{
 				std::cout << "   COMPUTING DARK MATTER VELOCITIES\n";
-				LOGUSER("Computing dark matter velocities...");
+				music::ulog.Print("Computing dark matter velocities...");
 			}
 			std::cout << "-------------------------------------------------------------\n";
 
@@ -948,16 +954,16 @@ int main(int argc, const char *argv[])
 			else
 				f.deallocate();
 
-			LOGINFO("Computing 2LPT term....");
+			music::ilog.Print("Computing 2LPT term....");
 			if (!kspace2LPT)
 				compute_2LPT_source(u1, f2LPT, grad_order);
 			else
 			{
-				LOGUSER("computing term using FFT");
+				music::ulog.Print("computing term using FFT");
 				compute_2LPT_source_FFT(cf, u1, f2LPT);
 			}
 
-			LOGINFO("Solving 2LPT Poisson equation");
+			music::ilog.Print("Solving 2LPT Poisson equation");
 			u2LPT = u1;
 			u2LPT.zero();
 			the_poisson_solver->solve(f2LPT, u2LPT);
@@ -996,11 +1002,11 @@ int main(int argc, const char *argv[])
 				double sigv = compute_finest_sigma(data_forIO);
 
 				double meanv = compute_finest_mean(data_forIO);
-				LOGINFO("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
-				LOGUSER("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
+				music::ilog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
+				music::ulog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 
 				double maxv = compute_finest_absmax(data_forIO);
-				LOGINFO("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
+				music::ilog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
 				std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
 				std::cerr << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
@@ -1011,12 +1017,12 @@ int main(int argc, const char *argv[])
 				counter_mode_amp[icoord] = compute_finest_mean(data_forIO); 
 				if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord] );
 
-				LOGUSER("Writing CDM velocities");
+				music::ulog.Print("Writing CDM velocities");
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);
 
 				if (do_baryons && !the_transfer_function_plugin->tf_has_velocities() && !bsph)
 				{
-					LOGUSER("Writing baryon velocities");
+					music::ulog.Print("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
 				}
 			}
@@ -1029,7 +1035,7 @@ int main(int argc, const char *argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON VELOCITIES\n";
 				std::cout << "-------------------------------------------------------------\n";
-				LOGUSER("Computing baryon displacements...");
+				music::ulog.Print("Computing baryon displacements...");
 
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, vbaryon, rh_TF, rand, f, false, bbshift);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
@@ -1045,7 +1051,7 @@ int main(int argc, const char *argv[])
 				//... compute 1LPT term
 				the_poisson_solver->solve(f, u1);
 
-				LOGINFO("Writing baryon potential");
+				music::ilog.Print("Writing baryon potential");
 				the_output_plugin->write_gas_potential(u1);
 
 				//... compute 2LPT term
@@ -1094,11 +1100,11 @@ int main(int argc, const char *argv[])
 					double sigv = compute_finest_sigma(data_forIO);
 
 					double meanv = compute_finest_mean(data_forIO);
-					LOGINFO("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
-					LOGUSER("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
+					music::ilog.Print("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
+					music::ulog.Print("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 
 					double maxv = compute_finest_absmax(data_forIO);
-					LOGINFO("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
+					music::ilog.Print("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
 
 					std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
 					std::cerr << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
@@ -1108,7 +1114,7 @@ int main(int argc, const char *argv[])
 					// add counter velocity mode
 					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord] );
 
-					LOGUSER("Writing baryon velocities");
+					music::ulog.Print("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
 				}
 				data_forIO.deallocate();
@@ -1118,7 +1124,7 @@ int main(int argc, const char *argv[])
 			std::cout << "=============================================================\n";
 			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
 			std::cout << "-------------------------------------------------------------\n";
-			LOGUSER("Computing dark matter displacements...");
+			music::ulog.Print("Computing dark matter displacements...");
 
 			//... if baryons are enabled, the displacements have to be recomputed
 			//... otherwise we can compute them directly from the velocities
@@ -1134,7 +1140,7 @@ int main(int argc, const char *argv[])
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
 
-				LOGUSER("Writing CDM data");
+				music::ulog.Print("Writing CDM data");
 				the_output_plugin->write_dm_density(f);
 				the_output_plugin->write_dm_mass(f);
 				u1 = f;
@@ -1206,14 +1212,14 @@ int main(int argc, const char *argv[])
 					the_poisson_solver->gradient(icoord, u1, data_forIO);
 
 				double dispmax = compute_finest_absmax(data_forIO);
-				LOGINFO("max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
+				music::ilog.Print("max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
 
 				coarsen_density(rh_Poisson, data_forIO, false);
 
 				// add counter mode
 				if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
 
-				LOGUSER("Writing CDM displacements");
+				music::ulog.Print("Writing CDM displacements");
 				the_output_plugin->write_dm_position(icoord, data_forIO);
 			}
 
@@ -1225,7 +1231,7 @@ int main(int argc, const char *argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON DENSITY\n";
 				std::cout << "-------------------------------------------------------------\n";
-				LOGUSER("Computing baryon density...");
+				music::ulog.Print("Computing baryon density...");
 
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, baryon, rh_TF, rand, f, true, false);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
@@ -1259,7 +1265,7 @@ int main(int argc, const char *argv[])
 					compute_LLA_density(u1, f, grad_order);
 					normalize_density(f);
 
-					LOGUSER("Writing baryon density");
+					music::ulog.Print("Writing baryon density");
 					the_output_plugin->write_gas_density(f);
 				}
 			}
@@ -1268,14 +1274,14 @@ int main(int argc, const char *argv[])
 				std::cout << "=============================================================\n";
 				std::cout << "   COMPUTING BARYON DISPLACEMENTS\n";
 				std::cout << "-------------------------------------------------------------\n";
-				LOGUSER("Computing baryon displacements...");
+				music::ulog.Print("Computing baryon displacements...");
 
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, baryon, rh_TF, rand, f, false, bbshift);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
 
-				LOGUSER("Writing baryon density");
+				music::ulog.Print("Writing baryon density");
 				the_output_plugin->write_gas_density(f);
 				u1 = f;
 				u1.zero();
@@ -1331,7 +1337,7 @@ int main(int argc, const char *argv[])
 					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
 
 
-					LOGUSER("Writing baryon displacements");
+					music::ulog.Print("Writing baryon displacements");
 					the_output_plugin->write_gas_position(icoord, data_forIO);
 				}
 			}
@@ -1346,8 +1352,8 @@ int main(int argc, const char *argv[])
 	}
 	catch (std::runtime_error &excp)
 	{
-		LOGERR("Fatal error occured. Code will exit:");
-		LOGERR("Exception: %s", excp.what());
+		music::elog.Print("Fatal error occured. Code will exit:");
+		music::elog.Print("Exception: %s", excp.what());
 		std::cerr << " - " << excp.what() << std::endl;
 		std::cerr << " - A fatal error occured. We need to exit...\n";
 		bfatal = true;
@@ -1358,7 +1364,7 @@ int main(int argc, const char *argv[])
 	if (!bfatal)
 	{
 		std::cout << " - Wrote output file \'" << outfname << "\'\n     using plugin \'" << outformat << "\'...\n";
-		LOGUSER("Wrote output file \'%s\'.", outfname.c_str());
+		music::ulog.Print("Wrote output file \'%s\'.", outfname.c_str());
 	}
 
 	//------------------------------------------------------------------------------
@@ -1383,9 +1389,9 @@ int main(int argc, const char *argv[])
 
 	ltime = time(NULL);
 
-	LOGUSER("Run finished succesfully on %s", asctime(localtime(&ltime)));
+	music::ulog.Print("Run finished succesfully on %s", asctime(localtime(&ltime)));
 
-	cf.log_dump();
+	cf.dump_to_log();
 
 	return 0;
 }

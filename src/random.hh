@@ -98,8 +98,8 @@ public:
 	random_number_generator(config_file &cf, transfer_function *ptf = NULL)
 			: pcf_(&cf) //, prefh_( &refh )
 	{
-		levelmin_ = pcf_->getValue<int>("setup", "levelmin");
-		levelmax_ = pcf_->getValue<int>("setup", "levelmax");
+		levelmin_ = pcf_->get_value<int>("setup", "levelmin");
+		levelmax_ = pcf_->get_value<int>("setup", "levelmax");
 		generator_ = select_RNG_plugin(cf);
 	}
 

@@ -36,7 +36,7 @@ void print_output_plugins()
 
 output_plugin *select_output_plugin( config_file& cf )
 {
-	std::string formatname = cf.getValue<std::string>( "output", "format" );
+	std::string formatname = cf.get_value<std::string>( "output", "format" );
 	
 	output_plugin_creator *the_output_plugin_creator 
 	= get_output_plugin_map()[ formatname ];

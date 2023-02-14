@@ -184,7 +184,7 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 		ozf -= mzf/2; //nzf / 8; 
 	}
 
-	LOGUSER("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d", oxf, oyf, ozf, nxf, nyf, nzf);
+	music::ulog.Print("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d", oxf, oyf, ozf, nxf, nyf, nzf);
 
 	// cut out piece of coarse grid that overlaps the fine:
 	assert(nxf % 2 == 0 && nyf % 2 == 0 && nzf % 2 == 0);
@@ -345,19 +345,19 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 {
 	unsigned levelmin, levelmax, levelminPoisson;
 
-	levelminPoisson = cf.getValue<unsigned>("setup", "levelmin");
-	levelmin = cf.getValueSafe<unsigned>("setup", "levelmin_TF", levelminPoisson);
-	levelmax = cf.getValue<unsigned>("setup", "levelmax");
+	levelminPoisson = cf.get_value<unsigned>("setup", "levelmin");
+	levelmin = cf.get_value_safe<unsigned>("setup", "levelmin_TF", levelminPoisson);
+	levelmax = cf.get_value<unsigned>("setup", "levelmax");
 
-	bool kspace = cf.getValue<bool>("setup", "kspace_TF");
+	bool kspace = cf.get_value<bool>("setup", "kspace_TF");
 
-	bool fix  = cf.getValueSafe<bool>("setup","fix_mode_amplitude",false);
-	bool flip = cf.getValueSafe<bool>("setup","flip_mode_amplitude",false);
+	bool fix  = cf.get_value_safe<bool>("setup","fix_mode_amplitude",false);
+	bool flip = cf.get_value_safe<bool>("setup","flip_mode_amplitude",false);
 
 	unsigned nbase = 1 << levelmin;
 
 	std::cerr << " - Running unigrid version\n";
-	LOGUSER("Running unigrid density convolution...");
+	music::ulog.Print("Running unigrid density convolution...");
 
 	//... select the transfer function to be used
 	convolution::kernel_creator *the_kernel_creator;
@@ -365,7 +365,7 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 	if (kspace)
 	{
 		std::cout << " - Using k-space transfer function kernel.\n";
-		LOGUSER("Using k-space transfer function kernel.");
+		music::ulog.Print("Using k-space transfer function kernel.");
 
 #ifdef SINGLE_PRECISION
 		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_float"];
@@ -376,7 +376,7 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 	else
 	{
 		std::cout << " - Using real-space transfer function kernel.\n";
-		LOGUSER("Using real-space transfer function kernel.");
+		music::ulog.Print("Using real-space transfer function kernel.");
 
 #ifdef SINGLE_PRECISION
 		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_real_float"];
@@ -390,7 +390,7 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 
 	//...
 	std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmax << " ..." << std::endl;
-	LOGUSER("Performing noise convolution on level %3d", levelmax);
+	music::ulog.Print("Performing noise convolution on level %3d", levelmax);
 
 	//... create convolution mesh
 	DensityGrid<real_t> *top = new DensityGrid<real_t>(nbase, nbase, nbase);
@@ -428,7 +428,6 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 	unsigned levelmin, levelmax, levelminPoisson;
 	std::vector<long> rngseeds;
 	std::vector<std::string> rngfnames;
-	bool kspaceTF;
 
 	double tstart, tend;
 
@@ -438,17 +437,16 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 	tstart = (double)clock() / CLOCKS_PER_SEC;
 #endif
 
-	levelminPoisson = cf.getValue<unsigned>("setup", "levelmin");
-	levelmin = cf.getValueSafe<unsigned>("setup", "levelmin_TF", levelminPoisson);
-	levelmax = cf.getValue<unsigned>("setup", "levelmax");
-	kspaceTF = cf.getValue<bool>("setup", "kspace_TF");
+	levelminPoisson = cf.get_value<unsigned>("setup", "levelmin");
+	levelmin = cf.get_value_safe<unsigned>("setup", "levelmin_TF", levelminPoisson);
+	levelmax = cf.get_value<unsigned>("setup", "levelmax");
 
-	bool fix  = cf.getValueSafe<bool>("setup","fix_mode_amplitude",false);
-	bool flip = cf.getValueSafe<bool>("setup","flip_mode_amplitude",false);
-	bool fourier_splicing = cf.getValueSafe<bool>("setup","fourier_splicing",true);
+	bool fix  = cf.get_value_safe<bool>("setup","fix_mode_amplitude",false);
+	bool flip = cf.get_value_safe<bool>("setup","flip_mode_amplitude",false);
+	bool fourier_splicing = cf.get_value_safe<bool>("setup","fourier_splicing",true);
 
 	if( fix && levelmin != levelmax ){
-		LOGWARN("You have chosen mode fixing for a zoom. This is not well tested,\n please proceed at your own risk...");
+		music::wlog.Print("You have chosen mode fixing for a zoom. This is not well tested,\n please proceed at your own risk...");
 	}
 
 	unsigned nbase = 1 << levelmin;
@@ -456,7 +454,7 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 	convolution::kernel_creator *the_kernel_creator;
 
 	std::cout << " - Using k-space transfer function kernel.\n";
-	LOGUSER("Using k-space transfer function kernel.");
+	music::ulog.Print("Using k-space transfer function kernel.");
 
 #ifdef SINGLE_PRECISION
 	the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_float"];
@@ -476,7 +474,7 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 
 		// do coarse level
 		top = new DensityGrid<real_t>(nbase, nbase, nbase);
-		LOGINFO("Performing noise convolution on level %3d", levelmin);
+		music::ilog.Print("Performing noise convolution on level %3d", levelmin);
 		rand.load(*top, levelmin);
 		convolution::perform<real_t>(the_tf_kernel->fetch_kernel(levelmin, false), reinterpret_cast<void *>(top->get_data_ptr()), shift, fix, flip);
 
@@ -485,24 +483,24 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 
 		for (int i = 1; i < nlevels; ++i)
 		{
-			LOGINFO("Performing noise convolution on level %3d...", levelmin + i);
+			music::ilog.Print("Performing noise convolution on level %3d...", levelmin + i);
 			/////////////////////////////////////////////////////////////////////////
 			//... add new refinement patch
-			LOGUSER("Allocating refinement patch");
-			LOGUSER("   offset=(%5d,%5d,%5d)", refh.offset(levelmin + i, 0),
+			music::ulog.Print("Allocating refinement patch");
+			music::ulog.Print("   offset=(%5d,%5d,%5d)", refh.offset(levelmin + i, 0),
 					refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2));
-			LOGUSER("   size  =(%5d,%5d,%5d)", refh.size(levelmin + i, 0),
+			music::ulog.Print("   size  =(%5d,%5d,%5d)", refh.size(levelmin + i, 0),
 					refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
 
 			if( refh.get_margin() > 0 ){
 				fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin + i, 0), refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2),
 																								 refh.size(levelmin + i, 0), refh.size(levelmin + i, 1), refh.size(levelmin + i, 2),
 																								 refh.get_margin(), refh.get_margin(), refh.get_margin() );
-				LOGUSER("    margin = %d",refh.get_margin());
+				music::ulog.Print("    margin = %d",refh.get_margin());
 			}else{
 				fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin + i, 0), refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2),
 																								 refh.size(levelmin + i, 0), refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
-				LOGUSER("    margin = %d",refh.size(levelmin + i, 0)/2);
+				music::ulog.Print("    margin = %d",refh.size(levelmin + i, 0)/2);
 			}
 			/////////////////////////////////////////////////////////////////////////
 
@@ -554,7 +552,7 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 	if( !fourier_splicing ){
 		coarsen_density(refh,delta,false);
 	}
-	LOGUSER("Finished computing the density field in %fs", tend - tstart);
+	music::ulog.Print("Finished computing the density field in %fs", tend - tstart);
 }
 
 /*******************************************************************************************/
@@ -586,7 +584,7 @@ void normalize_density(grid_hierarchy &delta)
 	}
 
 	std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
-	LOGUSER("Grid mean density is %g. Correcting...", sum);
+	music::ulog.Print("Grid mean density is %g. Correcting...", sum);
 
 	for (unsigned i = levelmin; i <= levelmax; ++i)
 	{

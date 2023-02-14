@@ -58,7 +58,7 @@ protected:
 
     if (it == cubemap_.end())
     {
-      LOGERR("attempting to copy data from non-existing RND cube %d,%d,%d", i, j, k);
+      music::elog.Print("attempting to copy data from non-existing RND cube %d,%d,%d", i, j, k);
       throw std::runtime_error("attempting to copy data from non-existing RND cube");
     }
 
@@ -163,7 +163,7 @@ public:
 
     if (it == cubemap_.end())
     {
-      LOGERR("Attempting to copy data from non-existing RND cube %d,%d,%d @ %d,%d,%d", ic, jc, kc, i, j, k);
+      music::elog.Print("Attempting to copy data from non-existing RND cube %d,%d,%d @ %d,%d,%d", ic, jc, kc, i, j, k);
       throw std::runtime_error("attempting to copy data from non-existing RND cube");
     }
 
@@ -171,7 +171,7 @@ public:
 
     if (rnums_[cubeidx] == NULL)
     {
-      LOGERR("Attempting to access data from non-allocated RND cube %d,%d,%d", ic, jc, kc);
+      music::elog.Print("Attempting to access data from non-allocated RND cube %d,%d,%d", ic, jc, kc);
       throw std::runtime_error("attempting to access data from non-allocated RND cube");
     }
 

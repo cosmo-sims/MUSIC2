@@ -16,7 +16,7 @@
 #include <cstring>
 #include <algorithm>
 
-#include "log.hh"
+#include "logger.hh"
 #include "region_generator.hh"
 #include "output.hh"
 #include "mg_interp.hh"
@@ -520,8 +520,8 @@ protected:
 		ifs.read( (char*)&blk, sizeof(size_t) );
 		if( blk != blksize )
 		{	
-			LOGERR("Internal consistency error in gadget2 output plug-in");
-			LOGERR("Expected %ld bytes in temp file but found %ld",blksize,blk);
+			music::elog.Print("Internal consistency error in gadget2 output plug-in");
+			music::elog.Print("Expected %ld bytes in temp file but found %ld",blksize,blk);
 			throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 		}
         ifs.seekg( offset, std::ios::cur );
@@ -539,7 +539,7 @@ protected:
 			
 			if( !this->good() )
 			{	
-				LOGERR("Could not open buffer file in gadget2 output plug-in");
+				music::elog.Print("Could not open buffer file in gadget2 output plug-in");
 				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
 			}
 			
@@ -547,8 +547,8 @@ protected:
 			
 			if( blk != blksize )
 			{	
-				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",blksize,blk);
+				music::elog.Print("Internal consistency error in gadget2 output plug-in");
+				music::elog.Print("Expected %ld bytes in temp file but found %ld",blksize,blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -567,7 +567,7 @@ protected:
 			
 			if( !this->good() )
 			{	
-				LOGERR("Could not open buffer file \'%s\' in gadget2 output plug-in",fname.c_str());
+				music::elog.Print("Could not open buffer file \'%s\' in gadget2 output plug-in",fname.c_str());
 				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
 			}
 			
@@ -575,8 +575,8 @@ protected:
 			
 			if( blk != blksize )
 			{	
-				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",blksize,blk);
+				music::elog.Print("Internal consistency error in gadget2 output plug-in");
+				music::elog.Print("Expected %ld bytes in temp file but found %ld",blksize,blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -655,7 +655,7 @@ protected:
         size_t curr_block_buf_size = block_buf_size_;
         
         size_t idcount = 0;
-        LOGWARN("Need long particle IDs, will write 64bit, make sure to enable in Gadget!");
+        music::wlog.Print("Need long particle IDs, will write 64bit, make sure to enable in Gadget!");
     	
 		for( unsigned ifile=0; ifile<nfiles_; ++ifile )
         {
@@ -917,22 +917,22 @@ public:
 	gadget_tetmesh_output_plugin( config_file& cf )
 	: output_plugin( cf )
 	{
-		block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",1048576);
+		block_buf_size_ = cf_.get_value_safe<unsigned>("output","gadget_blksize",1048576);
 		
 		//... ensure that everyone knows we want to do SPH
-		cf.insertValue("setup","do_SPH","yes");
+		cf.insert_value("setup","do_SPH","yes");
 		
-		//bbndparticles_  = !cf_.getValueSafe<bool>("output","gadget_nobndpart",false);
+		//bbndparticles_  = !cf_.get_value_safe<bool>("output","gadget_nobndpart",false);
 		npartmax_ = 1<<30;
 		
-		nfiles_ = cf.getValueSafe<unsigned>("output","gadget_num_files",1);
+		nfiles_ = cf.get_value_safe<unsigned>("output","gadget_num_files",1);
       
-        blongids_ = cf.getValueSafe<bool>("output","gadget_longids",false);
+        blongids_ = cf.get_value_safe<bool>("output","gadget_longids",false);
       
-        shift_halfcell_ = cf.getValueSafe<bool>("output","gadget_cell_centered",false);
+        shift_halfcell_ = cf.get_value_safe<bool>("output","gadget_cell_centered",false);
 
 		//if( nfiles_ < (int)ceil((double)npart/(double)npartmax_) )
-		//	LOGWARN("Should use more files.");
+		//	music::wlog.Print("Should use more files.");
 		
 		if (nfiles_ > 1 ) 
 		{
@@ -943,7 +943,7 @@ public:
 				ofs_.open(ffname, std::ios::binary|std::ios::trunc );
 				if(!ofs_.good())
 				{	
-					LOGERR("gadget-2 output plug-in could not open output file \'%s\' for writing!",ffname);
+					music::elog.Print("gadget-2 output plug-in could not open output file \'%s\' for writing!",ffname);
 					throw std::runtime_error(std::string("gadget-2 output plug-in could not open output file \'")+std::string(ffname)+"\' for writing!\n");
 				}
 				ofs_.close();	
@@ -952,7 +952,7 @@ public:
 			ofs_.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 			if(!ofs_.good())
 			{	
-			  LOGERR("gadget-2 output plug-in could not open output file \'%s\' for writing!",fname_.c_str());
+			  music::elog.Print("gadget-2 output plug-in could not open output file \'%s\' for writing!",fname_.c_str());
 			  throw std::runtime_error(std::string("gadget-2 output plug-in could not open output file \'")+fname_+"\' for writing!\n");
 			}
 			ofs_.close();
@@ -978,30 +978,30 @@ public:
 			header_.mass[i] = 0.0;
 		}
 		
-		YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
-		gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
+		YHe_ = cf.get_value_safe<double>("cosmology","YHe",0.248);
+		gamma_ = cf.get_value_safe<double>("cosmology","gamma",5.0/3.0);
 		
-		do_baryons_ = cf.getValueSafe<bool>("setup","baryons",false);
-		omegab_ = cf.getValueSafe<double>("cosmology","Omega_b",0.045);
+		do_baryons_ = cf.get_value_safe<bool>("setup","baryons",false);
+		omegab_ = cf.get_value_safe<double>("cosmology","Omega_b",0.045);
 		
 		//... write displacements in kpc/h rather than Mpc/h?
-		kpcunits_ = cf.getValueSafe<bool>("output","gadget_usekpc",false);
-        msolunits_ = cf.getValueSafe<bool>("output","gadget_usemsol",false);
+		kpcunits_ = cf.get_value_safe<bool>("output","gadget_usekpc",false);
+        msolunits_ = cf.get_value_safe<bool>("output","gadget_usemsol",false);
         
-        blagrangeids_as_vertids_ = cf.getValueSafe<bool>("output","gadget_lagrangevertid",true);
+        blagrangeids_as_vertids_ = cf.get_value_safe<bool>("output","gadget_lagrangevertid",true);
         
         
-        /*bndparticletype_ = cf.getValueSafe<unsigned>("output","gadget_coarsetype",5);
+        /*bndparticletype_ = cf.get_value_safe<unsigned>("output","gadget_coarsetype",5);
         
         if( bndparticletype_ == 0 || bndparticletype_ == 1 || bndparticletype_ == 4 ||
            bndparticletype_ > 5 )
         {
-            LOGERR("Coarse particles cannot be of Gadget particle type %d in output plugin.", bndparticletype_);
+            music::elog.Print("Coarse particles cannot be of Gadget particle type %d in output plugin.", bndparticletype_);
             throw std::runtime_error("Specified illegal Gadget particle type for coarse particles");
         }*/
         
 		//... set time ......................................................
-		header_.redshift = cf.getValue<double>("setup","zstart");
+		header_.redshift = cf.get_value<double>("setup","zstart");
 		header_.time = 1.0/(1.0+header_.redshift);
 		
 		//... SF flags
@@ -1011,10 +1011,10 @@ public:
 		
 		//... 
 		header_.num_files = nfiles_;//1;
-		header_.BoxSize = cf.getValue<double>("setup","boxlength");
-		header_.Omega0 = cf.getValue<double>("cosmology","Omega_m");
-		header_.OmegaLambda = cf.getValue<double>("cosmology","Omega_L");
-		header_.HubbleParam = cf.getValue<double>("cosmology","H0")/100.0;
+		header_.BoxSize = cf.get_value<double>("setup","boxlength");
+		header_.Omega0 = cf.get_value<double>("cosmology","Omega_m");
+		header_.OmegaLambda = cf.get_value<double>("cosmology","Omega_L");
+		header_.HubbleParam = cf.get_value<double>("cosmology","H0")/100.0;
 		
 		header_.flag_stellarage = 0;
 		header_.flag_metals = 0;
@@ -1075,7 +1075,7 @@ public:
                     
                     if( it==idmap.end() ){
                         foundall = false;
-                        LOGERR("This should not happen : Lagrange ID %llu not found!", REMOVE_DECORATION_BITS( P[ip].get_vertex(i) ));
+                        music::elog.Print("This should not happen : Lagrange ID %llu not found!", REMOVE_DECORATION_BITS( P[ip].get_vertex(i) ));
                         throw std::runtime_error("FATAL");
                         break;
                     }
@@ -1125,13 +1125,13 @@ public:
                 if( num_p + newnum_p_per_split > num_p_alloc )
                 {
                     P = reinterpret_cast<particle*>( realloc( reinterpret_cast<void*>(P), (num_p_alloc+=num_p_realloc_blocksize)*sizeof(particle) ) );
-                    LOGINFO("reallocated particle buffer. new size = %llu MBytes.",  num_p_alloc * sizeof(particle)/1024/1024 );
+                    music::ilog.Print("reallocated particle buffer. new size = %llu MBytes.",  num_p_alloc * sizeof(particle)/1024/1024 );
                 }
                 split_lagrange_cube( ip );
             }
             
             delete_duplicates();
-            LOGINFO("refined tet mesh to level %d : now have %lld particles", ilevel+1, num_p );
+            music::ilog.Print("refined tet mesh to level %d : now have %lld particles", ilevel+1, num_p );
             
         }
         
@@ -1194,9 +1194,9 @@ public:
         header_.npart[5] = num_p_t5;
         header_.npartTotal[5] = num_p_t5;
         
-        LOGINFO("   active HR particles  (type 1) : %llu", num_p_t1 );
-        LOGINFO("   active LR particles  (type 5) : %llu", num_p_t5 );
-        LOGINFO("   passive particles    (type 2) : %llu", num_p_t2 );
+        music::ilog.Print("   active HR particles  (type 1) : %llu", num_p_t1 );
+        music::ilog.Print("   active LR particles  (type 5) : %llu", num_p_t5 );
+        music::ilog.Print("   passive particles    (type 2) : %llu", num_p_t2 );
         
         
         // write all particle masses
@@ -1240,14 +1240,14 @@ public:
             
             if( nwritten != num_p )
             {
-                LOGERR("Internal consistency error while writing temporary file for masses");
+                music::elog.Print("Internal consistency error while writing temporary file for masses");
                 throw std::runtime_error("Internal consistency error while writing temporary file for masses");
             }
             
             ofs_temp.write( (char *)&blksize, sizeof(size_t) );
             
             if( ofs_temp.bad() ){
-                LOGERR("I/O error while writing temporary file for masses");
+                music::elog.Print("I/O error while writing temporary file for masses");
                 throw std::runtime_error("I/O error while writing temporary file for masses");
             }
         }
@@ -1304,14 +1304,14 @@ public:
             
             if( nwritten != 8*num_p )
             {
-                LOGERR("Internal consistency error while writing temporary file for connectivities");
+                music::elog.Print("Internal consistency error while writing temporary file for connectivities");
                 throw std::runtime_error("Internal consistency error while writing temporary file for connectivities");
             }
             
             ofs_temp.write( (char *)&blksize, sizeof(size_t) );
             
             if( ofs_temp.bad() ){
-                LOGERR("I/O error while writing temporary file for connectivities");
+                music::elog.Print("I/O error while writing temporary file for connectivities");
                 throw std::runtime_error("I/O error while writing temporary file for connectivities");
             }
         }
@@ -1350,14 +1350,14 @@ public:
             
             if( nwritten != num_p )
             {
-                LOGERR("Internal consistency error while writing temporary file for masses");
+                music::elog.Print("Internal consistency error while writing temporary file for masses");
                 throw std::runtime_error("Internal consistency error while writing temporary file for masses");
             }
             
             ofs_temp.write( (char *)&blksize, sizeof(size_t) );
             
             if( ofs_temp.bad() ){
-                LOGERR("I/O error while writing temporary file for masses");
+                music::elog.Print("I/O error while writing temporary file for masses");
                 throw std::runtime_error("I/O error while writing temporary file for masses");
             }
         }
@@ -1396,14 +1396,14 @@ public:
             
             if( nwritten != num_p )
             {
-                LOGERR("Internal consistency error while writing temporary file for masses");
+                music::elog.Print("Internal consistency error while writing temporary file for masses");
                 throw std::runtime_error("Internal consistency error while writing temporary file for masses");
             }
             
             ofs_temp.write( (char *)&blksize, sizeof(size_t) );
             
             if( ofs_temp.bad() ){
-                LOGERR("I/O error while writing temporary file for masses");
+                music::elog.Print("I/O error while writing temporary file for masses");
                 throw std::runtime_error("I/O error while writing temporary file for masses");
             }
         }
@@ -1460,14 +1460,14 @@ public:
             
             if( nwritten != num_p )
             {
-                LOGERR("Internal consistency error while writing temporary file for masses");
+                music::elog.Print("Internal consistency error while writing temporary file for masses");
                 throw std::runtime_error("Internal consistency error while writing temporary file for masses");
             }
             
             ofs_temp.write( (char *)&blksize, sizeof(size_t) );
             
             if( ofs_temp.bad() ){
-                LOGERR("I/O error while writing temporary file for masses");
+                music::elog.Print("I/O error while writing temporary file for masses");
                 throw std::runtime_error("I/O error while writing temporary file for masses");
             }
         }
@@ -1526,14 +1526,14 @@ public:
             
             if( nwritten != num_p )
             {
-                LOGERR("Internal consistency error while writing temporary file for velocities");
+                music::elog.Print("Internal consistency error while writing temporary file for velocities");
                 throw std::runtime_error("Internal consistency error while writing temporary file for vleocities");
             }
             
             ofs_temp.write( (char *)&blksize, sizeof(size_t) );
             
             if( ofs_temp.bad() ){
-                LOGERR("I/O error while writing temporary file for velocities");
+                music::elog.Print("I/O error while writing temporary file for velocities");
                 throw std::runtime_error("I/O error while writing temporary file for velocities");
             }
         }

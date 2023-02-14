@@ -34,7 +34,7 @@ public:
 	transfer_inflation_plugin( config_file& cf ) 
 	: transfer_function_plugin( cf )
 	{ 
-		ns2_ = 0.5*cf.getValue<double>("cosmology","nspec");
+		ns2_ = 0.5*cf.get_value<double>("cosmology","nspec");
 		tf_distinct_ = true;
 	}
 	

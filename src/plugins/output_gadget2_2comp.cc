@@ -9,7 +9,7 @@
  */
 
 #include <fstream>
-#include "log.hh"
+#include "logger.hh"
 #include "output.hh"
 #include "mg_interp.hh"
 #include "mesh.hh"
@@ -120,8 +120,8 @@ protected:
                 expected = ((unsigned long long) npart*(unsigned long long)sizeof(T_store));
 		if( blk != expected )
 		{	
-			LOGERR("Internal consistency error in gadget2 output plug-in, open_and_check");
-			LOGERR("Expected %d particles (%lld bytes) in temp file %s but found %lld",npart, expected ,ffname.c_str(), blk);
+			music::elog.Print("Internal consistency error in gadget2 output plug-in, open_and_check");
+			music::elog.Print("Expected %d particles (%lld bytes) in temp file %s but found %lld",npart, expected ,ffname.c_str(), blk);
 			//throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 		}
 		
@@ -138,7 +138,7 @@ protected:
 			
 			if( !this->good() )
 			{	
-				LOGERR("Could not open buffer file in gadget2 output plug-in");
+				music::elog.Print("Could not open buffer file in gadget2 output plug-in");
 				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
 			}
 			
@@ -146,8 +146,8 @@ protected:
 			
 			if( blk != npart*sizeof(T_store) )
 			{	
-				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
+				music::elog.Print("Internal consistency error in gadget2 output plug-in");
+				music::elog.Print("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -166,7 +166,7 @@ protected:
 			
 			if( !this->good() )
 			{	
-				LOGERR("Could not open buffer file \'%s\' in gadget2 output plug-in",fname.c_str());
+				music::elog.Print("Could not open buffer file \'%s\' in gadget2 output plug-in",fname.c_str());
 				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
 			}
 			
@@ -174,8 +174,8 @@ protected:
 			
 			if( blk != npart*sizeof(T_store) )
 			{	
-				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
+				music::elog.Print("Internal consistency error in gadget2 output plug-in");
+				music::elog.Print("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -193,7 +193,7 @@ protected:
 			
 			if( !this->good() )
 			{	
-				LOGERR("Could not open buffer file in gadget2 output plug-in");
+				music::elog.Print("Could not open buffer file in gadget2 output plug-in");
 				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
 			}
 			
@@ -201,8 +201,8 @@ protected:
 			
 			if( blk != npart*sizeof(T_store) )
 			{	
-				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
+				music::elog.Print("Internal consistency error in gadget2 output plug-in");
+				music::elog.Print("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -225,7 +225,7 @@ protected:
 			
 			if( !this->good() )
 			{	
-				LOGERR("Could not open buffer file \'%s\' in gadget2 output plug-in",fname.c_str());
+				music::elog.Print("Could not open buffer file \'%s\' in gadget2 output plug-in",fname.c_str());
 				throw std::runtime_error("Could not open buffer file in gadget2 output plug-in");
 			}
 			
@@ -233,8 +233,8 @@ protected:
 			
 			if( blk != npart*sizeof(T_store) )
 			{	
-				LOGERR("Internal consistency error in gadget2 output plug-in");
-				LOGERR("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
+				music::elog.Print("Internal consistency error in gadget2 output plug-in");
+				music::elog.Print("Expected %ld bytes in temp file but found %ld",npart*sizeof(T_store),blk);
 				throw std::runtime_error("Internal consistency error in gadget2 output plug-in");
 			}
             
@@ -290,7 +290,7 @@ protected:
 			n2read = std::min(block_buf_size_,npleft);
 		
 		if( header_.npart[5] > 0 )
-			LOGERR("Multi-resolution setup not supported for 2comp hack");
+			music::elog.Print("Multi-resolution setup not supported for 2comp hack");
 		
 		std::cout << " - Writing " << nptot << " particles to Gadget file...\n"
 				  << "      type 1 : " << header_.npart[1] << "\n"
@@ -333,7 +333,7 @@ protected:
         if( nptot >= 1ul<<32 )
         {
             bneed_long_ids = true;
-            LOGWARN("Need long particle IDs, make sure to enable in Gadget!");
+            music::wlog.Print("Need long particle IDs, make sure to enable in Gadget!");
         }
 		
 		
@@ -722,15 +722,15 @@ public:
 	gadget2_2comp_output_plugin( config_file& cf )
 	: output_plugin( cf )//, ofs_( fname_.c_str(), std::ios::binary|std::ios::trunc )	
 	{
-		block_buf_size_ = cf_.getValueSafe<unsigned>("output","gadget_blksize",2*1048576);
+		block_buf_size_ = cf_.get_value_safe<unsigned>("output","gadget_blksize",2*1048576);
 		
 		//... ensure that everyone knows we want to do SPH
-		cf.insertValue("setup","do_SPH","yes");
+		cf.insert_value("setup","do_SPH","yes");
 		
-		//bbndparticles_  = !cf_.getValueSafe<bool>("output","gadget_nobndpart",false);
+		//bbndparticles_  = !cf_.get_value_safe<bool>("output","gadget_nobndpart",false);
 		npartmax_ = 1<<30;
 		
-		nfiles_ = cf.getValueSafe<unsigned>("output","gadget_num_files",1);
+		nfiles_ = cf.get_value_safe<unsigned>("output","gadget_num_files",1);
 		
 		
 		
@@ -744,7 +744,7 @@ public:
 				ofs_.open(ffname, std::ios::binary|std::ios::trunc );
 				if(!ofs_.good())
 				{	
-					LOGERR("gadget-2 output plug-in could not open output file \'%s\' for writing!",ffname);
+					music::elog.Print("gadget-2 output plug-in could not open output file \'%s\' for writing!",ffname);
 					throw std::runtime_error(std::string("gadget-2 output plug-in could not open output file \'")+std::string(ffname)+"\' for writing!\n");
 				}
 				ofs_.close();	
@@ -753,7 +753,7 @@ public:
 			ofs_.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
 			if(!ofs_.good())
 			{	
-				LOGERR("gadget-2 output plug-in could not open output file \'%s\' for writing!",fname_.c_str());
+				music::elog.Print("gadget-2 output plug-in could not open output file \'%s\' for writing!",fname_.c_str());
 				throw std::runtime_error(std::string("gadget-2 output plug-in could not open output file \'")+fname_+"\' for writing!\n");
 			}
 			ofs_.close();
@@ -776,29 +776,29 @@ public:
 			header_.mass[i] = 0.0;
 		}
 		
-		YHe_ = cf.getValueSafe<double>("cosmology","YHe",0.248);
-		gamma_ = cf.getValueSafe<double>("cosmology","gamma",5.0/3.0);
+		YHe_ = cf.get_value_safe<double>("cosmology","YHe",0.248);
+		gamma_ = cf.get_value_safe<double>("cosmology","gamma",5.0/3.0);
 		
-		do_baryons_ = cf.getValueSafe<bool>("setup","baryons",false);
-		omegab_ = cf.getValueSafe<double>("cosmology","Omega_b",0.045);
+		do_baryons_ = cf.get_value_safe<bool>("setup","baryons",false);
+		omegab_ = cf.get_value_safe<double>("cosmology","Omega_b",0.045);
 		
 		//... write displacements in kpc/h rather than Mpc/h?
-		kpcunits_ = cf.getValueSafe<bool>("output","gadget_usekpc",false);
+		kpcunits_ = cf.get_value_safe<bool>("output","gadget_usekpc",false);
 		
-		do_glass_ = cf.getValueSafe<bool>("output","glass", false);
+		do_glass_ = cf.get_value_safe<bool>("output","glass", false);
 		if( do_glass_ )
 		{
-			LOGINFO("Will use provided glass rather than Cartesian mesh for particle placement.");
+			music::ilog.Print("Will use provided glass rather than Cartesian mesh for particle placement.");
 			
-			fname_glass_cdm_ = cf.getValue<std::string>("output","glass_file_cdm");
+			fname_glass_cdm_ = cf.get_value<std::string>("output","glass_file_cdm");
 			
 			if( do_baryons_ )
-				fname_glass_baryon_ = fname_glass_cdm_;//cf.getValue<std::string>("output","glass_file_baryon");
+				fname_glass_baryon_ = fname_glass_cdm_;//cf.get_value<std::string>("output","glass_file_baryon");
 		}
 		
 		
 		//... set time ......................................................
-		header_.redshift = cf.getValue<double>("setup","zstart");
+		header_.redshift = cf.get_value<double>("setup","zstart");
 		header_.time = 1.0/(1.0+header_.redshift);
 		
 		//... SF flags
@@ -808,13 +808,13 @@ public:
 		
 		//... 
 		header_.num_files = nfiles_;
-		header_.BoxSize = cf.getValue<double>("setup","boxlength");
-		header_.Omega0 = cf.getValue<double>("cosmology","Omega_m");
+		header_.BoxSize = cf.get_value<double>("setup","boxlength");
+		header_.Omega0 = cf.get_value<double>("cosmology","Omega_m");
                 omegam_ = header_.Omega0;
                 omegac_ = omegam_ - omegab_;
         
-		header_.OmegaLambda = cf.getValue<double>("cosmology","Omega_L");
-		header_.HubbleParam = cf.getValue<double>("cosmology","H0");
+		header_.OmegaLambda = cf.get_value<double>("cosmology","Omega_L");
+		header_.HubbleParam = cf.get_value<double>("cosmology","H0");
 		
 		header_.flag_stellarage = 0;
 		header_.flag_metals = 0;
@@ -930,16 +930,16 @@ public:
 		//... determine if we need to shift the coordinates back
 		double *shift = NULL;
 		
-		if( cf_.getValueSafe<bool>("output","shift_back",false ) )
+		if( cf_.get_value_safe<bool>("output","shift_back",false ) )
 		{
 			if( coord == 0 )
 				std::cout << " - gadget2 output plug-in will shift particle positions back...\n";
 			
 			double h = 1.0/(1<<levelmin_);
 			shift = new double[3];
-			shift[0] = -(double)cf_.getValue<int>( "setup", "shift_x" )*h;
-			shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;
-			shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
+			shift[0] = -(double)cf_.get_value<int>( "setup", "shift_x" )*h;
+			shift[1] = -(double)cf_.get_value<int>( "setup", "shift_y" )*h;
+			shift[2] = -(double)cf_.get_value<int>( "setup", "shift_z" )*h;
 		}
 		
 		size_t npart = npfine+npcoarse;
@@ -1023,7 +1023,7 @@ public:
 			std::ifstream ofg( fname_glass_cdm_.c_str(), std::ios::binary );
 			
 			if( !ofg.good() )
-				LOGERR("could not open glass input file \'%s\'",fname_glass_cdm_.c_str());
+				music::elog.Print("could not open glass input file \'%s\'",fname_glass_cdm_.c_str());
 			
 			io_header glasshead;
 			unsigned blksz;
@@ -1036,7 +1036,7 @@ public:
 			//size_t nreq = gh.size(gh.levelmax(), 0)*gh.size(gh.levelmax(), 1)*gh.size(gh.levelmax(), 2);
 			/*if( nreq != (size_t)glasshead.npart[1] )
 			{
-				LOGERR("glass file contains %d particles, but should contain %ld",glasshead.npart[1],nreq);
+				music::elog.Print("glass file contains %d particles, but should contain %ld",glasshead.npart[1],nreq);
 				throw std::runtime_error("glass file does not contain the right amount of particles");
 			}*/
 			
@@ -1212,7 +1212,7 @@ public:
 			std::ifstream ofg( fname_glass_cdm_.c_str(), std::ios::binary );
 			
 			if( !ofg.good() )
-				LOGERR("could not open glass input file \'%s\'",fname_glass_cdm_.c_str());
+				music::elog.Print("could not open glass input file \'%s\'",fname_glass_cdm_.c_str());
 			
 			io_header glasshead;
 			unsigned blksz;
@@ -1375,7 +1375,7 @@ public:
 			std::ifstream ofg( fname_glass_baryon_.c_str(), std::ios::binary );
 			
 			if( !ofg.good() )
-				LOGERR("could not open glass input file \'%s\'",fname_glass_cdm_.c_str());
+				music::elog.Print("could not open glass input file \'%s\'",fname_glass_cdm_.c_str());
 			
 			io_header glasshead;
 			unsigned blksz;
@@ -1388,7 +1388,7 @@ public:
 			//size_t nreq = gh.size(gh.levelmax(), 0)*gh.size(gh.levelmax(), 1)*gh.size(gh.levelmax(), 2);
 			/*if( nreq != (size_t)glasshead.npart[1] )
 			{
-				LOGERR("glass file contains %d particles, but should contain %ld",glasshead.npart[1],nreq);
+				music::elog.Print("glass file contains %d particles, but should contain %ld",glasshead.npart[1],nreq);
 				throw std::runtime_error("glass file does not contain the right amount of particles");
 			}*/
 			
@@ -1478,16 +1478,16 @@ public:
 		//... determine if we need to shift the coordinates back
 		double *shift = NULL;
 		
-		if( cf_.getValueSafe<bool>("output","shift_back",false ) )
+		if( cf_.get_value_safe<bool>("output","shift_back",false ) )
 		{
 			if( coord == 0 )
 				std::cout << " - gadget2 output plug-in will shift particle positions back...\n";
 			
 			double h = 1.0/(1<<levelmin_);
 			shift = new double[3];
-			shift[0] = -(double)cf_.getValue<int>( "setup", "shift_x" )*h;
-			shift[1] = -(double)cf_.getValue<int>( "setup", "shift_y" )*h;
-			shift[2] = -(double)cf_.getValue<int>( "setup", "shift_z" )*h;
+			shift[0] = -(double)cf_.get_value<int>( "setup", "shift_x" )*h;
+			shift[1] = -(double)cf_.get_value<int>( "setup", "shift_y" )*h;
+			shift[2] = -(double)cf_.get_value<int>( "setup", "shift_z" )*h;
 		}
 		
 		unsigned long long npart = npfine;
@@ -1575,7 +1575,7 @@ public:
 			std::ifstream ofg( fname_glass_baryon_.c_str(), std::ios::binary );
 			
 			if( !ofg.good() )
-				LOGERR("could not open glass input file \'%s\'",fname_glass_cdm_.c_str());
+				music::elog.Print("could not open glass input file \'%s\'",fname_glass_cdm_.c_str());
 			
 			io_header glasshead;
 			unsigned blksz;
@@ -1588,7 +1588,7 @@ public:
 			//size_t nreq = gh.size(gh.levelmax(), 0)*gh.size(gh.levelmax(), 1)*gh.size(gh.levelmax(), 2);
 			/*if( nreq != (size_t)glasshead.npart[1] )
 			{
-				LOGERR("glass file contains %d particles, but should contain %ld",glasshead.npart[1],nreq);
+				music::elog.Print("glass file contains %d particles, but should contain %ld",glasshead.npart[1],nreq);
 				throw std::runtime_error("glass file does not contain the right amount of particles");
 			}*/
 			

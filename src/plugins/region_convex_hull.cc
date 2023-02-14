@@ -38,7 +38,7 @@ private:
     void apply_shift( size_t Np, double *p, int *shift, int levelmin )
     {
         double dx = 1.0/(1<<levelmin);
-        LOGINFO("unapplying shift of previous zoom region to region particles :\n" \
+        music::ilog.Print("unapplying shift of previous zoom region to region particles :\n" \
                 "\t [%d,%d,%d] = (%f,%f,%f)",shift[0],shift[1],shift[2],shift[0]*dx,shift[1]*dx,shift[2]*dx);
         
         for( size_t i=0,i3=0; i<Np; i++,i3+=3 )
@@ -52,23 +52,23 @@ public:
     {
         std::vector<double> pp;
         
-        vfac_ = cf.getValue<double>("cosmology","vfact");
-        padding_ = cf.getValue<int>("setup","padding");
+        vfac_ = cf.get_value<double>("cosmology","vfact");
+        padding_ = cf.get_value<int>("setup","padding");
         
         
-        std::string point_file = cf.getValue<std::string>("setup","region_point_file");
+        std::string point_file = cf.get_value<std::string>("setup","region_point_file");
         
         point_reader pfr;
         pfr.read_points_from_file( point_file, vfac_, pp );
         
-        if( cf.containsKey("setup","region_point_shift") )
+        if( cf.contains_key("setup","region_point_shift") )
         {
-            std::string point_shift = cf.getValue<std::string>("setup","region_point_shift");
+            std::string point_shift = cf.get_value<std::string>("setup","region_point_shift");
             if(sscanf( point_shift.c_str(), "%d,%d,%d", &shift[0],&shift[1],&shift[2] )!=3){
-	      LOGERR("Error parsing triple for region_point_shift");
+	      music::elog.Print("Error parsing triple for region_point_shift");
 	      throw std::runtime_error("Error parsing triple for region_point_shift");
 	    }
-            unsigned point_levelmin = cf.getValue<unsigned>("setup","region_point_levelmin");
+            unsigned point_levelmin = cf.get_value<unsigned>("setup","region_point_levelmin");
             
             apply_shift( pp.size()/3, &pp[0], shift, point_levelmin );
             shift_level = point_levelmin;
@@ -90,13 +90,13 @@ public:
         phull_ =  new convex_hull<double>(  &pp[0], pp.size()/3, anchor_pt_ );
         
         //expand the ellipsoid by one grid cell
-        unsigned levelmax = cf.getValue<unsigned>("setup","levelmax");
+        unsigned levelmax = cf.get_value<unsigned>("setup","levelmax");
         double dx = 1.0/(1ul<<levelmax);
         phull_->expand( sqrt(3.)*dx );
         
         // output the center
         double c[3] = { phull_->centroid_[0], phull_->centroid_[1], phull_->centroid_[2] };
-        LOGINFO("Region center from convex hull centroid determined at\n\t (%f,%f,%f)",c[0],c[1],c[2]);
+        music::ilog.Print("Region center from convex hull centroid determined at\n\t (%f,%f,%f)",c[0],c[1],c[2]);
         
         //-----------------------------------------------------------------
         // when querying the bounding box, do we need extra padding?
@@ -104,7 +104,7 @@ public:
         
         // conditions should be added here
         {
-            std::string output_plugin = cf.getValue<std::string>("output","format");
+            std::string output_plugin = cf.get_value<std::string>("output","format");
             if( output_plugin == std::string("grafic2") )
                 do_extra_padding_ = true;
         }

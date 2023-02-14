@@ -42,12 +42,12 @@ protected:
 		header loc_head;
 		
 		double 
-			boxlength	= cf_.getValue<double>("setup","boxlength"),
-			H0			= cf_.getValue<double>("cosmology","H0"),
-			zstart		= cf_.getValue<double>("setup","zstart"),
+			boxlength	= cf_.get_value<double>("setup","boxlength"),
+			H0			= cf_.get_value<double>("cosmology","H0"),
+			zstart		= cf_.get_value<double>("setup","zstart"),
 			astart		= 1.0/(1.0+zstart),
-			omegam		= cf_.getValue<double>("cosmology","Omega_m"),
-			omegaL		= cf_.getValue<double>("cosmology","Omega_L");
+			omegam		= cf_.get_value<double>("cosmology","Omega_m"),
+			omegaL		= cf_.get_value<double>("cosmology","Omega_L");
 		
 		loc_head.n1 = gh.get_grid(ilevel)->size(0);
 		loc_head.n2 = gh.get_grid(ilevel)->size(1);
@@ -235,7 +235,7 @@ protected:
             size_t nref;
             nref = restrict_mask( n1, n2, n3, o1, o2, o3, n1c, n2c, n3c, &data[0], &data_coarse[0] );
             
-            LOGINFO("%f of cells on level %d are refined",(double)nref/(n1c*n2c*n3c),ilevel);
+            music::ilog.Print("%f of cells on level %d are refined",(double)nref/(n1c*n2c*n3c),ilevel);
             
             sprintf(ff,"%s/level_%03d/ic_refmap",fname_.c_str(), ilevel );
             std::ofstream ofs(ff,std::ios::binary|std::ios::trunc);
@@ -328,7 +328,7 @@ protected:
 		
 		
         unsigned naddref = 8; // initialize with settings for 10 additional levels of refinement
-        unsigned nexpand = (cf_.getValue<unsigned>("setup","padding")-1)/2;
+        unsigned nexpand = (cf_.get_value<unsigned>("setup","padding")-1)/2;
         
         // -- AMR_PARAMS -- //
         ofst << "&AMR_PARAMS\n"
@@ -366,8 +366,8 @@ protected:
              << "/\n\n";
         
         
-		LOGINFO("The grafic2 output plug-in wrote the grid data to a partial");
-		LOGINFO("   RAMSES namelist file \'%s\'",fname_.c_str() );
+		music::ilog.Print("The grafic2 output plug-in wrote the grid data to a partial");
+		music::ilog.Print("   RAMSES namelist file \'%s\'",fname_.c_str() );
     }
 	
 	void write_ramses_namelist_old( const grid_hierarchy& gh )
@@ -474,10 +474,10 @@ public:
 		}
 		
 		
-		bhavehydro_ = cf.getValue<bool>("setup","baryons");
-      //metal_floor_ = cf.getValueSafe<float>("output","ramses_metal_floor",1e-5);
-        passive_variable_index_ = cf.getValueSafe<int>("output","ramses_pvar_idx",1);
-        passive_variable_value_ = cf.getValueSafe<float>("output","ramses_pvar_val",1.0f);
+		bhavehydro_ = cf.get_value<bool>("setup","baryons");
+      //metal_floor_ = cf.get_value_safe<float>("output","ramses_metal_floor",1e-5);
+        passive_variable_index_ = cf.get_value_safe<int>("output","ramses_pvar_idx",1);
+        passive_variable_value_ = cf.get_value_safe<float>("output","ramses_pvar_val",1.0f);
 	}
 	
 	/*~grafic2_output_plugin()
@@ -487,7 +487,7 @@ public:
 	void write_dm_position( int coord, const grid_hierarchy& gh  )
 	{
 		double 
-		boxlength	= cf_.getValue<double>("setup","boxlength");
+		boxlength	= cf_.get_value<double>("setup","boxlength");
 		
 		for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
 		{
@@ -505,7 +505,7 @@ public:
 	void write_dm_velocity( int coord, const grid_hierarchy& gh )
 	{
 		double 
-		boxlength	= cf_.getValue<double>("setup","boxlength");
+		boxlength	= cf_.get_value<double>("setup","boxlength");
 		
 		for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
 		{
@@ -523,7 +523,7 @@ public:
 	void write_gas_velocity( int coord, const grid_hierarchy& gh )
 	{	
 		double 
-		boxlength	= cf_.getValue<double>("setup","boxlength");
+		boxlength	= cf_.get_value<double>("setup","boxlength");
 		
 		for(unsigned ilevel=levelmin_; ilevel<=levelmax_; ++ilevel )
 		{
@@ -560,9 +560,9 @@ public:
 		if(! bhavehydro_ )
 			write_gas_density(gh);
 		
-		if( cf_.getValueSafe<bool>("output","ramses_nml",true) )
+		if( cf_.get_value_safe<bool>("output","ramses_nml",true) )
 			write_ramses_namelist(gh);
-        else if( cf_.getValueSafe<bool>("output","ramses_old_nml",false) )
+        else if( cf_.get_value_safe<bool>("output","ramses_old_nml",false) )
 			write_ramses_namelist_old(gh);
       
         if( gh.levelmin() != gh.levelmax() )

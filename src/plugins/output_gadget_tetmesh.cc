@@ -43,9 +43,9 @@
 typedef float MyFloat;
 typedef long long MyIDType;
 
-const int vert[8][3] = { {0,0,0}, {0,0,1}, {0,1,0}, {0,1,1}, {1,0,0}, {1,0,1}, {1,1,0}, {1,1,1} };
+// const int vert[8][3] = { {0,0,0}, {0,0,1}, {0,1,0}, {0,1,1}, {1,0,0}, {1,0,1}, {1,1,0}, {1,1,1} };
 const MyIDType vert_long[8][3] = { {0,0,0}, {0,0,1}, {0,1,0}, {0,1,1}, {1,0,0}, {1,0,1}, {1,1,0}, {1,1,1} };
-const int conn[][4] = { {1,0,2,4}, {3,1,2,4}, {3,5,1,4}, {3,6,5,4}, {3,2,6,4}, {3,7,5,6} };
+// const int conn[][4] = { {1,0,2,4}, {3,1,2,4}, {3,5,1,4}, {3,6,5,4}, {3,2,6,4}, {3,7,5,6} };
 
 
 std::map<MyIDType,size_t> idmap;
@@ -513,7 +513,7 @@ protected:
         
     }
 	
-	std::ifstream& open_and_check( std::string ffname, size_t blksize, size_t offset=0 )
+	std::ifstream open_and_check( std::string ffname, size_t blksize, size_t offset=0 )
 	{
 		std::ifstream ifs( ffname.c_str(), std::ios::binary );
 		size_t blk;
@@ -594,17 +594,17 @@ protected:
 		char fnx[256],fny[256],fnz[256],fnvx[256],fnvy[256],fnvz[256],fnm[256];
 		char fnc[256], fnl[256], fnlid[256];
         
-		sprintf( fnx,  "___ic_temp_%05d.bin", 100*id_dm_pos+0 );
-		sprintf( fny,  "___ic_temp_%05d.bin", 100*id_dm_pos+1 );
-		sprintf( fnz,  "___ic_temp_%05d.bin", 100*id_dm_pos+2 );
-		sprintf( fnvx, "___ic_temp_%05d.bin", 100*id_dm_vel+0 );
-		sprintf( fnvy, "___ic_temp_%05d.bin", 100*id_dm_vel+1 );
-		sprintf( fnvz, "___ic_temp_%05d.bin", 100*id_dm_vel+2 );
-		sprintf( fnm,  "___ic_temp_%05d.bin", 100*id_dm_mass  );
+		snprintf( fnx, 256, "___ic_temp_%05d.bin", 100*id_dm_pos+0 );
+		snprintf( fny, 256, "___ic_temp_%05d.bin", 100*id_dm_pos+1 );
+		snprintf( fnz, 256, "___ic_temp_%05d.bin", 100*id_dm_pos+2 );
+		snprintf( fnvx,256, "___ic_temp_%05d.bin", 100*id_dm_vel+0 );
+		snprintf( fnvy,256, "___ic_temp_%05d.bin", 100*id_dm_vel+1 );
+		snprintf( fnvz,256, "___ic_temp_%05d.bin", 100*id_dm_vel+2 );
+		snprintf( fnm, 256, "___ic_temp_%05d.bin", 100*id_dm_mass  );
 
-		sprintf( fnc,  "___ic_temp_%05d.bin", 100*id_dm_conn );
-		sprintf( fnl,  "___ic_temp_%05d.bin", 100*id_dm_level );
-		sprintf( fnlid,  "___ic_temp_%05d.bin", 100*id_dm_lagrangeid );
+		snprintf( fnc,  256, "___ic_temp_%05d.bin", 100*id_dm_conn );
+		snprintf( fnl,  256, "___ic_temp_%05d.bin", 100*id_dm_level );
+		snprintf( fnlid,  256, "___ic_temp_%05d.bin", 100*id_dm_lagrangeid );
 		
     	pistream iffs1, iffs2, iffs3;
 	    
@@ -663,7 +663,7 @@ protected:
 			if( nfiles_ > 1 )
 			{
 				char ffname[256];
-				sprintf(ffname,"%s.%d",fname_.c_str(), ifile);
+				snprintf(ffname,256,"%s.%d",fname_.c_str(), ifile);
 				ofs_.open(ffname, std::ios::binary|std::ios::trunc );
 			}else{
 				ofs_.open(fname_.c_str(), std::ios::binary|std::ios::trunc );
@@ -939,7 +939,7 @@ public:
 			for( unsigned ifile=0; ifile<nfiles_; ++ifile )
 			{
 				char ffname[256];
-				sprintf(ffname,"%s.%d",fname_.c_str(), ifile);
+				snprintf(ffname,256,"%s.%d",fname_.c_str(), ifile);
 				ofs_.open(ffname, std::ios::binary|std::ios::trunc );
 				if(!ofs_.good())
 				{	
@@ -1062,7 +1062,7 @@ public:
                 if( P[ip].Level != ilevel || !P[ip].can_refine() )
                     continue;
 
-                MyIDType lidsum = 0, xc[3] = {0,0,0};
+                MyIDType xc[3] = {0,0,0};
                 
                 bool foundall = true;
                 bool dorefine = true;
@@ -1116,7 +1116,7 @@ public:
                         break;
                     }
                     
-                    lidsum += lid;
+                    // lidsum += lid;
                 }
                 
                 if( !foundall ) continue;
@@ -1206,7 +1206,7 @@ public:
 			temp_dat.reserve(block_buf_size_);
             
             char temp_fname[256];
-			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_mass );
+			snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_dm_mass );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
             
             double mfac = header_.Omega0 * rhoc * pow(header_.BoxSize,3.);
@@ -1264,7 +1264,7 @@ public:
 			temp_dat.reserve(block_buf_size_);
             
             char temp_fname[256];
-			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_conn );
+			snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_dm_conn );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
             
             size_t blksize = sizeof(long long)*num_p*8;
@@ -1323,7 +1323,7 @@ public:
 			temp_dat.reserve(block_buf_size_);
             
             char temp_fname[256];
-			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_level );
+			snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_dm_level );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
             
             size_t blksize = sizeof(int)*num_p;
@@ -1369,7 +1369,7 @@ public:
 			temp_dat.reserve(block_buf_size_);
             
             char temp_fname[256];
-			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_lagrangeid );
+			snprintf( temp_fname, 256,"___ic_temp_%05d.bin", 100*id_dm_lagrangeid );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
             
             size_t blksize = sizeof(size_t)*num_p;
@@ -1420,7 +1420,7 @@ public:
         double xfac = header_.BoxSize;
         
         char temp_fname[256];
-        sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
+        snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
         std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
         
         // write all particle masses
@@ -1486,7 +1486,7 @@ public:
         temp_dat.reserve(block_buf_size_);
         
         char temp_fname[256];
-        sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
+        snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
 		std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
         
         // write all particle masses

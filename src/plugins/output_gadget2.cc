@@ -134,7 +134,7 @@ protected:
 			assert(n2dist[i] == 0);
 	}
 
-	std::ifstream &open_and_check(std::string ffname, size_t npart, size_t offset = 0)
+	std::ifstream open_and_check(std::string ffname, size_t npart, size_t offset = 0)
 	{
 		std::ifstream ifs(ffname.c_str(), std::ios::binary);
 		size_t blk;
@@ -284,8 +284,8 @@ protected:
 
 			/*** positions ***/
 
-			sprintf(fc, "___ic_temp_%05d.bin", 100 * id_dm_pos + icomp);
-			sprintf(fb, "___ic_temp_%05d.bin", 100 * id_gas_pos + icomp);
+			snprintf(fc, 256, "___ic_temp_%05d.bin", 100 * id_dm_pos + icomp);
+			snprintf(fb, 256, "___ic_temp_%05d.bin", 100 * id_gas_pos + icomp);
 
 			iffs1.open(fc, nptot, npfine * sizeof(T_store));
 			iffs2.open(fb, nptot, npfine * sizeof(T_store));
@@ -315,8 +315,8 @@ protected:
 
 			/*** velocities ***/
 
-			sprintf(fc, "___ic_temp_%05d.bin", 100 * id_dm_vel + icomp);
-			sprintf(fb, "___ic_temp_%05d.bin", 100 * id_gas_vel + icomp);
+			snprintf(fc, 256, "___ic_temp_%05d.bin", 100 * id_dm_vel + icomp);
+			snprintf(fb, 256, "___ic_temp_%05d.bin", 100 * id_gas_vel + icomp);
 
 			iffs1.open(fc, nptot, npfine * sizeof(T_store));
 			iffs2.open(fb, nptot, npfine * sizeof(T_store));
@@ -359,20 +359,20 @@ protected:
 		char fnx[256], fny[256], fnz[256], fnvx[256], fnvy[256], fnvz[256], fnm[256];
 		char fnbx[256], fnby[256], fnbz[256], fnbvx[256], fnbvy[256], fnbvz[256];
 
-		sprintf(fnx, "___ic_temp_%05d.bin", 100 * id_dm_pos + 0);
-		sprintf(fny, "___ic_temp_%05d.bin", 100 * id_dm_pos + 1);
-		sprintf(fnz, "___ic_temp_%05d.bin", 100 * id_dm_pos + 2);
-		sprintf(fnvx, "___ic_temp_%05d.bin", 100 * id_dm_vel + 0);
-		sprintf(fnvy, "___ic_temp_%05d.bin", 100 * id_dm_vel + 1);
-		sprintf(fnvz, "___ic_temp_%05d.bin", 100 * id_dm_vel + 2);
-		sprintf(fnm, "___ic_temp_%05d.bin", 100 * id_dm_mass);
+		snprintf(fnx, 256, "___ic_temp_%05d.bin", 100 * id_dm_pos + 0);
+		snprintf(fny, 256, "___ic_temp_%05d.bin", 100 * id_dm_pos + 1);
+		snprintf(fnz, 256, "___ic_temp_%05d.bin", 100 * id_dm_pos + 2);
+		snprintf(fnvx, 256,"___ic_temp_%05d.bin", 100 * id_dm_vel + 0);
+		snprintf(fnvy, 256,"___ic_temp_%05d.bin", 100 * id_dm_vel + 1);
+		snprintf(fnvz, 256,"___ic_temp_%05d.bin", 100 * id_dm_vel + 2);
+		snprintf(fnm, 256, "___ic_temp_%05d.bin", 100 * id_dm_mass);
 
-		sprintf(fnbx, "___ic_temp_%05d.bin", 100 * id_gas_pos + 0);
-		sprintf(fnby, "___ic_temp_%05d.bin", 100 * id_gas_pos + 1);
-		sprintf(fnbz, "___ic_temp_%05d.bin", 100 * id_gas_pos + 2);
-		sprintf(fnbvx, "___ic_temp_%05d.bin", 100 * id_gas_vel + 0);
-		sprintf(fnbvy, "___ic_temp_%05d.bin", 100 * id_gas_vel + 1);
-		sprintf(fnbvz, "___ic_temp_%05d.bin", 100 * id_gas_vel + 2);
+		snprintf(fnbx, 256,"___ic_temp_%05d.bin", 100 * id_gas_pos + 0);
+		snprintf(fnby, 256,"___ic_temp_%05d.bin", 100 * id_gas_pos + 1);
+		snprintf(fnbz, 256,"___ic_temp_%05d.bin", 100 * id_gas_pos + 2);
+		snprintf(fnbvx,256,"___ic_temp_%05d.bin", 100 * id_gas_vel + 0);
+		snprintf(fnbvy,256,"___ic_temp_%05d.bin", 100 * id_gas_vel + 1);
+		snprintf(fnbvz,256,"___ic_temp_%05d.bin", 100 * id_gas_vel + 2);
 
 		pistream iffs1, iffs2, iffs3;
 
@@ -440,7 +440,7 @@ protected:
 			if (nfiles_ > 1)
 			{
 				char ffname[256];
-				sprintf(ffname, "%s.%d", fname_.c_str(), ifile);
+				snprintf(ffname, 256, "%s.%d", fname_.c_str(), ifile);
 				ofs_.open(ffname, std::ios::binary | std::ios::trunc);
 			}
 			else
@@ -833,7 +833,7 @@ public:
 			for (unsigned ifile = 0; ifile < nfiles_; ++ifile)
 			{
 				char ffname[256];
-				sprintf(ffname, "%s.%d", fname_.c_str(), ifile);
+				snprintf(ffname, 256, "%s.%d", fname_.c_str(), ifile);
 				ofs_.open(ffname, std::ios::binary | std::ios::trunc);
 				if (!ofs_.good())
 				{
@@ -1011,7 +1011,7 @@ public:
 			temp_dat.reserve(block_buf_size_);
 
 			char temp_fname[256];
-			sprintf(temp_fname, "___ic_temp_%05d.bin", 100 * id_dm_mass);
+			snprintf(temp_fname, 256, "___ic_temp_%05d.bin", 100 * id_dm_mass);
 			std::ofstream ofs_temp(temp_fname, std::ios::binary | std::ios::trunc);
 
 			size_t blksize = sizeof(T_store) * npcoarse;
@@ -1090,7 +1090,7 @@ public:
 		temp_data.reserve(block_buf_size_);
 
 		char temp_fname[256];
-		sprintf(temp_fname, "___ic_temp_%05d.bin", 100 * id_dm_pos + coord);
+		snprintf(temp_fname, 256, "___ic_temp_%05d.bin", 100 * id_dm_pos + coord);
 		std::ofstream ofs_temp(temp_fname, std::ios::binary | std::ios::trunc);
 
 		size_t blksize = sizeof(T_store) * npart;
@@ -1167,7 +1167,7 @@ public:
 		size_t nwritten = 0;
 
 		char temp_fname[256];
-		sprintf(temp_fname, "___ic_temp_%05d.bin", 100 * id_dm_vel + coord);
+		snprintf(temp_fname, 256, "___ic_temp_%05d.bin", 100 * id_dm_vel + coord);
 		std::ofstream ofs_temp(temp_fname, std::ios::binary | std::ios::trunc);
 
 		size_t blksize = sizeof(T_store) * npart;
@@ -1245,7 +1245,7 @@ public:
 		size_t nwritten = 0;
 
 		char temp_fname[256];
-		sprintf(temp_fname, "___ic_temp_%05d.bin", 100 * id_gas_vel + coord);
+		snprintf(temp_fname, 256, "___ic_temp_%05d.bin", 100 * id_gas_vel + coord);
 		std::ofstream ofs_temp(temp_fname, std::ios::binary | std::ios::trunc);
 
 		size_t blksize = sizeof(T_store) * npart;
@@ -1314,7 +1314,7 @@ public:
 		temp_data.reserve(block_buf_size_);
 
 		char temp_fname[256];
-		sprintf(temp_fname, "___ic_temp_%05d.bin", 100 * id_gas_pos + coord);
+		snprintf(temp_fname, 256, "___ic_temp_%05d.bin", 100 * id_gas_pos + coord);
 		std::ofstream ofs_temp(temp_fname, std::ios::binary | std::ios::trunc);
 
 		size_t blksize = sizeof(T_store) * npart;

@@ -106,11 +106,11 @@ protected:
 			size_t nsz[3] = {size_t(ng[2]), size_t(ng[1]), size_t(ng[0])};
 
 			if (levelmin_ != levelmax_)
-				sprintf(enzoname, "%s.%d", fieldname.c_str(), ilevel - levelmin_);
+				snprintf(enzoname, 256, "%s.%d", fieldname.c_str(), ilevel - levelmin_);
 			else
-				sprintf(enzoname, "%s", fieldname.c_str());
+				snprintf(enzoname, 256, "%s", fieldname.c_str());
 
-			sprintf(filename, "%s/%s", fname_.c_str(), enzoname);
+			snprintf(filename, 512, "%s/%s", fname_.c_str(), enzoname);
 
 			HDFCreateFile(filename);
 			write_sim_header(filename, the_sim_header);
@@ -221,11 +221,11 @@ protected:
 			size_t nsz[3] = {size_t(ng[2]), size_t(ng[1]), size_t(ng[0])};
 
 			if (levelmin_ != levelmax_)
-				sprintf(enzoname, "%s.%d", fieldname.c_str(), ilevel - levelmin_);
+				snprintf(enzoname, 256, "%s.%d", fieldname.c_str(), ilevel - levelmin_);
 			else
-				sprintf(enzoname, "%s", fieldname.c_str());
+				snprintf(enzoname, 256, "%s", fieldname.c_str());
 
-			sprintf(filename, "%s/%s", fname_.c_str(), enzoname);
+			snprintf(filename, 512, "%s/%s", fname_.c_str(), enzoname);
 
 			HDFCreateFile(filename);
 			write_sim_header(filename, the_sim_header);
@@ -355,7 +355,7 @@ public:
 
 		// write out a parameter file
 
-		sprintf(filename, "%s/parameter_file.txt", fname_.c_str());
+		snprintf(filename, 256, "%s/parameter_file.txt", fname_.c_str());
 
 		std::ofstream ofs(filename, std::ios::trunc);
 
@@ -551,7 +551,7 @@ public:
 	void write_dm_velocity(int coord, const grid_hierarchy &gh)
 	{
 		char enzoname[256];
-		sprintf(enzoname, "ParticleVelocities_%c", (char)('x' + coord));
+		snprintf(enzoname, 256, "ParticleVelocities_%c", (char)('x' + coord));
 
 		double vunit = 1.0 / (1.225e2 * sqrt(the_sim_header.omega_m / the_sim_header.a_start));
 
@@ -561,7 +561,7 @@ public:
 	void write_dm_position(int coord, const grid_hierarchy &gh)
 	{
 		char enzoname[256];
-		sprintf(enzoname, "ParticleDisplacements_%c", (char)('x' + coord));
+		snprintf(enzoname, 256, "ParticleDisplacements_%c", (char)('x' + coord));
 
 		dump_grid_data(enzoname, gh);
 	}
@@ -579,7 +579,7 @@ public:
 		double vunit = 1.0 / (1.225e2 * sqrt(the_sim_header.omega_m / the_sim_header.a_start));
 
 		char enzoname[256];
-		sprintf(enzoname, "GridVelocities_%c", (char)('x' + coord));
+		snprintf(enzoname, 256, "GridVelocities_%c", (char)('x' + coord));
 		dump_grid_data(enzoname, gh, vunit);
 	}
 
@@ -592,7 +592,7 @@ public:
 	{
 
 		char enzoname[256];
-		sprintf(enzoname, "GridDensity");
+		snprintf(enzoname, 256, "GridDensity");
 		dump_grid_data(enzoname, gh, the_sim_header.omega_b / the_sim_header.omega_m, 1.0);
 	}
 

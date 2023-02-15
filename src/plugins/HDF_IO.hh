@@ -227,7 +227,6 @@ template<typename T >
 inline void HDFReadSelect( const std::string Filename, const std::string ObjName, const std::vector<unsigned>& ii, std::vector<T> &Data ){
 
   hid_t HDF_Type, HDF_FileID, HDF_DatasetID, HDF_DataspaceID, HDF_MemspaceID;
-  hsize_t HDF_StorageSize;
 
   HDF_Type = GetDataType<T>();
 

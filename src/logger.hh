@@ -133,7 +133,7 @@ public:
     char out[1024];
     va_list argptr;
     va_start(argptr, str);
-    vsprintf(out, str, argptr);
+    vsnprintf(out, 1024, str, argptr );
     va_end(argptr);
     std::string out_string = std::string(out);
     out_string.erase(std::remove(out_string.begin(), out_string.end(), '\n'),

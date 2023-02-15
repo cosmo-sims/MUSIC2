@@ -320,7 +320,7 @@ public:
 	void write_dm_velocity( int coord, const grid_hierarchy& gh )
 	{
 		char nyxname[256];
-		sprintf( nyxname, "ParticleVelocities_%c", (char)('x'+coord) );
+		snprintf( nyxname, 256, "ParticleVelocities_%c", (char)('x'+coord) );
 		
 		double vunit = 1.0/(1.225e2*sqrt(the_sim_header.omega_m/the_sim_header.a_start));
 		
@@ -331,7 +331,7 @@ public:
 	void write_dm_position( int coord, const grid_hierarchy& gh )
 	{
 		char nyxname[256];
-		sprintf( nyxname, "ParticleDisplacements_%c", (char)('x'+coord) );
+		snprintf( nyxname, 256,"ParticleDisplacements_%c", (char)('x'+coord) );
         
 		//dump_grid_data( nyxname, gh );
 		dump_grid_data(the_sim_header.particle_idx+coord, nyxname, gh);
@@ -349,7 +349,7 @@ public:
 		double vunit = 1.0/(1.225e2*sqrt(the_sim_header.omega_m/the_sim_header.a_start));
 		
 		char nyxname[256];
-		sprintf( nyxname, "GridVelocities_%c", (char)('x'+coord) );
+		snprintf( nyxname, 256, "GridVelocities_%c", (char)('x'+coord) );
 		dump_grid_data(coord+1, nyxname, gh);
 	}
 	
@@ -363,7 +363,7 @@ public:
 	void write_gas_density( const grid_hierarchy& gh )
 	{
 		char nyxname[256];
-		sprintf( nyxname, "density" );
+		snprintf( nyxname, 256, "density" );
 		//FIXME factor and add have to be adjusted to the
 		//corresponding nyx units...
 		dump_grid_data(0, nyxname, gh);

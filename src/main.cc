@@ -231,12 +231,12 @@ void store_grid_structure(config_file &cf, const refinement_hierarchy &rh)
 	{
 		for (int j = 0; j < 3; ++j)
 		{
-			sprintf(str1, "offset(%d,%d)", i, j);
-			sprintf(str2, "%ld", rh.offset(i, j));
+			snprintf(str1, 128, "offset(%d,%d)", i, j);
+			snprintf(str2, 128, "%ld", rh.offset(i, j));
 			cf.insert_value("setup", str1, str2);
 
-			sprintf(str1, "size(%d,%d)", i, j);
-			sprintf(str2, "%ld", rh.size(i, j));
+			snprintf(str1, 128, "size(%d,%d)", i, j);
+			snprintf(str2, 128, "%ld", rh.size(i, j));
 			cf.insert_value("setup", str1, str2);
 		}
 	}
@@ -391,7 +391,7 @@ int main(int argc, const char *argv[])
 	//------------------------------------------------------------------------------
 
 	char logfname[128];
-	sprintf(logfname, "%s_log.txt", argv[1]);
+	snprintf(logfname, 128, "%s_log.txt", argv[1]);
 	music::logger::set_output(logfname);
 	time_t ltime = time(NULL);
 	music::ilog.Print("Opening log file \'%s\'.", logfname);
@@ -484,11 +484,11 @@ int main(int argc, const char *argv[])
 	//
 	{
 		char tmpstr[128];
-		sprintf(tmpstr, "%.12g", cosmo.pnorm);
+		snprintf(tmpstr, 128, "%.12g", cosmo.pnorm);
 		cf.insert_value("cosmology", "pnorm", tmpstr);
-		sprintf(tmpstr, "%.12g", cosmo.dplus);
+		snprintf(tmpstr, 128, "%.12g", cosmo.dplus);
 		cf.insert_value("cosmology", "dplus", tmpstr);
-		sprintf(tmpstr, "%.12g", cosmo.vfact);
+		snprintf(tmpstr, 128, "%.12g", cosmo.vfact);
 		cf.insert_value("cosmology", "vfact", tmpstr);
 	}
 

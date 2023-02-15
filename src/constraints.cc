@@ -191,7 +191,7 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 	{
 		char temp1[128];
 		std::string temp2;
-		sprintf(temp1,"constraint[%u].type",i);
+		snprintf(temp1,128,"constraint[%u].type",i);
 		if( cf.contains_key( "constraints", temp1 ) )
 		{
 			std::string str_type = cf.get_value<std::string>( "constraints", temp1 );
@@ -204,17 +204,17 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 			new_c.type = constr_type_map[ str_type ];
 			
 			//... read position of constraint
-			sprintf(temp1,"constraint[%u].pos",i);
+			snprintf(temp1,128,"constraint[%u].pos",i);
 			temp2 = cf.get_value<std::string>( "constraints", temp1 );
 			sscanf(temp2.c_str(), "%lf,%lf,%lf", &new_c.x, &new_c.y, &new_c.z);
 			
 			if( new_c.type == halo)
 			{
 				//.. halo type constraints take mass and collapse redshift
-				sprintf(temp1,"constraint[%u].mass",i);
+				snprintf(temp1,128,"constraint[%u].mass",i);
 				double mass = cf.get_value<double>( "constraints", temp1 );
 				
-				sprintf(temp1,"constraint[%u].zform",i);
+				snprintf(temp1,128,"constraint[%u].zform",i);
 				double zcoll = cf.get_value<double>( "constraints", temp1 );
 				new_c.Rg = pow((mass/pow(2.*M_PI,1.5)/rhom),1./3.);
 				
@@ -226,15 +226,15 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 			else if( new_c.type == peak )
 			{
 				//... peak type constraints take a scale and a peak height
-				//sprintf(temp1,"constraint[%u].Rg",i);
+				//snprintf(temp1,128,"constraint[%u].Rg",i);
 				//new_c.Rg = cf.get_value<double>( "constraints", temp1 );
 				//double mass = pow(new_c.Rg,3.0)*rhom*pow(2.*M_PI,1.5);
 				
-				sprintf(temp1,"constraint[%u].mass",i);
+				snprintf(temp1,128,"constraint[%u].mass",i);
 				double mass = cf.get_value<double>( "constraints", temp1 );
 				new_c.Rg = pow((mass/pow(2.*M_PI,1.5)/rhom),1./3.);
 				double Rtophat = pow(mass/4.0*3.0/M_PI/rhom,1./3.);
-				sprintf(temp1,"constraint[%u].nu",i);
+				snprintf(temp1,128,"constraint[%u].nu",i);
 				double nu = cf.get_value<double>( "constraints", temp1 );
 				
 				std::vector<double> z,sigma;

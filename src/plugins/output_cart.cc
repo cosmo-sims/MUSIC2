@@ -297,12 +297,12 @@ class cart_output_plugin : public output_plugin
 
 			// generate all temp file names
 			char fnx[256],fny[256],fnz[256],fnvx[256],fnvy[256],fnvz[256];
-			sprintf( fnx,  "___ic_temp_%05d.bin", 100*id_dm_pos+0 );
-			sprintf( fny,  "___ic_temp_%05d.bin", 100*id_dm_pos+1 );
-			sprintf( fnz,  "___ic_temp_%05d.bin", 100*id_dm_pos+2 );
-			sprintf( fnvx, "___ic_temp_%05d.bin", 100*id_dm_vel+0 );
-			sprintf( fnvy, "___ic_temp_%05d.bin", 100*id_dm_vel+1 );
-			sprintf( fnvz, "___ic_temp_%05d.bin", 100*id_dm_vel+2 );
+			snprintf( fnx,  256, "___ic_temp_%05d.bin", 100*id_dm_pos+0 );
+			snprintf( fny,  256, "___ic_temp_%05d.bin", 100*id_dm_pos+1 );
+			snprintf( fnz,  256, "___ic_temp_%05d.bin", 100*id_dm_pos+2 );
+			snprintf( fnvx, 256, "___ic_temp_%05d.bin", 100*id_dm_vel+0 );
+			snprintf( fnvy, 256, "___ic_temp_%05d.bin", 100*id_dm_vel+1 );
+			snprintf( fnvz, 256, "___ic_temp_%05d.bin", 100*id_dm_vel+2 );
 
 			// create buffers for temporary data
 			T_store *tmp1, *tmp2, *tmp3, *tmp4, *tmp5, *tmp6;
@@ -422,13 +422,13 @@ class cart_output_plugin : public output_plugin
 
 			// generate all temp file names
 			char fnx[256],fny[256],fnz[256],fnvx[256],fnvy[256],fnvz[256],fnpma[256]; //add fields here
-			sprintf( fnx,  "___ic_temp_%05d.bin", 100*id_gas_pos+0 );
-			sprintf( fny,  "___ic_temp_%05d.bin", 100*id_gas_pos+1 );
-			sprintf( fnz,  "___ic_temp_%05d.bin", 100*id_gas_pos+2 );
-			sprintf( fnvx, "___ic_temp_%05d.bin", 100*id_gas_vel+0 );
-			sprintf( fnvy, "___ic_temp_%05d.bin", 100*id_gas_vel+1 );
-			sprintf( fnvz, "___ic_temp_%05d.bin", 100*id_gas_vel+2 );
-			sprintf( fnpma,  "___ic_temp_%05d.bin", 100*id_gas_pma ); //add fields here
+			snprintf( fnx,  256, "___ic_temp_%05d.bin", 100*id_gas_pos+0 );
+			snprintf( fny,  256, "___ic_temp_%05d.bin", 100*id_gas_pos+1 );
+			snprintf( fnz,  256, "___ic_temp_%05d.bin", 100*id_gas_pos+2 );
+			snprintf( fnvx, 256, "___ic_temp_%05d.bin", 100*id_gas_vel+0 );
+			snprintf( fnvy, 256, "___ic_temp_%05d.bin", 100*id_gas_vel+1 );
+			snprintf( fnvz, 256, "___ic_temp_%05d.bin", 100*id_gas_vel+2 );
+			snprintf( fnpma,256, "___ic_temp_%05d.bin", 100*id_gas_pma ); //add fields here
 
 			// create buffers for temporary data
 			T_store *tmp1, *tmp2, *tmp3, *tmp4, *tmp5, *tmp6, *tmp7; //add fields here
@@ -668,7 +668,7 @@ class cart_output_plugin : public output_plugin
 			double xfac = (double) header_.NGRIDC;
 
 			char temp_fname[256];
-			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
+			snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_dm_pos+coord );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 
 			size_t blksize = sizeof(T_store)*nptot;
@@ -746,7 +746,7 @@ class cart_output_plugin : public output_plugin
 			//snl	    exit(1);
 
 			char temp_fname[256];
-			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
+			snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_dm_vel+coord );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 
 			size_t blksize = sizeof(T_store)*nptot;
@@ -819,7 +819,7 @@ class cart_output_plugin : public output_plugin
 			}
 
 			char temp_fname[256];
-			sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_vel+coord );
+			snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_gas_vel+coord );
 			std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 
 			size_t blksize = sizeof(T_store)*nptot;
@@ -873,7 +873,7 @@ class cart_output_plugin : public output_plugin
 
 			// write gas positions to cell centers
 			for (int coord=0; coord < 3; coord++ ) {
-				sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_pos+coord );
+				snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_gas_pos+coord );
 				std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 				ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 
@@ -924,7 +924,7 @@ class cart_output_plugin : public output_plugin
 			{
 				double pmafac = header_.Omb0 / header_.Om0 ;
 				double pma;
-				sprintf( temp_fname, "___ic_temp_%05d.bin", 100*id_gas_pma);
+				snprintf( temp_fname, 256, "___ic_temp_%05d.bin", 100*id_gas_pma);
 				std::ofstream ofs_temp( temp_fname, std::ios::binary|std::ios::trunc );
 				ofs_temp.write( (char *)&blksize, sizeof(size_t) );
 

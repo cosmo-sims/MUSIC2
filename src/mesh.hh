@@ -1347,11 +1347,11 @@ public:
 		}
 
 		char strtmp[32];
-		sprintf(strtmp, "%ld", xshift_[0]);
+		snprintf(strtmp, 32, "%ld", xshift_[0]);
 		cf_.insert_value("setup", "shift_x", strtmp);
-		sprintf(strtmp, "%ld", xshift_[1]);
+		snprintf(strtmp, 32, "%ld", xshift_[1]);
 		cf_.insert_value("setup", "shift_y", strtmp);
-		sprintf(strtmp, "%ld", xshift_[2]);
+		snprintf(strtmp, 32, "%ld", xshift_[2]);
 		cf_.insert_value("setup", "shift_z", strtmp);
 
 		rshift_[0] = -(double)xshift_[0] / ncoarse;

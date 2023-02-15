@@ -7,7 +7,9 @@
 #include "densities.hh"
 #include "HDF_IO.hh"
 
-const int maxdim = 60, maxlev = 50, maxpow = 3 * maxdim;
+//const int maxdim = 60, maxlev = 50, maxpow = 3 * maxdim;
+const int maxdim = 60, maxpow = 3 * maxdim;
+
 typedef int rand_offset_[5];
 typedef struct
 {

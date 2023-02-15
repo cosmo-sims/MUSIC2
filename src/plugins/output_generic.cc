@@ -70,11 +70,11 @@ public:
 		for( unsigned ilevel=0; ilevel<=levelmax_; ++ilevel )
 		{
 			if( coord == 0 )
-				sprintf(sstr,"level_%03d_DM_vx",ilevel);
+				snprintf(sstr,128, "level_%03d_DM_vx",ilevel);
 			else if( coord == 1 )
-				sprintf(sstr,"level_%03d_DM_vy",ilevel);
+				snprintf(sstr,128, "level_%03d_DM_vy",ilevel);
 			else if( coord == 2 )
-				sprintf(sstr,"level_%03d_DM_vz",ilevel);
+				snprintf(sstr,128, "level_%03d_DM_vz",ilevel);
 			
 			write2HDF5( fname_, sstr, *gh.get_grid(ilevel) );
 		}
@@ -87,11 +87,11 @@ public:
 		for( unsigned ilevel=0; ilevel<=levelmax_; ++ilevel )
 		{
 			if( coord == 0 )
-				sprintf(sstr,"level_%03d_DM_dx",ilevel);
+				snprintf(sstr,128,"level_%03d_DM_dx",ilevel);
 			else if( coord == 1 )
-				sprintf(sstr,"level_%03d_DM_dy",ilevel);
+				snprintf(sstr,128,"level_%03d_DM_dy",ilevel);
 			else if( coord == 2 )
-				sprintf(sstr,"level_%03d_DM_dz",ilevel);
+				snprintf(sstr,128,"level_%03d_DM_dz",ilevel);
 			
 			write2HDF5( fname_, sstr, *gh.get_grid(ilevel) );
 		}
@@ -103,7 +103,7 @@ public:
 		
 		for( unsigned ilevel=0; ilevel<=levelmax_; ++ilevel )
 		{
-			sprintf(sstr,"level_%03d_DM_rho",ilevel);
+			snprintf(sstr,128,"level_%03d_DM_rho",ilevel);
 			write2HDF5( fname_, sstr, *gh.get_grid(ilevel) );
 		}
 
@@ -191,7 +191,7 @@ public:
 		
 		for( unsigned ilevel=0; ilevel<=levelmax_; ++ilevel )
 		{
-			sprintf(sstr,"level_%03d_DM_potential",ilevel);
+			snprintf(sstr,128,"level_%03d_DM_potential",ilevel);
 			write2HDF5( fname_, sstr, *gh.get_grid(ilevel) );
 		}
 	}
@@ -202,7 +202,7 @@ public:
 		
 		for( unsigned ilevel=0; ilevel<=levelmax_; ++ilevel )
 		{
-			sprintf(sstr,"level_%03d_BA_potential",ilevel);
+			snprintf(sstr,128,"level_%03d_BA_potential",ilevel);
 			write2HDF5( fname_, sstr, *gh.get_grid(ilevel) );
 		}
 	}
@@ -216,11 +216,11 @@ public:
 		for( unsigned ilevel=0; ilevel<=levelmax_; ++ilevel )
 		{
 			if( coord == 0 )
-				sprintf(sstr,"level_%03d_BA_vx",ilevel);
+				snprintf(sstr,128,"level_%03d_BA_vx",ilevel);
 			else if( coord == 1 )
-				sprintf(sstr,"level_%03d_BA_vy",ilevel);
+				snprintf(sstr,128,"level_%03d_BA_vy",ilevel);
 			else if( coord == 2 )
-				sprintf(sstr,"level_%03d_BA_vz",ilevel);
+				snprintf(sstr,128,"level_%03d_BA_vz",ilevel);
 			
 			write2HDF5( fname_, sstr, *gh.get_grid(ilevel) );
 		}
@@ -235,7 +235,7 @@ public:
 		
 		for( unsigned ilevel=0; ilevel<=levelmax_; ++ilevel )
 		{
-			sprintf(sstr,"level_%03d_BA_rho",ilevel);
+			snprintf(sstr,128,"level_%03d_BA_rho",ilevel);
 			write2HDF5( fname_, sstr, *gh.get_grid(ilevel) );
 		}
 	}

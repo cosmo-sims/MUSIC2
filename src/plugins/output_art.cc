@@ -300,12 +300,12 @@ protected:
 
 		// generate all temp file names
 		char fnx[256], fny[256], fnz[256], fnvx[256], fnvy[256], fnvz[256];
-		sprintf(fnx, "___ic_temp_%05d.bin", 100 * id_dm_pos + 0);
-		sprintf(fny, "___ic_temp_%05d.bin", 100 * id_dm_pos + 1);
-		sprintf(fnz, "___ic_temp_%05d.bin", 100 * id_dm_pos + 2);
-		sprintf(fnvx, "___ic_temp_%05d.bin", 100 * id_dm_vel + 0);
-		sprintf(fnvy, "___ic_temp_%05d.bin", 100 * id_dm_vel + 1);
-		sprintf(fnvz, "___ic_temp_%05d.bin", 100 * id_dm_vel + 2);
+		snprintf(fnx,  256, "___ic_temp_%05d.bin", 100 * id_dm_pos + 0);
+		snprintf(fny,  256, "___ic_temp_%05d.bin", 100 * id_dm_pos + 1);
+		snprintf(fnz,  256, "___ic_temp_%05d.bin", 100 * id_dm_pos + 2);
+		snprintf(fnvx, 256, "___ic_temp_%05d.bin", 100 * id_dm_vel + 0);
+		snprintf(fnvy, 256, "___ic_temp_%05d.bin", 100 * id_dm_vel + 1);
+		snprintf(fnvz, 256, "___ic_temp_%05d.bin", 100 * id_dm_vel + 2);
 
 		// create buffers for temporary data
 		T_store *tmp1, *tmp2, *tmp3, *tmp4, *tmp5, *tmp6;
@@ -420,12 +420,12 @@ protected:
 
 		// generate all temp file names
 		char fnx[256], fny[256], fnz[256], fnvx[256], fnvy[256], fnvz[256];
-		sprintf(fnx, "___ic_temp_%05d.bin", 100 * id_gas_pos + 0);
-		sprintf(fny, "___ic_temp_%05d.bin", 100 * id_gas_pos + 1);
-		sprintf(fnz, "___ic_temp_%05d.bin", 100 * id_gas_pos + 2);
-		sprintf(fnvx, "___ic_temp_%05d.bin", 100 * id_gas_vel + 0);
-		sprintf(fnvy, "___ic_temp_%05d.bin", 100 * id_gas_vel + 1);
-		sprintf(fnvz, "___ic_temp_%05d.bin", 100 * id_gas_vel + 2);
+		snprintf(fnx,  256, "___ic_temp_%05d.bin", 100 * id_gas_pos + 0);
+		snprintf(fny,  256, "___ic_temp_%05d.bin", 100 * id_gas_pos + 1);
+		snprintf(fnz,  256, "___ic_temp_%05d.bin", 100 * id_gas_pos + 2);
+		snprintf(fnvx, 256, "___ic_temp_%05d.bin", 100 * id_gas_vel + 0);
+		snprintf(fnvy, 256, "___ic_temp_%05d.bin", 100 * id_gas_vel + 1);
+		snprintf(fnvz, 256, "___ic_temp_%05d.bin", 100 * id_gas_vel + 2);
 
 		// create buffers for temporary data
 		T_store *tmp1, *tmp2, *tmp3, *tmp4, *tmp5, *tmp6;
@@ -645,7 +645,7 @@ public:
 		double xfac = (double)header_.NGRIDC;
 
 		char temp_fname[256];
-		sprintf(temp_fname, "___ic_temp_%05d.bin", 100 * id_dm_pos + coord);
+		snprintf(temp_fname, 256, "___ic_temp_%05d.bin", 100 * id_dm_pos + coord);
 		std::ofstream ofs_temp(temp_fname, std::ios::binary | std::ios::trunc);
 
 		size_t blksize = sizeof(T_store) * nptot;
@@ -709,7 +709,7 @@ public:
 		double vfac = (header_.aexpN * header_.NGRIDC) / (100.0);
 
 		char temp_fname[256];
-		sprintf(temp_fname, "___ic_temp_%05d.bin", 100 * id_dm_vel + coord);
+		snprintf(temp_fname, 256, "___ic_temp_%05d.bin", 100 * id_dm_vel + coord);
 		std::ofstream ofs_temp(temp_fname, std::ios::binary | std::ios::trunc);
 
 		size_t blksize = sizeof(T_store) * nptot;
@@ -772,7 +772,7 @@ public:
 		double xfac = (double)header_.NGRIDC;
 
 		char temp_fname[256];
-		sprintf(temp_fname, "___ic_temp_%05d.bin", 100 * id_gas_pos + coord);
+		snprintf(temp_fname, 256, "___ic_temp_%05d.bin", 100 * id_gas_pos + coord);
 		std::ofstream ofs_temp(temp_fname, std::ios::binary | std::ios::trunc);
 
 		size_t blksize = sizeof(T_store) * nptot;
@@ -836,7 +836,7 @@ public:
 		double vfac = (header_.aexpN * header_.NGRIDC) / (100.0);
 
 		char temp_fname[256];
-		sprintf(temp_fname, "___ic_temp_%05d.bin", 100 * id_gas_vel + coord);
+		snprintf(temp_fname, 256, "___ic_temp_%05d.bin", 100 * id_gas_vel + coord);
 		std::ofstream ofs_temp(temp_fname, std::ios::binary | std::ios::trunc);
 
 		size_t blksize = sizeof(T_store) * nptot;

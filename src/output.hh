@@ -61,7 +61,7 @@ protected:
 		char str[128];
 		for( unsigned i=levelmin_; i<=levelmax_; ++i )
 		{
-			sprintf( str, "%s(%u,%d)", name.c_str(), i, icomp );
+			snprintf( str, 128, "%s(%u,%d)", name.c_str(), i, icomp );
 			*oit = cf_.get_value<unsigned>( "setup", str );
 			++oit;
 		}

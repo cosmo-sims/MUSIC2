@@ -238,7 +238,7 @@ protected:
 	real_t krgood( real_t mu, real_t q, real_t dlnr, real_t kr )
 	{
 		double krnew = kr;
-		complex cdgamma, zm, zp;
+		complex zm, zp;
 		double arg, iarg, xneg, xpos, y;
 		gsl_sf_result g_a, g_p;
 		
@@ -321,7 +321,6 @@ protected:
 			
 		
 		std::ofstream ofsk(ofname.c_str());
-		double sum_in = 0.0;
 		
 		ofsk << "# The power spectrum definition is smaller than CAMB by a factor 8 pi^3."
 		    << std::endl;
@@ -334,8 +333,6 @@ protected:
 			
 			RE(in[i]) = del*pow(k,1.5-q);
 			IM(in[i]) = 0.0;
-			
-			sum_in += RE(in[i]);	
 			
 			ofsk << std::setw(16) << k <<std::setw(16) << del*del << std::setw(16) << T << std::endl;
 		}

@@ -92,7 +92,7 @@ void RNG_music::parse_random_parameters(void)
     char seedstr[128];
     std::string tempstr;
     bool noseed = false;
-    sprintf(seedstr, "seed[%d]", i);
+    snprintf(seedstr,128, "seed[%d]", i);
     if (pcf_->contains_key("random", seedstr))
       tempstr = pcf_->get_value<std::string>("random", seedstr);
     else
@@ -277,7 +277,7 @@ void RNG_music::store_rnd(int ilevel, rng *prng)
       k0 = -lfac * shift[2];
 
       char fname[128];
-      sprintf(fname, "grafic_wnoise_%04d.bin", ilevel);
+      snprintf(fname, 128, "grafic_wnoise_%04d.bin", ilevel);
 
       music::ulog.Print("Storing white noise field for grafic in file \'%s\'...", fname);
 
@@ -323,7 +323,7 @@ void RNG_music::store_rnd(int ilevel, rng *prng)
       k0 = prefh_->offset_abs(ilevel, 2) - lfac * shift[2];
 
       char fname[128];
-      sprintf(fname, "grafic_wnoise_%04d.bin", ilevel);
+      snprintf(fname, 128,"grafic_wnoise_%04d.bin", ilevel);
 
       music::ulog.Print("Storing white noise field for grafic in file \'%s\'...", fname);
       music::dlog.Print("(%d,%d,%d) -- (%d,%d,%d) -- lfac = %d", nx, ny, nz, i0, j0, k0, lfac);
@@ -370,7 +370,7 @@ void RNG_music::store_rnd(int ilevel, rng *prng)
       k0 = -lfac * shift[2];
 
       char fname[128];
-      sprintf(fname, "wnoise_%04d.bin", ilevel);
+      snprintf(fname, 128,"wnoise_%04d.bin", ilevel);
 
       music::ulog.Print("Storing white noise field in file \'%s\'...", fname);
 
@@ -416,7 +416,7 @@ void RNG_music::store_rnd(int ilevel, rng *prng)
       k0 = prefh_->offset_abs(ilevel, 2) - lfac * shift[2] - margin[2];
 
       char fname[128];
-      sprintf(fname, "wnoise_%04d.bin", ilevel);
+      snprintf(fname, 128,"wnoise_%04d.bin", ilevel);
 
       music::ulog.Print("Storing white noise field in file \'%s\'...", fname);
 
@@ -500,7 +500,7 @@ void RNG_music::fill_grid(int ilevel, DensityGrid<real_t> &A)
   if (disk_cached_)
   {
     char fname[128];
-    sprintf(fname, "wnoise_%04d.bin", ilevel);
+    snprintf(fname, 128,"wnoise_%04d.bin", ilevel);
 
     music::ulog.Print("Loading white noise from file \'%s\'...", fname);
 

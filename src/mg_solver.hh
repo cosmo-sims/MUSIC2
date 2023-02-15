@@ -367,7 +367,7 @@ double solver<S, I, O>::compute_error(const MeshvarBnd<real_t> &u, const Meshvar
 			ny = u.size(1),
 			nz = u.size(2);
 
-	double err = 0.0, err2 = 0.0;
+	double err = 0.0; //, err2 = 0.0;
 	size_t count = 0;
 
 	double h = 1.0 / (1ul << ilevel), h2 = h * h;
@@ -642,5 +642,3 @@ void solver<S, I, O>::make_periodic(MeshvarBnd<real_t> *u)
 }
 
 END_MULTIGRID_NAMESPACE
-
-

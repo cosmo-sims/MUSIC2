@@ -417,8 +417,8 @@ double solver<S, O>::solve(GridHierarchy<real_t> &uh, double acc, double h, bool
 
 		if (verbose)
 		{
-			std::cout << "--> Step No. " << std::setw(3) << niter << ", Max Err = " << err << std::endl;
-			std::cout << "-------------------------------------------------------------\n";
+			music::ilog << "--> Step No. " << std::setw(3) << niter << ", Max Err = " << err << std::endl;
+			music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 		}
 
 		if ((niter > 1) && ((err < acc) || (niter > 20)))
@@ -429,9 +429,9 @@ double solver<S, O>::solve(GridHierarchy<real_t> &uh, double acc, double h, bool
 	}
 
 	if (err > acc)
-		std::cout << "Error : no convergence in Poisson solver" << std::endl;
+		music::elog << "Error : no convergence in Poisson solver" << std::endl;
 	else if (verbose)
-		std::cout << " - Converged in " << niter << " steps to req. acc. of " << acc << std::endl;
+		music::ulog << " - Converged in " << niter << " steps to req. acc. of " << acc << std::endl;
 
 	// uh = uhnew;
 	//*m_pf = fsave;

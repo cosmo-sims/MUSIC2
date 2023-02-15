@@ -94,18 +94,18 @@ double compute_finest_sigma(grid_hierarchy &u);
 void splash(void)
 {
 
-	std::cout
-			<< "\n    __    __     __  __     ______     __     ______      \n"
-			<< "   /\\ \"-./  \\   /\\ \\/\\ \\   /\\  ___\\   /\\ \\   /\\  ___\\  \n"
-			<< "   \\ \\ \\-./\\ \\  \\ \\ \\_\\ \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\____ \n"
-			<< "    \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\/\\_____\\  \\ \\_\\  \\ \\_____\\ \n"
-			<< "     \\/_/  \\/_/   \\/_____/   \\/_____/   \\/_/   \\/_____/ \n\n"
-			<< "                            this is " << THE_CODE_NAME << " version " << THE_CODE_VERSION << "\n\n";
+	music::ilog << std::endl
+			<< "    __    __     __  __     ______     __     ______      " << std::endl
+			<< "   /\\ \"-./  \\   /\\ \\/\\ \\   /\\  ___\\   /\\ \\   /\\  ___\\  " << std::endl
+			<< "   \\ \\ \\-./\\ \\  \\ \\ \\_\\ \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\____ " << std::endl
+			<< "    \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\/\\_____\\  \\ \\_\\  \\ \\_____\\ " << std::endl
+			<< "     \\/_/  \\/_/   \\/_____/   \\/_____/   \\/_/   \\/_____/ " << std::endl << std::endl
+			<< "                            this is " << THE_CODE_NAME << " version " << THE_CODE_VERSION << std::endl << std::endl;
 
 #if defined(CMAKE_BUILD)
 	music::ilog.Print("Version built from git rev.: %s, tag: %s, branch: %s", GIT_REV, GIT_TAG, GIT_BRANCH);
 #endif
-	std::cout << "\n\n";
+	music::ilog << std::endl << std::endl;
 }
 
 void modify_grid_for_TF(const refinement_hierarchy &rh_full, refinement_hierarchy &rh_TF, config_file &cf)
@@ -151,7 +151,7 @@ void modify_grid_for_TF(const refinement_hierarchy &rh_full, refinement_hierarch
 
 	if (lbaseTF > lbase)
 	{
-		std::cout << " - Will use levelmin = " << lbaseTF << " to compute density field...\n";
+		music::ilog << "- Will use levelmin = " << lbaseTF << " to compute density field...\n";
 
 		for (unsigned i = lbase; i <= lbaseTF; ++i)
 		{
@@ -180,48 +180,48 @@ void print_hierarchy_stats(config_file &cf, const refinement_hierarchy &rh)
 	else
 		cmass = omegam * rhom * dx3;
 
-	std::cout << "-------------------------------------------------------------\n";
+	music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 
 	if (rh.get_shift(0) != 0 || rh.get_shift(1) != 0 || rh.get_shift(2) != 0)
-		std::cout << " - Domain will be shifted by (" << rh.get_shift(0) << ", " << rh.get_shift(1) << ", " << rh.get_shift(2) << ")\n"
+		music::ilog << "- Domain will be shifted by (" << rh.get_shift(0) << ", " << rh.get_shift(1) << ", " << rh.get_shift(2) << ")\n"
 							<< std::endl;
 
-	std::cout << " - Grid structure:\n";
+	music::ilog << "- Grid structure:\n";
 
 	for (unsigned ilevel = rh.levelmin(); ilevel <= rh.levelmax(); ++ilevel)
 	{
 		double rfac = 1.0 / (1 << (ilevel - rh.levelmin())), rfac3 = rfac * rfac * rfac;
 
 		mtotgrid = omegam * rhom * dx3 * rfac3 * rh.size(ilevel, 0) * rh.size(ilevel, 1) * rh.size(ilevel, 2);
-		std::cout
+		music::ilog
 				<< "     Level " << std::setw(3) << ilevel << " :   offset = (" << std::setw(5) << rh.offset(ilevel, 0) << ", " << std::setw(5) << rh.offset(ilevel, 1) << ", " << std::setw(5) << rh.offset(ilevel, 2) << ")\n"
 				<< "                     size = (" << std::setw(5) << rh.size(ilevel, 0) << ", " << std::setw(5) << rh.size(ilevel, 1) << ", " << std::setw(5) << rh.size(ilevel, 2) << ")\n";
 
 		if (ilevel == rh.levelmax())
 		{
-			std::cout << "-------------------------------------------------------------\n";
-			std::cout << " - Finest level :\n";
+			music::ilog << "-------------------------------------------------------------------------------" << std::endl;
+			music::ilog << "- Finest level :\n";
 
 			if (dx * rfac > 0.1)
-				std::cout << "                   extent =  " << dx * rfac * rh.size(ilevel, 0) << " x " << dx * rfac * rh.size(ilevel, 1) << " x " << dx * rfac * rh.size(ilevel, 2) << " h-3 Mpc**3\n";
+				music::ilog << "                   extent =  " << dx * rfac * rh.size(ilevel, 0) << " x " << dx * rfac * rh.size(ilevel, 1) << " x " << dx * rfac * rh.size(ilevel, 2) << " h-3 Mpc**3\n";
 			else if (dx * rfac > 1e-4)
-				std::cout << "                   extent =  " << dx * rfac * 1000.0 * rh.size(ilevel, 0) << " x " << dx * rfac * 1000.0 * rh.size(ilevel, 1) << " x " << dx * rfac * 1000.0 * rh.size(ilevel, 2) << " h-3 kpc**3\n";
+				music::ilog << "                   extent =  " << dx * rfac * 1000.0 * rh.size(ilevel, 0) << " x " << dx * rfac * 1000.0 * rh.size(ilevel, 1) << " x " << dx * rfac * 1000.0 * rh.size(ilevel, 2) << " h-3 kpc**3\n";
 			else
-				std::cout << "                   extent =  " << dx * rfac * 1.e6 * rh.size(ilevel, 0) << " x " << dx * rfac * 1.e6 * rh.size(ilevel, 1) << " x " << dx * rfac * 1.e6 * rh.size(ilevel, 2) << " h-3 pc**3\n";
+				music::ilog << "                   extent =  " << dx * rfac * 1.e6 * rh.size(ilevel, 0) << " x " << dx * rfac * 1.e6 * rh.size(ilevel, 1) << " x " << dx * rfac * 1.e6 * rh.size(ilevel, 2) << " h-3 pc**3\n";
 
-			std::cout << "                 mtotgrid =  " << mtotgrid << " h-1 M_o\n";
-			std::cout << "            particle mass =  " << cmass * rfac3 << " h-1 M_o\n";
+			music::ilog << "                 mtotgrid =  " << mtotgrid << " h-1 M_o\n";
+			music::ilog << "            particle mass =  " << cmass * rfac3 << " h-1 M_o\n";
 			if (bbaryons)
-				std::cout << "         baryon mass/cell =  " << bmass * rfac3 << " h-1 M_o\n";
+				music::ilog << "         baryon mass/cell =  " << bmass * rfac3 << " h-1 M_o\n";
 			if (dx * rfac > 0.1)
-				std::cout << "                       dx =  " << dx * rfac << " h-1 Mpc\n";
+				music::ilog << "                       dx =  " << dx * rfac << " h-1 Mpc\n";
 			else if (dx * rfac > 1e-4)
-				std::cout << "                       dx =  " << dx * rfac * 1000.0 << " h-1 kpc\n";
+				music::ilog << "                       dx =  " << dx * rfac * 1000.0 << " h-1 kpc\n";
 			else
-				std::cout << "                       dx =  " << dx * rfac * 1.e6 << " h-1 pc\n";
+				music::ilog << "                       dx =  " << dx * rfac * 1.e6 << " h-1 pc\n";
 		}
 	}
-	std::cout << "-------------------------------------------------------------\n";
+	music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 }
 
 void store_grid_structure(config_file &cf, const refinement_hierarchy &rh)
@@ -372,9 +372,10 @@ int main(int argc, const char *argv[])
 	//... parse command line options
 	//------------------------------------------------------------------------------
 
-	splash();
+	
 	if (argc != 2)
 	{
+		splash();
 		std::cout << " This version is compiled with the following plug-ins:\n";
 
 		print_region_generator_plugins();
@@ -394,6 +395,8 @@ int main(int argc, const char *argv[])
 	snprintf(logfname, 128, "%s_log.txt", argv[1]);
 	music::logger::set_output(logfname);
 	time_t ltime = time(NULL);
+
+	splash();
 	music::ilog.Print("Opening log file \'%s\'.", logfname);
 	music::ulog.Print("Running %s, version %s", THE_CODE_NAME, THE_CODE_VERSION);
 	music::ulog.Print("Log is for run started %s", asctime(localtime(&ltime)));
@@ -412,6 +415,10 @@ int main(int argc, const char *argv[])
 	//------------------------------------------------------------------------------
 	CONFIG::FFTW_threads_ok = FFTW_API(init_threads)();
 	CONFIG::num_threads = cf.get_value_safe<unsigned>("execution", "NumThreads",std::thread::hardware_concurrency());
+
+	music::ilog << "-------------------------------------------------------------------------------" << std::endl;
+	output_system_info();
+	music::ilog << "-------------------------------------------------------------------------------" << std::endl;
   
 	//------------------------------------------------------------------------------
 	//... initialize some parameters about grid set-up
@@ -427,8 +434,8 @@ int main(int argc, const char *argv[])
 
 	if (lbaseTF < lbase)
 	{
-		std::cout << " - WARNING: levelminTF < levelmin. This is not good!\n"
-							<< "            I will set levelminTF = levelmin.\n";
+		music::ilog << " - WARNING: levelminTF < levelmin. This is not good!" << std::endl
+							  << "            I will set levelminTF = levelmin." << std::endl;
 
 		music::ulog.Print("levelminTF < levelmin. set levelminTF = levelmin.");
 
@@ -460,7 +467,7 @@ int main(int argc, const char *argv[])
 
 	cosmology cosmo(cf);
 
-	std::cout << " - starting at a=" << cosmo.astart << std::endl;
+	music::ilog << "- starting at a=" << cosmo.astart << std::endl;
 
 	CosmoCalc ccalc(cosmo, the_transfer_function_plugin);
 	cosmo.pnorm = ccalc.ComputePNorm(2.0 * M_PI / boxlength);
@@ -499,8 +506,8 @@ int main(int argc, const char *argv[])
 	//------------------------------------------------------------------------------
 
 	if (!the_transfer_function_plugin->tf_is_distinct() && do_baryons)
-		std::cout << " - WARNING: The selected transfer function does not support\n"
-							<< "            distinct amplitudes for baryon and DM fields!\n"
+		music::wlog << " - WARNING: The selected transfer function does not support" << std::endl
+							<< "            distinct amplitudes for baryon and DM fields!" << std::endl
 							<< "            Perturbation amplitudes will be identical!" << std::endl;
 
 
@@ -538,10 +545,10 @@ int main(int argc, const char *argv[])
 	//------------------------------------------------------------------------------
 	//... initialize the random numbers
 	//------------------------------------------------------------------------------
-	std::cout << "=============================================================\n";
-	std::cout << "   GENERATING WHITE NOISE\n";
-	std::cout << "-------------------------------------------------------------\n";
-	music::ulog.Print("Computing white noise...");
+	music::ilog << "===============================================================================" << std::endl;
+	music::ilog << "   GENERATING WHITE NOISE\n";
+	music::ilog << "-------------------------------------------------------------------------------" << std::endl;
+	music::ilog << "Computing white noise..." << std::endl;
 	// rand_gen rand(cf, rh_TF, the_transfer_function_plugin);
 	rand.initialize_for_grid_structure( rh_TF );
 
@@ -597,9 +604,9 @@ int main(int argc, const char *argv[])
 			//------------------------------------------------------------------------------
 			//... cdm density and displacements
 			//------------------------------------------------------------------------------
-			std::cout << "=============================================================\n";
-			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
-			std::cout << "-------------------------------------------------------------\n";
+			music::ilog << "===============================================================================" << std::endl;
+			music::ilog << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
+			music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 			music::ulog.Print("Computing dark matter displacements...");
 
 			grid_hierarchy f(nbnd); //, u(nbnd);
@@ -667,9 +674,9 @@ int main(int argc, const char *argv[])
 			//------------------------------------------------------------------------------
 			if (do_baryons)
 			{
-				std::cout << "=============================================================\n";
-				std::cout << "   COMPUTING BARYON DENSITY\n";
-				std::cout << "-------------------------------------------------------------\n";
+				music::ilog << "===============================================================================" << std::endl;
+				music::ilog << "   COMPUTING BARYON DENSITY\n";
+				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon density...");
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, baryon, rh_TF, rand, f, false, bbshift);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
@@ -736,9 +743,9 @@ int main(int argc, const char *argv[])
 			//------------------------------------------------------------------------------
 			if ((!the_transfer_function_plugin->tf_has_velocities() || !do_baryons) && !bsph)
 			{
-				std::cout << "=============================================================\n";
-				std::cout << "   COMPUTING VELOCITIES\n";
-				std::cout << "-------------------------------------------------------------\n";
+				music::ilog << "===============================================================================" << std::endl;
+				music::ilog << "   COMPUTING VELOCITIES\n";
+				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing velocitites...");
 
 				if (do_baryons || the_transfer_function_plugin->tf_has_velocities())
@@ -807,9 +814,9 @@ int main(int argc, const char *argv[])
 			else
 			{
 				music::ilog.Print("Computing separate velocities for CDM and baryons:");
-				std::cout << "=============================================================\n";
-				std::cout << "   COMPUTING DARK MATTER VELOCITIES\n";
-				std::cout << "-------------------------------------------------------------\n";
+				music::ilog << "===============================================================================" << std::endl;
+				music::ilog << "   COMPUTING DARK MATTER VELOCITIES" << std::endl;
+				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing dark matter velocitites...");
 
 				//... we do baryons and have velocity transfer functions, or we do SPH and not to shift
@@ -868,9 +875,9 @@ int main(int argc, const char *argv[])
 				data_forIO.deallocate();
 				f.deallocate();
 
-				std::cout << "=============================================================\n";
-				std::cout << "   COMPUTING BARYON VELOCITIES\n";
-				std::cout << "-------------------------------------------------------------\n";
+				music::ilog << "===============================================================================" << std::endl;
+				music::ilog << "   COMPUTING BARYON VELOCITIES" << std::endl;
+				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon velocitites...");
 				//... do baryons
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, vbaryon, rh_TF, rand, f, false, bbshift);
@@ -944,18 +951,16 @@ int main(int argc, const char *argv[])
 			if (!do_baryons || !the_transfer_function_plugin->tf_has_velocities())
 				my_tf_type = total;
 
-			std::cout << "=============================================================\n";
+			music::ilog << "===============================================================================" << std::endl;
 			if (my_tf_type == total)
 			{
-				std::cout << "   COMPUTING VELOCITIES\n";
-				music::ulog.Print("Computing velocities...");
+				music::ilog << "   COMPUTING VELOCITIES" << std::endl;
 			}
 			else
 			{
-				std::cout << "   COMPUTING DARK MATTER VELOCITIES\n";
-				music::ulog.Print("Computing dark matter velocities...");
+				music::ilog << "   COMPUTING DARK MATTER VELOCITIES" << std::endl;
 			}
-			std::cout << "-------------------------------------------------------------\n";
+			music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 
 			GenerateDensityHierarchy(cf, the_transfer_function_plugin, my_tf_type, rh_TF, rand, f, false, false);
 			coarsen_density(rh_Poisson, f, bspectral_sampling);
@@ -980,16 +985,16 @@ int main(int argc, const char *argv[])
 			else
 				f.deallocate();
 
-			music::ilog.Print("Computing 2LPT term....");
+			music::ilog.Print("- Computing 2LPT term....");
 			if (!kspace2LPT)
 				compute_2LPT_source(u1, f2LPT, grad_order);
 			else
 			{
-				music::ulog.Print("computing term using FFT");
+				music::ulog.Print("  computing term using FFT");
 				compute_2LPT_source_FFT(cf, u1, f2LPT);
 			}
 
-			music::ilog.Print("Solving 2LPT Poisson equation");
+			music::ilog.Print("- Solving 2LPT Poisson equation");
 			u2LPT = u1;
 			u2LPT.zero();
 			the_poisson_solver->solve(f2LPT, u2LPT);
@@ -1034,8 +1039,8 @@ int main(int argc, const char *argv[])
 				double maxv = compute_finest_absmax(data_forIO);
 				music::ilog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
-				std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
-				std::cerr << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
+				music::ilog << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
+				music::ilog << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
 
 				coarsen_density(rh_Poisson, data_forIO, false);
 
@@ -1058,9 +1063,9 @@ int main(int argc, const char *argv[])
 
 			if (do_baryons && (the_transfer_function_plugin->tf_has_velocities() || bsph))
 			{
-				std::cout << "=============================================================\n";
-				std::cout << "   COMPUTING BARYON VELOCITIES\n";
-				std::cout << "-------------------------------------------------------------\n";
+				music::ilog << "===============================================================================" << std::endl;
+				music::ilog << "   COMPUTING BARYON VELOCITIES" << std::endl;
+				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon displacements...");
 
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, vbaryon, rh_TF, rand, f, false, bbshift);
@@ -1132,8 +1137,8 @@ int main(int argc, const char *argv[])
 					double maxv = compute_finest_absmax(data_forIO);
 					music::ilog.Print("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
 
-					std::cerr << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
-					std::cerr << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
+					music::ilog << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
+					music::ilog << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
@@ -1147,9 +1152,9 @@ int main(int argc, const char *argv[])
 				u1.deallocate();
 			}
 
-			std::cout << "=============================================================\n";
-			std::cout << "   COMPUTING DARK MATTER DISPLACEMENTS\n";
-			std::cout << "-------------------------------------------------------------\n";
+			music::ilog << "===============================================================================" << std::endl;
+			music::ilog << "   COMPUTING DARK MATTER DISPLACEMENTS" << std::endl;
+			music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 			music::ulog.Print("Computing dark matter displacements...");
 
 			//... if baryons are enabled, the displacements have to be recomputed
@@ -1254,9 +1259,9 @@ int main(int argc, const char *argv[])
 
 			if (do_baryons && !bsph)
 			{
-				std::cout << "=============================================================\n";
-				std::cout << "   COMPUTING BARYON DENSITY\n";
-				std::cout << "-------------------------------------------------------------\n";
+				music::ilog << "===============================================================================" << std::endl;
+				music::ilog << "   COMPUTING BARYON DENSITY" << std::endl;
+				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon density...");
 
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, baryon, rh_TF, rand, f, true, false);
@@ -1297,9 +1302,9 @@ int main(int argc, const char *argv[])
 			}
 			else if (do_baryons && bsph)
 			{
-				std::cout << "=============================================================\n";
-				std::cout << "   COMPUTING BARYON DISPLACEMENTS\n";
-				std::cout << "-------------------------------------------------------------\n";
+				music::ilog << "===============================================================================" << std::endl;
+				music::ilog << "   COMPUTING BARYON DISPLACEMENTS" << std::endl;
+				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon displacements...");
 
 				GenerateDensityHierarchy(cf, the_transfer_function_plugin, baryon, rh_TF, rand, f, false, bbshift);
@@ -1385,11 +1390,10 @@ int main(int argc, const char *argv[])
 		bfatal = true;
 	}
 
-	std::cout << "=============================================================\n";
-
+	music::ilog << "===============================================================================" << std::endl;
 	if (!bfatal)
 	{
-		std::cout << " - Wrote output file \'" << outfname << "\'\n     using plugin \'" << outformat << "\'...\n";
+		music::ilog << " - Wrote output file \'" << outfname << "\'\n     using plugin \'" << outformat << "\'...\n";
 		music::ulog.Print("Wrote output file \'%s\'.", outfname.c_str());
 	}
 
@@ -1405,8 +1409,7 @@ int main(int argc, const char *argv[])
 	//------------------------------------------------------------------------------
 	//... we are done !
 	//------------------------------------------------------------------------------
-	std::cout << " - Done!" << std::endl
-						<< std::endl;
+	music::ilog << " - Done!" << std::endl << std::endl;
 
 	ltime = time(NULL);
 

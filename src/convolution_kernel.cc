@@ -37,11 +37,8 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 	cdata = reinterpret_cast<complex_t *>(data);
 	ckernel = reinterpret_cast<complex_t *>(pk->get_ptr());
 
-	std::cout << "   - Performing density convolution... ("
-			  << cparam_.nx << ", " << cparam_.ny << ", " << cparam_.nz << ")\n";
-
-	music::ulog.Print("Performing kernel convolution on (%5d,%5d,%5d) grid", cparam_.nx, cparam_.ny, cparam_.nz);
-	music::ulog.Print("Performing forward FFT...");
+	music::ilog.Print("- Performing kernel convolution on (%5d,%5d,%5d) grid", cparam_.nx, cparam_.ny, cparam_.nz);
+	music::ilog.Print("- Performing forward FFT...");
 
 	fftw_plan_t plan, iplan;
 	plan = FFTW_API(plan_dft_r2c_3d)(cparam_.nx, cparam_.ny, cparam_.nz, data, cdata, FFTW_ESTIMATE);

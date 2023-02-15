@@ -864,7 +864,7 @@ public:
 	  double rhom = 2.77519737e11; // h-1 M_o / (h-1 Mpc)**3
 	  double cmass, bmass(0.0);
 	  
-	  std::cout << "-------------------------------------------------------------" << std::endl;
+	  music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 	  music::ilog.Print("TIPSY: particle resampling is enabled");
 	  music::ilog.Print("TIPSY: new high-res particles have the masses:");
 	  if( with_baryons_ )

@@ -1811,22 +1811,22 @@ public:
 	//! write refinement hierarchy to stdout
 	void output(void) const
 	{
-		std::cout << "-------------------------------------------------------------\n";
+		music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 
 		if (xshift_[0] != 0 || xshift_[1] != 0 || xshift_[2] != 0)
-			std::cout << " - Domain will be shifted by (" << xshift_[0] << ", " << xshift_[1] << ", " << xshift_[2] << ")\n"
+			music::ilog << " - Domain will be shifted by (" << xshift_[0] << ", " << xshift_[1] << ", " << xshift_[2] << ")\n"
 								<< std::endl;
 
-		std::cout << " - Grid structure:\n";
+		music::ilog << " - Grid structure:\n";
 
 		for (unsigned ilevel = levelmin_; ilevel <= levelmax_; ++ilevel)
 		{
-			std::cout
+			music::ilog
 					<< "     Level " << std::setw(3) << ilevel << " :   offset = (" << std::setw(5) << offsets_[ilevel][0] << ", " << std::setw(5) << offsets_[ilevel][1] << ", " << std::setw(5) << offsets_[ilevel][2] << ")\n"
 					<< "               offset_abs = (" << std::setw(5) << absoffsets_[ilevel][0] << ", " << std::setw(5) << absoffsets_[ilevel][1] << ", " << std::setw(5) << absoffsets_[ilevel][2] << ")\n"
 					<< "                   size   = (" << std::setw(5) << len_[ilevel][0] << ", " << std::setw(5) << len_[ilevel][1] << ", " << std::setw(5) << len_[ilevel][2] << ")\n";
 		}
-		std::cout << "-------------------------------------------------------------\n";
+		music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 	}
 
 	void output_log(void) const

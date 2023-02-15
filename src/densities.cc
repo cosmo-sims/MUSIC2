@@ -267,21 +267,17 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 
 	unsigned nbase = 1 << levelmin;
 
-	std::cerr << " - Running unigrid version\n";
-	music::ulog.Print("Running unigrid density convolution...");
+	music::ilog.Print("- Running unigrid density convolution...");
 
 	//... select the transfer function to be used
 	convolution::kernel_creator *the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k"];
 
-	std::cout << " - Using k-space transfer function kernel.\n";
-	music::ulog.Print("Using k-space transfer function kernel.");
-
+	
 	//... initialize convolution kernel
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create(cf, ptf, refh, type);
 
 	//...
-	std::cout << " - Performing noise convolution on level " << std::setw(2) << levelmax << " ..." << std::endl;
-	music::ulog.Print("Performing noise convolution on level %3d", levelmax);
+	music::ulog.Print("- Performing noise convolution on level %3d", levelmax);
 
 	//... create convolution mesh
 	DensityGrid<real_t> *top = new DensityGrid<real_t>(nbase, nbase, nbase);
@@ -322,7 +318,7 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 
 	double tstart, tend;
 
-#ifndef SINGLETHREAD_FFTW
+#if defined(_OPENMP)
 	tstart = omp_get_wtime();
 #else
 	tstart = (double)clock() / CLOCKS_PER_SEC;
@@ -343,10 +339,6 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 	unsigned nbase = 1 << levelmin;
 
 	convolution::kernel_creator *the_kernel_creator  = convolution::get_kernel_map()["tf_kernel_k"];
-
-	std::cout << " - Using k-space transfer function kernel.\n";
-	music::ulog.Print("Using k-space transfer function kernel.");
-
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create(cf, ptf, refh, type);
 
 	/***** PERFORM CONVOLUTIONS *****/
@@ -423,14 +415,14 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 
 	delete the_tf_kernel;
 
-#ifndef SINGLETHREAD_FFTW
+#if defined(_OPENMP)
 	tend = omp_get_wtime();
 	if (true) //verbosity > 1 )
-		std::cout << " - Density calculation took " << tend - tstart << "s with " << omp_get_max_threads() << " threads." << std::endl;
+		music::ulog << " - Density calculation took " << tend - tstart << "s with " << omp_get_max_threads() << " threads." << std::endl;
 #else
 	tend = (double)clock() / CLOCKS_PER_SEC;
 	if (true) //verbosity > 1 )
-		std::cout << " - Density calculation took " << tend - tstart << "s." << std::endl;
+		music::ulog << " - Density calculation took " << tend - tstart << "s." << std::endl;
 #endif
 
 	if( !fourier_splicing ){
@@ -467,8 +459,7 @@ void normalize_density(grid_hierarchy &delta)
 		sum /= (double)(nx * ny * nz);
 	}
 
-	std::cout << " - Top grid mean density is off by " << sum << ", correcting..." << std::endl;
-	music::ulog.Print("Grid mean density is %g. Correcting...", sum);
+	music::ilog << "- Top grid mean density is off by " << sum << ", correcting..." << std::endl;
 
 	for (unsigned i = levelmin; i <= levelmax; ++i)
 	{

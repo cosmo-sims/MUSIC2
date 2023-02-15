@@ -59,8 +59,8 @@ real_t multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 
 	if (verbosity > 0)
 	{
-		std::cout << "-------------------------------------------------------------\n";
-		std::cout << " - Invoking multi-grid Poisson solver..." << std::endl;
+		music::ilog << "-------------------------------------------------------------------------------" << std::endl;
+		music::ilog << "- Invoking multi-grid Poisson solver..." << std::endl;
 	}
 
 	real_t acc = 1e-5, err;
@@ -99,7 +99,7 @@ real_t multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 
 	real_t tstart, tend;
 
-#ifndef SINGLETHREAD_FFTW
+#if defined(_OPENMP)
 	tstart = omp_get_wtime();
 #else
 	tstart = (real_t)clock() / CLOCKS_PER_SEC;
@@ -132,7 +132,7 @@ real_t multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 
 	//------------------------------//
 
-#ifndef SINGLETHREAD_FFTW
+#if defined(_OPENMP)
 	tend = omp_get_wtime();
 	if (verbosity > 1)
 		std::cout << " - Poisson solver took " << tend - tstart << "s with " << omp_get_max_threads() << " threads." << std::endl;
@@ -430,8 +430,8 @@ real_t fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 
 	if (verbosity > 0)
 	{
-		std::cout << "-------------------------------------------------------------\n";
-		std::cout << " - Invoking unigrid FFT Poisson solver..." << std::endl;
+		music::ilog << "-------------------------------------------------------------------------------" << std::endl;
+		music::ilog << " - Invoking unigrid FFT Poisson solver..." << std::endl;
 	}
 
 	int nx, ny, nz, nzp;
@@ -882,7 +882,7 @@ void poisson_hybrid(T &f, int idir, int order, bool periodic, bool deconvolve_ci
 	data = new real_t[(size_t)nxp * (size_t)nyp * (size_t)(nzp + 2)];
 
 	if (idir == 0)
-		std::cout << "   - Performing hybrid Poisson step... (" << nxp << ", " << nyp << ", " << nzp << ")\n";
+		music::ilog << "   - Performing hybrid Poisson step... (" << nxp << ", " << nyp << ", " << nzp << ")" << std::endl;
 
 #pragma omp parallel for
 	for (int i = 0; i < nxp; ++i)

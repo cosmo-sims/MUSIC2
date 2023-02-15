@@ -196,5 +196,6 @@ if(ENABLE_PANPHASIA)
   target_compile_options(${PRGNAME} PRIVATE "-DHAVE_PANPHASIA")
 endif(ENABLE_PANPHASIA)
 
+target_include_directories(${PRGNAME} PRIVATE ${GSL_INCLUDE_DIR})
 target_link_libraries(${PRGNAME} PRIVATE GSL::gsl)
 

@@ -601,7 +601,7 @@ void RNG_music::fill_grid(int ilevel, DensityGrid<real_t> &A)
     delete mem_cache_[ilevel - levelmin_];
     mem_cache_[ilevel - levelmin_] = NULL;
   }
-};
+}
 
 namespace
 {

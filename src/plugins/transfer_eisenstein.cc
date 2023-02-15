@@ -213,6 +213,7 @@ public:
   //! Computes the transfer function for k in Mpc/h by calling TFfit_onek
   inline double compute(double k, tf_type type) const
   {
+    if( type == theta_bc || type == delta_bc ) return 0.0;
     return etf_.at_k(k);
   }
 
@@ -305,6 +306,7 @@ public:
 
   inline double compute(double k, tf_type type) const
   {
+    if( type == theta_bc || type == delta_bc ) return 0.0;
     return etf_.at_k(k) * pow(1.0 + pow(m_WDMalpha * k, 2.0 * wdmnu_), -5.0 / wdmnu_);
   }
 
@@ -353,6 +355,8 @@ public:
     double kkfs = k / kfs_;
     double kkfs2 = kkfs * kkfs;
     double kkd2 = (k / kd_) * (k / kd_);
+
+    if( type == theta_bc || type == delta_bc ) return 0.0;
 
     // in principle the Green et al. (2004) works only up to k/k_fs < 1
     // the fit crosses zero at (k/k_fs)**2 = 3/2, we just zero it there...

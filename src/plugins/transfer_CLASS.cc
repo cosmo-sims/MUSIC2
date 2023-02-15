@@ -225,9 +225,10 @@ public:
     }
 
     // determine highest k we will need for the resolution selected
-    double lbox = pcf_->get_value<double>("setup", "BoxLength");
-    int nres = pcf_->get_value<double>("setup", "GridRes");
-    kmax_ = std::max(20.0, 2.0 * M_PI / lbox * nres / 2 * sqrt(3) * 2.0); // 120% of spatial diagonal, or k=10h Mpc-1
+    double lbox = pcf_->get_value<double>("setup", "boxlength");
+    int levelmax = pcf_->get_value<int>("setup", "levelmax");
+    double dx = lbox / (1<<levelmax);
+    kmax_ = std::max(20.0, M_PI /dx  * sqrt(3) * 2.0); // 200% of spatial diagonal, or k=20h Mpc-1
 
     // initialise CLASS and get the normalisation
     this->init_ClassEngine();

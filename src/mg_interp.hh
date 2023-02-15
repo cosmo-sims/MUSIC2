@@ -290,12 +290,12 @@ struct cubic_interp
 							{
 								
 								fine_flux = 0.0;
-								fine_flux += Laplace_flux_O4<real_t>().apply_x(-1,*u,ix+1,iy,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_x(-1,*u,ix+1,iy+1,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_x(-1,*u,ix+1,iy,iz+1);
-								fine_flux += Laplace_flux_O4<real_t>().apply_x(-1,*u,ix+1,iy+1,iz+1);
+								fine_flux += Laplace_flux_O4().apply_x(-1,*u,ix+1,iy,iz);
+								fine_flux += Laplace_flux_O4().apply_x(-1,*u,ix+1,iy+1,iz);
+								fine_flux += Laplace_flux_O4().apply_x(-1,*u,ix+1,iy,iz+1);
+								fine_flux += Laplace_flux_O4().apply_x(-1,*u,ix+1,iy+1,iz+1);
 								
-								coarse_flux = Laplace_flux_O4<real_t>().apply_x(-1,*utop,ixtop+1,iytop,iztop)/2.0;
+								coarse_flux = Laplace_flux_O4().apply_x(-1,*utop,ixtop+1,iytop,iztop)/2.0;
 								fine_flux /= 4.0;
 							
 								dflux = coarse_flux - fine_flux;
@@ -312,12 +312,12 @@ struct cubic_interp
 							{
 								
 								fine_flux = 0.0;
-								fine_flux += Laplace_flux_O4<real_t>().apply_x(+1,*u,ix,iy,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_x(+1,*u,ix,iy+1,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_x(+1,*u,ix,iy,iz+1);
-								fine_flux += Laplace_flux_O4<real_t>().apply_x(+1,*u,ix,iy+1,iz+1);
+								fine_flux += Laplace_flux_O4().apply_x(+1,*u,ix,iy,iz);
+								fine_flux += Laplace_flux_O4().apply_x(+1,*u,ix,iy+1,iz);
+								fine_flux += Laplace_flux_O4().apply_x(+1,*u,ix,iy,iz+1);
+								fine_flux += Laplace_flux_O4().apply_x(+1,*u,ix,iy+1,iz+1);
 								
-								coarse_flux = Laplace_flux_O4<real_t>().apply_x(+1,*utop,ixtop,iytop,iztop)/2.0;
+								coarse_flux = Laplace_flux_O4().apply_x(+1,*utop,ixtop,iytop,iztop)/2.0;
 								fine_flux /= 4.0;
 								
 								dflux = coarse_flux - fine_flux;
@@ -338,12 +338,12 @@ struct cubic_interp
 							{
 								
 								fine_flux = 0.0;
-								fine_flux += Laplace_flux_O4<real_t>().apply_y(-1,*u,ix,iy+1,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_y(-1,*u,ix+1,iy+1,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_y(-1,*u,ix,iy+1,iz+1);
-								fine_flux += Laplace_flux_O4<real_t>().apply_y(-1,*u,ix+1,iy+1,iz+1);
+								fine_flux += Laplace_flux_O4().apply_y(-1,*u,ix,iy+1,iz);
+								fine_flux += Laplace_flux_O4().apply_y(-1,*u,ix+1,iy+1,iz);
+								fine_flux += Laplace_flux_O4().apply_y(-1,*u,ix,iy+1,iz+1);
+								fine_flux += Laplace_flux_O4().apply_y(-1,*u,ix+1,iy+1,iz+1);
 								
-								coarse_flux = Laplace_flux_O4<real_t>().apply_y(-1,*utop,ixtop,iytop+1,iztop)/2.0;
+								coarse_flux = Laplace_flux_O4().apply_y(-1,*utop,ixtop,iytop+1,iztop)/2.0;
 								fine_flux /= 4.0;
 								
 								dflux = coarse_flux - fine_flux;
@@ -359,12 +359,12 @@ struct cubic_interp
 							{
 								
 								fine_flux = 0.0;
-								fine_flux += Laplace_flux_O4<real_t>().apply_y(+1,*u,ix,iy,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_y(+1,*u,ix+1,iy,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_y(+1,*u,ix,iy,iz+1);
-								fine_flux += Laplace_flux_O4<real_t>().apply_y(+1,*u,ix+1,iy,iz+1);
+								fine_flux += Laplace_flux_O4().apply_y(+1,*u,ix,iy,iz);
+								fine_flux += Laplace_flux_O4().apply_y(+1,*u,ix+1,iy,iz);
+								fine_flux += Laplace_flux_O4().apply_y(+1,*u,ix,iy,iz+1);
+								fine_flux += Laplace_flux_O4().apply_y(+1,*u,ix+1,iy,iz+1);
 								
-								coarse_flux = Laplace_flux_O4<real_t>().apply_y(+1,*utop,ixtop,iytop,iztop)/2.0;
+								coarse_flux = Laplace_flux_O4().apply_y(+1,*utop,ixtop,iytop,iztop)/2.0;
 								fine_flux /= 4.0;
 								
 								dflux = coarse_flux - fine_flux;
@@ -384,12 +384,12 @@ struct cubic_interp
 							{
 								
 								fine_flux = 0.0;
-								fine_flux += Laplace_flux_O4<real_t>().apply_z(-1,*u,ix,iy,iz+1);
-								fine_flux += Laplace_flux_O4<real_t>().apply_z(-1,*u,ix+1,iy,iz+1);
-								fine_flux += Laplace_flux_O4<real_t>().apply_z(-1,*u,ix,iy+1,iz+1);
-								fine_flux += Laplace_flux_O4<real_t>().apply_z(-1,*u,ix+1,iy+1,iz+1);
+								fine_flux += Laplace_flux_O4().apply_z(-1,*u,ix,iy,iz+1);
+								fine_flux += Laplace_flux_O4().apply_z(-1,*u,ix+1,iy,iz+1);
+								fine_flux += Laplace_flux_O4().apply_z(-1,*u,ix,iy+1,iz+1);
+								fine_flux += Laplace_flux_O4().apply_z(-1,*u,ix+1,iy+1,iz+1);
 								
-								coarse_flux = Laplace_flux_O4<real_t>().apply_z(-1,*utop,ixtop,iytop,iztop+1)/2.0;
+								coarse_flux = Laplace_flux_O4().apply_z(-1,*utop,ixtop,iytop,iztop+1)/2.0;
 								fine_flux /= 4.0;
 								
 								dflux = coarse_flux - fine_flux;
@@ -405,12 +405,12 @@ struct cubic_interp
 							{
 								
 								fine_flux = 0.0;
-								fine_flux += Laplace_flux_O4<real_t>().apply_z(+1,*u,ix,iy,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_z(+1,*u,ix+1,iy,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_z(+1,*u,ix,iy+1,iz);
-								fine_flux += Laplace_flux_O4<real_t>().apply_z(+1,*u,ix+1,iy+1,iz);
+								fine_flux += Laplace_flux_O4().apply_z(+1,*u,ix,iy,iz);
+								fine_flux += Laplace_flux_O4().apply_z(+1,*u,ix+1,iy,iz);
+								fine_flux += Laplace_flux_O4().apply_z(+1,*u,ix,iy+1,iz);
+								fine_flux += Laplace_flux_O4().apply_z(+1,*u,ix+1,iy+1,iz);
 								
-								coarse_flux = Laplace_flux_O4<real_t>().apply_z(+1,*utop,ixtop,iytop,iztop)/2.0;
+								coarse_flux = Laplace_flux_O4().apply_z(+1,*utop,ixtop,iytop,iztop)/2.0;
 								fine_flux /= 4.0;
 								
 								dflux = coarse_flux - fine_flux;
@@ -717,13 +717,13 @@ struct interp_O5_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O4<real_t>().apply_x(-1,*u,ix+1,iy,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_x(-1,*u,ix+1,iy+1,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_x(-1,*u,ix+1,iy,iz+1);
-							fine_flux += Laplace_flux_O4<real_t>().apply_x(-1,*u,ix+1,iy+1,iz+1);
+							fine_flux += Laplace_flux_O4().apply_x(-1,*u,ix+1,iy,iz);
+							fine_flux += Laplace_flux_O4().apply_x(-1,*u,ix+1,iy+1,iz);
+							fine_flux += Laplace_flux_O4().apply_x(-1,*u,ix+1,iy,iz+1);
+							fine_flux += Laplace_flux_O4().apply_x(-1,*u,ix+1,iy+1,iz+1);
 							fine_flux /= 4.0;
 							
-							coarse_flux = Laplace_flux_O4<real_t>().apply_x(-1,*utop,ixtop+1,iytop,iztop)/2.0;
+							coarse_flux = Laplace_flux_O4().apply_x(-1,*utop,ixtop+1,iytop,iztop)/2.0;
 							
 							dflux = coarse_flux - fine_flux;
 							
@@ -758,12 +758,12 @@ struct interp_O5_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O4<real_t>().apply_x(+1,*u,ix,iy,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_x(+1,*u,ix,iy+1,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_x(+1,*u,ix,iy,iz+1);
-							fine_flux += Laplace_flux_O4<real_t>().apply_x(+1,*u,ix,iy+1,iz+1);
+							fine_flux += Laplace_flux_O4().apply_x(+1,*u,ix,iy,iz);
+							fine_flux += Laplace_flux_O4().apply_x(+1,*u,ix,iy+1,iz);
+							fine_flux += Laplace_flux_O4().apply_x(+1,*u,ix,iy,iz+1);
+							fine_flux += Laplace_flux_O4().apply_x(+1,*u,ix,iy+1,iz+1);
 							
-							coarse_flux = Laplace_flux_O4<real_t>().apply_x(+1,*utop,ixtop,iytop,iztop)/2.0;
+							coarse_flux = Laplace_flux_O4().apply_x(+1,*utop,ixtop,iytop,iztop)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;
@@ -798,12 +798,12 @@ struct interp_O5_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O4<real_t>().apply_y(-1,*u,ix,iy+1,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_y(-1,*u,ix+1,iy+1,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_y(-1,*u,ix,iy+1,iz+1);
-							fine_flux += Laplace_flux_O4<real_t>().apply_y(-1,*u,ix+1,iy+1,iz+1);
+							fine_flux += Laplace_flux_O4().apply_y(-1,*u,ix,iy+1,iz);
+							fine_flux += Laplace_flux_O4().apply_y(-1,*u,ix+1,iy+1,iz);
+							fine_flux += Laplace_flux_O4().apply_y(-1,*u,ix,iy+1,iz+1);
+							fine_flux += Laplace_flux_O4().apply_y(-1,*u,ix+1,iy+1,iz+1);
 							
-							coarse_flux = Laplace_flux_O4<real_t>().apply_y(-1,*utop,ixtop,iytop+1,iztop)/2.0;
+							coarse_flux = Laplace_flux_O4().apply_y(-1,*utop,ixtop,iytop+1,iztop)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;
@@ -838,12 +838,12 @@ struct interp_O5_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O4<real_t>().apply_y(+1,*u,ix,iy,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_y(+1,*u,ix+1,iy,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_y(+1,*u,ix,iy,iz+1);
-							fine_flux += Laplace_flux_O4<real_t>().apply_y(+1,*u,ix+1,iy,iz+1);
+							fine_flux += Laplace_flux_O4().apply_y(+1,*u,ix,iy,iz);
+							fine_flux += Laplace_flux_O4().apply_y(+1,*u,ix+1,iy,iz);
+							fine_flux += Laplace_flux_O4().apply_y(+1,*u,ix,iy,iz+1);
+							fine_flux += Laplace_flux_O4().apply_y(+1,*u,ix+1,iy,iz+1);
 							
-							coarse_flux = Laplace_flux_O4<real_t>().apply_y(+1,*utop,ixtop,iytop,iztop)/2.0;
+							coarse_flux = Laplace_flux_O4().apply_y(+1,*utop,ixtop,iytop,iztop)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;
@@ -880,12 +880,12 @@ struct interp_O5_fluxcorr
 
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O4<real_t>().apply_z(-1,*u,ix,iy,iz+1);
-							fine_flux += Laplace_flux_O4<real_t>().apply_z(-1,*u,ix+1,iy,iz+1);
-							fine_flux += Laplace_flux_O4<real_t>().apply_z(-1,*u,ix,iy+1,iz+1);
-							fine_flux += Laplace_flux_O4<real_t>().apply_z(-1,*u,ix+1,iy+1,iz+1);
+							fine_flux += Laplace_flux_O4().apply_z(-1,*u,ix,iy,iz+1);
+							fine_flux += Laplace_flux_O4().apply_z(-1,*u,ix+1,iy,iz+1);
+							fine_flux += Laplace_flux_O4().apply_z(-1,*u,ix,iy+1,iz+1);
+							fine_flux += Laplace_flux_O4().apply_z(-1,*u,ix+1,iy+1,iz+1);
 							
-							coarse_flux = Laplace_flux_O4<real_t>().apply_z(-1,*utop,ixtop,iytop,iztop+1)/2.0;
+							coarse_flux = Laplace_flux_O4().apply_z(-1,*utop,ixtop,iytop,iztop+1)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;
@@ -920,12 +920,12 @@ struct interp_O5_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O4<real_t>().apply_z(+1,*u,ix,iy,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_z(+1,*u,ix+1,iy,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_z(+1,*u,ix,iy+1,iz);
-							fine_flux += Laplace_flux_O4<real_t>().apply_z(+1,*u,ix+1,iy+1,iz);
+							fine_flux += Laplace_flux_O4().apply_z(+1,*u,ix,iy,iz);
+							fine_flux += Laplace_flux_O4().apply_z(+1,*u,ix+1,iy,iz);
+							fine_flux += Laplace_flux_O4().apply_z(+1,*u,ix,iy+1,iz);
+							fine_flux += Laplace_flux_O4().apply_z(+1,*u,ix+1,iy+1,iz);
 							
-							coarse_flux = Laplace_flux_O4<real_t>().apply_z(+1,*utop,ixtop,iytop,iztop)/2.0;
+							coarse_flux = Laplace_flux_O4().apply_z(+1,*utop,ixtop,iytop,iztop)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;
@@ -1027,13 +1027,13 @@ struct interp_O7_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O6<real_t>().apply_x(-1,*u,ix+1,iy,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_x(-1,*u,ix+1,iy+1,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_x(-1,*u,ix+1,iy,iz+1);
-							fine_flux += Laplace_flux_O6<real_t>().apply_x(-1,*u,ix+1,iy+1,iz+1);
+							fine_flux += Laplace_flux_O6().apply_x(-1,*u,ix+1,iy,iz);
+							fine_flux += Laplace_flux_O6().apply_x(-1,*u,ix+1,iy+1,iz);
+							fine_flux += Laplace_flux_O6().apply_x(-1,*u,ix+1,iy,iz+1);
+							fine_flux += Laplace_flux_O6().apply_x(-1,*u,ix+1,iy+1,iz+1);
 							fine_flux /= 4.0;
 							
-							coarse_flux = Laplace_flux_O6<real_t>().apply_x(-1,*utop,ixtop+1,iytop,iztop)/2.0;
+							coarse_flux = Laplace_flux_O6().apply_x(-1,*utop,ixtop+1,iytop,iztop)/2.0;
 							
 							dflux = coarse_flux - fine_flux;
 							
@@ -1074,12 +1074,12 @@ struct interp_O7_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O6<real_t>().apply_x(+1,*u,ix,iy,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_x(+1,*u,ix,iy+1,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_x(+1,*u,ix,iy,iz+1);
-							fine_flux += Laplace_flux_O6<real_t>().apply_x(+1,*u,ix,iy+1,iz+1);
+							fine_flux += Laplace_flux_O6().apply_x(+1,*u,ix,iy,iz);
+							fine_flux += Laplace_flux_O6().apply_x(+1,*u,ix,iy+1,iz);
+							fine_flux += Laplace_flux_O6().apply_x(+1,*u,ix,iy,iz+1);
+							fine_flux += Laplace_flux_O6().apply_x(+1,*u,ix,iy+1,iz+1);
 							
-							coarse_flux = Laplace_flux_O6<real_t>().apply_x(+1,*utop,ixtop,iytop,iztop)/2.0;
+							coarse_flux = Laplace_flux_O6().apply_x(+1,*utop,ixtop,iytop,iztop)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;
@@ -1119,12 +1119,12 @@ struct interp_O7_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O6<real_t>().apply_y(-1,*u,ix,iy+1,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_y(-1,*u,ix+1,iy+1,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_y(-1,*u,ix,iy+1,iz+1);
-							fine_flux += Laplace_flux_O6<real_t>().apply_y(-1,*u,ix+1,iy+1,iz+1);
+							fine_flux += Laplace_flux_O6().apply_y(-1,*u,ix,iy+1,iz);
+							fine_flux += Laplace_flux_O6().apply_y(-1,*u,ix+1,iy+1,iz);
+							fine_flux += Laplace_flux_O6().apply_y(-1,*u,ix,iy+1,iz+1);
+							fine_flux += Laplace_flux_O6().apply_y(-1,*u,ix+1,iy+1,iz+1);
 							
-							coarse_flux = Laplace_flux_O6<real_t>().apply_y(-1,*utop,ixtop,iytop+1,iztop)/2.0;
+							coarse_flux = Laplace_flux_O6().apply_y(-1,*utop,ixtop,iytop+1,iztop)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;
@@ -1164,12 +1164,12 @@ struct interp_O7_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O6<real_t>().apply_y(+1,*u,ix,iy,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_y(+1,*u,ix+1,iy,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_y(+1,*u,ix,iy,iz+1);
-							fine_flux += Laplace_flux_O6<real_t>().apply_y(+1,*u,ix+1,iy,iz+1);
+							fine_flux += Laplace_flux_O6().apply_y(+1,*u,ix,iy,iz);
+							fine_flux += Laplace_flux_O6().apply_y(+1,*u,ix+1,iy,iz);
+							fine_flux += Laplace_flux_O6().apply_y(+1,*u,ix,iy,iz+1);
+							fine_flux += Laplace_flux_O6().apply_y(+1,*u,ix+1,iy,iz+1);
 							
-							coarse_flux = Laplace_flux_O6<real_t>().apply_y(+1,*utop,ixtop,iytop,iztop)/2.0;
+							coarse_flux = Laplace_flux_O6().apply_y(+1,*utop,ixtop,iytop,iztop)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;
@@ -1210,12 +1210,12 @@ struct interp_O7_fluxcorr
 							
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O6<real_t>().apply_z(-1,*u,ix,iy,iz+1);
-							fine_flux += Laplace_flux_O6<real_t>().apply_z(-1,*u,ix+1,iy,iz+1);
-							fine_flux += Laplace_flux_O6<real_t>().apply_z(-1,*u,ix,iy+1,iz+1);
-							fine_flux += Laplace_flux_O6<real_t>().apply_z(-1,*u,ix+1,iy+1,iz+1);
+							fine_flux += Laplace_flux_O6().apply_z(-1,*u,ix,iy,iz+1);
+							fine_flux += Laplace_flux_O6().apply_z(-1,*u,ix+1,iy,iz+1);
+							fine_flux += Laplace_flux_O6().apply_z(-1,*u,ix,iy+1,iz+1);
+							fine_flux += Laplace_flux_O6().apply_z(-1,*u,ix+1,iy+1,iz+1);
 							
-							coarse_flux = Laplace_flux_O6<real_t>().apply_z(-1,*utop,ixtop,iytop,iztop+1)/2.0;
+							coarse_flux = Laplace_flux_O6().apply_z(-1,*utop,ixtop,iytop,iztop+1)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;
@@ -1255,12 +1255,12 @@ struct interp_O7_fluxcorr
 								}
 							
 							fine_flux = 0.0;
-							fine_flux += Laplace_flux_O6<real_t>().apply_z(+1,*u,ix,iy,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_z(+1,*u,ix+1,iy,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_z(+1,*u,ix,iy+1,iz);
-							fine_flux += Laplace_flux_O6<real_t>().apply_z(+1,*u,ix+1,iy+1,iz);
+							fine_flux += Laplace_flux_O6().apply_z(+1,*u,ix,iy,iz);
+							fine_flux += Laplace_flux_O6().apply_z(+1,*u,ix+1,iy,iz);
+							fine_flux += Laplace_flux_O6().apply_z(+1,*u,ix,iy+1,iz);
+							fine_flux += Laplace_flux_O6().apply_z(+1,*u,ix+1,iy+1,iz);
 							
-							coarse_flux = Laplace_flux_O6<real_t>().apply_z(+1,*utop,ixtop,iytop,iztop)/2.0;
+							coarse_flux = Laplace_flux_O6().apply_z(+1,*utop,ixtop,iytop,iztop)/2.0;
 							fine_flux /= 4.0;
 							
 							dflux = coarse_flux - fine_flux;

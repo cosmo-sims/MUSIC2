@@ -11,12 +11,13 @@
 #ifndef __FD_SCHEMES_HH
 #define __FD_SCHEMES_HH
 
+#include <general.hh>
 #include <vector>
 #include <stdexcept>
 
 
 //! abstract implementation of the Poisson/Force scheme
-template< class L, class G, typename real_t=double >
+template< class L, class G>
 class scheme
 {
 public:
@@ -57,10 +58,9 @@ public:
 };
 
 //! base class for finite difference gradients
-template< int nextent, typename T >
+template< int nextent>
 class gradient
 {
-	typedef T real_t;
 	std::vector<real_t> m_stencil;
 	const unsigned nl;
 public:
@@ -110,20 +110,21 @@ public:
 };
 
 //! base class for finite difference stencils
-template< int nextent, typename real_t >
+template< int nextent>
 class base_stencil
 {
 protected:
-	std::vector<real_t> m_stencil;
-	const unsigned nl;
+	static constexpr size_t nl{2*nextent+1};
+	std::array<real_t,nl*nl*nl> m_stencil;
+
 public:
 	bool m_modsource;
 	
 public:
-	base_stencil( bool amodsource = false )
-	: nl( 2*nextent+1 ), m_modsource( amodsource )
+	explicit base_stencil( bool amodsource = false )
+	: m_modsource( amodsource )
 	{
-		m_stencil.assign(nl*nl*nl,(real_t)0.0);
+		m_stencil.fill( (real_t)0.0 );
 	}
 	
 	real_t& operator()(int i, int j, int k)
@@ -176,8 +177,7 @@ public:
 //... Implementation of the Gradient schemes............................................
 
 
-template< typename real_t >
-class deriv_2P : public gradient<1,real_t>
+class deriv_2P : public gradient<1>
 {
 	
 public:
@@ -194,8 +194,7 @@ public:
 //... Implementation of the Laplacian schemes..........................................
 
 //! 7-point, 2nd order finite difference Laplacian
-template< typename real_t >
-class stencil_7P : public base_stencil<1,real_t>
+class stencil_7P : public base_stencil<1>
 {
 	
 public:
@@ -214,7 +213,7 @@ public:
 	inline real_t apply( const C& c, const int i, const int j, const int k ) const
 	{
 		//return c(i-1,j,k)+c(i+1,j,k)+c(i,j-1,k)+c(i,j+1,k)+c(i,j,k-1)+c(i,j,k+1)-6.0*c(i,j,k);
-		return (double)c(i-1,j,k)+(double)c(i+1,j,k)+(double)c(i,j-1,k)+(double)c(i,j+1,k)+(double)c(i,j,k-1)+(double)c(i,j,k+1)-6.0*(double)c(i,j,k);
+		return (real_t)c(i-1,j,k)+(real_t)c(i+1,j,k)+(real_t)c(i,j-1,k)+(real_t)c(i,j+1,k)+(real_t)c(i,j,k-1)+(real_t)c(i,j,k+1)-6.0*(real_t)c(i,j,k);
 	}
 	
 	template< class C >
@@ -230,8 +229,7 @@ public:
 };
 
 //! 13-point, 4th order finite difference Laplacian
-template< typename real_t >
-class stencil_13P : public base_stencil<2,real_t>
+class stencil_13P : public base_stencil<2>
 {
 	
 public:
@@ -279,8 +277,7 @@ public:
 
 
 //! 19-point, 6th order finite difference Laplacian
-template< typename real_t >
-class stencil_19P : public base_stencil<3,real_t>
+class stencil_19P : public base_stencil<3>
 {
 	
 public:
@@ -339,7 +336,6 @@ public:
 
 
 //! flux operator for the 4th order FD Laplacian
-template< typename real_t >
 class Laplace_flux_O4
 {
 public:
@@ -354,7 +350,7 @@ public:
 	template< class C >
 	inline double apply_x( int idir, const C& c, const int i, const int j, const int k )
 	{
-		double fac = -((double)idir)/12.0;
+		double fac = -((real_t)idir)/12.0;
 		return fac*(-c(i-2,j,k)+15.0*c(i-1,j,k)-15.0*c(i,j,k)+c(i+1,j,k));
 	}
 	
@@ -369,7 +365,7 @@ public:
 	template< class C >
 	inline double apply_y( int idir, const C& c, const int i, const int j, const int k )
 	{
-		double fac = -((double)idir)/12.0;
+		double fac = -((real_t)idir)/12.0;
 		return fac*(-c(i,j-2,k)+15.0*c(i,j-1,k)-15.0*c(i,j,k)+c(i,j+1,k));
 	}
 	
@@ -384,7 +380,7 @@ public:
 	template< class C >
 	inline double apply_z( int idir, const C& c, const int i, const int j, const int k )
 	{
-		double fac = -((double)idir)/12.0;
+		double fac = -((real_t)idir)/12.0;
 		return fac*(-c(i,j,k-2)+15.0*c(i,j,k-1)-15.0*c(i,j,k)+c(i,j,k+1));
 	}
 	
@@ -392,7 +388,6 @@ public:
 
 
 //! flux operator for the 6th order FD Laplacian
-template< typename real_t >
 class Laplace_flux_O6
 {
 public:
@@ -408,7 +403,7 @@ public:
 	template< class C >
 	inline double apply_x( int idir, const C& c, const int i, const int j, const int k )
 	{
-		double fac = -((double)idir)/180.0;
+		real_t fac = -((real_t)idir)/180.0;
 		return fac*(2.*c(i-3,j,k)-25.*c(i-2,j,k)+245.*c(i-1,j,k)-245.0*c(i,j,k)+25.*c(i+1,j,k)-2.*c(i+2,j,k));
 	}
 	
@@ -423,7 +418,7 @@ public:
 	template< class C >
 	inline double apply_y( int idir, const C& c, const int i, const int j, const int k )
 	{
-		double fac = -((double)idir)/180.0;
+		real_t fac = -((real_t)idir)/180.0;
 		return fac*(2.*c(i,j-3,k)-25.*c(i,j-2,k)+245.*c(i,j-1,k)-245.0*c(i,j,k)+25.*c(i,j+1,k)-2.*c(i,j+2,k));
 	}
 	
@@ -438,7 +433,7 @@ public:
 	template< class C >
 	inline double apply_z( int idir, const C& c, const int i, const int j, const int k )
 	{
-		double fac = -((double)idir)/180.0;
+		real_t fac = -((real_t)idir)/180.0;
 		return fac*(2.*c(i,j,k-3)-25.*c(i,j,k-2)+245.*c(i,j,k-1)-245.0*c(i,j,k)+25.*c(i,j,k+1)-2.*c(i,j,k+2));
 	}
 	

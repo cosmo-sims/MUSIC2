@@ -38,28 +38,15 @@ void fft_coarsen(m1 &v, m2 &V)
 	size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf + 2;
 	size_t nxF = V.size(0), nyF = V.size(1), nzF = V.size(2), nzFp = nzF + 2;
 
-	fftw_real *rcoarse = new fftw_real[nxF * nyF * nzFp];
-	fftw_complex *ccoarse = reinterpret_cast<fftw_complex *>(rcoarse);
+	real_t *rcoarse = new real_t[nxF * nyF * nzFp];
+	complex_t *ccoarse = reinterpret_cast<complex_t *>(rcoarse);
 
-	fftw_real *rfine = new fftw_real[nxf * nyf * nzfp];
-	fftw_complex *cfine = reinterpret_cast<fftw_complex *>(rfine);
+	real_t *rfine = new real_t[nxf * nyf * nzfp];
+	complex_t *cfine = reinterpret_cast<complex_t *>(rfine);
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_plan
-		pf = fftwf_plan_dft_r2c_3d(nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
-		ipc = fftwf_plan_dft_c2r_3d(nxF, nyF, nzF, ccoarse, rcoarse, FFTW_ESTIMATE);
-#else
-	fftw_plan
-		pf = fftw_plan_dft_r2c_3d(nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
-		ipc = fftw_plan_dft_c2r_3d(nxF, nyF, nzF, ccoarse, rcoarse, FFTW_ESTIMATE);
-#endif
-
-#else
-	rfftwnd_plan
-		pf = rfftw3d_create_plan(nxf, nyf, nzf, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE),
-		ipc = rfftw3d_create_plan(nxF, nyF, nzF, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
-#endif
+	fftw_plan_t
+		pf = FFTW_API(plan_dft_r2c_3d)(nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
+		ipc = FFTW_API(plan_dft_c2r_3d)(nxF, nyF, nzF, ccoarse, rcoarse, FFTW_ESTIMATE);
 
 #pragma omp parallel for
 	for (int i = 0; i < (int)nxf; i++)
@@ -70,19 +57,7 @@ void fft_coarsen(m1 &v, m2 &V)
 				rfine[q] = v(i, j, k);
 			}
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_execute(pf);
-#else
-	fftw_execute(pf);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), pf, rfine, NULL);
-#else
-	rfftwnd_one_real_to_complex(pf, rfine, NULL);
-#endif
-#endif
+	FFTW_API(execute)(pf);
 
 	double fftnorm = 1.0 / ((double)nxF * (double)nyF * (double)nzF);
 
@@ -125,19 +100,7 @@ void fft_coarsen(m1 &v, m2 &V)
 
 	delete[] rfine;
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_execute(ipc);
-#else
-	fftw_execute(ipc);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_complex_to_real(omp_get_max_threads(), ipc, ccoarse, NULL);
-#else
-	rfftwnd_one_complex_to_real(ipc, ccoarse, NULL);
-#endif
-#endif
+	FFTW_API(execute)(ipc);
 
 #pragma omp parallel for
 	for (int i = 0; i < (int)nxF; i++)
@@ -150,18 +113,8 @@ void fft_coarsen(m1 &v, m2 &V)
 
 	delete[] rcoarse;
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_destroy_plan(pf);
-	fftwf_destroy_plan(ipc);
-#else
-	fftw_destroy_plan(pf);
-	fftw_destroy_plan(ipc);
-#endif
-#else
-	rfftwnd_destroy_plan(pf);
-	rfftwnd_destroy_plan(ipc);
-#endif
+	FFTW_API(destroy_plan)(pf);
+	FFTW_API(destroy_plan)(ipc);
 }
 
 template <typename m1, typename m2>
@@ -191,14 +144,14 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 
 	size_t nxc = nxf / 2, nyc = nyf / 2, nzc = nzf / 2, nzcp = nzf / 2 + 2;
 
-	fftw_real *rcoarse = new fftw_real[nxc * nyc * nzcp];
-	fftw_complex *ccoarse = reinterpret_cast<fftw_complex *>(rcoarse);
+	real_t *rcoarse = new real_t[nxc * nyc * nzcp];
+	complex_t *ccoarse = reinterpret_cast<complex_t *>(rcoarse);
 
-	fftw_real *rfine = new fftw_real[nxf * nyf * nzfp];
-	fftw_complex *cfine = reinterpret_cast<fftw_complex *>(rfine);
+	real_t *rfine = new real_t[nxf * nyf * nzfp];
+	complex_t *cfine = reinterpret_cast<complex_t *>(rfine);
 
 	// copy coarse data to rcoarse[.]
-	memset(rcoarse, 0, sizeof(fftw_real) * nxc * nyc * nzcp);
+	memset(rcoarse, 0, sizeof(real_t) * nxc * nyc * nzcp);
 
 #pragma omp parallel for
 	for (int i = 0; i < (int)nxc; ++i)
@@ -221,36 +174,13 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 				rfine[q] = v(i, j, k);
 			}
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_plan
-		pc = fftwf_plan_dft_r2c_3d(nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE),
-		pf = fftwf_plan_dft_r2c_3d(nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
-		ipf = fftwf_plan_dft_c2r_3d(nxf, nyf, nzf, cfine, rfine, FFTW_ESTIMATE);
-	fftwf_execute(pc);
-	fftwf_execute(pf);
-#else
-	fftw_plan
-		pc = fftw_plan_dft_r2c_3d(nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE),
-		pf = fftw_plan_dft_r2c_3d(nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
-		ipf = fftw_plan_dft_c2r_3d(nxf, nyf, nzf, cfine, rfine, FFTW_ESTIMATE);
-	fftw_execute(pc);
-	fftw_execute(pf);
-#endif
-#else
-	rfftwnd_plan
-		pc = rfftw3d_create_plan(nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE),
-		pf = rfftw3d_create_plan(nxf, nyf, nzf, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE),
-		ipf = rfftw3d_create_plan(nxf, nyf, nzf, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
 
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), pc, rcoarse, NULL);
-	rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), pf, rfine, NULL);
-#else
-	rfftwnd_one_real_to_complex(pc, rcoarse, NULL);
-	rfftwnd_one_real_to_complex(pf, rfine, NULL);
-#endif
-#endif
+	fftw_plan_t
+		pc = FFTW_API(plan_dft_r2c_3d)(nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE),
+		pf = FFTW_API(plan_dft_r2c_3d)(nxf, nyf, nzf, rfine, cfine, FFTW_ESTIMATE),
+		ipf = FFTW_API(plan_dft_c2r_3d)(nxf, nyf, nzf, cfine, rfine, FFTW_ESTIMATE);
+	FFTW_API(execute)(pc);
+	FFTW_API(execute)(pf);
 
 	/*************************************************/
 	//.. perform actual interpolation
@@ -300,28 +230,11 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 
 	/*************************************************/
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_execute(ipf);
-	fftwf_destroy_plan(pf);
-	fftwf_destroy_plan(pc);
-	fftwf_destroy_plan(ipf);
-#else
-	fftw_execute(ipf);
-	fftw_destroy_plan(pf);
-	fftw_destroy_plan(pc);
-	fftw_destroy_plan(ipf);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_complex_to_real(omp_get_max_threads(), ipf, cfine, NULL);
-#else
-	rfftwnd_one_complex_to_real(ipf, cfine, NULL);
-#endif
-	fftwnd_destroy_plan(pf);
-	fftwnd_destroy_plan(pc);
-	fftwnd_destroy_plan(ipf);
-#endif
+	FFTW_API(execute)(ipf);
+
+	FFTW_API(destroy_plan)(pf);
+	FFTW_API(destroy_plan)(pc);
+	FFTW_API(destroy_plan)(ipf);
 
 // copy back and normalize
 #pragma omp parallel for
@@ -349,8 +262,6 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 	levelmin = cf.get_value_safe<unsigned>("setup", "levelmin_TF", levelminPoisson);
 	levelmax = cf.get_value<unsigned>("setup", "levelmax");
 
-	bool kspace = cf.get_value<bool>("setup", "kspace_TF");
-
 	bool fix  = cf.get_value_safe<bool>("setup","fix_mode_amplitude",false);
 	bool flip = cf.get_value_safe<bool>("setup","flip_mode_amplitude",false);
 
@@ -360,30 +271,10 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 	music::ulog.Print("Running unigrid density convolution...");
 
 	//... select the transfer function to be used
-	convolution::kernel_creator *the_kernel_creator;
+	convolution::kernel_creator *the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k"];
 
-	if (kspace)
-	{
-		std::cout << " - Using k-space transfer function kernel.\n";
-		music::ulog.Print("Using k-space transfer function kernel.");
-
-#ifdef SINGLE_PRECISION
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_float"];
-#else
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_double"];
-#endif
-	}
-	else
-	{
-		std::cout << " - Using real-space transfer function kernel.\n";
-		music::ulog.Print("Using real-space transfer function kernel.");
-
-#ifdef SINGLE_PRECISION
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_real_float"];
-#else
-		the_kernel_creator = convolution::get_kernel_map()["tf_kernel_real_double"];
-#endif
-	}
+	std::cout << " - Using k-space transfer function kernel.\n";
+	music::ulog.Print("Using k-space transfer function kernel.");
 
 	//... initialize convolution kernel
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create(cf, ptf, refh, type);
@@ -402,7 +293,7 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 	the_tf_kernel->fetch_kernel(levelmin, false);
 
 	//... perform convolution
-	convolution::perform<real_t>(the_tf_kernel, reinterpret_cast<void *>(top->get_data_ptr()), shift, fix, flip);
+	convolution::perform(the_tf_kernel, reinterpret_cast<void *>(top->get_data_ptr()), shift, fix, flip);
 
 	//... clean up kernel
 	delete the_tf_kernel;
@@ -451,16 +342,10 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 
 	unsigned nbase = 1 << levelmin;
 
-	convolution::kernel_creator *the_kernel_creator;
+	convolution::kernel_creator *the_kernel_creator  = convolution::get_kernel_map()["tf_kernel_k"];
 
 	std::cout << " - Using k-space transfer function kernel.\n";
 	music::ulog.Print("Using k-space transfer function kernel.");
-
-#ifdef SINGLE_PRECISION
-	the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_float"];
-#else
-	the_kernel_creator = convolution::get_kernel_map()["tf_kernel_k_double"];
-#endif
 
 	convolution::kernel *the_tf_kernel = the_kernel_creator->create(cf, ptf, refh, type);
 
@@ -475,7 +360,7 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 		top = new DensityGrid<real_t>(nbase, nbase, nbase);
 		music::ilog.Print("Performing noise convolution on level %3d", levelmin);
 		rand.load(*top, levelmin);
-		convolution::perform<real_t>(the_tf_kernel->fetch_kernel(levelmin, false), reinterpret_cast<void *>(top->get_data_ptr()), shift, fix, flip);
+		convolution::perform(the_tf_kernel->fetch_kernel(levelmin, false), reinterpret_cast<void *>(top->get_data_ptr()), shift, fix, flip);
 
 		delta.create_base_hierarchy(levelmin);
 		top->copy(*delta.get_grid(levelmin));
@@ -506,7 +391,7 @@ void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type t
 			// load white noise for patch
 			rand.load(*fine, levelmin + i);
 
-			convolution::perform<real_t>(the_tf_kernel->fetch_kernel(levelmin + i, true),
+			convolution::perform(the_tf_kernel->fetch_kernel(levelmin + i, true),
 										 reinterpret_cast<void *>(fine->get_data_ptr()), shift, fix, flip);
 
 			if( fourier_splicing ){

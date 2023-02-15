@@ -1,4 +1,21 @@
-cmake_minimum_required(VERSION 3.9)
+# This file is part of MUSIC2
+# A software package to generate ICs for cosmological simulations
+# Copyright (C) 2023 by Oliver Hahn
+# 
+# monofonIC is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# monofonIC is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+cmake_minimum_required(VERSION 3.11)
 set(PRGNAME MUSIC)
 project(MUSIC)
 
@@ -27,12 +44,10 @@ mark_as_advanced(CMAKE_CXX_FLAGS_DEBUGSANADD CMAKE_CXX_FLAGS_DEBUGSANUNDEF)
 mark_as_advanced(CMAKE_C_FLAGS_DEBUGSANADD CMAKE_C_FLAGS_DEBUGSANUNDEF)
 mark_as_advanced(CMAKE_EXECUTABLE_FORMAT CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET CMAKE_OSX_SYSROOT)
 
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -march=native -Wall -pedantic -DCMAKE_BUILD")
 find_package(PkgConfig REQUIRED)
 
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${PROJECT_SOURCE_DIR}")
 
-option(MUSIC_ENABLE_SINGLE_PRECISION "Enable Single Precision Mode" OFF)
 
 ########################################################################################################################
 # OpenMP
@@ -52,11 +67,43 @@ find_package(Threads REQUIRED)
 if(POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
 endif()
-find_package(FFTW3 COMPONENTS SINGLE DOUBLE THREADS)
+if(ENABLE_MPI)
+  find_package(FFTW3 COMPONENTS SINGLE DOUBLE LONGDOUBLE OPENMP THREADS MPI)
+else()
+  find_package(FFTW3 COMPONENTS SINGLE DOUBLE LONGDOUBLE OPENMP THREADS)
+endif(ENABLE_MPI)
+mark_as_advanced(FFTW3_SINGLE_MPI_LIBRARY FFTW3_SINGLE_OPENMP_LIBRARY FFTW3_SINGLE_SERIAL_LIBRARY FFTW3_SINGLE_THREADS_LIBRARY)
+mark_as_advanced(FFTW3_DOUBLE_MPI_LIBRARY FFTW3_DOUBLE_OPENMP_LIBRARY FFTW3_DOUBLE_SERIAL_LIBRARY FFTW3_DOUBLE_THREADS_LIBRARY)
+mark_as_advanced(FFTW3_LONGDOUBLE_MPI_LIBRARY FFTW3_LONGDOUBLE_OPENMP_LIBRARY FFTW3_LONGDOUBLE_SERIAL_LIBRARY FFTW3_LONGDOUBLE_THREADS_LIBRARY)
+mark_as_advanced(FFTW3_INCLUDE_DIR FFTW3_MPI_INCLUDE_DIR)
+mark_as_advanced(pkgcfg_lib_PC_FFTW_fftw3)
 
 ########################################################################################################################
 # TIRPC, needed only for Tipsy format
 find_package(TIRPC)
+
+########################################################################################################################
+# GSL
+find_package(GSL REQUIRED)
+mark_as_advanced(pkgcfg_lib_GSL_gsl pkgcfg_lib_GSL_gslcblas pkgcfg_lib_GSL_m)
+
+########################################################################################################################
+# HDF5
+find_package(HDF5)
+if( HDF5_FOUND )
+  mark_as_advanced(HDF5_C_LIBRARY_dl HDF5_C_LIBRARY_hdf5 HDF5_C_LIBRARY_m HDF5_C_LIBRARY_pthread HDF5_C_LIBRARY_z HDF5_C_LIBRARY_sz)
+endif()
+
+########################################################################################################################
+# floating point precision
+set (
+  CODE_PRECISION "DOUBLE"
+  CACHE STRING "Floating point type used for internal computations and FFTs"
+)
+set_property (
+  CACHE CODE_PRECISION
+  PROPERTY STRINGS FLOAT DOUBLE LONGDOUBLE
+)
 
 ########################################################################################################################
 # Add a custom command that produces version.cc, plus
@@ -67,16 +114,6 @@ ADD_CUSTOM_COMMAND(
            ${CMAKE_CURRENT_BINARY_DIR}/_version.cc
     COMMAND ${CMAKE_COMMAND} -P
             ${CMAKE_CURRENT_SOURCE_DIR}/version.cmake)
-
-
-
-########################################################################################################################
-# GSL
-find_package(GSL REQUIRED)
-
-########################################################################################################################
-# HDF5
-find_package(HDF5)
 
 ########################################################################################################################
 # INCLUDES
@@ -112,40 +149,38 @@ list (APPEND SOURCES
 # target_include_directories(${PRGNAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/panphasia_ho)
 endif(ENABLE_PANPHASIA)
 
+# project configuration header
+configure_file(
+  ${PROJECT_SOURCE_DIR}/src/cmake_config.hh.in
+  ${PROJECT_SOURCE_DIR}/src/cmake_config.hh
+)
+
 add_executable(${PRGNAME} ${SOURCES} ${PLUGINS})
 
-set_target_properties(${PRGNAME} PROPERTIES CXX_STANDARD 11)
+set_target_properties(${PRGNAME} PROPERTIES CXX_STANDARD 14)
 
-if(FFTW3_FOUND)
-  target_compile_options(${PRGNAME} PRIVATE "-DFFTW3")
-
-  if( MUSIC_ENABLE_SINGLE_PRECISION )
-    target_compile_options(${PRGNAME} PRIVATE "-DSINGLE_PRECISION")
-    if (FFTW3_SINGLE_THREADS_FOUND)
-      target_link_libraries(${PRGNAME} ${FFTW3_SINGLE_THREADS_LIBRARY})
-      target_compile_options(${PRGNAME} PRIVATE "-DUSE_FFTW_THREADS")
-    elseif(FFTW3_SINGLE_SERIAL_FOUND)
-      target_link_libraries(${PRGNAME} ${FFTW3_SINGLE_SERIAL_LIBRARY})
-      message( WARNING "using serial version of FFTW3 -- this will most likely cause a very slow version of MUSIC. Rec: install FFTW3 with thread support")
-    else()  
-      message( FATAL "chose compilation in single precision, but FFTW3 not found for single precision")
-    endif()
-  else(MUSIC_ENABLE_SINGLE_PRECISION)
-    if (FFTW3_DOUBLE_THREADS_FOUND)
-      target_link_libraries(${PRGNAME} ${FFTW3_DOUBLE_THREADS_LIBRARY})
-      target_compile_options(${PRGNAME} PRIVATE "-DUSE_FFTW_THREADS")
-    elseif(FFTW3_DOUBLE_SERIAL_FOUND)
-      target_link_libraries(${PRGNAME} ${FFTW3_DOUBLE_SERIAL_LIBRARY})
-      message( WARNING "using serial version of FFTW3 -- this will most likely cause a very slow version of MUSIC. Rec: install FFTW3 with thread support")
-    else()  
-      message( FATAL "chose compilation in double precision, but FFTW3 not found for double precision")
-    endif()
-  endif(MUSIC_ENABLE_SINGLE_PRECISION)
-endif(FFTW3_FOUND)
+if(CODE_PRECISION STREQUAL "FLOAT")
+  if(FFTW3_SINGLE_THREADS_FOUND)
+    target_link_libraries(${PRGNAME} PRIVATE FFTW3::FFTW3_SINGLE_THREADS)
+    target_compile_definitions(${PRGNAME} PRIVATE "USE_FFTW_THREADS")
+  endif()
+  target_link_libraries(${PRGNAME} PRIVATE FFTW3::FFTW3_SINGLE_SERIAL) 
+elseif(CODE_PRECISION STREQUAL "DOUBLE")
+  if(FFTW3_DOUBLE_THREADS_FOUND) 
+    target_link_libraries(${PRGNAME} PRIVATE FFTW3::FFTW3_DOUBLE_THREADS)
+    target_compile_definitions(${PRGNAME} PRIVATE "USE_FFTW_THREADS")
+  endif()
+  target_link_libraries(${PRGNAME} PRIVATE FFTW3::FFTW3_DOUBLE_SERIAL) 
+elseif(CODE_PRECISION STREQUAL "LONGDOUBLE")
+  if(FFTW3_LONGDOUBLE_THREADS_FOUND) 
+    target_link_libraries(${PRGNAME} PRIVATE FFTW3::FFTW3_LONGDOUBLE_THREADS)
+    target_compile_definitions(${PRGNAME} PRIVATE "USE_FFTW_THREADS")
+  endif()
+  target_link_libraries(${PRGNAME} PRIVATE FFTW3::FFTW3_LONGDOUBLE_SERIAL)
+endif()
 
 if(HDF5_FOUND)
-  # target_link_libraries(${PRGNAME} ${HDF5_C_LIBRARY_DIRS})
-  target_link_libraries(${PRGNAME} ${HDF5_LIBRARIES})
+  target_link_libraries(${PRGNAME} PRIVATE ${HDF5_LIBRARIES})
   target_include_directories(${PRGNAME} PRIVATE ${HDF5_INCLUDE_DIRS})
   target_compile_options(${PRGNAME} PRIVATE "-DHAVE_HDF5")
   target_compile_options(${PRGNAME} PRIVATE "-DH5_USE_16_API")
@@ -161,11 +196,5 @@ if(ENABLE_PANPHASIA)
   target_compile_options(${PRGNAME} PRIVATE "-DHAVE_PANPHASIA")
 endif(ENABLE_PANPHASIA)
 
-target_link_libraries(${PRGNAME} ${FFTW3_LIBRARIES})
-target_include_directories(${PRGNAME} PRIVATE ${FFTW3_INCLUDE_DIRS})
+target_link_libraries(${PRGNAME} PRIVATE GSL::gsl)
 
-target_link_libraries(${PRGNAME} ${GSL_LIBRARIES})
-target_include_directories(${PRGNAME} PRIVATE ${GSL_INCLUDE_DIR})
-
-target_link_libraries(${PRGNAME} ${HDF5_LIBRARIES})
-target_include_directories(${PRGNAME} PRIVATE ${HDF5_INCLUDE_DIR})

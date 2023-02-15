@@ -230,19 +230,11 @@ protected:
 			HDFCreateFile(filename);
 			write_sim_header(filename, the_sim_header);
 
-#ifdef SINGLE_PRECISION
 			//... create full array in file
-			HDFHyperslabWriter3Ds<float> *slab_writer = new HDFHyperslabWriter3Ds<float>(filename, enzoname, nsz);
+			HDFHyperslabWriter3Ds<real_t> *slab_writer = new HDFHyperslabWriter3Ds<real_t>(filename, enzoname, nsz);
 
 			//... create buffer
-			float *data_buf = new float[slices_in_slab * (size_t)ng[0] * (size_t)ng[1]];
-#else
-			//... create full array in file
-			HDFHyperslabWriter3Ds<double> *slab_writer = new HDFHyperslabWriter3Ds<double>(filename, enzoname, nsz);
-
-			//... create buffer
-			double *data_buf = new double[slices_in_slab * (size_t)ng[0] * (size_t)ng[1]];
-#endif
+			real_t *data_buf = new real_t[slices_in_slab * (size_t)ng[0] * (size_t)ng[1]];
 
 			//... write slice by slice
 			size_t slices_written = 0;

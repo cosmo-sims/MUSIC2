@@ -294,10 +294,10 @@ protected:
 		
 		double fftnorm = 1.0/N;
 		
-		fftw_complex *in, *out;
+		complex_t *in, *out;
 		
-		in = new fftw_complex[N];
-		out = new fftw_complex[N];
+		in = new complex_t[N];
+		out = new complex_t[N];
 		
 		//... perform anti-ringing correction from Hamilton (2000)
 		k0r0 = krgood( mu, q, dlnr, k0r0 );
@@ -341,24 +341,10 @@ protected:
 		}
 		ofsk.close();
 		
-#ifdef FFTW3
-	#ifdef SINGLE_PRECISION
-		fftwf_plan p,ip;
-		p = fftwf_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-		ip = fftwf_plan_dft_1d(N, out, in, FFTW_BACKWARD, FFTW_ESTIMATE);
-		fftwf_execute(p);
-	#else
-		fftw_plan p,ip;
-		p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-		ip = fftw_plan_dft_1d(N, out, in, FFTW_BACKWARD, FFTW_ESTIMATE);
-		fftw_execute(p);
-	#endif
-#else
-		fftw_plan p,ip;
-		p = fftw_create_plan(N, FFTW_FORWARD, FFTW_ESTIMATE);
-		ip = fftw_create_plan(N, FFTW_BACKWARD, FFTW_ESTIMATE);
-		fftw_one(p, in, out);
-#endif
+		fftw_plan_t p,ip;
+		p = FFTW_API(plan_dft_1d)(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+		ip = FFTW_API(plan_dft_1d)(N, out, in, FFTW_BACKWARD, FFTW_ESTIMATE);
+		FFTW_API(execute)(p);
 		
 		//... compute the Hankel transform by convolution with the Bessel function
 		for( unsigned i=0; i<N; ++i )
@@ -429,16 +415,8 @@ protected:
 #endif
 
 		}
-		
-#ifdef FFTW3
-	#ifdef SINGLE_PRECISION
-		fftwf_execute(ip);
-	#else
-		fftw_execute(ip);
-	#endif
-#else
-		fftw_one(ip, out, in);
-#endif
+
+		FFTW_API(execute)(ip);
 		
 		rr.assign(N,0.0);
 		TT.assign(N,0.0);
@@ -481,14 +459,9 @@ protected:
 		
 		delete[] in;
 		delete[] out;
-		
-#if defined(FFTW3) && defined(SINGLE_PRECISION)
-		fftwf_destroy_plan(p);
-		fftwf_destroy_plan(ip);
-#else
-		fftw_destroy_plan(p);
-		fftw_destroy_plan(ip);
-#endif
+
+		FFTW_API(destroy_plan)(p);
+		FFTW_API(destroy_plan)(ip);
 	}
 	std::vector<real_t> m_xtable,m_ytable,m_dytable;
 	double m_xmin, m_xmax, m_dx, m_rdx;

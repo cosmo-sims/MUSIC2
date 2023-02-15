@@ -1396,9 +1396,7 @@ int tipsy_output_plugin_res < double >::xdr_dump (XDR * xdrs, double *p)
 namespace
 {
   output_plugin_creator_concrete< tipsy_output_plugin_res<float> >creator1 ("tipsy_resample");
-#ifndef SINGLE_PRECISION
   output_plugin_creator_concrete< tipsy_output_plugin_res<double> >creator2 ("tipsy_double_resample");
-#endif
 }
 
 #endif // defined(HAVE_TIRPC) 

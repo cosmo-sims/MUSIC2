@@ -8,75 +8,56 @@
  
 */
 
-#ifndef __GENERAL_HH
-#define __GENERAL_HH
+#pragma once
 
-#include "logger.hh"
+#include <logger.hh>
+#include <config_file.hh>
 
 #include <cassert>
-#include "omp.h"
+#include <omp.h>
 
-#ifdef WITH_MPI
-  #ifdef MANNO
-    #include <mpi.h>
-  #else
-    #include <mpi++.h>
-  #endif
-#else
-#include <time.h>
+#include <fftw3.h>
+
+// include CMake controlled configuration settings
+#include "cmake_config.hh"
+
+#if defined(USE_PRECISION_FLOAT)
+  using real_t = float;
+  using complex_t = fftwf_complex;
+  #define FFTW_PREFIX fftwf
+#elif defined(USE_PRECISION_DOUBLE)
+  using real_t = double;
+  using complex_t = fftw_complex;
+  #define FFTW_PREFIX fftw
+#elif defined(USE_PRECISION_LONGDOUBLE)
+  using real_t = long double;
+  using complex_t = fftwl_complex;
+  #define FFTW_PREFIX fftwl
 #endif
 
-#ifdef FFTW3
-	#include <fftw3.h>
-	#if defined(SINGLE_PRECISION)
-	typedef float fftw_real;
-	#else
-	typedef double fftw_real;
-	#endif
+#define FFTW_GEN_NAME_PRIM(a, b) a##_##b
+#define FFTW_GEN_NAME(a, b) FFTW_GEN_NAME_PRIM(a, b)
+#define FFTW_API(x) FFTW_GEN_NAME(FFTW_PREFIX, x)
 
-#else
-	#if defined(SINGLE_PRECISION) and not defined(SINGLETHREAD_FFTW)
-	#include <srfftw.h>
-	#include <srfftw_threads.h>
-	#elif defined(SINGLE_PRECISION) and defined(SINGLETHREAD_FFTW)
-	#include <srfftw.h>
-	#elif not defined(SINGLE_PRECISION) and not defined(SINGLETHREAD_FFTW)
-	#include <drfftw.h>
-	#include <drfftw_threads.h>
-	#elif not defined(SINGLE_PRECISION) and defined(SINGLETHREAD_FFTW)
-	#include <drfftw.h>
-	#endif
-#endif
+using fftw_plan_t = FFTW_GEN_NAME(FFTW_PREFIX, plan);
 
-#ifdef SINGLE_PRECISION
-	typedef float real_t;
-#else
-	typedef double real_t;
-#endif
+#define RE(x) ((x)[0])
+#define IM(x) ((x)[1])
 
+#include <vector>
 #include <array>
 using vec3_t = std::array<real_t,3>;
 
-#ifdef FFTW3
-	#define RE(x) ((x)[0])
-	#define IM(x) ((x)[1])
-#else
-	#define RE(x) ((x).re)
-	#define IM(x) ((x).im)
-#endif
-
-#if defined(FFTW3) && defined(SINGLE_PRECISION)
-#define fftw_complex fftwf_complex
-#endif
-
-
-
-#include <vector>
-
-#include "config_file.hh"
-//#include "mesh.hh"
-
-
+namespace CONFIG
+{
+// extern int MPI_thread_support;
+// extern int MPI_task_rank;
+// extern int MPI_task_size;
+// extern bool MPI_ok;
+// extern bool MPI_threads_ok;
+extern bool FFTW_threads_ok;
+extern int num_threads;
+} // namespace CONFIG
 
 //! compute square of argument
 template< typename T >
@@ -180,6 +161,3 @@ inline bool is_number(const std::string& s)
 	
 	return true;
 }
-
-
-#endif

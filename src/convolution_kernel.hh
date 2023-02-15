@@ -112,7 +112,6 @@ struct kernel_creator_concrete : public kernel_creator
 };
 
 //! actual implementation of the FFT convolution (independent of the actual kernel)
-template <typename real_t>
 void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip);
 
 } //namespace convolution

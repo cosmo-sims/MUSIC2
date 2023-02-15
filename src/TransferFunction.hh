@@ -130,7 +130,7 @@ protected:
 		
 		double fftnorm = 1.0/N;
 		
-		fftw_complex in[N], out[N];
+		complex_t in[N], out[N];
 		fftw_plan p,ip;
 		
 		//... perform anti-ringing correction from Hamilton (2000)

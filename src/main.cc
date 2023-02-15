@@ -13,6 +13,8 @@
 #include <iomanip>
 #include <math.h>
 
+#include <thread>
+
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <gsl/gsl_integration.h>
@@ -26,24 +28,39 @@ extern "C"
 }
 #endif
 
-#include "general.hh"
-#include "defaults.hh"
-#include "output.hh"
+#include <exception>
+#include <cfenv>
 
-#include "config_file.hh"
+#include <general.hh>
+#include <defaults.hh>
+#include <output.hh>
 
-#include "poisson.hh"
-#include "mg_solver.hh"
-#include "fd_schemes.hh"
-#include "random.hh"
-#include "densities.hh"
+#include <config_file.hh>
 
-#include "convolution_kernel.hh"
-#include "cosmology.hh"
-#include "transfer_function.hh"
+#include <poisson.hh>
+#include <mg_solver.hh>
+#include <fd_schemes.hh>
+#include <random.hh>
+#include <densities.hh>
+
+#include <convolution_kernel.hh>
+#include <cosmology.hh>
+#include <transfer_function.hh>
 
 #define THE_CODE_NAME "music!"
 #define THE_CODE_VERSION "2.0a"
+
+// initialise with "default" values
+namespace CONFIG{
+// int  MPI_thread_support = -1;
+// int  MPI_task_rank = 0;
+// int  MPI_task_size = 1;
+// bool MPI_ok = false;
+// bool MPI_threads_ok = false;
+bool FFTW_threads_ok = false;
+int  num_threads = 1;
+}
+
 
 namespace music
 {
@@ -87,11 +104,6 @@ void splash(void)
 
 #if defined(CMAKE_BUILD)
 	music::ilog.Print("Version built from git rev.: %s, tag: %s, branch: %s", GIT_REV, GIT_TAG, GIT_BRANCH);
-#endif
-#if defined(SINGLE_PRECISION)
-	music::ilog.Print("Version was compiled for single precision.");
-#else
-	music::ilog.Print("Version was compiled for double precision.");
 #endif
 	std::cout << "\n\n";
 }
@@ -294,6 +306,50 @@ void add_constant_value( grid_hierarchy &u, const double val )
 	}
 }
 
+#include <system_stat.hh>
+void output_system_info()
+{
+	std::feclearexcept(FE_ALL_EXCEPT);
+
+	//------------------------------------------------------------------------------
+	// Write code configuration to screen
+	//------------------------------------------------------------------------------
+	// hardware related infos
+	music::ilog << std::setw(32) << std::left << "CPU vendor string" << " : " << SystemStat::Cpu().get_CPUstring() << std::endl;
+	
+	// multi-threading related infos
+	music::ilog << std::setw(32) << std::left << "Available HW threads / task" << " : " << std::thread::hardware_concurrency() << " (" << CONFIG::num_threads << " used)" << std::endl;
+
+	// memory related infos
+	SystemStat::Memory mem;
+
+	unsigned availpmem = mem.get_AvailMem()/1024/1024;
+	unsigned usedpmem = mem.get_UsedMem()/1024/1024;
+	unsigned maxpmem = availpmem, minpmem = availpmem;
+	unsigned maxupmem = usedpmem, minupmem = usedpmem;
+	
+	music::ilog << std::setw(32) << std::left << "Total system memory (phys)" << " : " << mem.get_TotalMem()/1024/1024 << " Mb" << std::endl;
+	music::ilog << std::setw(32) << std::left << "Used system memory (phys)" << " : " << "Max: " << maxupmem << " Mb, Min: " << minupmem << " Mb" << std::endl;
+	music::ilog << std::setw(32) << std::left << "Available system memory (phys)" << " : " <<  "Max: " << maxpmem << " Mb, Min: " << minpmem << " Mb" << std::endl;
+			
+	// Kernel related infos
+	SystemStat::Kernel kern;
+	auto kinfo = kern.get_kernel_info();
+	music::ilog << std::setw(32) << std::left << "OS/Kernel version" << " : " << kinfo.kernel << " version " << kinfo.major << "." << kinfo.minor << " build " << kinfo.build_number << std::endl;
+
+	// FFTW related infos
+	music::ilog << std::setw(32) << std::left << "FFTW version" << " : " << FFTW_API(version) << std::endl;
+	music::ilog << std::setw(32) << std::left << "FFTW supports multi-threading" << " : " << (CONFIG::FFTW_threads_ok? "yes" : "no") << std::endl;
+	music::ilog << std::setw(32) << std::left << "FFTW mode" << " : ";
+#if defined(FFTW_MODE_PATIENT)
+	music::ilog << "FFTW_PATIENT" << std::endl;
+#elif defined(FFTW_MODE_MEASURE)
+    music::ilog << "FFTW_MEASURE" << std::endl;
+#else
+	music::ilog << "FFTW_ESTIMATE" << std::endl;
+#endif
+}
+
 /*****************************************************************************************************/
 /*****************************************************************************************************/
 /*****************************************************************************************************/
@@ -342,25 +398,6 @@ int main(int argc, const char *argv[])
 	music::ulog.Print("Running %s, version %s", THE_CODE_NAME, THE_CODE_VERSION);
 	music::ulog.Print("Log is for run started %s", asctime(localtime(&ltime)));
 
-#ifdef FFTW3
-	music::ulog.Print("Code was compiled using FFTW version 3.x");
-#else
-	music::ulog.Print("Code was compiled using FFTW version 2.x");
-#endif
-
-#ifdef SINGLETHREAD_FFTW
-	music::ulog.Print("Code was compiled for single-threaded FFTW");
-#else
-	music::ulog.Print("Code was compiled for multi-threaded FFTW");
-	music::ulog.Print("Running with a maximum of %d OpenMP threads", omp_get_max_threads());
-#endif
-
-#ifdef SINGLE_PRECISION
-	music::ulog.Print("Code was compiled for single precision.");
-#else
-	music::ulog.Print("Code was compiled for double precision.");
-#endif
-
 	//------------------------------------------------------------------------------
 	//... read and interpret config file
 	//------------------------------------------------------------------------------
@@ -369,6 +406,13 @@ int main(int argc, const char *argv[])
 	bool force_shift(false);
 	double boxlength;
 
+
+	//------------------------------------------------------------------------------
+	//... init multi-threading
+	//------------------------------------------------------------------------------
+	CONFIG::FFTW_threads_ok = FFTW_API(init_threads)();
+	CONFIG::num_threads = cf.get_value_safe<unsigned>("execution", "NumThreads",std::thread::hardware_concurrency());
+  
 	//------------------------------------------------------------------------------
 	//... initialize some parameters about grid set-up
 	//------------------------------------------------------------------------------
@@ -402,24 +446,6 @@ int main(int argc, const char *argv[])
 		music::ilog.Print("Using k-space sampled transfer functions...");
 	else
 		music::ilog.Print("Using real space sampled transfer functions...");
-
-		//------------------------------------------------------------------------------
-		//... initialize multithread FFTW
-		//------------------------------------------------------------------------------
-
-#if not defined(SINGLETHREAD_FFTW)
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_init_threads();
-	fftwf_plan_with_nthreads(omp_get_max_threads());
-#else
-	fftw_init_threads();
-	fftw_plan_with_nthreads(omp_get_max_threads());
-#endif
-#else
-	fftw_threads_init();
-#endif
-#endif
 
 	//------------------------------------------------------------------------------
 	//... initialize cosmology
@@ -1373,13 +1399,8 @@ int main(int argc, const char *argv[])
 	delete the_transfer_function_plugin;
 	delete the_poisson_solver;
 
-#if defined(FFTW3) and not defined(SINGLETHREAD_FFTW)
-#ifdef SINGLE_PRECISION
-	fftwf_cleanup_threads();
-#else
-	fftw_cleanup_threads();
-#endif
-#endif
+	if( CONFIG::FFTW_threads_ok )
+		FFTW_API(cleanup_threads)();
 
 	//------------------------------------------------------------------------------
 	//... we are done !

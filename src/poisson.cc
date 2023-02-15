@@ -10,8 +10,8 @@
 
 /****** ABSTRACT FACTORY PATTERN IMPLEMENTATION *******/
 
-#include "poisson.hh"
-#include "Numerics.hh"
+#include <poisson.hh>
+#include <Numerics.hh>
 
 std::map<std::string, poisson_plugin_creator *> &
 get_poisson_plugin_map()
@@ -40,23 +40,18 @@ void print_poisson_plugins()
 
 /****** CALL IMPLEMENTATIONS OF POISSON SOLVER CLASSES ******/
 
-#include "mg_solver.hh"
-#include "fd_schemes.hh"
+#include <mg_solver.hh>
+#include <fd_schemes.hh>
 
-#ifdef SINGLE_PRECISION
-typedef multigrid::solver<stencil_7P<float>, interp_O3_fluxcorr, mg_straight, float> poisson_solver_O2;
-typedef multigrid::solver<stencil_13P<float>, interp_O5_fluxcorr, mg_straight, float> poisson_solver_O4;
-typedef multigrid::solver<stencil_19P<float>, interp_O7_fluxcorr, mg_straight, float> poisson_solver_O6;
-#else
-typedef multigrid::solver<stencil_7P<double>, interp_O3_fluxcorr, mg_straight, double> poisson_solver_O2;
-typedef multigrid::solver<stencil_13P<double>, interp_O5_fluxcorr, mg_straight, double> poisson_solver_O4;
-typedef multigrid::solver<stencil_19P<double>, interp_O7_fluxcorr, mg_straight, double> poisson_solver_O6;
-#endif
+
+typedef multigrid::solver<stencil_7P, interp_O3_fluxcorr, mg_straight> poisson_solver_O2;
+typedef multigrid::solver<stencil_13P, interp_O5_fluxcorr, mg_straight> poisson_solver_O4;
+typedef multigrid::solver<stencil_19P, interp_O7_fluxcorr, mg_straight> poisson_solver_O6;
 
 /**************************************************************************************/
 /**************************************************************************************/
 
-double multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
+real_t multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 {
 	music::ulog.Print("Initializing multi-grid Poisson solver...");
 
@@ -68,11 +63,11 @@ double multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 		std::cout << " - Invoking multi-grid Poisson solver..." << std::endl;
 	}
 
-	double acc = 1e-5, err;
+	real_t acc = 1e-5, err;
 	std::string ps_smoother_name;
 	unsigned ps_presmooth, ps_postsmooth, order;
 
-	acc = cf_.get_value_safe<double>("poisson", "accuracy", acc);
+	acc = cf_.get_value_safe<real_t>("poisson", "accuracy", acc);
 	ps_presmooth = cf_.get_value_safe<unsigned>("poisson", "pre_smooth", 3);
 	ps_postsmooth = cf_.get_value_safe<unsigned>("poisson", "post_smooth", 3);
 	ps_smoother_name = cf_.get_value_safe<std::string>("poisson", "smoother", "gs");
@@ -102,12 +97,12 @@ double multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 							<< "            reverting to \'gs\' (Gauss-Seidel)" << std::endl;
 	}
 
-	double tstart, tend;
+	real_t tstart, tend;
 
 #ifndef SINGLETHREAD_FFTW
 	tstart = omp_get_wtime();
 #else
-	tstart = (double)clock() / CLOCKS_PER_SEC;
+	tstart = (real_t)clock() / CLOCKS_PER_SEC;
 #endif
 
 	//----- run Poisson solver -----//
@@ -142,7 +137,7 @@ double multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 	if (verbosity > 1)
 		std::cout << " - Poisson solver took " << tend - tstart << "s with " << omp_get_max_threads() << " threads." << std::endl;
 #else
-	tend = (double)clock() / CLOCKS_PER_SEC;
+	tend = (real_t)clock() / CLOCKS_PER_SEC;
 	if (verbosity > 1)
 		std::cout << " - Poisson solver took " << tend - tstart << "s." << std::endl;
 
@@ -151,7 +146,7 @@ double multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 	return err;
 }
 
-double multigrid_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &Du)
+real_t multigrid_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
 	Du = u;
 
@@ -176,7 +171,7 @@ double multigrid_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hiera
 	return 0.0;
 }
 
-double multigrid_poisson_plugin::gradient_add(int dir, grid_hierarchy &u, grid_hierarchy &Du)
+real_t multigrid_poisson_plugin::gradient_add(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
 	// Du = u;
 
@@ -207,7 +202,7 @@ void multigrid_poisson_plugin::implementation::gradient_O2(int dir, grid_hierarc
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
-		double h = pow(2.0, ilevel);
+		real_t h = pow(2.0, ilevel);
 		meshvar_bnd *pvar = Du.get_grid(ilevel);
 
 		if (dir == 0)
@@ -241,7 +236,7 @@ void multigrid_poisson_plugin::implementation::gradient_add_O2(int dir, grid_hie
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
-		double h = pow(2.0, ilevel);
+		real_t h = pow(2.0, ilevel);
 		meshvar_bnd *pvar = Du.get_grid(ilevel);
 
 		if (dir == 0)
@@ -275,7 +270,7 @@ void multigrid_poisson_plugin::implementation::gradient_O4(int dir, grid_hierarc
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
-		double h = pow(2.0, ilevel);
+		real_t h = pow(2.0, ilevel);
 		meshvar_bnd *pvar = Du.get_grid(ilevel);
 
 		h /= 12.0;
@@ -311,7 +306,7 @@ void multigrid_poisson_plugin::implementation::gradient_add_O4(int dir, grid_hie
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
-		double h = pow(2.0, ilevel);
+		real_t h = pow(2.0, ilevel);
 		meshvar_bnd *pvar = Du.get_grid(ilevel);
 
 		h /= 12.0;
@@ -347,7 +342,7 @@ void multigrid_poisson_plugin::implementation::gradient_O6(int dir, grid_hierarc
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
-		double h = pow(2.0, ilevel);
+		real_t h = pow(2.0, ilevel);
 		meshvar_bnd *pvar = Du.get_grid(ilevel);
 
 		h /= 60.;
@@ -385,7 +380,7 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6(int dir, grid_hie
 
 	for (unsigned ilevel = u.levelmin(); ilevel <= u.levelmax(); ++ilevel)
 	{
-		double h = pow(2.0, ilevel);
+		real_t h = pow(2.0, ilevel);
 		meshvar_bnd *pvar = Du.get_grid(ilevel);
 
 		h /= 60.;
@@ -421,7 +416,7 @@ void multigrid_poisson_plugin::implementation::gradient_add_O6(int dir, grid_hie
 /**************************************************************************************/
 #include "general.hh"
 
-double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
+real_t fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 {
 	music::ulog.Print("Entering k-space Poisson solver...");
 
@@ -446,8 +441,8 @@ double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 	nzp = 2 * (nz / 2 + 1);
 
 	//... copy data ..................................................
-	fftw_real *data = new fftw_real[(size_t)nx * (size_t)ny * (size_t)nzp];
-	fftw_complex *cdata = reinterpret_cast<fftw_complex *>(data);
+	real_t *data = new real_t[(size_t)nx * (size_t)ny * (size_t)nzp];
+	complex_t *cdata = reinterpret_cast<complex_t *>(data);
 
 #pragma omp parallel for
 	for (int i = 0; i < nx; ++i)
@@ -461,37 +456,14 @@ double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 	//... perform FFT and Poisson solve................................
 	music::ulog.Print("Performing forward transform.");
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_plan
-			plan = fftwf_plan_dft_r2c_3d(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
-			iplan = fftwf_plan_dft_c2r_3d(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
+	fftw_plan_t
+			plan = FFTW_API(plan_dft_r2c_3d)(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
+			iplan = FFTW_API(plan_dft_c2r_3d)(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
 
-	fftwf_execute(plan);
-#else
-	fftw_plan
-			plan = fftw_plan_dft_r2c_3d(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
-			iplan = fftw_plan_dft_c2r_3d(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
+	FFTW_API(execute)(plan);
 
-	fftw_execute(plan);
-#endif
-
-#else
-	rfftwnd_plan
-			plan = rfftw3d_create_plan(nx, ny, nz,
-																 FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE),
-			iplan = rfftw3d_create_plan(nx, ny, nz,
-																	FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
-
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), plan, data, NULL);
-#else
-	rfftwnd_one_real_to_complex(plan, data, NULL);
-#endif
-
-#endif
-	double kfac = 2.0 * M_PI;
-	double fac = -1.0 / (double)((size_t)nx * (size_t)ny * (size_t)nz);
+	real_t kfac = 2.0 * M_PI;
+	real_t fac = -1.0 / (real_t)((size_t)nx * (size_t)ny * (size_t)nz);
 
 #pragma omp parallel for
 	for (int i = 0; i < nx; ++i)
@@ -504,11 +476,11 @@ double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 				int jj = j;
 				if (jj > ny / 2)
 					jj -= ny;
-				double ki = (double)ii;
-				double kj = (double)jj;
-				double kk = (double)k;
+				real_t ki = (real_t)ii;
+				real_t kj = (real_t)jj;
+				real_t kk = (real_t)k;
 
-				double kk2 = kfac * kfac * (ki * ki + kj * kj + kk * kk);
+				real_t kk2 = kfac * kfac * (ki * ki + kj * kj + kk * kk);
 
 				size_t idx = (size_t)(i * ny + j) * (size_t)(nzp / 2) + (size_t)k;
 
@@ -521,26 +493,9 @@ double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 
 	music::ulog.Print("Performing backward transform.");
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_execute(iplan);
-	fftwf_destroy_plan(plan);
-	fftwf_destroy_plan(iplan);
-#else
-	fftw_execute(iplan);
-	fftw_destroy_plan(plan);
-	fftw_destroy_plan(iplan);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_complex_to_real(omp_get_max_threads(), iplan, cdata, NULL);
-#else
-	rfftwnd_one_complex_to_real(iplan, cdata, NULL);
-#endif
-
-	rfftwnd_destroy_plan(plan);
-	rfftwnd_destroy_plan(iplan);
-#endif
+	FFTW_API(execute)(iplan);
+	FFTW_API(destroy_plan)(plan);
+	FFTW_API(destroy_plan)(iplan);
 
 //... copy data ..........................................
 #pragma omp parallel for
@@ -596,7 +551,7 @@ double fft_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 	return 0.0;
 }
 
-double fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &Du)
+real_t fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &Du)
 {
 
 	music::ulog.Print("Computing a gradient in k-space...\n");
@@ -612,8 +567,8 @@ double fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &
 	nzp = 2 * (nz / 2 + 1);
 
 	//... copy data ..................................................
-	fftw_real *data = new fftw_real[(size_t)nx * (size_t)ny * (size_t)nzp];
-	fftw_complex *cdata = reinterpret_cast<fftw_complex *>(data);
+	real_t *data = new real_t[(size_t)nx * (size_t)ny * (size_t)nzp];
+	complex_t *cdata = reinterpret_cast<complex_t *>(data);
 
 #pragma omp parallel for
 	for (int i = 0; i < nx; ++i)
@@ -625,38 +580,14 @@ double fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &
 			}
 
 			//... perform FFT and Poisson solve................................
+	fftw_plan_t
+			plan = FFTW_API(plan_dft_r2c_3d)(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
+			iplan = FFTW_API(plan_dft_c2r_3d)(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_plan
-			plan = fftwf_plan_dft_r2c_3d(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
-			iplan = fftwf_plan_dft_c2r_3d(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
+	FFTW_API(execute)(plan);
 
-	fftwf_execute(plan);
-#else
-	fftw_plan
-			plan = fftw_plan_dft_r2c_3d(nx, ny, nz, data, cdata, FFTW_ESTIMATE),
-			iplan = fftw_plan_dft_c2r_3d(nx, ny, nz, cdata, data, FFTW_ESTIMATE);
-
-	fftw_execute(plan);
-#endif
-#else
-	rfftwnd_plan
-			plan = rfftw3d_create_plan(nx, ny, nz,
-																 FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE),
-			iplan = rfftw3d_create_plan(nx, ny, nz,
-																	FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
-
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), plan, data, NULL);
-#else
-	rfftwnd_one_real_to_complex(plan, data, NULL);
-#endif
-
-#endif
-
-	double fac = -1.0 / (double)((size_t)nx * (size_t)ny * (size_t)nz);
-	double kfac = 2.0 * M_PI;
+	real_t fac = -1.0 / (real_t)((size_t)nx * (size_t)ny * (size_t)nz);
+	real_t kfac = 2.0 * M_PI;
 
 	bool do_glass = cf_.get_value_safe<bool>("output", "glass", false);
 	bool deconvolve_cic = do_glass | cf_.get_value_safe<bool>("output", "glass_cicdeconvolve", false);
@@ -671,98 +602,54 @@ double fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &
 			{
 				size_t idx = (size_t)(i * ny + j) * (size_t)(nzp / 2) + (size_t)k;
 				int ii = i;
-				if (ii > nx / 2)
-					ii -= nx;
+				if (ii > nx / 2) ii -= nx;
 				int jj = j;
-				if (jj > ny / 2)
-					jj -= ny;
-				const double ki = (double)ii;
-				const double kj = (double)jj;
-				const double kk = (double)k;
+				if (jj > ny / 2) jj -= ny;
 
-				const double kkdir[3] = {kfac * ki, kfac * kj, kfac * kk};
-				const double kdir = kkdir[dir];
+				const real_t ki{(real_t)ii};
+				const real_t kj{(real_t)jj};
+				const real_t kk{(real_t)k};
+				const real_t kkdir[3] = {kfac * ki, kfac * kj, kfac * kk};
+				const real_t kdir = kkdir[dir];
 
-				double re = RE(cdata[idx]);
-				double im = IM(cdata[idx]);
+				real_t re = RE(cdata[idx]);
+				real_t im = IM(cdata[idx]);
 
 				RE(cdata[idx]) = fac * im * kdir;
 				IM(cdata[idx]) = -fac * re * kdir;
 
-#ifdef FFTW3
 				if (deconvolve_cic)
 				{
-					double dfx, dfy, dfz;
-					dfx = M_PI * ki / (double)nx;
-					dfx = (i != 0) ? sin(dfx) / dfx : 1.0;
-					dfy = M_PI * kj / (double)ny;
-					dfy = (j != 0) ? sin(dfy) / dfy : 1.0;
-					dfz = M_PI * kk / (double)nz;
-					dfz = (k != 0) ? sin(dfz) / dfz : 1.0;
+					real_t dfx, dfy, dfz;
+					dfx = M_PI * ki / (real_t)nx;
+					dfx = (i != 0) ? std::sin(dfx) / dfx : 1.0;
+					dfy = M_PI * kj / (real_t)ny;
+					dfy = (j != 0) ? std::sin(dfy) / dfy : 1.0;
+					dfz = M_PI * kk / (real_t)nz;
+					dfz = (k != 0) ? std::sin(dfz) / dfz : 1.0;
 
 					dfx = 1.0 / (dfx * dfy * dfz);
 					dfx = dfx * dfx;
-					cdata[idx][0] *= dfx;
-					cdata[idx][1] *= dfx;
+					RE(cdata[idx]) *= dfx;
+					IM(cdata[idx]) *= dfx;
 				}
-#else
-				if (deconvolve_cic)
-				{
-					double dfx, dfy, dfz;
-					dfx = M_PI * ki / (double)nx;
-					dfx = (i != 0) ? sin(dfx) / dfx : 1.0;
-					dfy = M_PI * kj / (double)ny;
-					dfy = (j != 0) ? sin(dfy) / dfy : 1.0;
-					dfz = M_PI * kk / (double)nz;
-					dfz = (k != 0) ? sin(dfz) / dfz : 1.0;
-
-					dfx = 1.0 / (dfx * dfy * dfz);
-					dfx = dfx * dfx;
-
-					cdata[idx].re *= dfx;
-					cdata[idx].im *= dfx;
-				}
-#endif
 
 				if( (dir == 0 && i==nx/2) || (dir == 1 && j==ny/2) || (dir == 2 && k==nz/2) )
 				{
-#ifdef FFTW3
-					cdata[idx][0] = 0.0;
-					cdata[idx][1] = 0.0;
-#else
-					cdata[idx].re = 0.0;
-					cdata[idx].im = 0.0;
-#endif
+					RE(cdata[idx]) = 0.0;
+					IM(cdata[idx]) = 0.0;
 				}
 			}
 
 	RE(cdata[0]) = 0.0;
 	IM(cdata[0]) = 0.0;
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_execute(iplan);
-	fftwf_destroy_plan(plan);
-	fftwf_destroy_plan(iplan);
-#else
-	fftw_execute(iplan);
-	fftw_destroy_plan(plan);
-	fftw_destroy_plan(iplan);
-#endif
-
-#else
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_complex_to_real(omp_get_max_threads(), iplan, cdata, NULL);
-#else
-	rfftwnd_one_complex_to_real(iplan, cdata, NULL);
-#endif
-
-	rfftwnd_destroy_plan(plan);
-	rfftwnd_destroy_plan(iplan);
-#endif
+	FFTW_API(execute)(iplan);
+	FFTW_API(destroy_plan)(plan);
+	FFTW_API(destroy_plan)(iplan);
 
 	//... copy data ..........................................
-	double dmax = 0.0;
+	real_t dmax = 0.0;
 	for (int i = 0; i < nx; ++i)
 		for (int j = 0; j < ny; ++j)
 			for (int k = 0; k < nz; ++k)
@@ -784,35 +671,35 @@ double fft_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hierarchy &
 /**************************************************************************************/
 
 template <int order>
-double poisson_hybrid_kernel(int idir, int i, int j, int k, int n)
+real_t poisson_hybrid_kernel(int idir, int i, int j, int k, int n)
 {
 	return 1.0;
 }
 
 template <>
-inline double poisson_hybrid_kernel<2>(int idir, int i, int j, int k, int n)
+inline real_t poisson_hybrid_kernel<2>(int idir, int i, int j, int k, int n)
 {
 	if (i == 0 && j == 0 && k == 0)
 		return 0.0;
 
-	double
-			ki(M_PI * (double)i / (double)n),
-			kj(M_PI * (double)j / (double)n),
-			kk(M_PI * (double)k / (double)n),
+	real_t
+			ki(M_PI * (real_t)i / (real_t)n),
+			kj(M_PI * (real_t)j / (real_t)n),
+			kk(M_PI * (real_t)k / (real_t)n),
 			kr(sqrt(ki * ki + kj * kj + kk * kk));
 
-	double grad = 1.0, laplace = 1.0;
+	real_t grad = 1.0, laplace = 1.0;
 
 	if (idir == 0)
-		grad = sin(ki);
+		grad = std::sin(ki);
 	else if (idir == 1)
-		grad = sin(kj);
+		grad = std::sin(kj);
 	else
-		grad = sin(kk);
+		grad = std::sin(kk);
 
-	laplace = 2.0 * ((-cos(ki) + 1.0) + (-cos(kj) + 1.0) + (-cos(kk) + 1.0));
+	laplace = 2.0 * ((-std::cos(ki) + 1.0) + (-std::cos(kj) + 1.0) + (-std::cos(kk) + 1.0));
 
-	double kgrad = 1.0;
+	real_t kgrad = 1.0;
 	if (idir == 0)
 		kgrad = ki;
 	else if (idir == 1)
@@ -824,30 +711,30 @@ inline double poisson_hybrid_kernel<2>(int idir, int i, int j, int k, int n)
 }
 
 template <>
-inline double poisson_hybrid_kernel<4>(int idir, int i, int j, int k, int n)
+inline real_t poisson_hybrid_kernel<4>(int idir, int i, int j, int k, int n)
 {
 
 	if (i == 0 && j == 0 && k == 0)
 		return 0.0;
 
-	double
-			ki(M_PI * (double)i / (double)n),
-			kj(M_PI * (double)j / (double)n),
-			kk(M_PI * (double)k / (double)n),
+	real_t
+			ki(M_PI * (real_t)i / (real_t)n),
+			kj(M_PI * (real_t)j / (real_t)n),
+			kk(M_PI * (real_t)k / (real_t)n),
 			kr(sqrt(ki * ki + kj * kj + kk * kk));
 
-	double grad = 1.0, laplace = 1.0;
+	real_t grad = 1.0, laplace = 1.0;
 
 	if (idir == 0)
-		grad = 0.166666666667 * (-sin(2. * ki) + 8. * sin(ki));
+		grad = 0.166666666667 * (-std::sin(2. * ki) + 8. * std::sin(ki));
 	else if (idir == 1)
-		grad = 0.166666666667 * (-sin(2. * kj) + 8. * sin(kj));
+		grad = 0.166666666667 * (-std::sin(2. * kj) + 8. * std::sin(kj));
 	else if (idir == 2)
-		grad = 0.166666666667 * (-sin(2. * kk) + 8. * sin(kk));
+		grad = 0.166666666667 * (-std::sin(2. * kk) + 8. * std::sin(kk));
 
-	laplace = 0.1666666667 * ((cos(2 * ki) - 16. * cos(ki) + 15.) + (cos(2 * kj) - 16. * cos(kj) + 15.) + (cos(2 * kk) - 16. * cos(kk) + 15.));
+	laplace = 0.1666666667 * ((std::cos(2 * ki) - 16. * std::cos(ki) + 15.) + (std::cos(2 * kj) - 16. * std::cos(kj) + 15.) + (std::cos(2 * kk) - 16. * std::cos(kk) + 15.));
 
-	double kgrad = 1.0;
+	real_t kgrad = 1.0;
 	if (idir == 0)
 		kgrad = ki;
 	else if (idir == 1)
@@ -859,29 +746,29 @@ inline double poisson_hybrid_kernel<4>(int idir, int i, int j, int k, int n)
 }
 
 template <>
-inline double poisson_hybrid_kernel<6>(int idir, int i, int j, int k, int n)
+inline real_t poisson_hybrid_kernel<6>(int idir, int i, int j, int k, int n)
 {
-	double
-			ki(M_PI * (double)i / (double)n),
-			kj(M_PI * (double)j / (double)n),
-			kk(M_PI * (double)k / (double)n),
+	real_t
+			ki(M_PI * (real_t)i / (real_t)n),
+			kj(M_PI * (real_t)j / (real_t)n),
+			kk(M_PI * (real_t)k / (real_t)n),
 			kr(sqrt(ki * ki + kj * kj + kk * kk));
 
 	if (i == 0 && j == 0 && k == 0)
 		return 0.0;
 
-	double grad = 1.0, laplace = 1.0;
+	real_t grad = 1.0, laplace = 1.0;
 
 	if (idir == 0)
-		grad = 0.0333333333333 * (sin(3. * ki) - 9. * sin(2. * ki) + 45. * sin(ki));
+		grad = 0.0333333333333 * (std::sin(3. * ki) - 9. * std::sin(2. * ki) + 45. * std::sin(ki));
 	else if (idir == 1)
-		grad = 0.0333333333333 * (sin(3. * kj) - 9. * sin(2. * kj) + 45. * sin(kj));
+		grad = 0.0333333333333 * (std::sin(3. * kj) - 9. * std::sin(2. * kj) + 45. * std::sin(kj));
 	else if (idir == 2)
-		grad = 0.0333333333333 * (sin(3. * kk) - 9. * sin(2. * kk) + 45. * sin(kk));
+		grad = 0.0333333333333 * (std::sin(3. * kk) - 9. * std::sin(2. * kk) + 45. * std::sin(kk));
 
-	laplace = 0.01111111111111 * ((-2. * cos(3.0 * ki) + 27. * cos(2. * ki) - 270. * cos(ki) + 245.) + (-2. * cos(3.0 * kj) + 27. * cos(2. * kj) - 270. * cos(kj) + 245.) + (-2. * cos(3.0 * kk) + 27. * cos(2. * kk) - 270. * cos(kk) + 245.));
+	laplace = 0.01111111111111 * ((-2. * std::cos(3.0 * ki) + 27. * std::cos(2. * ki) - 270. * std::cos(ki) + 245.) + (-2. * std::cos(3.0 * kj) + 27. * std::cos(2. * kj) - 270. * std::cos(kj) + 245.) + (-2. * std::cos(3.0 * kk) + 27. * std::cos(2. * kk) - 270. * std::cos(kk) + 245.));
 
-	double kgrad = 1.0;
+	real_t kgrad = 1.0;
 	if (idir == 0)
 		kgrad = ki;
 	else if (idir == 1)
@@ -896,42 +783,19 @@ inline double poisson_hybrid_kernel<6>(int idir, int i, int j, int k, int n)
 }
 
 template <int order>
-void do_poisson_hybrid(fftw_real *data, int idir, int nxp, int nyp, int nzp, bool periodic, bool deconvolve_cic)
+void do_poisson_hybrid(real_t *data, int idir, int nxp, int nyp, int nzp, bool periodic, bool deconvolve_cic)
 {
-	double fftnorm = 1.0 / ((double)nxp * (double)nyp * (double)nzp);
+	real_t fftnorm = 1.0 / ((real_t)nxp * (real_t)nyp * (real_t)nzp);
 
-	fftw_complex *cdata = reinterpret_cast<fftw_complex *>(data);
+	complex_t *cdata = reinterpret_cast<complex_t *>(data);
 
 	if (deconvolve_cic)
 		music::ilog.Print("CIC deconvolution step is enabled.");
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_plan iplan, plan;
-	plan = fftwf_plan_dft_r2c_3d(nxp, nyp, nzp, data, cdata, FFTW_ESTIMATE);
-	iplan = fftwf_plan_dft_c2r_3d(nxp, nyp, nzp, cdata, data, FFTW_ESTIMATE);
-	fftwf_execute(plan);
-#else
-	fftw_plan iplan, plan;
-	plan = fftw_plan_dft_r2c_3d(nxp, nyp, nzp, data, cdata, FFTW_ESTIMATE);
-	iplan = fftw_plan_dft_c2r_3d(nxp, nyp, nzp, cdata, data, FFTW_ESTIMATE);
-	fftw_execute(plan);
-#endif
-#else
-	rfftwnd_plan iplan, plan;
-
-	plan = rfftw3d_create_plan(nxp, nyp, nzp,
-														 FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE);
-
-	iplan = rfftw3d_create_plan(nxp, nyp, nzp,
-															FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
-
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), plan, data, NULL);
-#else
-	rfftwnd_one_real_to_complex(plan, data, NULL);
-#endif
-#endif
+	fftw_plan_t iplan, plan;
+	plan = FFTW_API(plan_dft_r2c_3d)(nxp, nyp, nzp, data, cdata, FFTW_ESTIMATE);
+	iplan = FFTW_API(plan_dft_c2r_3d)(nxp, nyp, nzp, cdata, data, FFTW_ESTIMATE);
+	FFTW_API(execute)(plan);
 
 #pragma omp parallel for
 	for (int i = 0; i < nxp; ++i)
@@ -948,22 +812,22 @@ void do_poisson_hybrid(fftw_real *data, int idir, int nxp, int nyp, int nzp, boo
 					kj -= nyp;
 
 				//... apply hybrid correction
-				double dk = poisson_hybrid_kernel<order>(idir, ki, kj, k, nxp / 2);
+				real_t dk = poisson_hybrid_kernel<order>(idir, ki, kj, k, nxp / 2);
 
-				fftw_real re = RE(cdata[ii]), im = IM(cdata[ii]);
+				real_t re = RE(cdata[ii]), im = IM(cdata[ii]);
 
 				RE(cdata[ii]) = -im * dk * fftnorm;
 				IM(cdata[ii]) = re * dk * fftnorm;
 
 				if (deconvolve_cic)
 				{
-					double dfx, dfy, dfz;
-					dfx = M_PI * ki / (double)nxp;
-					dfx = (i != 0) ? sin(dfx) / dfx : 1.0;
-					dfy = M_PI * kj / (double)nyp;
-					dfy = (j != 0) ? sin(dfy) / dfy : 1.0;
-					dfz = M_PI * kk / (double)nzp;
-					dfz = (k != 0) ? sin(dfz) / dfz : 1.0;
+					real_t dfx, dfy, dfz;
+					dfx = M_PI * ki / (real_t)nxp;
+					dfx = (i != 0) ? std::sin(dfx) / dfx : 1.0;
+					dfy = M_PI * kj / (real_t)nyp;
+					dfy = (j != 0) ? std::sin(dfy) / dfy : 1.0;
+					dfz = M_PI * kk / (real_t)nzp;
+					dfz = (k != 0) ? std::sin(dfz) / dfz : 1.0;
 
 					dfx = 1.0 / (dfx * dfy * dfz);
 					dfx = dfx * dfx;
@@ -981,26 +845,9 @@ void do_poisson_hybrid(fftw_real *data, int idir, int nxp, int nyp, int nzp, boo
 	RE(cdata[0]) = 0.0;
 	IM(cdata[0]) = 0.0;
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_execute(iplan);
-	fftwf_destroy_plan(plan);
-	fftwf_destroy_plan(iplan);
-#else
-	fftw_execute(iplan);
-	fftw_destroy_plan(plan);
-	fftw_destroy_plan(iplan);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_complex_to_real(omp_get_max_threads(), iplan, cdata, NULL);
-#else
-	rfftwnd_one_complex_to_real(iplan, cdata, NULL);
-#endif
-
-	rfftwnd_destroy_plan(plan);
-	rfftwnd_destroy_plan(iplan);
-#endif
+	FFTW_API(execute)(iplan);
+	FFTW_API(destroy_plan)(plan);
+	FFTW_API(destroy_plan)(iplan);
 }
 
 template <typename T>
@@ -1008,7 +855,7 @@ void poisson_hybrid(T &f, int idir, int order, bool periodic, bool deconvolve_ci
 
 {
 	int nx = f.size(0), ny = f.size(1), nz = f.size(2), nxp, nyp, nzp;
-	fftw_real *data;
+	real_t *data;
 	int xo = 0, yo = 0, zo = 0;
 	int nmax = std::max(nx, std::max(ny, nz));
 
@@ -1018,12 +865,12 @@ void poisson_hybrid(T &f, int idir, int order, bool periodic, bool deconvolve_ci
 
 	if (!periodic)
 	{
-		nxp = nmax + 2 * boundary; // 2*nmax;
-		nyp = nmax + 2 * boundary; // 2*nmax;
-		nzp = nmax + 2 * boundary; // 2*nmax;
-		xo = boundary;						 // nmax/2;
-		yo = boundary;						 // nmax/2;
-		zo = boundary;						 // nmax/2;
+		nxp = nmax + 2 * boundary; 
+		nyp = nmax + 2 * boundary; 
+		nzp = nmax + 2 * boundary; 
+		xo = boundary;						 
+		yo = boundary;						 
+		zo = boundary;						 
 	}
 	else
 	{
@@ -1032,16 +879,10 @@ void poisson_hybrid(T &f, int idir, int order, bool periodic, bool deconvolve_ci
 		nzp = nmax;
 	}
 
-	data = new fftw_real[(size_t)nxp * (size_t)nyp * (size_t)(nzp + 2)];
+	data = new real_t[(size_t)nxp * (size_t)nyp * (size_t)(nzp + 2)];
 
 	if (idir == 0)
 		std::cout << "   - Performing hybrid Poisson step... (" << nxp << ", " << nyp << ", " << nzp << ")\n";
-
-		// size_t N = (size_t)nxp*(size_t)nyp*2*((size_t)nzp/2+1);
-
-		// #pragma omp parallel for
-		// for( size_t i=0; i<N; ++i )
-		//	data[i]=0.0;
 
 #pragma omp parallel for
 	for (int i = 0; i < nxp; ++i)
@@ -1097,7 +938,7 @@ void poisson_hybrid(T &f, int idir, int order, bool periodic, bool deconvolve_ci
 /**************************************************************************************/
 /**************************************************************************************/
 
-template void poisson_hybrid<MeshvarBnd<double>>(MeshvarBnd<double> &f, int idir, int order, bool periodic, bool deconvolve_cic);
+template void poisson_hybrid<MeshvarBnd<real_t>>(MeshvarBnd<real_t> &f, int idir, int order, bool periodic, bool deconvolve_cic);
 template void poisson_hybrid<MeshvarBnd<float>>(MeshvarBnd<float> &f, int idir, int order, bool periodic, bool deconvolve_cic);
 
 namespace

@@ -1390,7 +1390,5 @@ public:
 namespace
 {
 	output_plugin_creator_concrete<gadget2_output_plugin<float>> creator1("gadget2");
-#ifndef SINGLE_PRECISION
 	output_plugin_creator_concrete<gadget2_output_plugin<double>> creator2("gadget2_double");
-#endif
 }

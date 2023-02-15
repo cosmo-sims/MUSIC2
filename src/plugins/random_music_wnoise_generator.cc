@@ -40,8 +40,8 @@ void rapid_proto_ngenic_rng(size_t res, long baseseed, music_wnoise_generator<T>
 			seedtable[(res - 1 - j) * res + (res - 1 - i)] = 0x7fffffff * gsl_rng_uniform(random_generator);
 	}
 
-	fftw_real *rnoise = new fftw_real[res * res * (res + 2)];
-	fftw_complex *knoise = reinterpret_cast<fftw_complex *>(rnoise);
+	real_t *rnoise = new real_t[res * res * (res + 2)];
+	complex_t *knoise = reinterpret_cast<complex_t *>(rnoise);
 
 	double fnorm = 1. / sqrt(res * res * res);
 
@@ -126,26 +126,9 @@ void rapid_proto_ngenic_rng(size_t res, long baseseed, music_wnoise_generator<T>
 	delete[] seedtable;
 
 	//... perform FT to real space
-
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_plan plan = fftwf_plan_dft_c2r_3d(res, res, res, knoise, rnoise, FFTW_ESTIMATE);
-	fftwf_execute(plan);
-	fftwf_destroy_plan(plan);
-#else
-	fftw_plan plan = fftw_plan_dft_c2r_3d(res, res, res, knoise, rnoise, FFTW_ESTIMATE);
-	fftw_execute(plan);
-	fftw_destroy_plan(plan);
-#endif
-#else
-	rfftwnd_plan plan = rfftw3d_create_plan(res, res, res, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_complex_to_real(omp_get_max_threads(), plan, knoise, NULL);
-#else
-	rfftwnd_one_complex_to_real(plan, knoise, NULL);
-#endif
-	rfftwnd_destroy_plan(plan);
-#endif
+	fftw_plan_t plan = FFTW_API(plan_dft_c2r_3d)(res, res, res, knoise, rnoise, FFTW_ESTIMATE);
+	FFTW_API(execute)(plan);
+	FFTW_API(destroy_plan)(plan);
 
 	// copy to array that holds the random numbers
 
@@ -443,37 +426,25 @@ music_wnoise_generator<T>::music_wnoise_generator(/*const*/ music_wnoise_generat
   ncubes_ = 1;
   baseseed_ = -2;
 
-  if (sizeof(fftw_real) != sizeof(T))
+  if (sizeof(real_t) != sizeof(T))
   {
-    music::elog.Print("type mismatch with fftw_real in k-space averaging");
-    throw std::runtime_error("type mismatch with fftw_real in k-space averaging");
+    music::elog.Print("type mismatch with real_t in k-space averaging");
+    throw std::runtime_error("type mismatch with real_t in k-space averaging");
   }
 
-  fftw_real
-      *rfine = new fftw_real[(size_t)rc.res_ * (size_t)rc.res_ * 2 * ((size_t)rc.res_ / 2 + 1)],
-      *rcoarse = new fftw_real[(size_t)res_ * (size_t)res_ * 2 * ((size_t)res_ / 2 + 1)];
+  real_t
+      *rfine = new real_t[(size_t)rc.res_ * (size_t)rc.res_ * 2 * ((size_t)rc.res_ / 2 + 1)],
+      *rcoarse = new real_t[(size_t)res_ * (size_t)res_ * 2 * ((size_t)res_ / 2 + 1)];
 
-  fftw_complex
-      *ccoarse = reinterpret_cast<fftw_complex *>(rcoarse),
-      *cfine = reinterpret_cast<fftw_complex *>(rfine);
+  complex_t
+      *ccoarse = reinterpret_cast<complex_t *>(rcoarse),
+      *cfine = reinterpret_cast<complex_t *>(rfine);
 
   int nx(rc.res_), ny(rc.res_), nz(rc.res_), nxc(res_), nyc(res_), nzc(res_);
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_plan
-      pf = fftwf_plan_dft_r2c_3d(nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
-      ipc = fftwf_plan_dft_c2r_3d(nxc, nyc, nzc, ccoarse, rcoarse, FFTW_ESTIMATE);
-#else
-  fftw_plan
-      pf = fftw_plan_dft_r2c_3d(nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
-      ipc = fftw_plan_dft_c2r_3d(nxc, nyc, nzc, ccoarse, rcoarse, FFTW_ESTIMATE);
-#endif
 
-#else
-  rfftwnd_plan
-      pf = rfftw3d_create_plan(nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE),
-      ipc = rfftw3d_create_plan(nxc, nyc, nzc, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
-#endif
+  fftw_plan_t
+      pf = FFTW_API(plan_dft_r2c_3d)(nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
+      ipc = FFTW_API(plan_dft_c2r_3d)(nxc, nyc, nzc, ccoarse, rcoarse, FFTW_ESTIMATE);
 
 #pragma omp parallel for
   for (int i = 0; i < nx; i++)
@@ -484,19 +455,7 @@ music_wnoise_generator<T>::music_wnoise_generator(/*const*/ music_wnoise_generat
         rfine[q] = rc(i, j, k);
       }
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_execute(pf);
-#else
-  fftw_execute(pf);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-  rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), pf, rfine, NULL);
-#else
-  rfftwnd_one_real_to_complex(pf, rfine, NULL);
-#endif
-#endif
+  FFTW_API(execute)(pf);
 
   double fftnorm = 1.0 / ((double)nxc * (double)nyc * (double)nzc);
 
@@ -532,19 +491,9 @@ music_wnoise_generator<T>::music_wnoise_generator(/*const*/ music_wnoise_generat
       }
 
   delete[] rfine;
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_execute(ipc);
-#else
-  fftw_execute(ipc);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-  rfftwnd_threads_one_complex_to_real(omp_get_max_threads(), ipc, ccoarse, NULL);
-#else
-  rfftwnd_one_complex_to_real(ipc, ccoarse, NULL);
-#endif
-#endif
+
+  FFTW_API(execute)(ipc);
+
   rnums_.push_back(new Meshvar<T>(res_, 0, 0, 0));
   cubemap_[0] = 0; // map all to single array
 
@@ -563,18 +512,8 @@ music_wnoise_generator<T>::music_wnoise_generator(/*const*/ music_wnoise_generat
 
   delete[] rcoarse;
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_destroy_plan(pf);
-  fftwf_destroy_plan(ipc);
-#else
-  fftw_destroy_plan(pf);
-  fftw_destroy_plan(ipc);
-#endif
-#else
-  rfftwnd_destroy_plan(pf);
-  rfftwnd_destroy_plan(ipc);
-#endif
+  FFTW_API(destroy_plan)(pf);
+  FFTW_API(destroy_plan)(ipc);
   
   double rmean, rvar;
   rmean = sum / count;
@@ -617,24 +556,12 @@ music_wnoise_generator<T>::music_wnoise_generator(music_wnoise_generator<T> &rc,
   size_t nx = lx[0], ny = lx[1], nz = lx[2],
           nxc = lx[0] / 2, nyc = lx[1] / 2, nzc = lx[2] / 2;
 
-  fftw_real *rfine = new fftw_real[nx * ny * (nz + 2l)];
-  fftw_complex *cfine = reinterpret_cast<fftw_complex *>(rfine);
+  real_t *rfine = new real_t[nx * ny * (nz + 2l)];
+  complex_t *cfine = reinterpret_cast<complex_t *>(rfine);
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_plan
-      pf = fftwf_plan_dft_r2c_3d(nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
-      ipf = fftwf_plan_dft_c2r_3d(nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
-#else
-  fftw_plan
-      pf = fftw_plan_dft_r2c_3d(nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
-      ipf = fftw_plan_dft_c2r_3d(nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
-#endif
-#else
-  rfftwnd_plan
-      pf = rfftw3d_create_plan(nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE),
-      ipf = rfftw3d_create_plan(nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
-#endif
+  fftw_plan_t
+      pf = FFTW_API(plan_dft_r2c_3d)(nx, ny, nz, rfine, cfine, FFTW_ESTIMATE),
+      ipf = FFTW_API(plan_dft_c2r_3d)(nx, ny, nz, cfine, rfine, FFTW_ESTIMATE);
 
 #pragma omp parallel for
   for (int i = 0; i < (int)nx; i++)
@@ -646,18 +573,10 @@ music_wnoise_generator<T>::music_wnoise_generator(music_wnoise_generator<T> &rc,
       }
   // this->free_all_mem();	// temporarily free memory, allocate again later
 
-  fftw_real *rcoarse = new fftw_real[nxc * nyc * (nzc + 2)];
-  fftw_complex *ccoarse = reinterpret_cast<fftw_complex *>(rcoarse);
+  real_t *rcoarse = new real_t[nxc * nyc * (nzc + 2)];
+  complex_t *ccoarse = reinterpret_cast<complex_t *>(rcoarse);
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_plan pc = fftwf_plan_dft_r2c_3d(nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE);
-#else
-  fftw_plan pc = fftw_plan_dft_r2c_3d(nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE);
-#endif
-#else
-  rfftwnd_plan pc = rfftw3d_create_plan(nxc, nyc, nzc, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE);
-#endif
+  fftw_plan pc = FFTW_API(plan_dft_r2c_3d)(nxc, nyc, nzc, rcoarse, ccoarse, FFTW_ESTIMATE);
 
 #pragma omp parallel for
   for (int i = 0; i < (int)nxc; i++)
@@ -667,23 +586,9 @@ music_wnoise_generator<T>::music_wnoise_generator(music_wnoise_generator<T> &rc,
         size_t q = ((size_t)i * (size_t)nyc + (size_t)j) * (size_t)(nzc + 2) + (size_t)k;
         rcoarse[q] = rc(x0[0] / 2 + i, x0[1] / 2 + j, x0[2] / 2 + k);
       }
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_execute(pc);
-  fftwf_execute(pf);
-#else
-  fftw_execute(pc);
-  fftw_execute(pf);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-  rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), pc, rcoarse, NULL);
-  rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), pf, rfine, NULL);
-#else
-  rfftwnd_one_real_to_complex(pc, rcoarse, NULL);
-  rfftwnd_one_real_to_complex(pf, rfine, NULL);
-#endif
-#endif
+
+  FFTW_API(execute)(pc);
+  FFTW_API(execute)(pf);
 
   double fftnorm = 1.0 / ((double)nx * (double)ny * (double)nz);
   double sqrt8 = sqrt(8.0);
@@ -747,19 +652,8 @@ music_wnoise_generator<T>::music_wnoise_generator(music_wnoise_generator<T> &rc,
           IM(cfine[q]) *= fftnorm;
         }
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-    fftwf_execute(ipf);
-#else
-    fftw_execute(ipf);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-    rfftwnd_threads_one_complex_to_real(omp_get_max_threads(), ipf, cfine, NULL);
-#else
-    rfftwnd_one_complex_to_real(ipf, cfine, NULL);
-#endif
-#endif
+
+    FFTW_API(execute)(ipf);
 
 #pragma omp parallel for
     for (int i = 0; i < (int)nx; i++)
@@ -772,21 +666,9 @@ music_wnoise_generator<T>::music_wnoise_generator(music_wnoise_generator<T> &rc,
 
     delete[] rfine;
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-    fftwf_destroy_plan(pf);
-    fftwf_destroy_plan(pc);
-    fftwf_destroy_plan(ipf);
-#else
-    fftw_destroy_plan(pf);
-    fftw_destroy_plan(pc);
-    fftw_destroy_plan(ipf);
-#endif
-#else
-    fftwnd_destroy_plan(pf);
-    fftwnd_destroy_plan(pc);
-    fftwnd_destroy_plan(ipf);
-#endif
+    FFTW_API(destroy_plan)(pf);
+    FFTW_API(destroy_plan)(pc);
+    FFTW_API(destroy_plan)(ipf);
   
 }
 

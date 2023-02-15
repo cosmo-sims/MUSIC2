@@ -1573,8 +1573,6 @@ public:
 
 namespace{
 	output_plugin_creator_concrete< gadget_tetmesh_output_plugin<float> > creator1("gadget_tetmesh");
-#ifndef SINGLE_PRECISION
 	output_plugin_creator_concrete< gadget_tetmesh_output_plugin<double> > creator2("gadget_tetmesh_double");
-#endif
 }
 

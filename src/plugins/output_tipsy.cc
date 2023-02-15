@@ -1107,9 +1107,7 @@ int tipsy_output_plugin<double>::xdr_dump( XDR *xdrs, double*p )
 
 namespace{
     output_plugin_creator_concrete< tipsy_output_plugin<float> > creator1("tipsy");
-    //#ifndef SINGLE_PRECISION
     output_plugin_creator_concrete< tipsy_output_plugin<double> > creator2("tipsy_double");
-    //#endif
 }
 
 

@@ -230,3 +230,14 @@ find_package_handle_standard_args(FFTW3
     VERSION_VAR FFTW3_VERSION_STRING
     HANDLE_COMPONENTS
 )
+
+if(FFTW3_FOUND)
+  foreach(component ${FFTW3_FIND_COMPONENTS})
+    if(NOT TARGET FFTW3::FFTW3_${component})
+      add_library(FFTW3::FFTW3_${component} UNKNOWN IMPORTED)
+      set_target_properties(FFTW3::FFTW3_${component} PROPERTIES 
+        IMPORTED_LOCATION "${FFTW3_${component}_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES ${FFTW3_INCLUDE_DIR})
+    endif()
+  endforeach()
+endif()

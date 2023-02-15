@@ -7,13 +7,9 @@
  
 */
 
-#include "general.hh"
-#include "densities.hh"
-#include "convolution_kernel.hh"
-
-#if defined(FFTW3) && defined(SINGLE_PRECISION)
-typedef fftw_complex fftwf_complex;
-#endif
+#include <general.hh>
+#include <densities.hh>
+#include <convolution_kernel.hh>
 
 namespace convolution
 {
@@ -25,7 +21,6 @@ get_kernel_map()
 	return kernel_map;
 }
 
-template <typename real_t>
 void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 {
 	//return;
@@ -34,49 +29,26 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 	double fftnormp = 1.0/sqrt((double)cparam_.nx * (double)cparam_.ny * (double)cparam_.nz);
 	double fftnorm = pow(2.0 * M_PI, 1.5) / sqrt(cparam_.lx * cparam_.ly * cparam_.lz) * fftnormp;
 
-	fftw_complex *cdata;
-	[[maybe_unused]] fftw_complex *ckernel;
-	fftw_real *data;
+	complex_t *cdata;
+	[[maybe_unused]] complex_t *ckernel;
+	real_t *data;
 
-	data = reinterpret_cast<fftw_real *>(pd);
-	cdata = reinterpret_cast<fftw_complex *>(data);
-	ckernel = reinterpret_cast<fftw_complex *>(pk->get_ptr());
+	data = reinterpret_cast<real_t *>(pd);
+	cdata = reinterpret_cast<complex_t *>(data);
+	ckernel = reinterpret_cast<complex_t *>(pk->get_ptr());
 
 	std::cout << "   - Performing density convolution... ("
 			  << cparam_.nx << ", " << cparam_.ny << ", " << cparam_.nz << ")\n";
 
 	music::ulog.Print("Performing kernel convolution on (%5d,%5d,%5d) grid", cparam_.nx, cparam_.ny, cparam_.nz);
 	music::ulog.Print("Performing forward FFT...");
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_plan plan, iplan;
-	plan = fftwf_plan_dft_r2c_3d(cparam_.nx, cparam_.ny, cparam_.nz, data, cdata, FFTW_ESTIMATE);
-	iplan = fftwf_plan_dft_c2r_3d(cparam_.nx, cparam_.ny, cparam_.nz, cdata, data, FFTW_ESTIMATE);
 
-	fftwf_execute(plan);
-#else
-	fftw_plan plan, iplan;
-	plan = fftw_plan_dft_r2c_3d(cparam_.nx, cparam_.ny, cparam_.nz, data, cdata, FFTW_ESTIMATE);
-	iplan = fftw_plan_dft_c2r_3d(cparam_.nx, cparam_.ny, cparam_.nz, cdata, data, FFTW_ESTIMATE);
+	fftw_plan_t plan, iplan;
+	plan = FFTW_API(plan_dft_r2c_3d)(cparam_.nx, cparam_.ny, cparam_.nz, data, cdata, FFTW_ESTIMATE);
+	iplan = FFTW_API(plan_dft_c2r_3d)(cparam_.nx, cparam_.ny, cparam_.nz, cdata, data, FFTW_ESTIMATE);
 
-	fftw_execute(plan);
-#endif
-#else
-	rfftwnd_plan iplan, plan;
+	FFTW_API(execute)(plan);
 
-	plan = rfftw3d_create_plan(cparam_.nx, cparam_.ny, cparam_.nz,
-							   FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE);
-
-	iplan = rfftw3d_create_plan(cparam_.nx, cparam_.ny, cparam_.nz,
-								FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
-
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_real_to_complex(omp_get_max_threads(), plan, data, NULL);
-#else
-	rfftwnd_one_real_to_complex(plan, data, NULL);
-#endif
-
-#endif
 	//..... need a phase shift for baryons for SPH
 	double dstag = 0.0;
 
@@ -163,27 +135,9 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 
 	music::ulog.Print("Performing backward FFT...");
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-	fftwf_execute(iplan);
-	fftwf_destroy_plan(plan);
-	fftwf_destroy_plan(iplan);
-#else
-	fftw_execute(iplan);
-	fftw_destroy_plan(plan);
-	fftw_destroy_plan(iplan);
-
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-	rfftwnd_threads_one_complex_to_real(omp_get_max_threads(), iplan, cdata, NULL);
-#else
-	rfftwnd_one_complex_to_real(iplan, cdata, NULL);
-#endif
-
-	rfftwnd_destroy_plan(plan);
-	rfftwnd_destroy_plan(iplan);
-#endif
+	FFTW_API(execute)(iplan);
+	FFTW_API(destroy_plan)(plan);
+	FFTW_API(destroy_plan)(iplan);
 
 	// set the DC mode here to avoid a possible truncation error in single precision
 	{
@@ -196,14 +150,12 @@ void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip)
 	}
 }
 
-template void perform<double>(kernel *pk, void *pd, bool shift, bool fix, bool flip);
-template void perform<float>(kernel *pk, void *pd, bool shift, bool fix, bool flip);
+void perform(kernel *pk, void *pd, bool shift, bool fix, bool flip);
 
 /*****************************************************************************************/
 /***    SPECIFIC KERNEL IMPLEMENTATIONS      *********************************************/
 /*****************************************************************************************/
 
-template <typename real_t>
 class kernel_k : public kernel
 {
 protected:
@@ -298,8 +250,4 @@ public:
 /**************************************************************************************/
 /**************************************************************************************/
 
-namespace
-{
-convolution::kernel_creator_concrete<convolution::kernel_k<double>> creator_kd("tf_kernel_k_double");
-convolution::kernel_creator_concrete<convolution::kernel_k<float>> creator_kf("tf_kernel_k_float");
-} // namespace
+convolution::kernel_creator_concrete<convolution::kernel_k> creator_kd("tf_kernel_k");

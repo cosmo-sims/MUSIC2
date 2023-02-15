@@ -238,63 +238,25 @@ public:
 void RNG_panphasia::forward_transform_field(real_t *field, int nx, int ny, int nz)
 {
 
-  fftw_real *rfield = reinterpret_cast<fftw_real *>(field);
-  fftw_complex *cfield = reinterpret_cast<fftw_complex *>(field);
+  real_t *rfield = reinterpret_cast<real_t *>(field);
+  complex_t *cfield = reinterpret_cast<complex_t *>(field);
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_plan pf = fftwf_plan_dft_r2c_3d(nx, ny, nz, rfield, cfield, FFTW_ESTIMATE);
-#else
-  fftw_plan pf = fftw_plan_dft_r2c_3d(nx, ny, nz, rfield, cfield, FFTW_ESTIMATE);
-#endif
-#else
-  rfftwnd_plan pf = rfftw3d_create_plan(nx, ny, nz, FFTW_REAL_TO_COMPLEX, FFTW_ESTIMATE | FFTW_IN_PLACE);
-#endif
+  fftw_plan_t pf = FFTW_API(plan_dft_r2c_3d)(nx, ny, nz, rfield, cfield, FFTW_ESTIMATE);
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_execute(pf);
-#else
-  fftw_execute(pf);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-  rfftwnd_threads_one_real_to_complex(num_threads_, pf, rfield, NULL);
-#else
-  rfftwnd_one_real_to_complex(pf, rfield, NULL);
-#endif
-#endif
+  FFTW_API(execute)(pf);
+
+  FFTW_API(destroy_plan)(pf);
 }
 
 void RNG_panphasia::backward_transform_field(real_t *field, int nx, int ny, int nz)
 {
 
-  fftw_real *rfield = reinterpret_cast<fftw_real *>(field);
-  fftw_complex *cfield = reinterpret_cast<fftw_complex *>(field);
+  real_t *rfield = reinterpret_cast<real_t *>(field);
+  complex_t *cfield = reinterpret_cast<complex_t *>(field);
 
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_plan ipf = fftwf_plan_dft_c2r_3d(nx, ny, nz, cfield, rfield, FFTW_ESTIMATE);
-#else
-  fftw_plan ipf = fftw_plan_dft_c2r_3d(nx, ny, nz, cfield, rfield, FFTW_ESTIMATE);
-#endif
-#else
-  rfftwnd_plan ipf = rfftw3d_create_plan(nx, ny, nz, FFTW_COMPLEX_TO_REAL, FFTW_ESTIMATE | FFTW_IN_PLACE);
-#endif
-
-#ifdef FFTW3
-#ifdef SINGLE_PRECISION
-  fftwf_execute(ipf);
-#else
-  fftw_execute(ipf);
-#endif
-#else
-#ifndef SINGLETHREAD_FFTW
-  rfftwnd_threads_one_complex_to_real(num_threads_, ipf, cfield, NULL);
-#else
-  rfftwnd_one_complex_to_real(ipf, cfield, NULL);
-#endif
-#endif
+  fftw_plan_t ipf = FFTW_API(plan_dft_c2r_3d)(nx, ny, nz, cfield, rfield, FFTW_ESTIMATE);
+  FFTW_API(execute)(ipf);
+  FFTW_API(destroy_plan(ipf));
 }
 
 #include <sys/time.h>
@@ -309,8 +271,8 @@ inline double get_wtime(void)
 
 void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 {
-  fftw_real *pr0, *pr1, *pr2, *pr3, *pr4;
-  fftw_complex *pc0, *pc1, *pc2, *pc3, *pc4;
+  real_t *pr0, *pr1, *pr2, *pr3, *pr4;
+  complex_t *pc0, *pc1, *pc2, *pc3, *pc4;
 
   // determine resolution and offset so that we can do proper resampling
   int ileft[3], ileft_corner[3], nx[3], nxremap[3];
@@ -379,17 +341,17 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 
   size_t ngp = nxremap[0] * nxremap[1] * (nxremap[2] + 2);
 
-  pr0 = new fftw_real[ngp];
-  pr1 = new fftw_real[ngp];
-  pr2 = new fftw_real[ngp];
-  pr3 = new fftw_real[ngp];
-  pr4 = new fftw_real[ngp];
+  pr0 = new real_t[ngp];
+  pr1 = new real_t[ngp];
+  pr2 = new real_t[ngp];
+  pr3 = new real_t[ngp];
+  pr4 = new real_t[ngp];
 
-  pc0 = reinterpret_cast<fftw_complex *>(pr0);
-  pc1 = reinterpret_cast<fftw_complex *>(pr1);
-  pc2 = reinterpret_cast<fftw_complex *>(pr2);
-  pc3 = reinterpret_cast<fftw_complex *>(pr3);
-  pc4 = reinterpret_cast<fftw_complex *>(pr4);
+  pc0 = reinterpret_cast<complex_t *>(pr0);
+  pc1 = reinterpret_cast<complex_t *>(pr1);
+  pc2 = reinterpret_cast<complex_t *>(pr2);
+  pc3 = reinterpret_cast<complex_t *>(pr3);
+  pc4 = reinterpret_cast<complex_t *>(pr4);
 
   music::ilog.Print("calculating PANPHASIA random numbers for level %d...", level);
   clear_panphasia_thread_states();
@@ -782,7 +744,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   {
 
     music::ulog.Print("Remapping fields from dimension %d -> %d", nxremap[0], nx_m[0]);
-    memset(pr1, 0, ngp * sizeof(fftw_real));
+    memset(pr1, 0, ngp * sizeof(real_t));
 
     #pragma omp parallel for
     for (int i = 0; i < nxremap[0]; i++)
@@ -812,7 +774,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
           }
         }
 
-    memcpy(pr0, pr1, ngp * sizeof(fftw_real));
+    memcpy(pr0, pr1, ngp * sizeof(real_t));
   }
 
   // if (level == 9)

@@ -267,7 +267,7 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 }
 
 
-void constraint_set::wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t nz, std::vector<double>& g0, matrix& cinv, fftw_complex* cw )
+void constraint_set::wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t nz, std::vector<double>& g0, matrix& cinv, complex_t* cw )
 {
 	double lsub = nx*dx;
 	double dk = 2.0*M_PI/lsub, d3k=dk*dk*dk;
@@ -374,7 +374,7 @@ void constraint_set::wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t
 
 
 
-void constraint_set::wnoise_constr_corr( double dx, fftw_complex* cw, size_t nx, size_t ny, size_t nz, std::vector<double>& g0 )
+void constraint_set::wnoise_constr_corr( double dx, complex_t* cw, size_t nx, size_t ny, size_t nz, std::vector<double>& g0 )
 {
 	size_t nconstr = cset_.size();
 	size_t nzp=nz/2+1;

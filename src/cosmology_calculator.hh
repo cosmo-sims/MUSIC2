@@ -183,10 +183,11 @@ public:
         transfer_function_ = select_transfer_function_plugin(cf, cosmo_param_);
         transfer_function_->intialise();
         if( !transfer_function_->tf_isnormalised_ ){
-            cosmo_param_.set("pnorm", this->compute_pnorm_from_sigma8() );
+            cosmo_param_.set("pnorm", this->compute_pnorm_from_sigma8()*Dplus_start_*Dplus_start_ );
         }else{
-            cosmo_param_.set("pnorm", 1.0/Dplus_target_/Dplus_target_);
-            auto sigma8 = this->compute_sigma8();
+            // WARNING: we do explicit back-scaling here, which is notably different from monofonIC
+            cosmo_param_.set("pnorm", Dplus_start_*Dplus_start_/Dplus_target_/Dplus_target_);
+            auto sigma8 = this->compute_sigma8()*Dplus_start_/Dplus_target_;
             music::ilog << "Measured sigma_8 for given PS normalisation is " <<  sigma8 << std::endl;
         }
         cosmo_param_.set("sqrtpnorm", std::sqrt(cosmo_param_["pnorm"]));

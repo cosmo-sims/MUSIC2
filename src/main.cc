@@ -485,9 +485,9 @@ int main(int argc, const char *argv[])
 	double cosmo_dplus = the_cosmo_calc->get_growth_factor(astart) / the_cosmo_calc->get_growth_factor(1.0);
 	double cosmo_vfact = the_cosmo_calc->get_vfact(astart);
 
-	if (!the_cosmo_calc.get()->transfer_function_.get()->tf_has_total0()){
-		the_cosmo_calc->cosmo_param_["pnorm"] *= cosmo_dplus * cosmo_dplus;
-	}
+	// if (!the_cosmo_calc.get()->transfer_function_.get()->tf_has_total0()){
+	// 	the_cosmo_calc->cosmo_param_["pnorm"] *= cosmo_dplus * cosmo_dplus;
+	// }
 	double cosmo_pnorm = the_cosmo_calc->cosmo_param_["pnorm"];
 	//... directly use the normalisation via a parameter rather than the calculated one
 	cosmo_pnorm = cf.get_value_safe<double>("setup", "force_pnorm", cosmo_pnorm);

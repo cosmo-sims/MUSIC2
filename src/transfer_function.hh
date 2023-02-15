@@ -74,13 +74,13 @@ public:
 	virtual void intialise(void) {}
 
 	//! compute value of transfer function at waven umber
-	virtual double compute(double k, tf_type type) = 0;
+	virtual double compute(double k, tf_type type) const = 0;
 
 	//! return maximum wave number allowed
-	virtual double get_kmax(void) = 0;
+	virtual double get_kmax(void) const = 0;
 
 	//! return minimum wave number allowed
-	virtual double get_kmin(void) = 0;
+	virtual double get_kmin(void) const = 0;
 
 	//! return if density transfer function is distinct for baryons and DM
 	bool tf_is_distinct(void) const

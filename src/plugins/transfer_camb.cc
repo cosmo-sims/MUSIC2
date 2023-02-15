@@ -221,7 +221,7 @@ public:
   }
 
   // linear interpolation in log-log
-  inline double extrap_right(double k, const tf_type &type) {
+  inline double extrap_right(double k, const tf_type &type) const {
     int n = m_tab_k.size() - 1, n1 = n - 1;
 
     double v1(1.0), v2(1.0);
@@ -267,7 +267,7 @@ public:
     return 0.0;
   }
 
-  inline double compute(double k, tf_type type) {
+  inline double compute(double k, tf_type type) const{
     // use constant interpolation on the left side of the tabulated values
     if (k < m_kmin) {
       switch (type) {
@@ -320,9 +320,9 @@ public:
     }
   }
 
-  inline double get_kmin(void) { return pow(10.0, m_tab_k[1]); }
+  inline double get_kmin(void) const { return pow(10.0, m_tab_k[1]); }
 
-  inline double get_kmax(void) {
+  inline double get_kmax(void) const {
     return pow(10.0, m_tab_k[m_tab_k.size() - 2]);
   }
 };

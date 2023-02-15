@@ -57,7 +57,7 @@ public:
 	}
 	
 	//! computes the value of the BBKS transfer function for mode k (in h/Mpc)
-	inline double compute( double k, tf_type type ){
+	inline double compute( double k, tf_type type ) const{
 		double q, f1, f2;
 		
 		if(k < 1e-7 )
@@ -71,11 +71,11 @@ public:
 		
 	}
 	
-	inline double get_kmin( void ){
+	inline double get_kmin( void ) const{
 		return 1e-4;
 	}
 	
-	inline double get_kmax( void ){
+	inline double get_kmax( void ) const{
 		return 1.e4;
 	}
 };

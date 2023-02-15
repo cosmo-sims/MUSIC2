@@ -179,6 +179,9 @@ elseif(CODE_PRECISION STREQUAL "LONGDOUBLE")
   target_link_libraries(${PRGNAME} PRIVATE FFTW3::FFTW3_LONGDOUBLE_SERIAL)
 endif()
 
+target_include_directories(${PRGNAME} PRIVATE ${GSL_INCLUDE_DIR})
+target_link_libraries(${PRGNAME} PRIVATE GSL::gsl)
+
 if(HDF5_FOUND)
   target_link_libraries(${PRGNAME} PRIVATE ${HDF5_LIBRARIES})
   target_include_directories(${PRGNAME} PRIVATE ${HDF5_INCLUDE_DIRS})
@@ -192,10 +195,22 @@ if(TIRPC_FOUND)
   target_compile_options(${PRGNAME} PRIVATE "-DHAVE_TIRPC")
 endif(TIRPC_FOUND)
 
+########################################################################################################################
+# include PANPHASIA
 if(ENABLE_PANPHASIA)
   target_compile_options(${PRGNAME} PRIVATE "-DHAVE_PANPHASIA")
 endif(ENABLE_PANPHASIA)
+########################################################################################################################
 
-target_include_directories(${PRGNAME} PRIVATE ${GSL_INCLUDE_DIR})
-target_link_libraries(${PRGNAME} PRIVATE GSL::gsl)
+
+########################################################################################################################
+# include CLASS
+option(ENABLE_CLASS "Enable CLASS support (as a submodule)." ON)
+  
+if(ENABLE_CLASS)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/ext/class.cmake)
+  target_link_libraries(${PRGNAME} PRIVATE class::libclass_cpp)
+  target_compile_definitions(${PRGNAME} PRIVATE "USE_CLASS")
+endif()
+########################################################################################################################
 

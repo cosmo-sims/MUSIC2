@@ -102,7 +102,7 @@ struct eisenstein_transfer
   }
 
   //! private member function: computes transfer function for mode k (k in Mpc)
-  inline double TFfit_onek(double k, double *tf_baryon, double *tf_cdm)
+  inline double TFfit_onek(double k, double *tf_baryon, double *tf_cdm) const
   /* Input: k -- Wavenumber at which to calculate transfer function, in Mpc^-1.
    *tf_baryon, *tf_cdm -- Input value not used; replaced on output if
    the input was not NULL. */
@@ -173,7 +173,7 @@ struct eisenstein_transfer
     fc_ = (cp["Omega_m"] - cp["Omega_b"]) / cp["Omega_m"] ;
   }
 
-  inline double at_k(double k)
+  inline double at_k(double k) const
   {
     double tfb, tfcdm;
     TFfit_onek(k * m_h0, &tfb, &tfcdm);
@@ -211,17 +211,17 @@ public:
   }
 
   //! Computes the transfer function for k in Mpc/h by calling TFfit_onek
-  inline double compute(double k, tf_type type)
+  inline double compute(double k, tf_type type) const
   {
     return etf_.at_k(k);
   }
 
-  inline double get_kmin(void)
+  inline double get_kmin(void) const
   {
     return 1e-5;
   }
 
-  inline double get_kmax(void)
+  inline double get_kmax(void) const
   {
     return 1.e5;
   }
@@ -303,17 +303,17 @@ public:
     std::cerr << "WDM alpha = " << m_WDMalpha << std::endl;
   }
 
-  inline double compute(double k, tf_type type)
+  inline double compute(double k, tf_type type) const
   {
     return etf_.at_k(k) * pow(1.0 + pow(m_WDMalpha * k, 2.0 * wdmnu_), -5.0 / wdmnu_);
   }
 
-  inline double get_kmin(void)
+  inline double get_kmin(void) const
   {
     return 1e-4;
   }
 
-  inline double get_kmax(void)
+  inline double get_kmax(void) const
   {
     return 1.e4;
   }
@@ -348,7 +348,7 @@ public:
     music::ilog.Print(" bino CDM: k_fs = %g, k_d = %g", kfs_, kd_);
   }
 
-  inline double compute(double k, tf_type type)
+  inline double compute(double k, tf_type type) const
   {
     double kkfs = k / kfs_;
     double kkfs2 = kkfs * kkfs;
@@ -362,12 +362,12 @@ public:
       return 0.0;
   }
 
-  inline double get_kmin(void)
+  inline double get_kmin(void) const
   {
     return 1e-4;
   }
 
-  inline double get_kmax(void)
+  inline double get_kmax(void) const
   {
     return 1.e8;
   }

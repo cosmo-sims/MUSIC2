@@ -80,70 +80,26 @@ inline T POW4( T a ){
   //return a*a*a*a;
 }
 
+#if defined(_OPENMP)
+#include <omp.h>
+inline double get_wtime()
+{
+  return omp_get_wtime();
+}
+#else
+#include <ctime>
+inline double get_wtime()
+{
+  return std::clock() / double(CLOCKS_PER_SEC);
+}
+#endif
 
-//! structure for cosmological parameters
-/*
-typedef struct cosmology_old{
-  double 
-    Omega_m,		//!< baryon+dark matter density
-    Omega_b,		//!< baryon matter density
-    Omega_DE,		//!< dark energy density (cosmological constant or parameterised)
-    Omega_r,            //!< photon + relativistic particle density
-    Omega_k,            //!< curvature density
-    H0,			//!< Hubble constant in km/s/Mpc
-    nspect,		//!< long-wave spectral index (scale free is nspect=1) 
-    sigma8,		//!< power spectrum normalization
-    w_0,                //!< dark energy equation of state parameter 1: w = w0 + a * wa
-    w_a,                //!< dark energy equation of state parameter 2: w = w0 + a * wa
-
-  //Gamma,		//!< shape parameter (of historical interest, as a free parameter)
-  //fnl,			//!< non-gaussian contribution parameter
-  //w0,			//!< dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
-  //wa,			//!< dark energy equation of state parameter (not implemented, i.e. =1 at the moment)
-    dplus,			//!< linear perturbation growth factor
-    pnorm,			//!< actual power spectrum normalisation factor
-    vfact,			//!< velocity<->displacement conversion factor in Zel'dovich approx.
-    WDMmass,		//!< Warm DM particle mass
-    WDMg_x,			//!< Warm DM particle degrees of freedom
-    astart;			//!< expansion factor a for which to generate initial conditions
-  
-  cosmology( config_file cf )
-  {
-    double zstart = cf.get_value<double>( "setup", "zstart" );
-    
-    astart     	= 1.0/(1.0+zstart);
-    Omega_b    	= cf.get_value<double>( "cosmology", "Omega_b" );
-    Omega_m    	= cf.get_value<double>( "cosmology", "Omega_m" );
-    Omega_DE    = cf.get_value<double>( "cosmology", "Omega_L" );
-    w_0         = cf.get_value_safe<double>( "cosmology", "w0", -1.0 );
-    w_a         = cf.get_value_safe<double>( "cosmology", "wa", 0.0 );	
-    
-    Omega_r     = cf.get_value_safe<double>( "cosmology", "Omega_r", 0.0 ); // no longer default to nonzero (8.3e-5)
-    Omega_k     = 1.0 - Omega_m - Omega_DE - Omega_r;
-
-    H0	       	= cf.get_value<double>( "cosmology", "H0" );
-    sigma8     	= cf.get_value<double>( "cosmology", "sigma_8" );
-    nspect      = cf.get_value<double>( "cosmology", "nspec" );
-    WDMg_x     	= cf.get_value_safe<double>( "cosmology", "WDMg_x", 1.5 );
-    WDMmass    	= cf.get_value_safe<double>( "cosmology", "WDMmass", 0.0 );
-    
-    dplus      	= 0.0;
-    pnorm      	= 0.0;
-    vfact      	= 0.0;
-  }
-  
-  cosmology( void )
-  {
-    
-  }
-}Cosmology;*/
-
-//! basic box/grid/refinement structure parameters
-typedef struct {
-	unsigned levelmin, levelmax;
-	double boxlength;
-	std::vector<unsigned> offx,offy,offz,llx,lly,llz;
-}Parameters;
+// //! basic box/grid/refinement structure parameters
+// typedef struct {
+// 	unsigned levelmin, levelmax;
+// 	double boxlength;
+// 	std::vector<unsigned> offx,offy,offz,llx,lly,llz;
+// }Parameters;
 
 //! measure elapsed wallclock time
 inline double time_seconds( void )

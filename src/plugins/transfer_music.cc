@@ -161,7 +161,7 @@ public:
 		gsl_interp_accel_free (acc_theta_baryon);
 	}
 	
-	inline double extrap_left( double k, const tf_type& type ) 
+	inline double extrap_left( double k, const tf_type& type ) const
 	{
 		if( k<1e-8 )
 			return 1.0;
@@ -202,7 +202,7 @@ public:
 		return pow(10.0,(v2-v1)/dk*(delk)+v1);
 	}
 	
-	inline double extrap_right( double k, const tf_type& type ) 
+	inline double extrap_right( double k, const tf_type& type ) const
 	{
 		double v1(1.0), v2(1.0);
 		
@@ -242,7 +242,7 @@ public:
 		return pow(10.0,(v2-v1)/dk*(delk)+v2);
 	}
 	
-	inline double compute( double k, tf_type type ){
+	inline double compute( double k, tf_type type ) const{
 		
 		double lk = log10(k);
 		
@@ -279,11 +279,11 @@ public:
 		return 1.0;
 	}
 	
-	inline double get_kmin( void ){
+	inline double get_kmin( void ) const{
 		return pow(10.0,m_tab_k[0]);
 	}
 	
-	inline double get_kmax( void ){
+	inline double get_kmax( void ) const{
 		return pow(10.0,m_tab_k[m_tab_k.size()-1]);
 	}
 	

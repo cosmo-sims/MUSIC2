@@ -261,16 +261,6 @@ void RNG_panphasia::backward_transform_field(real_t *field, int nx, int ny, int 
   FFTW_API(destroy_plan(ipf));
 }
 
-#include <sys/time.h>
-inline double get_wtime(void)
-{
-#ifdef _OPENMP
-  return omp_get_wtime();
-#else
-  return (double)clock() / CLOCKS_PER_SEC;
-#endif
-}
-
 void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 {
   real_t *pr0, *pr1, *pr2, *pr3, *pr4;

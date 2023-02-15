@@ -26,10 +26,12 @@ public:
 	 \param aCosm Structure of type Cosmology carrying the cosmological parameters
 	 \param bSugiyama flag whether the Sugiyama (1995) correction shall be applied (default=true)
 	 */
-	transfer_bbks_plugin( config_file& cf )
-    : transfer_function_plugin( cf )
+	transfer_bbks_plugin( config_file& cf, const cosmology::parameters& cp )
+    : transfer_function_plugin( cf, cp )
 	{  
-		double Omega0 = cosmo_.Omega_m;
+		const double Omega0 = cp["Omega_m"];
+		const double Omegab = cp["Omega_b"];
+		const double H0 = cp["H0"];
 		double FreeGamma = -1.0;
 		
 		bool bSugiyama(true);
@@ -43,9 +45,9 @@ public:
 		FreeGamma = pcf_->get_value_safe<double>( "cosmology", "gamma", FreeGamma );
 		
 		if( FreeGamma <= 0.0 ){
-			m_Gamma = Omega0*0.01*cosmo_.H0;
+			m_Gamma = Omega0*0.01*H0;
 			if( bSugiyama )
-				m_Gamma *= exp(-cosmo_.Omega_b*(1.0+sqrt(2.0*0.01*cosmo_.H0)/Omega0));
+				m_Gamma *= exp(-Omegab*(1.0+sqrt(2.0*0.01*H0)/Omega0));
 		}else
 			m_Gamma = FreeGamma;
 		

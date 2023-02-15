@@ -15,16 +15,14 @@
 
 #include "general.hh"
 #include "config_file.hh"
-// #include "density_grid.hh"
 #include "random.hh"
-#include "cosmology.hh"
 #include "transfer_function.hh"
 #include "general.hh"
 
-void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type type,
+void GenerateDensityHierarchy(config_file &cf, const cosmology::calculator* cc, tf_type type,
 															refinement_hierarchy &refh, noise_generator &rand, grid_hierarchy &delta, bool smooth, bool shift);
 
-void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type type,
+void GenerateDensityUnigrid(config_file &cf, const cosmology::calculator*, tf_type type,
 														refinement_hierarchy &refh, noise_generator &rand, grid_hierarchy &delta, bool smooth, bool shift);
 
 void normalize_density(grid_hierarchy &delta);

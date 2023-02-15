@@ -44,7 +44,9 @@ extern "C"
 #include <densities.hh>
 
 #include <convolution_kernel.hh>
-#include <cosmology.hh>
+#include <perturbation_theory.hh>
+#include <cosmology_parameters.hh>
+#include <cosmology_calculator.hh>
 #include <transfer_function.hh>
 
 #define THE_CODE_NAME "music!"
@@ -53,9 +55,9 @@ extern "C"
 // initialise with "default" values
 namespace CONFIG{
 // int  MPI_thread_support = -1;
-// int  MPI_task_rank = 0;
-// int  MPI_task_size = 1;
-// bool MPI_ok = false;
+int  MPI_task_rank = 0;
+int  MPI_task_size = 1;
+bool MPI_ok = false;
 // bool MPI_threads_ok = false;
 bool FFTW_threads_ok = false;
 int  num_threads = 1;
@@ -67,7 +69,7 @@ namespace music
 
 	struct framework
 	{
-		transfer_function *the_transfer_function;
+		// transfer_function *the_transfer_function;
 		// poisson_solver *the_poisson_solver;
 		config_file *the_config_file;
 		refinement_hierarchy *the_refinement_hierarchy;
@@ -76,12 +78,14 @@ namespace music
 }
 
 //... declare static class members here
-transfer_function *TransferFunction_real::ptf_ = NULL;
+// transfer_function *TransferFunction_real::ptf_ = NULL;
 transfer_function *TransferFunction_k::ptf_ = NULL;
 tf_type TransferFunction_k::type_;
-tf_type TransferFunction_real::type_;
-real_t TransferFunction_real::nspec_ = -1.0;
+// tf_type TransferFunction_real::type_;
+// real_t TransferFunction_real::nspec_ = -1.0;
 real_t TransferFunction_k::nspec_ = -1.0;
+
+std::unique_ptr<cosmology::calculator>  the_cosmo_calc;
 
 //... prototypes for routines used in main driver routine
 void splash(void);
@@ -95,17 +99,24 @@ void splash(void)
 {
 
 	music::ilog << std::endl
-			<< "    __    __     __  __     ______     __     ______      " << std::endl
-			<< "   /\\ \"-./  \\   /\\ \\/\\ \\   /\\  ___\\   /\\ \\   /\\  ___\\  " << std::endl
-			<< "   \\ \\ \\-./\\ \\  \\ \\ \\_\\ \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\____ " << std::endl
-			<< "    \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\/\\_____\\  \\ \\_\\  \\ \\_____\\ " << std::endl
-			<< "     \\/_/  \\/_/   \\/_____/   \\/_____/   \\/_/   \\/_____/ " << std::endl << std::endl
-			<< "                            this is " << THE_CODE_NAME << " version " << THE_CODE_VERSION << std::endl << std::endl;
+			<< "           __    __     __  __     ______     __     ______      " << std::endl
+			<< "          /\\ \"-./  \\   /\\ \\/\\ \\   /\\  ___\\   /\\ \\   /\\  ___\\  " << std::endl
+			<< "          \\ \\ \\-./\\ \\  \\ \\ \\_\\ \\  \\ \\___  \\  \\ \\ \\  \\ \\ \\____ " << std::endl
+			<< "           \\ \\_\\ \\ \\_\\  \\ \\_____\\  \\/\\_____\\  \\ \\_\\  \\ \\_____\\ " << std::endl
+			<< "            \\/_/  \\/_/   \\/_____/   \\/_____/   \\/_/   \\/_____/ " << std::endl << std::endl
+			<< "                                   this is " << THE_CODE_NAME << " version " << THE_CODE_VERSION << std::endl << std::endl;
 
-#if defined(CMAKE_BUILD)
-	music::ilog.Print("Version built from git rev.: %s, tag: %s, branch: %s", GIT_REV, GIT_TAG, GIT_BRANCH);
+// git and versioning info:
+    music::ilog << "Version: git rev.: " << GIT_REV << ", tag: " << GIT_TAG << ", branch: " << GIT_BRANCH << std::endl;
+    
+    // Compilation CMake configuration, time etc info:
+    music::ilog << "This " << CMAKE_BUILDTYPE_STR << " build was compiled at " << __TIME__ << " on " <<  __DATE__ << std::endl;
+
+#ifdef __GNUC__
+    music::ilog << "Compiled with GNU C++ version " << __VERSION__ <<std::endl;
+#else
+    music::ilog << "Compiled with " << __VERSION__ << std::endl;
 #endif
-	music::ilog << std::endl << std::endl;
 }
 
 void modify_grid_for_TF(const refinement_hierarchy &rh_full, refinement_hierarchy &rh_TF, config_file &cf)
@@ -378,6 +389,7 @@ int main(int argc, const char *argv[])
 		splash();
 		std::cout << " This version is compiled with the following plug-ins:\n";
 
+		cosmology::print_ParameterSets();
 		print_region_generator_plugins();
 		print_transfer_function_plugins();
 		print_RNG_plugins();
@@ -407,8 +419,6 @@ int main(int argc, const char *argv[])
 	config_file cf(argv[1]);
 	std::string tfname, randfname, temp;
 	bool force_shift(false);
-	double boxlength;
-
 
 	//------------------------------------------------------------------------------
 	//... init multi-threading
@@ -424,7 +434,6 @@ int main(int argc, const char *argv[])
 	//... initialize some parameters about grid set-up
 	//------------------------------------------------------------------------------
 
-	boxlength = cf.get_value<double>("setup", "boxlength");
 	lbase = cf.get_value<unsigned>("setup", "levelmin");
 	lmax = cf.get_value<unsigned>("setup", "levelmax");
 	lbaseTF = cf.get_value_safe<unsigned>("setup", "levelmin_TF", lbase);
@@ -463,39 +472,42 @@ int main(int argc, const char *argv[])
 			do_LLA = cf.get_value_safe<bool>("setup", "use_LLA", false),
 			do_counter_mode = cf.get_value_safe<bool>("setup", "zero_zoom_velocity", false);
 
-	transfer_function_plugin *the_transfer_function_plugin = select_transfer_function_plugin(cf);
+	the_cosmo_calc              = std::make_unique<cosmology::calculator>(cf);
 
-	cosmology cosmo(cf);
+	bool tf_has_velocities = the_cosmo_calc.get()->transfer_function_.get()->tf_has_velocities();
+	//--------------------------------------------------------------------------------------------------------
+	//! starting redshift
+	const real_t zstart = cf.get_value<double>("setup", "zstart");
+	const real_t astart = 1.0/(1.0+zstart);
+	
+	music::ilog << "- starting at a=" << 1.0/(1.0+zstart) << std::endl;
 
-	music::ilog << "- starting at a=" << cosmo.astart << std::endl;
+	double cosmo_dplus = the_cosmo_calc->get_growth_factor(astart) / the_cosmo_calc->get_growth_factor(1.0);
+	double cosmo_vfact = the_cosmo_calc->get_vfact(astart);
 
-	CosmoCalc ccalc(cosmo, the_transfer_function_plugin);
-	cosmo.pnorm = ccalc.ComputePNorm(2.0 * M_PI / boxlength);
-	cosmo.dplus = ccalc.CalcGrowthFactor(cosmo.astart) / ccalc.CalcGrowthFactor(1.0);
-	cosmo.vfact = ccalc.CalcVFact(cosmo.astart);
-
-	if (!the_transfer_function_plugin->tf_has_total0())
-		cosmo.pnorm *= cosmo.dplus * cosmo.dplus;
-
+	if (!the_cosmo_calc.get()->transfer_function_.get()->tf_has_total0()){
+		the_cosmo_calc->cosmo_param_["pnorm"] *= cosmo_dplus * cosmo_dplus;
+	}
+	double cosmo_pnorm = the_cosmo_calc->cosmo_param_["pnorm"];
 	//... directly use the normalisation via a parameter rather than the calculated one
-	cosmo.pnorm = cf.get_value_safe<double>("setup", "force_pnorm", cosmo.pnorm);
+	cosmo_pnorm = cf.get_value_safe<double>("setup", "force_pnorm", cosmo_pnorm);
 
 	double vfac2lpt = 1.0;
 
-	if (the_transfer_function_plugin->tf_velocity_units() && do_baryons)
+	if (the_cosmo_calc->transfer_function_->tf_velocity_units() && do_baryons)
 	{
-		vfac2lpt = cosmo.vfact; // if the velocities are in velocity units, we need to divide by vfact for the 2lPT term
-		cosmo.vfact = 1.0;
+		vfac2lpt = cosmo_vfact; // if the velocities are in velocity units, we need to divide by vfact for the 2lPT term
+		cosmo_vfact = 1.0;
 	}
 
-	//
+	
 	{
 		char tmpstr[128];
-		snprintf(tmpstr, 128, "%.12g", cosmo.pnorm);
+		snprintf(tmpstr, 128, "%.12g", cosmo_pnorm);
 		cf.insert_value("cosmology", "pnorm", tmpstr);
-		snprintf(tmpstr, 128, "%.12g", cosmo.dplus);
+		snprintf(tmpstr, 128, "%.12g", cosmo_dplus);
 		cf.insert_value("cosmology", "dplus", tmpstr);
-		snprintf(tmpstr, 128, "%.12g", cosmo.vfact);
+		snprintf(tmpstr, 128, "%.12g", cosmo_vfact);
 		cf.insert_value("cosmology", "vfact", tmpstr);
 	}
 
@@ -505,16 +517,13 @@ int main(int argc, const char *argv[])
 	//... determine run parameters
 	//------------------------------------------------------------------------------
 
-	if (!the_transfer_function_plugin->tf_is_distinct() && do_baryons)
-		music::wlog << " - WARNING: The selected transfer function does not support" << std::endl
-							<< "            distinct amplitudes for baryon and DM fields!" << std::endl
-							<< "            Perturbation amplitudes will be identical!" << std::endl;
+	
 
 
 	//------------------------------------------------------------------------------
 	//... start up the random number generator plugin
 	//... see if we need to set some grid building constraints
-	noise_generator rand( cf, the_transfer_function_plugin );
+	noise_generator rand( cf );
 
 	//------------------------------------------------------------------------------
 	//... determine the refinement hierarchy
@@ -549,13 +558,11 @@ int main(int argc, const char *argv[])
 	music::ilog << "   GENERATING WHITE NOISE\n";
 	music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 	music::ilog << "Computing white noise..." << std::endl;
-	// rand_gen rand(cf, rh_TF, the_transfer_function_plugin);
 	rand.initialize_for_grid_structure( rh_TF );
 
 	//------------------------------------------------------------------------------
 	//... initialize the Poisson solver
 	//------------------------------------------------------------------------------
-	// bool bdefd	= cf.get_value_safe<bool> ( "poisson" , "fft_fine", true );
 	bool bdefd = true; // we set this by default and don't allow it to be changed outside any more
 	bool bglass = cf.get_value_safe<bool>("output", "glass", false);
 	bool bsph = cf.get_value_safe<bool>("setup", "do_SPH", false) && do_baryons;
@@ -610,11 +617,11 @@ int main(int argc, const char *argv[])
 			music::ulog.Print("Computing dark matter displacements...");
 
 			grid_hierarchy f(nbnd); //, u(nbnd);
-			tf_type my_tf_type = cdm;
-			if (!do_baryons || !the_transfer_function_plugin->tf_is_distinct())
-				my_tf_type = total;
+			tf_type my_tf_type = delta_cdm;
+			if (!do_baryons)
+				my_tf_type = delta_matter;
 
-			GenerateDensityHierarchy(cf, the_transfer_function_plugin, my_tf_type, rh_TF, rand, f, false, false);
+			GenerateDensityHierarchy(cf, the_cosmo_calc.get(), my_tf_type, rh_TF, rand, f, false, false);
 			coarsen_density(rh_Poisson, f, bspectral_sampling);
 			f.add_refinement_mask(rh_Poisson.get_coord_shift());
 
@@ -678,7 +685,7 @@ int main(int argc, const char *argv[])
 				music::ilog << "   COMPUTING BARYON DENSITY\n";
 				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon density...");
-				GenerateDensityHierarchy(cf, the_transfer_function_plugin, baryon, rh_TF, rand, f, false, bbshift);
+				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), delta_baryon, rh_TF, rand, f, false, bbshift);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
@@ -741,17 +748,17 @@ int main(int argc, const char *argv[])
 			//------------------------------------------------------------------------------
 			//... velocities
 			//------------------------------------------------------------------------------
-			if ((!the_transfer_function_plugin->tf_has_velocities() || !do_baryons) && !bsph)
+			if ((!tf_has_velocities || !do_baryons) && !bsph)
 			{
 				music::ilog << "===============================================================================" << std::endl;
 				music::ilog << "   COMPUTING VELOCITIES\n";
 				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing velocitites...");
 
-				if (do_baryons || the_transfer_function_plugin->tf_has_velocities())
+				if (do_baryons || tf_has_velocities)
 				{
 					music::ulog.Print("Generating velocity perturbations...");
-					GenerateDensityHierarchy(cf, the_transfer_function_plugin, vtotal, rh_TF, rand, f, false, false);
+					GenerateDensityHierarchy(cf, the_cosmo_calc.get(), theta_cdm, rh_TF, rand, f, false, false);
 					coarsen_density(rh_Poisson, f, bspectral_sampling);
 					f.add_refinement_mask(rh_Poisson.get_coord_shift());
 					normalize_density(f);
@@ -779,7 +786,7 @@ int main(int argc, const char *argv[])
 						the_poisson_solver->gradient(icoord, u, data_forIO);
 
 					//... multiply to get velocity
-					data_forIO *= cosmo.vfact;
+					data_forIO *= cosmo_vfact;
 
 					//... velocity kick to keep refined region centered?
 
@@ -796,7 +803,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity-mode
-					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo_vfact );
 
 					music::ulog.Print("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -821,7 +828,7 @@ int main(int argc, const char *argv[])
 
 				//... we do baryons and have velocity transfer functions, or we do SPH and not to shift
 				//... do DM first
-				GenerateDensityHierarchy(cf, the_transfer_function_plugin, vcdm, rh_TF, rand, f, false, false);
+				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), theta_cdm, rh_TF, rand, f, false, false);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
@@ -851,7 +858,7 @@ int main(int argc, const char *argv[])
 						the_poisson_solver->gradient(icoord, u, data_forIO);
 
 					//... multiply to get velocity
-					data_forIO *= cosmo.vfact;
+					data_forIO *= cosmo_vfact;
 
 					double sigv = compute_finest_sigma(data_forIO);
 					music::ilog.Print("sigma of %c-velocity of high-res DM is %f", 'x' + icoord, sigv);
@@ -866,7 +873,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
-					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo_vfact );
 
 					music::ulog.Print("Writing CDM velocities");
 					the_output_plugin->write_dm_velocity(icoord, data_forIO);
@@ -880,7 +887,7 @@ int main(int argc, const char *argv[])
 				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon velocitites...");
 				//... do baryons
-				GenerateDensityHierarchy(cf, the_transfer_function_plugin, vbaryon, rh_TF, rand, f, false, bbshift);
+				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), theta_baryon, rh_TF, rand, f, false, bbshift);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
@@ -910,7 +917,7 @@ int main(int argc, const char *argv[])
 						the_poisson_solver->gradient(icoord, u, data_forIO);
 
 					//... multiply to get velocity
-					data_forIO *= cosmo.vfact;
+					data_forIO *= cosmo_vfact;
 
 					double sigv = compute_finest_sigma(data_forIO);
 					music::ilog.Print("sigma of %c-velocity of high-res baryons is %f", 'x' + icoord, sigv);
@@ -925,7 +932,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter velocity mode
-					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]*cosmo_vfact );
 
 					music::ulog.Print("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
@@ -946,13 +953,13 @@ int main(int argc, const char *argv[])
 
 			grid_hierarchy f(nbnd), u1(nbnd), u2LPT(nbnd), f2LPT(nbnd);
 
-			tf_type my_tf_type = vcdm;
+			tf_type my_tf_type = theta_cdm;
 			bool dm_only = !do_baryons;
-			if (!do_baryons || !the_transfer_function_plugin->tf_has_velocities())
-				my_tf_type = total;
+			if (!do_baryons || !tf_has_velocities)
+				my_tf_type = theta_matter;
 
 			music::ilog << "===============================================================================" << std::endl;
-			if (my_tf_type == total)
+			if (my_tf_type == theta_matter)
 			{
 				music::ilog << "   COMPUTING VELOCITIES" << std::endl;
 			}
@@ -962,7 +969,7 @@ int main(int argc, const char *argv[])
 			}
 			music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 
-			GenerateDensityHierarchy(cf, the_transfer_function_plugin, my_tf_type, rh_TF, rand, f, false, false);
+			GenerateDensityHierarchy(cf, the_cosmo_calc.get(), my_tf_type, rh_TF, rand, f, false, false);
 			coarsen_density(rh_Poisson, f, bspectral_sampling);
 			f.add_refinement_mask(rh_Poisson.get_coord_shift());
 			normalize_density(f);
@@ -1028,7 +1035,7 @@ int main(int argc, const char *argv[])
 				else
 					the_poisson_solver->gradient(icoord, u1, data_forIO);
 
-				data_forIO *= cosmo.vfact;
+				data_forIO *= cosmo_vfact;
 
 				double sigv = compute_finest_sigma(data_forIO);
 
@@ -1051,7 +1058,7 @@ int main(int argc, const char *argv[])
 				music::ulog.Print("Writing CDM velocities");
 				the_output_plugin->write_dm_velocity(icoord, data_forIO);
 
-				if (do_baryons && !the_transfer_function_plugin->tf_has_velocities() && !bsph)
+				if (do_baryons && !tf_has_velocities && !bsph)
 				{
 					music::ulog.Print("Writing baryon velocities");
 					the_output_plugin->write_gas_velocity(icoord, data_forIO);
@@ -1061,14 +1068,14 @@ int main(int argc, const char *argv[])
 			if (!dm_only)
 				u1.deallocate();
 
-			if (do_baryons && (the_transfer_function_plugin->tf_has_velocities() || bsph))
+			if (do_baryons && (tf_has_velocities || bsph))
 			{
 				music::ilog << "===============================================================================" << std::endl;
 				music::ilog << "   COMPUTING BARYON VELOCITIES" << std::endl;
 				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon displacements...");
 
-				GenerateDensityHierarchy(cf, the_transfer_function_plugin, vbaryon, rh_TF, rand, f, false, bbshift);
+				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), theta_baryon, rh_TF, rand, f, false, bbshift);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
@@ -1126,7 +1133,7 @@ int main(int argc, const char *argv[])
 					else
 						the_poisson_solver->gradient(icoord, u1, data_forIO);
 
-					data_forIO *= cosmo.vfact;
+					data_forIO *= cosmo_vfact;
 
 					double sigv = compute_finest_sigma(data_forIO);
 
@@ -1162,11 +1169,11 @@ int main(int argc, const char *argv[])
 			if (!dm_only)
 			{
 				// my_tf_type is cdm if do_baryons==true, total otherwise
-				my_tf_type = cdm;
-				if (!do_baryons || !the_transfer_function_plugin->tf_is_distinct())
-					my_tf_type = total;
+				my_tf_type = delta_cdm;
+				if (!do_baryons || !the_cosmo_calc->transfer_function_->tf_is_distinct())
+					my_tf_type = delta_matter;
 
-				GenerateDensityHierarchy(cf, the_transfer_function_plugin, my_tf_type, rh_TF, rand, f, false, false);
+				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), my_tf_type, rh_TF, rand, f, false, false);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
@@ -1248,7 +1255,7 @@ int main(int argc, const char *argv[])
 				coarsen_density(rh_Poisson, data_forIO, false);
 
 				// add counter mode
-				if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
+				if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo_vfact );
 
 				music::ulog.Print("Writing CDM displacements");
 				the_output_plugin->write_dm_position(icoord, data_forIO);
@@ -1264,7 +1271,7 @@ int main(int argc, const char *argv[])
 				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon density...");
 
-				GenerateDensityHierarchy(cf, the_transfer_function_plugin, baryon, rh_TF, rand, f, true, false);
+				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), delta_baryon, rh_TF, rand, f, true, false);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
@@ -1307,7 +1314,7 @@ int main(int argc, const char *argv[])
 				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon displacements...");
 
-				GenerateDensityHierarchy(cf, the_transfer_function_plugin, baryon, rh_TF, rand, f, false, bbshift);
+				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), delta_baryon, rh_TF, rand, f, false, bbshift);
 				coarsen_density(rh_Poisson, f, bspectral_sampling);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
@@ -1365,7 +1372,7 @@ int main(int argc, const char *argv[])
 					coarsen_density(rh_Poisson, data_forIO, false);
 
 					// add counter mode
-					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo.vfact );
+					if( do_counter_mode ) add_constant_value( data_forIO, -counter_mode_amp[icoord]/cosmo_vfact );
 
 
 					music::ulog.Print("Writing baryon displacements");
@@ -1397,10 +1404,12 @@ int main(int argc, const char *argv[])
 		music::ulog.Print("Wrote output file \'%s\'.", outfname.c_str());
 	}
 
+
+
 	//------------------------------------------------------------------------------
 	//... clean up
 	//------------------------------------------------------------------------------
-	delete the_transfer_function_plugin;
+	// delete the_transfer_function_plugin;
 	delete the_poisson_solver;
 
 	if( CONFIG::FFTW_threads_ok )

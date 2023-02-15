@@ -18,9 +18,9 @@ private:
   std::vector<double> m_tab_k, m_tab_Tk_tot, m_tab_Tk_cdm, m_tab_Tk_baryon;
   std::vector<double> m_tab_Tvk_tot, m_tab_Tvk_cdm, m_tab_Tvk_baryon;
   gsl_interp_accel *acc_tot, *acc_cdm, *acc_baryon;
-  gsl_interp_accel *acc_vtot, *acc_vcdm, *acc_vbaryon;
+  gsl_interp_accel *acc_vtot, *acc_theta_cdm, *acc_theta_baryon;
   gsl_spline *spline_tot, *spline_cdm, *spline_baryon;
-  gsl_spline *spline_vtot, *spline_vcdm, *spline_vbaryon;
+  gsl_spline *spline_vtot, *spline_theta_cdm, *spline_theta_baryon;
 
   double m_kmin, m_kmax, m_Omega_b, m_Omega_m, m_zstart;
   unsigned m_nlines;
@@ -162,12 +162,13 @@ private:
   }
 
 public:
-  transfer_CAMB_plugin(config_file &cf)
-  : transfer_function_plugin(cf)
+  transfer_CAMB_plugin(config_file &cf, const cosmology::parameters& cp)
+  : transfer_function_plugin(cf,cp)
   {
     m_filename_Tk = pcf_->get_value<std::string>("cosmology", "transfer_file");
-    m_Omega_m=cf.get_value<double>("cosmology","Omega_m"); //MvD
-    m_Omega_b=cf.get_value<double>("cosmology","Omega_b"); //MvD
+		
+    m_Omega_m=cp["Omega_m"]; //MvD
+    m_Omega_b=cp["Omega_b"]; //MvD
     m_zstart =cf.get_value<double>("setup","zstart"); //MvD
 
     read_table();
@@ -176,16 +177,16 @@ public:
     acc_cdm = gsl_interp_accel_alloc();
     acc_baryon = gsl_interp_accel_alloc();
     acc_vtot = gsl_interp_accel_alloc();    //>[150609SH: add]
-    acc_vcdm = gsl_interp_accel_alloc();    //>[150609SH: add]
-    acc_vbaryon = gsl_interp_accel_alloc(); //>[150609SH: add]
+    acc_theta_cdm = gsl_interp_accel_alloc();    //>[150609SH: add]
+    acc_theta_baryon = gsl_interp_accel_alloc(); //>[150609SH: add]
 
     spline_tot = gsl_spline_alloc(gsl_interp_cspline, m_tab_k.size());
     spline_cdm = gsl_spline_alloc(gsl_interp_cspline, m_tab_k.size());
     spline_baryon = gsl_spline_alloc(gsl_interp_cspline, m_tab_k.size());
     spline_vtot = gsl_spline_alloc(gsl_interp_cspline, m_tab_k.size());
-    spline_vcdm =
+    spline_theta_cdm =
         gsl_spline_alloc(gsl_interp_cspline, m_tab_k.size()); //>[150609SH: add]
-    spline_vbaryon =
+    spline_theta_baryon =
         gsl_spline_alloc(gsl_interp_cspline, m_tab_k.size()); //>[150609SH: add]
 
     gsl_spline_init(spline_tot, &m_tab_k[0], &m_tab_Tk_tot[0], m_tab_k.size());
@@ -194,9 +195,9 @@ public:
                     m_tab_k.size());
     gsl_spline_init(spline_vtot, &m_tab_k[0], &m_tab_Tvk_tot[0],
                     m_tab_k.size()); //>[150609SH: add]
-    gsl_spline_init(spline_vcdm, &m_tab_k[0], &m_tab_Tvk_cdm[0],
+    gsl_spline_init(spline_theta_cdm, &m_tab_k[0], &m_tab_Tvk_cdm[0],
                     m_tab_k.size()); //>[150609SH: add]
-    gsl_spline_init(spline_vbaryon, &m_tab_k[0], &m_tab_Tvk_baryon[0],
+    gsl_spline_init(spline_theta_baryon, &m_tab_k[0], &m_tab_Tvk_baryon[0],
                     m_tab_k.size()); //>[150609SH: add]
 
     tf_distinct_ = true; // [150612SH: different density between CDM v.s. Baryon]
@@ -208,15 +209,15 @@ public:
     gsl_spline_free(spline_cdm);
     gsl_spline_free(spline_baryon);
     gsl_spline_free(spline_vtot);
-    gsl_spline_free(spline_vcdm);    //>[150609SH: add]
-    gsl_spline_free(spline_vbaryon); //>[150609SH: add]
+    gsl_spline_free(spline_theta_cdm);    //>[150609SH: add]
+    gsl_spline_free(spline_theta_baryon); //>[150609SH: add]
 
     gsl_interp_accel_free(acc_tot);
     gsl_interp_accel_free(acc_cdm);
     gsl_interp_accel_free(acc_baryon);
     gsl_interp_accel_free(acc_vtot);
-    gsl_interp_accel_free(acc_vcdm);    //>[150609SH: add]
-    gsl_interp_accel_free(acc_vbaryon); //>[150609SH: add]
+    gsl_interp_accel_free(acc_theta_cdm);    //>[150609SH: add]
+    gsl_interp_accel_free(acc_theta_baryon); //>[150609SH: add]
   }
 
   // linear interpolation in log-log
@@ -230,31 +231,31 @@ public:
     double delk = lk - m_tab_k[n];
 
     switch (type) {
-    case cdm:
+    case delta_cdm:
       v1 = m_tab_Tk_cdm[n1];
       v2 = m_tab_Tk_cdm[n];
       return pow(10.0, (v2 - v1) / dk * (delk) + v2);
-    case baryon:
+    case delta_baryon:
       v1 = m_tab_Tk_baryon[n1];
       v2 = m_tab_Tk_baryon[n];
       if (m_linbaryoninterp)
         return std::max((v2 - v1) / dk * (delk) + v2, tiny);
       return pow(10.0, (v2 - v1) / dk * (delk) + v2);
-    case vtotal: //>[150609SH: add]
+    case theta_matter: //>[150609SH: add]
       v1 = m_tab_Tvk_tot[n1];
       v2 = m_tab_Tvk_tot[n];
       return pow(10.0, (v2 - v1) / dk * (delk) + v2);
-    case vcdm: //>[150609SH: add]
+    case theta_cdm: //>[150609SH: add]
       v1 = m_tab_Tvk_cdm[n1];
       v2 = m_tab_Tvk_cdm[n];
       return pow(10.0, (v2 - v1) / dk * (delk) + v2);
-    case vbaryon: //>[150609SH: add]
+    case theta_baryon: //>[150609SH: add]
       v1 = m_tab_Tvk_baryon[n1];
       v2 = m_tab_Tvk_baryon[n];
       if (m_linbaryoninterp)
         return std::max((v2 - v1) / dk * (delk) + v2, tiny);
       return pow(10.0, (v2 - v1) / dk * (delk) + v2);
-    case total:
+    case delta_matter:
       v1 = m_tab_Tk_tot[n1];
       v2 = m_tab_Tk_tot[n];
       return pow(10.0, (v2 - v1) / dk * (delk) + v2);
@@ -270,21 +271,21 @@ public:
     // use constant interpolation on the left side of the tabulated values
     if (k < m_kmin) {
       switch (type) {
-      case cdm:
+      case delta_cdm:
         return pow(10.0, m_tab_Tk_cdm[0]);
-      case baryon:
+      case delta_baryon:
         if (m_linbaryoninterp)
           return m_tab_Tk_baryon[0];
         return pow(10.0, m_tab_Tk_baryon[0]);
-      case vtotal:
+      case theta_matter:
         return pow(10.0, m_tab_Tvk_tot[0]);
-      case vcdm:
+      case theta_cdm:
         return pow(10.0, m_tab_Tvk_cdm[0]);
-      case vbaryon:
+      case theta_baryon:
         if (m_linbaryoninterp)
           return m_tab_Tvk_baryon[0];
         return pow(10.0, m_tab_Tvk_baryon[0]);
-      case total:
+      case delta_matter:
         return pow(10.0, m_tab_Tk_tot[0]);
       default:
         throw std::runtime_error(
@@ -297,21 +298,21 @@ public:
 
     double lk = log10(k);
     switch (type) {
-    case cdm:
+    case delta_cdm:
       return pow(10.0, gsl_spline_eval(spline_cdm, lk, acc_cdm));
-    case baryon:
+    case delta_baryon:
       if (m_linbaryoninterp)
         return gsl_spline_eval(spline_baryon, lk, acc_baryon);
       return pow(10.0, gsl_spline_eval(spline_baryon, lk, acc_baryon));
-    case vtotal:
+    case theta_matter:
       return pow(10.0, gsl_spline_eval(spline_vtot, lk, acc_vtot)); //MvD
-    case vcdm:
-      return pow(10.0, gsl_spline_eval(spline_vcdm, lk, acc_vcdm));
-    case vbaryon:
+    case theta_cdm:
+      return pow(10.0, gsl_spline_eval(spline_theta_cdm, lk, acc_theta_cdm));
+    case theta_baryon:
       if (m_linbaryoninterp)
-        return gsl_spline_eval(spline_vbaryon, lk, acc_vbaryon);
-      return pow(10.0, gsl_spline_eval(spline_vbaryon, lk, acc_vbaryon));
-    case total:
+        return gsl_spline_eval(spline_theta_baryon, lk, acc_theta_baryon);
+      return pow(10.0, gsl_spline_eval(spline_theta_baryon, lk, acc_theta_baryon));
+    case delta_matter:
       return pow(10.0, gsl_spline_eval(spline_tot, lk, acc_tot));
     default:
       throw std::runtime_error(

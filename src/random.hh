@@ -95,7 +95,7 @@ protected:
 
 public:
 	//! constructor
-	random_number_generator(config_file &cf, transfer_function *ptf = NULL)
+	explicit random_number_generator(config_file &cf)
 			: pcf_(&cf) //, prefh_( &refh )
 	{
 		levelmin_ = pcf_->get_value<int>("setup", "levelmin");

@@ -157,7 +157,7 @@ class kernel_k : public kernel
 {
 protected:
 	/**/
-	double boxlength_, patchlength_, nspec_, pnorm_, volfac_, kfac_, kmax_;
+	double boxlength_, patchlength_, nspec_, pnorm_, kfac_, kmax_;
 	TransferFunction_k *tfk_;
 
 public:
@@ -165,9 +165,8 @@ public:
 		: kernel(cf, ptf, refh, type)
 	{
 		boxlength_ = pcf_->get_value<double>("setup", "boxlength");
-		nspec_ = pcf_->get_value<double>("cosmology", "nspec");
-		pnorm_ = pcf_->get_value<double>("cosmology", "pnorm");
-		volfac_ = 1.0; //pow(boxlength,3)/pow(2.0*M_PI,3);
+		nspec_ = ptf->cosmo_params_["n_s"];
+		pnorm_ = ptf->cosmo_params_["pnorm"];
 		kfac_ = 2.0 * M_PI / boxlength_;
 		kmax_ = kfac_ / 2;
 		tfk_ = new TransferFunction_k(type_, ptf_, nspec_, pnorm_);
@@ -231,7 +230,7 @@ public:
 		for (size_t i = 0; i < len; ++i)
 		{
 			double kk = kfac_ * in_k[i];
-			out_Tk[i] = volfac_ * tfk_->compute(kk);
+			out_Tk[i] = tfk_->compute(kk);
 		}
 	}
 

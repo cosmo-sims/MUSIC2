@@ -23,7 +23,7 @@
 #include <config_file.hh>
 #include <general.hh>
 
-namespace cosmology_new
+namespace cosmology
 {
     //! structure for cosmological parameters
     class parameters
@@ -39,6 +39,19 @@ namespace cosmology_new
     public:
         //! get routine for cosmological parameter key-value pairs
         double get(const std::string &key) const
+        {
+            auto it = pmap_.find(key);
+            if (it == pmap_.end())
+            {
+                auto errmsg = std::string("Cosmological parameter \'") + key + std::string("\' does not exist in internal list.");
+                music::elog << errmsg << std::endl;
+                throw std::runtime_error(errmsg.c_str());
+            }
+            return it->second;
+        }
+
+        //! get routine for cosmological parameter key-value pairs
+        double& get(const std::string &key)
         {
             auto it = pmap_.find(key);
             if (it == pmap_.end())
@@ -68,6 +81,9 @@ namespace cosmology_new
 
         //! shortcut get routine for cosmological parameter key-value pairs through bracket operator
         inline double operator[](const std::string &key) const { return this->get(key); }
+
+        //! shortcut get routine for cosmological parameter key-value pairs through bracket operator
+        inline double& operator[](const std::string &key) { return this->get(key); }
 
         //! default constructor does nothing
         parameters() {}

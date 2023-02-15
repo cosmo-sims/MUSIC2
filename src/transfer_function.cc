@@ -30,17 +30,14 @@ void print_transfer_function_plugins()
 		if( (*it).second )
 			std::cout << "\t\'" << (*it).first << "\'\n";
 		++it;
-	}
-	
-	
+	}	
 }
 
-transfer_function_plugin *select_transfer_function_plugin( config_file& cf )
+std::unique_ptr<transfer_function_plugin> select_transfer_function_plugin( config_file& cf, const cosmology::parameters& cp )
 {
 	std::string tfname = cf.get_value<std::string>( "cosmology", "transfer" );
 	
-	transfer_function_plugin_creator *the_transfer_function_plugin_creator 
-	= get_transfer_function_plugin_map()[ tfname ];
+	transfer_function_plugin_creator *the_transfer_function_plugin_creator = get_transfer_function_plugin_map()[ tfname ];
 	
 	if( !the_transfer_function_plugin_creator )
 	{	
@@ -55,9 +52,6 @@ transfer_function_plugin *select_transfer_function_plugin( config_file& cf )
 		music::ulog.Print("Selecting transfer function plug-in  : %s",tfname.c_str() );
 	}
 	
-	transfer_function_plugin *the_transfer_function_plugin 
-	= the_transfer_function_plugin_creator->create( cf );
-	
-	return the_transfer_function_plugin;
+	return the_transfer_function_plugin_creator->create( cf, cp );
 }
 

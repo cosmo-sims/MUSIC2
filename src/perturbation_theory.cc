@@ -8,10 +8,10 @@
 
  */
 
-#include "cosmology.hh"
-#include "mesh.hh"
-#include "mg_operators.hh"
-#include "general.hh"
+#include <perturbation_theory.hh>
+#include <mesh.hh>
+#include <mg_operators.hh>
+#include <general.hh>
 
 #define ACC(i, j, k) ((*u.get_grid((ilevel)))((i), (j), (k)))
 #define SQR(x) ((x) * (x))

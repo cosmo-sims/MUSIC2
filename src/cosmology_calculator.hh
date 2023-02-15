@@ -17,11 +17,11 @@
 #pragma once
 
 #include <array>
-#include <vec.hh>
+#include "math/vec.hh"
 
 #include <cosmology_parameters.hh>
 #include <physical_constants.hh>
-#include <transfer_function_plugin.hh>
+#include <transfer_function.hh>
 #include <math/ode_integrate.hh>
 #include <logger.hh>
 
@@ -30,7 +30,7 @@
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_errno.h>
 
-namespace cosmology_new
+namespace cosmology
 {
 
 /*!
@@ -48,7 +48,7 @@ public:
     cosmology::parameters cosmo_param_;
 
     //! pointer to an instance of a transfer function plugin
-    std::unique_ptr<TransferFunction_plugin> transfer_function_;
+    std::unique_ptr<transfer_function_plugin> transfer_function_;
 
 private:
     static constexpr double REL_PRECISION = 1e-10;
@@ -90,7 +90,7 @@ private:
      */
     void compute_growth( std::vector<double>& tab_a, std::vector<double>& tab_D, std::vector<double>& tab_f )
     {
-        using v_t = vec_t<3, double>;
+        using v_t = vec_t<3,double>;
 
         // set ICs, very deep in radiation domination
         const double a0 = 1e-10;
@@ -177,9 +177,10 @@ public:
         Dplus_target_ = D_of_a_( atarget_ ) / Dnow_;
 
         music::ilog << "Linear growth factors: D+_target = " << Dplus_target_ << ", D+_start = " << Dplus_start_ << std::endl;
+        music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 
         // set up transfer functions and compute normalisation
-        transfer_function_ = select_TransferFunction_plugin(cf, cosmo_param_);
+        transfer_function_ = select_transfer_function_plugin(cf, cosmo_param_);
         transfer_function_->intialise();
         if( !transfer_function_->tf_isnormalised_ ){
             cosmo_param_.set("pnorm", this->compute_pnorm_from_sigma8() );
@@ -190,9 +191,14 @@ public:
         }
         cosmo_param_.set("sqrtpnorm", std::sqrt(cosmo_param_["pnorm"]));
 
-        music::ilog << std::setw(32) << std::left << "TF supports distinct CDM+baryons"
+        // if (!transfer_function_->tf_is_distinct())
+        //     music::wlog << " - WARNING: The selected transfer function does not support" << std::endl
+        //                 << "            distinct amplitudes for baryon and DM fields!" << std::endl
+        //                 << "            Perturbation amplitudes will be identical!" << std::endl;
+
+        music::ilog << std::setw(32) << std::left << " . TF supports distinct CDM+baryons"
                     << " : " << (transfer_function_->tf_is_distinct() ? "yes" : "no") << std::endl;
-        music::ilog << std::setw(32) << std::left << "TF maximum wave number"
+        music::ilog << std::setw(32) << std::left << " . TF maximum wave number"
                     << " : " << transfer_function_->get_kmax() << " h/Mpc" << std::endl;
 
         m_n_s_ = cosmo_param_["n_s"];

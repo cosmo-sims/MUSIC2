@@ -483,7 +483,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         size_t idx = ((size_t)i * nxremap[1] + (size_t)j) * (nxremap[2] / 2 + 1) + (size_t)k;
 
         double fx(1.0), fy(1.0), fz(1.0), arg = 0.;
-        complex gx(0., 0.), gy(0., 0.), gz(0., 0.);
+        ccomplex_t gx(0., 0.), gy(0., 0.), gz(0., 0.);
 
         int ii(i), jj(j), kk(k);
         if (i > nxremap[0] / 2)
@@ -497,7 +497,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         {
           arg = M_PI * (double)ii / (double)nxremap[0];
           fx = sin(arg) / arg;
-          gx = complex(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
+          gx = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
         }
         else
         {
@@ -509,7 +509,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         {
           arg = M_PI * (double)jj / (double)nxremap[1];
           fy = sin(arg) / arg;
-          gy = complex(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
+          gy = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
         }
         else
         {
@@ -521,7 +521,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         {
           arg = M_PI * (double)kk / (double)nxremap[2];
           fz = sin(arg) / arg;
-          gz = complex(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
+          gz = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
         }
         else
         {
@@ -529,13 +529,13 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
           gz = 0.0;
         }
 
-        complex temp_comp = (fx + sqrt(3.0) * gx) * (fy + sqrt(3.0) * gy) * (fz + sqrt(3.0) * gz);
+        ccomplex_t temp_comp = (fx + sqrt(3.0) * gx) * (fy + sqrt(3.0) * gy) * (fz + sqrt(3.0) * gz);
         double magnitude = sqrt(1.0 - std::abs(temp_comp * temp_comp));
 
         if (abs(ii) != nxremap[0] / 2 && abs(jj) != nxremap[1] / 2 &&
             abs(kk) != nxremap[2] / 2)
         { // kkmax != nxremap[2]/2 ){
-          complex x, y0(RE(pc0[idx]), IM(pc0[idx])), y1(RE(pc1[idx]), IM(pc1[idx])), y2(RE(pc2[idx]), IM(pc2[idx])),
+          ccomplex_t x, y0(RE(pc0[idx]), IM(pc0[idx])), y1(RE(pc1[idx]), IM(pc1[idx])), y2(RE(pc2[idx]), IM(pc2[idx])),
               y3(RE(pc3[idx]), IM(pc3[idx])), y4(RE(pc4[idx]), IM(pc4[idx]));
 
           x = y0 * fx * fy * fz + sqrt(3.0) * (y1 * gx * fy * fz + y2 * fx * gy * fz + y3 * fx * fy * gz) +
@@ -670,7 +670,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         size_t idx = ((size_t)i * nxremap[1] + (size_t)j) * (nxremap[2] / 2 + 1) + (size_t)k;
 
         double fx(1.0), fy(1.0), fz(1.0), arg = 0.;
-        complex gx(0., 0.), gy(0., 0.), gz(0., 0.);
+        ccomplex_t gx(0., 0.), gy(0., 0.), gz(0., 0.);
 
         int ii(i), jj(j), kk(k);
         if (i > nxremap[0] / 2)
@@ -684,7 +684,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         {
           arg = M_PI * (double)ii / (double)nxremap[0];
           fx = sin(arg) / arg;
-          gx = complex(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
+          gx = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
         }
         else
         {
@@ -696,7 +696,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         {
           arg = M_PI * (double)jj / (double)nxremap[1];
           fy = sin(arg) / arg;
-          gy = complex(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
+          gy = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
         }
         else
         {
@@ -708,7 +708,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         {
           arg = M_PI * (double)kk / (double)nxremap[2];
           fz = sin(arg) / arg;
-          gz = complex(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
+          gz = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
         }
         else
         {
@@ -719,7 +719,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
         if (abs(ii) != nxremap[0] / 2 && abs(jj) != nxremap[1] / 2 &&
             abs(kk) != nxremap[2] / 2)
         { // kkmax != nxremap[2]/2 ){
-          complex x, y1(RE(pc1[idx]), IM(pc1[idx])), y2(RE(pc2[idx]), IM(pc2[idx])), y3(RE(pc3[idx]), IM(pc3[idx])),
+          ccomplex_t x, y1(RE(pc1[idx]), IM(pc1[idx])), y2(RE(pc2[idx]), IM(pc2[idx])), y3(RE(pc3[idx]), IM(pc3[idx])),
               y4(RE(pc4[idx]), IM(pc4[idx]));
 
           x = 3.0 * (y1 * gx * gy * fz + y2 * fx * gy * gz + y3 * gx * fy * gz) + sqrt(27.0) * y4 * gx * gy * gz;
@@ -767,10 +767,10 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 
             size_t idx2 = ((size_t)ir * nx_m[1] + (size_t)jr) * ((size_t)nx_m[2] / 2 + 1) + (size_t)kr;
 
-            complex x(RE(pc0[idx]), IM(pc0[idx]));
+            ccomplex_t x(RE(pc0[idx]), IM(pc0[idx]));
             double total_phase_shift;
             total_phase_shift = inter_grid_phase_adjustment_ * (double)(ii + jj + kk);
-            x = x * exp(complex(0.0, total_phase_shift));
+            x = x * exp(ccomplex_t(0.0, total_phase_shift));
             RE(pc1[idx2]) = x.real();
             IM(pc1[idx2]) = x.imag();
           }

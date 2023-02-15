@@ -253,9 +253,10 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 /*******************************************************************************************/
 /*******************************************************************************************/
 
-void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type type,
+void GenerateDensityUnigrid(config_file &cf, const cosmology::calculator* cc, tf_type type,
 							refinement_hierarchy &refh, noise_generator &rand, grid_hierarchy &delta, bool smooth, bool shift)
 {
+	auto ptf = cc->transfer_function_.get();
 	unsigned levelmin, levelmax, levelminPoisson;
 
 	levelminPoisson = cf.get_value<unsigned>("setup", "levelmin");
@@ -308,10 +309,11 @@ void GenerateDensityUnigrid(config_file &cf, transfer_function *ptf, tf_type typ
 /*******************************************************************************************/
 /*******************************************************************************************/
 
-void GenerateDensityHierarchy(config_file &cf, transfer_function *ptf, tf_type type,
+void GenerateDensityHierarchy(config_file &cf, const cosmology::calculator* cc, tf_type type,
 							  refinement_hierarchy &refh, noise_generator &rand,
 							  grid_hierarchy &delta, bool smooth, bool shift)
 {
+	auto ptf = cc->transfer_function_.get();
 	unsigned levelmin, levelmax, levelminPoisson;
 	std::vector<long> rngseeds;
 	std::vector<std::string> rngfnames;

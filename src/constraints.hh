@@ -17,7 +17,7 @@
 #include <general.hh>
 #include <config_file.hh>
 #include <transfer_function.hh>
-#include <cosmology.hh>
+#include <cosmology_calculator.hh>
 
 //! matrix class serving as a gsl wrapper
 class matrix
@@ -119,8 +119,8 @@ protected:
 	config_file *pcf_;
 	std::vector<constraint> cset_;
 	transfer_function *ptf_;
-	CosmoCalc *pccalc_;
-	Cosmology *pcosmo_;
+	const cosmology::calculator *pccalc_;
+	const cosmology::parameters *pcosmo_;
 	double dplus0_;
 	unsigned constr_level_;
 

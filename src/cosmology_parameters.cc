@@ -21,7 +21,7 @@
  * @brief namespace encapsulating all things cosmology
  * 
  */
-namespace cosmology_new{
+namespace cosmology{
 
 //! we store here the preset cosmological paramters
 parameters::defaultmmap_t parameters::default_pmaps_

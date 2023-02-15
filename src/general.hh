@@ -12,9 +12,10 @@
 
 #include <logger.hh>
 #include <config_file.hh>
-
+#include <memory>
 #include <cassert>
 #include <omp.h>
+#include <complex>
 
 #include <fftw3.h>
 
@@ -35,6 +36,8 @@
   #define FFTW_PREFIX fftwl
 #endif
 
+using ccomplex_t = std::complex<real_t>;
+
 #define FFTW_GEN_NAME_PRIM(a, b) a##_##b
 #define FFTW_GEN_NAME(a, b) FFTW_GEN_NAME_PRIM(a, b)
 #define FFTW_API(x) FFTW_GEN_NAME(FFTW_PREFIX, x)
@@ -46,14 +49,13 @@ using fftw_plan_t = FFTW_GEN_NAME(FFTW_PREFIX, plan);
 
 #include <vector>
 #include <array>
-using vec3_t = std::array<real_t,3>;
 
 namespace CONFIG
 {
 // extern int MPI_thread_support;
-// extern int MPI_task_rank;
-// extern int MPI_task_size;
-// extern bool MPI_ok;
+extern int MPI_task_rank;
+extern int MPI_task_size;
+extern bool MPI_ok;
 // extern bool MPI_threads_ok;
 extern bool FFTW_threads_ok;
 extern int num_threads;
@@ -80,7 +82,8 @@ inline T POW4( T a ){
 
 
 //! structure for cosmological parameters
-typedef struct cosmology{
+/*
+typedef struct cosmology_old{
   double 
     Omega_m,		//!< baryon+dark matter density
     Omega_b,		//!< baryon matter density
@@ -133,7 +136,7 @@ typedef struct cosmology{
   {
     
   }
-}Cosmology;
+}Cosmology;*/
 
 //! basic box/grid/refinement structure parameters
 typedef struct {

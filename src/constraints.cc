@@ -31,7 +31,7 @@ double dsigma2_tophat( double k, void *pparams )
 	
 	double w = 3.0*(sin(x)-x*cos(x))/(x*x*x);
 	
-	double tfk = ptf->compute(k,total);
+	double tfk = ptf->compute(k,delta_matter);
 	return k*k * w*w * pow(k,nspect) * tfk*tfk;
 }
 
@@ -48,7 +48,7 @@ double dsigma2_gauss( double k, void *pparams )
 	
 	double w = exp(-x*x*0.5);
 	
-	double tfk = ptf->compute(k,total);
+	double tfk = ptf->compute(k,delta_matter);
 	return k*k * w*w * pow(k,nspect) * tfk*tfk;
 }
 
@@ -76,15 +76,15 @@ void compute_sigma_tophat( config_file& cf, transfer_function *ptf, double R, st
 	z.clear();
 	sigma.clear();
 	
-	cosmology cosm( cf );
-	CosmoCalc ccalc( cosm, ptf );
+	cosmology::parameters cosm( cf );
+	cosmology::calculator ccalc( cf );
 	
 	double zmin = 0.0, zmax = 200.0;
 	int nz = 100;
 	for( int i=0; i <nz; ++i )
 		z.push_back( zmax - i*(zmax-zmin)/(nz-1.0) );
 	
-	double D0 = ccalc.CalcGrowthFactor(1.0);
+	double D0 = ccalc.get_growth_factor(1.0);
 
 	double sigma8 = cf.get_value<double>("cosmology","sigma_8"); 
 	double nspec = cf.get_value<double>("cosmology","nspec");
@@ -109,7 +109,7 @@ void compute_sigma_tophat( config_file& cf, transfer_function *ptf, double R, st
 		params[2] = reinterpret_cast<char*> (&nspec);
 		
 		double sig = sqrt(4.0*M_PI*integrate( &dsigma2_tophat, 1e-4, 1e4, reinterpret_cast<void*>(params) ));
-		double Dz  = ccalc.CalcGrowthFactor(1./(1.+z[i]));
+		double Dz  = ccalc.get_growth_factor(1./(1.+z[i]));
 		sigma.push_back( sig*sigma8/sigma0*Dz/D0 );
 	}
 }
@@ -119,15 +119,15 @@ void compute_sigma_gauss( config_file& cf, transfer_function *ptf, double R, std
 	z.clear();
 	sigma.clear();
 	
-	cosmology cosm( cf );
-	CosmoCalc ccalc( cosm, ptf );
+	cosmology::parameters cosm( cf );
+	cosmology::calculator ccalc( cf );
 	
 	double zmin = 0.0, zmax = 200.0;
 	int nz = 100;
 	for( int i=0; i <nz; ++i )
 		z.push_back( zmax - i*(zmax-zmin)/(nz-1.0) );
 	
-	double D0 = ccalc.CalcGrowthFactor(1.0);
+	double D0 = ccalc.get_growth_factor(1.0);
 	
 	double sigma8 = cf.get_value<double>("cosmology","sigma_8"); 
 	double nspec = cf.get_value<double>("cosmology","nspec");
@@ -152,7 +152,7 @@ void compute_sigma_gauss( config_file& cf, transfer_function *ptf, double R, std
 		params[2] = reinterpret_cast<char*> (&nspec);
 		
 		double sig = sqrt(4.0*M_PI*integrate( &dsigma2_gauss, 1e-4, 1e4, reinterpret_cast<void*>(params) ));
-		double Dz  = ccalc.CalcGrowthFactor(1./(1.+z[i]));
+		double Dz  = ccalc.get_growth_factor(1./(1.+z[i]));
 		
 		//std::cerr << z[i] << "    " << sig << std::endl;
 		sigma.push_back( sig*sigma8/sigma0*Dz/D0 );
@@ -163,8 +163,8 @@ void compute_sigma_gauss( config_file& cf, transfer_function *ptf, double R, std
 constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 : pcf_( &cf ), ptf_( ptf )
 {
-	pcosmo_ = new Cosmology( cf );
-	pccalc_ = new CosmoCalc( *pcosmo_, ptf_ );
+	pcosmo_ = new cosmology::parameters( cf );
+	pccalc_ = new cosmology::calculator( cf );
 	dplus0_ = 1.0;//pccalc_->CalcGrowthFactor( 1.0 );
 	
 	
@@ -218,9 +218,9 @@ constraint_set::constraint_set( config_file& cf, transfer_function *ptf )
 				double zcoll = cf.get_value<double>( "constraints", temp1 );
 				new_c.Rg = pow((mass/pow(2.*M_PI,1.5)/rhom),1./3.);
 				
-				new_c.sigma = 1.686/(pccalc_->CalcGrowthFactor(1./(1.+zcoll))/pccalc_->CalcGrowthFactor(1.0));
+				new_c.sigma = 1.686/(pccalc_->get_growth_factor(1./(1.+zcoll))/pccalc_->get_growth_factor(1.0));
                 music::ilog.Print("sigma of constraint : %g", new_c.sigma );
-                new_c.sigma *=pccalc_->CalcGrowthFactor(astart)/pccalc_->CalcGrowthFactor(1.0);
+                new_c.sigma *=pccalc_->get_growth_factor(astart)/pccalc_->get_growth_factor(1.0);
 				music::ilog.Print("Constraint %d : halo with %g h-1 M_o",i,pow(2.*M_PI,1.5)*rhom*pow(new_c.Rg,3));
 			}
 			else if( new_c.type == peak )
@@ -324,7 +324,7 @@ void constraint_set::wnoise_constr_corr( double dx, size_t nx, size_t ny, size_t
 					
 					double k = sqrt(iix*iix+iiy*iiy+iiz*iiz)*(double)nx/lsub;
 					
-					double T = ptf_->compute(k,total);
+					double T = ptf_->compute(k,delta_matter);
 					double Pk = pnorm*T*T*pow(k,nspec)*d3k;
 					
 					size_t q = ((size_t)ix*ny+(size_t)iy)*nzp+(size_t)iz;
@@ -407,7 +407,7 @@ void constraint_set::wnoise_constr_corr( double dx, complex_t* cw, size_t nx, si
 					iiz *= 2.0*M_PI/nx;
 					
 					double k = sqrt(iix*iix+iiy*iiy+iiz*iiz)*(double)nx/lsub;
-					double T = ptf_->compute(k,total);
+					double T = ptf_->compute(k,delta_matter);
 					
 					std::complex<double> v(std::conj(eval_constr(i,iix,iiy,iiz)));
 					
@@ -472,7 +472,7 @@ void constraint_set::icov_constr( double dx, size_t nx, size_t ny, size_t nz, ma
 						iiz *= 2.0*M_PI/nx;
 						
 						double k = sqrt(iix*iix+iiy*iiy+iiz*iiz)*(double)nx/lsub;
-						double T = ptf_->compute(k,total);
+						double T = ptf_->compute(k,delta_matter);
 						std::complex<double> v(std::conj(eval_constr(i,iix,iiy,iiz)));
 						v *= eval_constr(j,iix,iiy,iiz);
 						v *= pnorm * pow(k,nspec) * T * T * d3k;

@@ -18,8 +18,9 @@
 #include <algorithm>
 #include <math.h>
 
-#include "config_file.hh"
-#include "region_generator.hh"
+#include <general.hh>
+#include <config_file.hh>
+#include <region_generator.hh>
 
 #include <array>
 using index_t = ptrdiff_t;

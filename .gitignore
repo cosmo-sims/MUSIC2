@@ -1,2 +1,3 @@
 build
 .vscode
+src/cmake_config.hh

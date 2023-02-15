@@ -187,7 +187,7 @@ if(HDF5_FOUND)
 endif(HDF5_FOUND)
 
 if(TIRPC_FOUND)
-  target_link_libraries(${PRGNAME} ${TIRPC_LIBRARIES})
+  target_link_libraries(${PRGNAME} PRIVATE ${TIRPC_LIBRARIES})
   target_include_directories(${PRGNAME} PRIVATE ${TIRPC_INCLUDE_DIRS})
   target_compile_options(${PRGNAME} PRIVATE "-DHAVE_TIRPC")
 endif(TIRPC_FOUND)

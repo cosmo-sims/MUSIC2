@@ -627,16 +627,18 @@ music_wnoise_generator<T>::music_wnoise_generator(music_wnoise_generator<T> &rc,
 
         val *= val_phas * sqrt8;
 
-        if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2)
-        {
-          RE(cfine[qf]) = val.real();
-          IM(cfine[qf]) = val.imag();
-        }
-        else
-        {
-          // RE(cfine[qf]) = val.real();
-          // IM(cfine[qf]) = 0.0;
-        }
+        // if (x0_ == NULL || lx_ == NULL){
+          if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2)
+          {
+            RE(cfine[qf]) = val.real();
+            IM(cfine[qf]) = val.imag();
+          }
+          else
+          {
+            RE(cfine[qf]) = val.real();
+            IM(cfine[qf]) = 0.0;
+          }
+        // }
       }
 
     delete[] rcoarse;

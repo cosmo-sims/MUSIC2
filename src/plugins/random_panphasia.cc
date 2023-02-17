@@ -223,10 +223,9 @@ public:
       incongruent_fields_ = true;
       ngrid_ = 2 * ratio * pdescriptor_->i_base;
       grid_rescale_fac_ = (double)ngrid_ / (1 << levelmin_);
-      music::ilog.Print("PANPHASIA: will use a higher resolution:\n"
-              "     (%d -> %d) * 2**ref compatible with PANPHASIA\n"
-              "     will Fourier interpolate after.",
-              grid_m_, grid_p_);
+      music::ilog << "PANPHASIA: will use a higher resolution:" << std::endl
+             << "     (" << grid_m_ << " -> " << grid_p_ 
+             << ") * 2**ref compatible with PANPHASIA (will Fourier interpolate after)" << std::endl;
     }
   }
 
@@ -790,7 +789,9 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   delete[] pr3;
   delete[] pr4;
 
-  music::ulog.Print("Copying random field data %d,%d,%d -> %d,%d,%d", nxremap[0], nxremap[1], nxremap[2], nx[0], nx[1], nx[2]);
+  music::ilog.Print("Copying random field data %d,%d,%d -> %d,%d,%d", nxremap[0], nxremap[1], nxremap[2], nx[0], nx[1], nx[2]);
+  music::ilog.Print("iexpand_levt = %d,%d,%d", iexpand_left[0], iexpand_left[1], iexpand_left[2]);
+  
 
   //    n = 1<<level;
   //    ng = n;
@@ -829,7 +830,8 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   music::ulog.Print("done with PANPHASIA for level %d:\n       mean=%g, var=%g", level, sum, sum2);
   music::ulog.Print("Copying into R array: nx[0],nx[1],nx[2] %d %d %d \n", nx[0], nx[1], nx[2]);
 
-  music::ilog.Print("PANPHASIA level %d mean and variance are\n       <p> = %g | var(p) = %g", level, sum, sum2);
+  music::ilog << "PANPHASIA level " << level << " mean and variance are" << std::endl
+              << "       <p> = "<< sum << " | var(p) = " << sum2 << std::endl;
 }
 
 namespace

@@ -192,7 +192,7 @@ void solver<S, I, O>::GaussSeidel(real_t h, MeshvarBnd<real_t> *u, const Meshvar
 			h2 = h * h;
 
 	for (int color = 0; color < 2; ++color)
-#pragma omp parallel for
+		#pragma omp parallel for collapse(3)
 		for (int ix = 0; ix < nx; ++ix)
 			for (int iy = 0; iy < ny; ++iy)
 				for (int iz = 0; iz < nz; ++iz)
@@ -279,7 +279,7 @@ void solver<S, I, O>::twoGrid(unsigned ilevel)
 			ozp = uf->offset(2);
 
 	meshvar_bnd tLu(*uc, false);
-#pragma omp parallel for
+	#pragma omp parallel for
 	for (int ix = 0; ix < nx / 2; ++ix)
 	{
 		int iix = 2 * ix;
@@ -297,7 +297,7 @@ void solver<S, I, O>::twoGrid(unsigned ilevel)
 	oj = ff->offset(1);
 	ok = ff->offset(2);
 
-#pragma omp parallel for
+#pragma omp parallel for collapse(3)
 	for (int ix = oi; ix < oi + (int)ff->size(0) / 2; ++ix)
 		for (int iy = oj; iy < oj + (int)ff->size(1) / 2; ++iy)
 			for (int iz = ok; iz < ok + (int)ff->size(2) / 2; ++iz)
@@ -319,7 +319,7 @@ void solver<S, I, O>::twoGrid(unsigned ilevel)
 	meshvar_bnd cc(*uc, false);
 
 //... compute correction on coarse grid
-#pragma omp parallel for
+#pragma omp parallel for collapse(3)
 	for (int ix = 0; ix < (int)cc.size(0); ++ix)
 		for (int iy = 0; iy < (int)cc.size(1); ++iy)
 			for (int iz = 0; iz < (int)cc.size(2); ++iz)
@@ -372,8 +372,7 @@ double solver<S, I, O>::compute_error(const MeshvarBnd<real_t> &u, const Meshvar
 
 	double h = 1.0 / (1ul << ilevel), h2 = h * h;
 
-#pragma omp parallel for reduction(+ \
-																	 : err, count)
+#pragma omp parallel for reduction(+ : err, count) collapse(3)
 	for (int ix = 0; ix < nx; ++ix)
 		for (int iy = 0; iy < ny; ++iy)
 			for (int iz = 0; iz < nz; ++iz)
@@ -410,8 +409,7 @@ double solver<S, I, O>::compute_error(const GridHierarchy<real_t> &uh, const Gri
 
 		double h = 1.0 / (1ul << ilevel), h2 = h * h;
 
-#pragma omp parallel for reduction(+ \
-																	 : err, count)
+		#pragma omp parallel for reduction(+ : err, count, mean_res) collapse(3)
 		for (int ix = 0; ix < nx; ++ix)
 			for (int iy = 0; iy < ny; ++iy)
 				for (int iz = 0; iz < nz; ++iz)
@@ -461,8 +459,7 @@ double solver<S, I, O>::compute_RMS_resid(const GridHierarchy<real_t> &uh, const
 		double sum = 0.0, sumd2 = 0.0;
 		size_t count = 0;
 
-#pragma omp parallel for reduction(+ \
-																	 : sum, sumd2, count)
+		#pragma omp parallel for reduction(+ : sum, sumd2, count)
 		for (int ix = 0; ix < nx; ++ix)
 			for (int iy = 0; iy < ny; ++iy)
 				for (int iz = 0; iz < nz; ++iz)

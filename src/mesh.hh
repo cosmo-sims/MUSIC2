@@ -8,8 +8,7 @@
 
 */
 
-#ifndef __MESH_HH
-#define __MESH_HH
+#pragma once
 
 #include <iostream>
 #include <iomanip>
@@ -26,7 +25,6 @@
 using index_t = ptrdiff_t;
 using index3_t = std::array<index_t, 3>;
 using vec3_t = std::array<double, 3>;
-
 
 class refinement_mask
 {
@@ -147,9 +145,11 @@ public:
 
 		m_pdata = new real_t[m_nx * m_ny * m_nz];
 
-		if (copy_over)
+		if (copy_over){
+			#pragma omp parallel for
 			for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 				m_pdata[i] = m.m_pdata[i];
+		}
 	}
 
 	//! standard copy constructor
@@ -165,6 +165,7 @@ public:
 
 		m_pdata = new real_t[m_nx * m_ny * m_nz];
 
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] = m.m_pdata[i];
 	}
@@ -217,6 +218,7 @@ public:
 	//! set all the data to zero values
 	void zero(void)
 	{
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] = 0.0;
 	}
@@ -258,6 +260,7 @@ public:
 	//! direct multiplication of the whole data block with a number
 	Meshvar<real_t> &operator*=(real_t x)
 	{
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] *= x;
 		return *this;
@@ -266,6 +269,7 @@ public:
 	//! direct addition of a number to the whole data block
 	Meshvar<real_t> &operator+=(real_t x)
 	{
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] += x;
 		return *this;
@@ -274,6 +278,7 @@ public:
 	//! direct element-wise division of the whole data block by a number
 	Meshvar<real_t> &operator/=(real_t x)
 	{
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] /= x;
 		return *this;
@@ -282,6 +287,7 @@ public:
 	//! direct subtraction of a number from the whole data block
 	Meshvar<real_t> &operator-=(real_t x)
 	{
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] -= x;
 		return *this;
@@ -295,6 +301,7 @@ public:
 			music::elog.Print("Meshvar::operator*= : attempt to operate on incompatible data");
 			throw std::runtime_error("Meshvar::operator*= : attempt to operate on incompatible data");
 		}
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] *= v.m_pdata[i];
 
@@ -310,6 +317,7 @@ public:
 			throw std::runtime_error("Meshvar::operator/= : attempt to operate on incompatible data");
 		}
 
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] /= v.m_pdata[i];
 
@@ -324,6 +332,7 @@ public:
 			music::elog.Print("Meshvar::operator+= : attempt to operate on incompatible data");
 			throw std::runtime_error("Meshvar::operator+= : attempt to operate on incompatible data");
 		}
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] += v.m_pdata[i];
 
@@ -338,6 +347,7 @@ public:
 			music::elog.Print("Meshvar::operator-= : attempt to operate on incompatible data");
 			throw std::runtime_error("Meshvar::operator-= : attempt to operate on incompatible data");
 		}
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] -= v.m_pdata[i];
 
@@ -360,6 +370,7 @@ public:
 
 		m_pdata = new real_t[m_nx * m_ny * m_nz];
 
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			m_pdata[i] = m.m_pdata[i];
 
@@ -462,50 +473,11 @@ public:
 			m_pdata = new real_t[m_nx * m_ny * m_nz];
 		}
 
+		#pragma omp parallel for
 		for (size_t i = 0; i < m_nx * m_ny * m_nz; ++i)
 			this->m_pdata[i] = m.m_pdata[i];
 
 		return *this;
-	}
-
-	//! sets the value of all ghost zones to zero
-	void zero_bnd(void)
-	{
-
-		int nx, ny, nz;
-		nx = this->size(0);
-		ny = this->size(1);
-		nz = this->size(2);
-
-		for (int j = -m_nbnd; j < ny + m_nbnd; ++j)
-			for (int k = -m_nbnd; k < nz + m_nbnd; ++k)
-			{
-				for (int i = -m_nbnd; i < 0; ++i)
-				{
-					(*this)(i, j, k) = 0.0;
-					(*this)(nx - 1 - i, j, k) = 0.0;
-				}
-			}
-
-		for (int i = -m_nbnd; i < nx + m_nbnd; ++i)
-			for (int k = -m_nbnd; k < nz + m_nbnd; ++k)
-			{
-				for (int j = -m_nbnd; j < 0; ++j)
-				{
-					(*this)(i, j, k) = 0.0;
-					(*this)(i, ny - j - 1, k) = 0.0;
-				}
-			}
-
-		for (int i = -m_nbnd; i < nx + m_nbnd; ++i)
-			for (int j = -m_nbnd; j < ny + m_nbnd; ++j)
-			{
-				for (int k = -m_nbnd; k < 0; ++k)
-				{
-					(*this)(i, j, k) = 0.0;
-					(*this)(i, j, nz - k - 1) = 0.0;
-				}
-			}
 	}
 
 	//! outputs the data, for debugging only, not practical for large datasets
@@ -1121,8 +1093,9 @@ public:
 	 * @param nx new x-extent in fine grid cells
 	 * @param ny new y-extent in fine grid cells
 	 * @param nz new z-extent in fine grid cells
+	 * @param enforce_coarse_mean enforces the average of 8 cells on a fine level to equal the coarse 
 	 */
-	void cut_patch(unsigned ilevel, unsigned xoff, unsigned yoff, unsigned zoff, unsigned nx, unsigned ny, unsigned nz)
+	void cut_patch(unsigned ilevel, unsigned xoff, unsigned yoff, unsigned zoff, unsigned nx, unsigned ny, unsigned nz, bool enforce_coarse_mean)
 	{
 		unsigned dx, dy, dz, dxtop, dytop, dztop;
 
@@ -1139,10 +1112,19 @@ public:
 		MeshvarBnd<T> *mnew = new MeshvarBnd<T>(m_nbnd, nx, ny, nz, dxtop, dytop, dztop);
 
 		//... copy data
-		for (unsigned i = 0; i < nx; ++i)
-			for (unsigned j = 0; j < ny; ++j)
-				for (unsigned k = 0; k < nz; ++k)
-					(*mnew)(i, j, k) = (*m_pgrids[ilevel])(i + dx, j + dy, k + dz);
+		[[maybe_unused]] double coarsesum = 0.0, finesum = 0.0;
+    [[maybe_unused]] size_t coarsecount = 0, finecount = 0;
+
+    //... copy data
+		#pragma omp parallel for reduction(+:finesum,finecount) collapse(3)
+    for( unsigned i=0; i<nx; ++i )
+      for( unsigned j=0; j<ny; ++j )
+				for( unsigned k=0; k<nz; ++k )
+				{
+					(*mnew)(i,j,k) = (*m_pgrids[ilevel])(i+dx,j+dy,k+dz);
+					finesum += (*mnew)(i,j,k);
+					finecount++;
+				}
 
 		//... replace in hierarchy
 		delete m_pgrids[ilevel];
@@ -1158,6 +1140,37 @@ public:
 			m_pgrids[ilevel + 1]->offset(0) -= dx;
 			m_pgrids[ilevel + 1]->offset(1) -= dy;
 			m_pgrids[ilevel + 1]->offset(2) -= dz;
+		}
+
+		if( enforce_coarse_mean )
+		{
+			//... enforce top mean density over same patch
+			if (ilevel > levelmin())
+			{
+				int ox = m_pgrids[ilevel]->offset(0);
+				int oy = m_pgrids[ilevel]->offset(1);
+				int oz = m_pgrids[ilevel]->offset(2);
+
+				#pragma omp parallel for reduction(+:coarsesum,coarsecount) collapse(3)
+				for (unsigned i = 0; i < nx / 2; ++i)
+					for (unsigned j = 0; j < ny / 2; ++j)
+						for (unsigned k = 0; k < nz / 2; ++k)
+						{
+							coarsesum += (*m_pgrids[ilevel - 1])(i + ox, j + oy, k + oz);
+							coarsecount++;
+						}
+
+				coarsesum /= (double)coarsecount;
+				finesum /= (double)finecount;
+
+				#pragma omp parallel for collapse(3)
+				for (unsigned i = 0; i < nx; ++i)
+					for (unsigned j = 0; j < ny; ++j)
+						for (unsigned k = 0; k < nz; ++k)
+							(*mnew)(i, j, k) += (coarsesum - finesum);
+
+				music::ilog.Print("  .level %d : corrected patch overlap mean value by %f", ilevel, coarsesum - finesum);
+			}
 		}
 
 		find_new_levelmin();
@@ -1207,14 +1220,14 @@ class refinement_hierarchy
 	std::vector<index3_t> len_;
 
 	unsigned
-			levelmin_,					//!< minimum grid level for Poisson solver
-			levelmax_,					//!< maximum grid level for all operations
-			levelmin_tf_, 			//!< minimum grid level for density calculation
-			padding_,						//!< padding in number of coarse cells between refinement levels
-			blocking_factor_,		//!< blocking factor of grids, necessary fo BoxLib codes such as NyX
-			gridding_unit_;  	  //!< internal blocking factor of grids, necessary for Panphasia
+			levelmin_,				//!< minimum grid level for Poisson solver
+			levelmax_,				//!< maximum grid level for all operations
+			levelmin_tf_,			//!< minimum grid level for density calculation
+			padding_,					//!< padding in number of coarse cells between refinement levels
+			blocking_factor_, //!< blocking factor of grids, necessary fo BoxLib codes such as NyX
+			gridding_unit_;		//!< internal blocking factor of grids, necessary for Panphasia
 
-	int margin_;      //!< number of cells used for additional padding for convolutions with isolated boundaries (-1 = double padding)
+	int margin_; //!< number of cells used for additional padding for convolutions with isolated boundaries (-1 = double padding)
 
 	config_file &cf_; //!< reference to config_file
 
@@ -1232,28 +1245,29 @@ class refinement_hierarchy
 	double rshift_[3];
 
 	//! calculates the greatest common divisor
-  int gcd(int a, int b) const {
-    return b == 0 ? a : gcd(b, a % b);
-  }
+	int gcd(int a, int b) const
+	{
+		return b == 0 ? a : gcd(b, a % b);
+	}
 
-  // calculates the cell shift in units of levelmin grid cells if there is an additional constraint to be
-  // congruent with another grid that partitions the same space in multiples of "base_unit"
-  int get_shift_unit( int base_unit, int levelmin ) const {
-    /*int Lp = 0;
-    while( base_unit * (1<<Lp) < 1<<(levelmin+1) ){
-      ++Lp;
-    }
-    int U = base_unit * (1<<Lp);
+	// calculates the cell shift in units of levelmin grid cells if there is an additional constraint to be
+	// congruent with another grid that partitions the same space in multiples of "base_unit"
+	int get_shift_unit(int base_unit, int levelmin) const
+	{
+		/*int Lp = 0;
+		while( base_unit * (1<<Lp) < 1<<(levelmin+1) ){
+			++Lp;
+		}
+		int U = base_unit * (1<<Lp);
 
-    return std::max<int>( 1, (1<<(levelmin+1)) / (2*gcd(U,1<<(levelmin+1) )) );*/
+		return std::max<int>( 1, (1<<(levelmin+1)) / (2*gcd(U,1<<(levelmin+1) )) );*/
 
-    int level_m = 0;
-    while( base_unit * (1<<level_m) < (1<<levelmin) )
-      ++level_m;
+		int level_m = 0;
+		while (base_unit * (1 << level_m) < (1 << levelmin))
+			++level_m;
 
-    return std::max<int>( 1, (1<<levelmin)/gcd(base_unit * (1<<level_m),(1<<levelmin)) );
-
-  }
+		return std::max<int>(1, (1 << levelmin) / gcd(base_unit * (1 << level_m), (1 << levelmin)));
+	}
 
 public:
 	//! copy constructor
@@ -1275,20 +1289,22 @@ public:
 		preserve_dims_ = cf_.get_value_safe<bool>("setup", "preserve_dims", false);
 		equal_extent_ = cf_.get_value_safe<bool>("setup", "force_equal_extent", false);
 		blocking_factor_ = cf.get_value_safe<unsigned>("setup", "blocking_factor", 0);
-		margin_          = cf.get_value_safe<int>("setup","convolution_margin",32);
+		margin_ = cf.get_value_safe<int>("setup", "convolution_margin", 32);
 
 		bool bnoshift = cf_.get_value_safe<bool>("setup", "no_shift", false);
 		bool force_shift = cf_.get_value_safe<bool>("setup", "force_shift", false);
 
 		gridding_unit_ = cf.get_value_safe<unsigned>("setup", "gridding_unit", 2);
 
-    if (gridding_unit_ != 2 && blocking_factor_==0) {
-      blocking_factor_ = gridding_unit_; // THIS WILL LIKELY CAUSE PROBLEMS WITH NYX
-    }else if (gridding_unit_ != 2 && blocking_factor_!=0 && gridding_unit_!=blocking_factor_ ) {
-			music::elog.Print("incompatible gridding unit %d and blocking factor specified", gridding_unit_, blocking_factor_ );
+		if (gridding_unit_ != 2 && blocking_factor_ == 0)
+		{
+			blocking_factor_ = gridding_unit_; // THIS WILL LIKELY CAUSE PROBLEMS WITH NYX
+		}
+		else if (gridding_unit_ != 2 && blocking_factor_ != 0 && gridding_unit_ != blocking_factor_)
+		{
+			music::elog.Print("incompatible gridding unit %d and blocking factor specified", gridding_unit_, blocking_factor_);
 			throw std::runtime_error("Incompatible gridding unit and blocking factor!");
 		}
-
 
 		//... call the region generator
 		if (levelmin_ != levelmax_)
@@ -1312,8 +1328,8 @@ public:
 		// if not doing any refinement levels, set extent to full box
 		if (levelmin_ == levelmax_)
 		{
-			x0ref_ = { 0.0, 0.0, 0.0 };
-			lxref_ = { 1.0, 1.0, 1.0 };
+			x0ref_ = {0.0, 0.0, 0.0};
+			lxref_ = {1.0, 1.0, 1.0};
 		}
 
 		unsigned ncoarse = 1 << levelmin_;
@@ -1327,18 +1343,19 @@ public:
 
 		if ((levelmin_ != levelmax_) && (!bnoshift || force_shift))
 		{
-			int random_base_grid_unit = cf.get_value_safe<int>("random","base_unit",1);
-      int shift_unit = get_shift_unit( random_base_grid_unit, levelmin_ );
-      if( shift_unit != 1 ){
-        music::ilog.Print("volume can only be shifted by multiples of %d coarse cells.",shift_unit);
-      }
-			xshift_[0] = (int)((0.5-xc[0]) * (double)ncoarse / shift_unit + 0.5) * shift_unit;//ARJ(int)((0.5 - xc[0]) * ncoarse);
-      xshift_[1] = (int)((0.5-xc[1]) * (double)ncoarse / shift_unit + 0.5) * shift_unit;//ARJ(int)((0.5 - xc[1]) * ncoarse);
-      xshift_[2] = (int)((0.5-xc[2]) * (double)ncoarse / shift_unit + 0.5) * shift_unit;//ARJ(int)((0.5 - xc[2]) * ncoarse);
+			int random_base_grid_unit = cf.get_value_safe<int>("random", "base_unit", 1);
+			int shift_unit = get_shift_unit(random_base_grid_unit, levelmin_);
+			if (shift_unit != 1)
+			{
+				music::ilog.Print("volume can only be shifted by multiples of %d coarse cells.", shift_unit);
+			}
+			xshift_[0] = (int)((0.5 - xc[0]) * (double)ncoarse / shift_unit + 0.5) * shift_unit; // ARJ(int)((0.5 - xc[0]) * ncoarse);
+			xshift_[1] = (int)((0.5 - xc[1]) * (double)ncoarse / shift_unit + 0.5) * shift_unit; // ARJ(int)((0.5 - xc[1]) * ncoarse);
+			xshift_[2] = (int)((0.5 - xc[2]) * (double)ncoarse / shift_unit + 0.5) * shift_unit; // ARJ(int)((0.5 - xc[2]) * ncoarse);
 
 			// xshift_[0] = (int)((0.5 - xc[0]) * ncoarse);
-      // xshift_[1] = (int)((0.5 - xc[1]) * ncoarse);
-      // xshift_[2] = (int)((0.5 - xc[2]) * ncoarse);
+			// xshift_[1] = (int)((0.5 - xc[1]) * ncoarse);
+			// xshift_[2] = (int)((0.5 - xc[2]) * ncoarse);
 		}
 		else
 		{
@@ -1458,15 +1475,15 @@ public:
 		else
 		{
 			//... require alignment with coarser grid
-      music::ilog.Print("- Internal refinement bounding box: [%d,%d]x[%d,%d]x[%d,%d]", il, ir, jl, jr, kl, kr);
+			music::ilog.Print("- Internal refinement bounding box: [%d,%d]x[%d,%d]x[%d,%d]", il, ir, jl, jr, kl, kr);
 
-      il -= il % gridding_unit_;
-      jl -= jl % gridding_unit_;
-      kl -= kl % gridding_unit_;
+			il -= il % gridding_unit_;
+			jl -= jl % gridding_unit_;
+			kl -= kl % gridding_unit_;
 
-      ir = ((ir%gridding_unit_)!=0)? (ir/gridding_unit_ + 1)*gridding_unit_ : ir;
-      jr = ((jr%gridding_unit_)!=0)? (jr/gridding_unit_ + 1)*gridding_unit_ : jr;
-      kr = ((kr%gridding_unit_)!=0)? (kr/gridding_unit_ + 1)*gridding_unit_ : kr;
+			ir = ((ir % gridding_unit_) != 0) ? (ir / gridding_unit_ + 1) * gridding_unit_ : ir;
+			jr = ((jr % gridding_unit_) != 0) ? (jr / gridding_unit_ + 1) * gridding_unit_ : jr;
+			kr = ((kr % gridding_unit_) != 0) ? (kr / gridding_unit_ + 1) * gridding_unit_ : kr;
 		}
 
 		// if doing unigrid, set region to whole box
@@ -1500,8 +1517,7 @@ public:
 		{
 
 			absoffsets_[levelmax_] = {(il + nresmax) % nresmax, (jl + nresmax) % nresmax, (kl + nresmax) % nresmax};
-			len_[levelmax_] = { ir-il, jr-jl, kr-kl };
-			
+			len_[levelmax_] = {ir - il, jr - jl, kr - kl};
 
 			if (equal_extent_)
 			{
@@ -1512,16 +1528,16 @@ public:
 					throw std::runtime_error("Specified equal_extent=yes conflicting with ref_dims which are not equal.");
 				}
 				size_t ilevel = levelmax_;
-				index_t nmax = *std::max_element(len_[ilevel].begin(),len_[ilevel].end());
+				index_t nmax = *std::max_element(len_[ilevel].begin(), len_[ilevel].end());
 
-				index3_t dx = {0,0,0};
-				for( int idim=0; idim<3; ++idim )
+				index3_t dx = {0, 0, 0};
+				for (int idim = 0; idim < 3; ++idim)
 				{
 					dx[idim] = (index_t)((double)(nmax - len_[ilevel][idim]) * 0.5);
 					absoffsets_[ilevel][idim] -= dx[idim];
 					len_[ilevel][idim] = nmax;
 				}
-				
+
 				il = absoffsets_[ilevel][0];
 				jl = absoffsets_[ilevel][1];
 				kl = absoffsets_[ilevel][2];
@@ -1575,12 +1591,12 @@ public:
 			{
 				//... require alignment with coarser grid
 				il -= il % gridding_unit_;
-        jl -= jl % gridding_unit_;
-        kl -= kl % gridding_unit_;
+				jl -= jl % gridding_unit_;
+				kl -= kl % gridding_unit_;
 
-        ir = ((ir%gridding_unit_)!=0)? (ir/gridding_unit_ + 1)*gridding_unit_ : ir;
-        jr = ((jr%gridding_unit_)!=0)? (jr/gridding_unit_ + 1)*gridding_unit_ : jr;
-        kr = ((kr%gridding_unit_)!=0)? (kr/gridding_unit_ + 1)*gridding_unit_ : kr;
+				ir = ((ir % gridding_unit_) != 0) ? (ir / gridding_unit_ + 1) * gridding_unit_ : ir;
+				jr = ((jr % gridding_unit_) != 0) ? (jr / gridding_unit_ + 1) * gridding_unit_ : jr;
+				kr = ((kr % gridding_unit_) != 0) ? (kr / gridding_unit_ + 1) * gridding_unit_ : kr;
 			}
 
 			if (il >= ir || jl >= jr || kl >= kr || il < 0 || jl < 0 || kl < 0)
@@ -1588,19 +1604,19 @@ public:
 				music::elog.Print("Internal refinement bounding box error: [%d,%d]x[%d,%d]x[%d,%d], level=%d", il, ir, jl, jr, kl, kr, ilevel);
 				throw std::runtime_error("refinement_hierarchy: Internal refinement bounding box error 2");
 			}
-			absoffsets_[ilevel] = { il, jl, kl };
-			len_[ilevel] = { ir-il, jr-jl, kr-kl };
+			absoffsets_[ilevel] = {il, jl, kl};
+			len_[ilevel] = {ir - il, jr - jl, kr - kl};
 
 			if (blocking_factor_)
 			{
-				for( int idim=0; idim<3; ++idim )
-					len_[ilevel][idim] += len_[ilevel][idim] % blocking_factor_; 
+				for (int idim = 0; idim < 3; ++idim)
+					len_[ilevel][idim] += len_[ilevel][idim] % blocking_factor_;
 			}
 
 			if (equal_extent_)
 			{
-				index_t nmax = *std::max_element(len_[ilevel].begin(),len_[ilevel].end());
-				for( int idim=0; idim<3; ++idim )
+				index_t nmax = *std::max_element(len_[ilevel].begin(), len_[ilevel].end());
+				for (int idim = 0; idim < 3; ++idim)
 				{
 					index_t dx = (int)((double)(nmax - len_[ilevel][idim]) * 0.5);
 					absoffsets_[ilevel][idim] -= dx;
@@ -1618,17 +1634,17 @@ public:
 
 		//... determine relative offsets between grids
 		for (unsigned ilevel = levelmax_; ilevel > levelmin_; --ilevel)
-			for(int idim=0; idim<3; ++idim )
+			for (int idim = 0; idim < 3; ++idim)
 			{
-				offsets_[ilevel][idim] = (absoffsets_[ilevel][idim]/2 - absoffsets_[ilevel-1][idim]);
+				offsets_[ilevel][idim] = (absoffsets_[ilevel][idim] / 2 - absoffsets_[ilevel - 1][idim]);
 			}
 
 		//... do a forward sweep to ensure that absolute offsets are also correct now
 		for (unsigned ilevel = levelmin_ + 1; ilevel <= levelmax_; ++ilevel)
-			for(int idim=0; idim<3; ++idim )
-				{
-					absoffsets_[ilevel][idim] = 2 * absoffsets_[ilevel-1][idim] + 2 * offsets_[ilevel][idim];
-				}
+			for (int idim = 0; idim < 3; ++idim)
+			{
+				absoffsets_[ilevel][idim] = 2 * absoffsets_[ilevel - 1][idim] + 2 * offsets_[ilevel][idim];
+			}
 
 		for (unsigned ilevel = levelmin_ + 1; ilevel <= levelmax_; ++ilevel)
 		{
@@ -1751,7 +1767,7 @@ public:
 		{
 			unsigned n = 1 << i;
 
-			if ( absoffsets_[i] == index3_t({0,0,0}) && len_[i]== index3_t({n,n,n}) )
+			if (absoffsets_[i] == index3_t({0, 0, 0}) && len_[i] == index3_t({n, n, n}))
 			{
 				levelmin_ = i;
 			}
@@ -1816,7 +1832,7 @@ public:
 
 		if (xshift_[0] != 0 || xshift_[1] != 0 || xshift_[2] != 0)
 			music::ilog << " - Domain will be shifted by (" << xshift_[0] << ", " << xshift_[1] << ", " << xshift_[2] << ")\n"
-								<< std::endl;
+									<< std::endl;
 
 		music::ilog << " - Grid structure:\n";
 
@@ -1844,5 +1860,3 @@ public:
 typedef GridHierarchy<real_t> grid_hierarchy;
 typedef MeshvarBnd<real_t> meshvar_bnd;
 typedef Meshvar<real_t> meshvar;
-
-#endif

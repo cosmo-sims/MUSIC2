@@ -456,7 +456,7 @@ int main(int argc, const char *argv[])
 	if (!cf.contains_key("setup", "kspace_TF"))
 		cf.insert_value("setup", "kspace_TF", "yes");
 
-	bool bspectral_sampling = cf.get_value<bool>("setup", "kspace_TF");
+	bool bspectral_sampling = true;//cf.get_value<bool>("setup", "kspace_TF");
 
 	if (bspectral_sampling)
 		music::ilog.Print("Using k-space sampled transfer functions...");

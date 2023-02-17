@@ -23,7 +23,7 @@ double Meyer_scaling_function( double k, double kmax )
 	constexpr double fourpithirds{4.0*M_PI/3.0};
 	auto nu = []( double x ){ return x<0.0?0.0:(x<1.0?x:1.0); };
 
-	k = k/kmax * fourpithirds;
+	k = std::abs(k)/kmax * fourpithirds;
 
 	if( k < twopithirds ) return 1.0;
 	else if( k< fourpithirds ){
@@ -126,15 +126,15 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 
 	if (!from_basegrid)
 	{
-		oxf +=  mxf - mxf/2;
-		oyf +=  myf - myf/2;
-		ozf +=  mzf - mzf/2;
+		oxf +=  mxf/2;
+		oyf +=  myf/2;
+		ozf +=  mzf/2;
 	}
 	else
 	{
-		oxf -= mxf/2; //nxf / 8; 
-		oyf -= myf/2; //nyf / 8; 
-		ozf -= mzf/2; //nzf / 8; 
+		oxf -= mxf/2;
+		oyf -= myf/2;
+		ozf -= mzf/2;
 	}
 
 	music::ulog.Print("FFT interpolate: offset=%d,%d,%d size=%d,%d,%d", oxf, oyf, ozf, nxf, nyf, nzf);
@@ -185,10 +185,9 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 	/*************************************************/
 	//.. perform actual interpolation
 	double fftnorm = 1.0 / ((double)nxf * (double)nyf * (double)nzf);
-	double sqrt8 = 8.0; //sqrt(8.0);
-	double phasefac = -0.5;
 
 	// this enables filtered splicing of coarse and fine modes
+	#pragma omp parallel for
 	for (int i = 0; i < (int)nxc; i++)
 		for (int j = 0; j < (int)nyc; j++)
 			for (int k = 0; k < (int)nzc / 2 + 1; k++)
@@ -210,19 +209,27 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 				double ky = (j <= (int)nyc / 2) ? (double)j : (double)(j - (int)nyc);
 				double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
 
-				double phase = phasefac * (kx / nxc + ky / nyc + kz / nzc) * M_PI;
+				double phase = -0.5 * M_PI * (kx / nxc + ky / nyc + kz / nzc);
 
 				std::complex<double> val_phas(cos(phase), sin(phase));
 
 				std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
-				val *= sqrt8 * val_phas;
+				val *= val_phas * 8.0;
 
-				if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
-					double blend_coarse = Meyer_scaling_function(kx, nxc / 2) * Meyer_scaling_function(ky, nyc / 2) * Meyer_scaling_function(kz, nzc / 2);
-					double blend_fine = 1.0 - blend_coarse; 
-				
+				if (false){ //(i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
+					double blend_coarse_x = Meyer_scaling_function(kx, nxc / 2);
+					double blend_coarse_y = Meyer_scaling_function(ky, nyc / 2);
+					double blend_coarse_z = Meyer_scaling_function(kz, nzc / 2);
+					double blend_coarse = blend_coarse_x*blend_coarse_y*blend_coarse_z;
+					double blend_fine = 1.0-blend_coarse;
+
 					RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
 					IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
+				}
+
+				if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
+					RE(cfine[qf]) = val.real();
+					IM(cfine[qf]) = val.imag();
 				}
 			}
 
@@ -451,8 +458,7 @@ void normalize_density(grid_hierarchy &delta)
 		ny = delta.get_grid(levelmin)->size(1);
 		nz = delta.get_grid(levelmin)->size(2);
 
-#pragma omp parallel for reduction(+ \
-								   : sum)
+#pragma omp parallel for reduction(+ : sum)
 		for (int ix = 0; ix < (int)nx; ++ix)
 			for (size_t iy = 0; iy < ny; ++iy)
 				for (size_t iz = 0; iz < nz; ++iz)
@@ -481,9 +487,7 @@ void normalize_density(grid_hierarchy &delta)
 void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, bool kspace)
 {
 	unsigned levelmin_TF = u.levelmin();
-
-	/*for( int i=rh.levelmax(); i>0; --i )
-        mg_straight().restrict( *(u.get_grid(i)), *(u.get_grid(i-1)) );*/
+	bool benforce_coarse = true;//!kspace;
 
 	if (kspace)
 	{
@@ -498,13 +502,11 @@ void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, b
 
 	for (unsigned i = 1; i <= rh.levelmax(); ++i)
 	{
-		if (rh.offset(i, 0) != u.get_grid(i)->offset(0) || rh.offset(i, 1) != u.get_grid(i)->offset(1) || rh.offset(i, 2) != u.get_grid(i)->offset(2) || rh.size(i, 0) != u.get_grid(i)->size(0) || rh.size(i, 1) != u.get_grid(i)->size(1) || rh.size(i, 2) != u.get_grid(i)->size(2))
+		if (rh.offset(i, 0) != u.get_grid(i)->offset(0) || rh.offset(i, 1) != u.get_grid(i)->offset(1) || rh.offset(i, 2) != u.get_grid(i)->offset(2) 
+			|| rh.size(i, 0) != u.get_grid(i)->size(0) || rh.size(i, 1) != u.get_grid(i)->size(1) || rh.size(i, 2) != u.get_grid(i)->size(2))
 		{
 			u.cut_patch(i, rh.offset_abs(i, 0), rh.offset_abs(i, 1), rh.offset_abs(i, 2),
-						rh.size(i, 0), rh.size(i, 1), rh.size(i, 2));
+						rh.size(i, 0), rh.size(i, 1), rh.size(i, 2), benforce_coarse);
 		}
 	}
-
-	for (int i = rh.levelmax(); i > 0; --i)
-		mg_straight().restrict(*(u.get_grid(i)), *(u.get_grid(i - 1)));
 }

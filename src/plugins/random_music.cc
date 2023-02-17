@@ -531,22 +531,16 @@ void RNG_music::fill_grid(int ilevel, DensityGrid<real_t> &A)
 
       if (nx == (int)A.size(0) + 2 * margin[0] && ny == (int)A.size(1) + 2 * margin[1] && nz == (int)A.size(2) + 2 * margin[2])
       {
-        int ox = margin[0], oy = margin[1], oz = margin[2];
         std::vector<real_t> slice(ny * nz, 0.0);
 
         for (int i = 0; i < nx; ++i)
         {
           ifs.read(reinterpret_cast<char *>(&slice[0]), ny * nz * sizeof(real_t));
 
-          if (i < ox)
-            continue;
-          if (i >= 3 * ox)
-            break;
-
           #pragma omp parallel for
-          for (int j = oy; j < 3 * oy; ++j)
-            for (int k = oz; k < 3 * oz; ++k)
-              A(i - ox, j - oy, k - oz) = slice[j * nz + k];
+          for (int j = 0; j < ny; ++j)
+            for (int k = 0; k < nz; ++k)
+              A(i, j, k) = slice[j * nz + k];
         }
 
         ifs.close();
@@ -577,7 +571,7 @@ void RNG_music::fill_grid(int ilevel, DensityGrid<real_t> &A)
   }
   else
   {
-    music::ulog.Print("Copying white noise from memory cache...");
+    music::ilog.Print("Copying white noise from memory cache...");
 
     if (mem_cache_[ilevel - levelmin_] == NULL)
       music::elog.Print("Tried to access mem-cached random numbers for level %d. But these are not available!\n", ilevel);

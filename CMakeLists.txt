@@ -157,7 +157,7 @@ configure_file(
 
 add_executable(${PRGNAME} ${SOURCES} ${PLUGINS})
 
-set_target_properties(${PRGNAME} PROPERTIES CXX_STANDARD 14)
+set_target_properties(${PRGNAME} PROPERTIES CXX_STANDARD 17)
 
 if(CODE_PRECISION STREQUAL "FLOAT")
   if(FFTW3_SINGLE_THREADS_FOUND)

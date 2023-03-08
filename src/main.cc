@@ -452,9 +452,6 @@ int main(int argc, const char *argv[])
 		cf.insert_value("setup", "levelmin_TF", cf.get_value<std::string>("setup", "levelmin"));
 	}
 
-	// .. determine if spectral sampling should be used
-	const bool use_fourier_coarsening = cf.get_value_safe<bool>("setup", "fourier_splicing", true);
-
 
 	//------------------------------------------------------------------------------
 	//... initialize cosmology
@@ -590,6 +587,9 @@ int main(int argc, const char *argv[])
 
 	poisson_plugin_creator *the_poisson_plugin_creator = get_poisson_plugin_map()[poisson_solver_name];
 	poisson_plugin *the_poisson_solver = the_poisson_plugin_creator->create(cf);
+
+	// .. this parameter needs to be read after the random module is initialised as it will be overwritten by it
+	const bool use_fourier_coarsening = cf.get_value_safe<bool>("setup", "fourier_splicing", true);
 
 	//---------------------------------------------------------------------------------
 	//... THIS IS THE MAIN DRIVER BRANCHING TREE RUNNING THE VARIOUS PARTS OF THE CODE

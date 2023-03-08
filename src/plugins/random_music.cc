@@ -34,7 +34,10 @@ protected:
   void store_rnd(int ilevel, rng *prng);
 
 public:
-  explicit RNG_music(config_file &cf) : RNG_plugin(cf), initialized_(false) {}
+  explicit RNG_music(config_file &cf) : RNG_plugin(cf), initialized_(false) 
+  {
+    pcf_->insert_value("setup","fourier_splicing","true");
+  }
 
   ~RNG_music() {}
 

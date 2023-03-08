@@ -484,10 +484,50 @@ void normalize_density(grid_hierarchy &delta)
 	}
 }
 
+void normalize_levelmin_density(grid_hierarchy &delta)
+{
+	//return;
+
+	long double sum = 0.0;
+	unsigned levelmin = delta.levelmin(), levelmax = delta.levelmax();
+
+	{
+		size_t nx, ny, nz;
+
+		nx = delta.get_grid(levelmin)->size(0);
+		ny = delta.get_grid(levelmin)->size(1);
+		nz = delta.get_grid(levelmin)->size(2);
+
+#pragma omp parallel for reduction(+ : sum)
+		for (int ix = 0; ix < (int)nx; ++ix)
+			for (size_t iy = 0; iy < ny; ++iy)
+				for (size_t iz = 0; iz < nz; ++iz)
+					sum += (*delta.get_grid(levelmin))(ix, iy, iz);
+
+		sum /= (double)(nx * ny * nz);
+	}
+
+	music::ilog << "- Top grid mean density is off by " << sum << ", correcting..." << std::endl;
+
+	{
+		size_t nx, ny, nz;
+		nx = delta.get_grid(levelmin)->size(0);
+		ny = delta.get_grid(levelmin)->size(1);
+		nz = delta.get_grid(levelmin)->size(2);
+
+#pragma omp parallel for
+		for (int ix = 0; ix < (int)nx; ++ix)
+			for (size_t iy = 0; iy < ny; ++iy)
+				for (size_t iz = 0; iz < nz; ++iz)
+					(*delta.get_grid(levelmin))(ix, iy, iz) -= sum;
+	}
+}
+
+
 void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, bool kspace)
 {
-	unsigned levelmin_TF = u.levelmin();
-	bool benforce_coarse = true;//!kspace;
+	const unsigned levelmin_TF = u.levelmin();
+	const bool benforce_coarse = !kspace;
 
 	if (kspace)
 	{
@@ -508,5 +548,8 @@ void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, b
 			u.cut_patch(i, rh.offset_abs(i, 0), rh.offset_abs(i, 1), rh.offset_abs(i, 2),
 						rh.size(i, 0), rh.size(i, 1), rh.size(i, 2), benforce_coarse);
 		}
+	}
+	if( !benforce_coarse ){
+		normalize_levelmin_density( u );
 	}
 }

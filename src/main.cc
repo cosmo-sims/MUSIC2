@@ -453,15 +453,8 @@ int main(int argc, const char *argv[])
 	}
 
 	// .. determine if spectral sampling should be used
-	if (!cf.contains_key("setup", "kspace_TF"))
-		cf.insert_value("setup", "kspace_TF", "yes");
+	const bool use_fourier_coarsening = cf.get_value_safe<bool>("setup", "fourier_splicing", true);
 
-	bool bspectral_sampling = true;//cf.get_value<bool>("setup", "kspace_TF");
-
-	if (bspectral_sampling)
-		music::ilog.Print("Using k-space sampled transfer functions...");
-	else
-		music::ilog.Print("Using real space sampled transfer functions...");
 
 	//------------------------------------------------------------------------------
 	//... initialize cosmology
@@ -622,7 +615,7 @@ int main(int argc, const char *argv[])
 				my_tf_type = delta_matter;
 
 			GenerateDensityHierarchy(cf, the_cosmo_calc.get(), my_tf_type, rh_TF, rand, f, false, false);
-			coarsen_density(rh_Poisson, f, bspectral_sampling);
+			coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 			f.add_refinement_mask(rh_Poisson.get_coord_shift());
 
 			normalize_density(f);
@@ -686,7 +679,7 @@ int main(int argc, const char *argv[])
 				music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 				music::ulog.Print("Computing baryon density...");
 				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), delta_baryon, rh_TF, rand, f, false, bbshift);
-				coarsen_density(rh_Poisson, f, bspectral_sampling);
+				coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
 
@@ -759,7 +752,7 @@ int main(int argc, const char *argv[])
 				{
 					music::ulog.Print("Generating velocity perturbations...");
 					GenerateDensityHierarchy(cf, the_cosmo_calc.get(), theta_cdm, rh_TF, rand, f, false, false);
-					coarsen_density(rh_Poisson, f, bspectral_sampling);
+					coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 					f.add_refinement_mask(rh_Poisson.get_coord_shift());
 					normalize_density(f);
 					u = f;
@@ -829,7 +822,7 @@ int main(int argc, const char *argv[])
 				//... we do baryons and have velocity transfer functions, or we do SPH and not to shift
 				//... do DM first
 				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), theta_cdm, rh_TF, rand, f, false, false);
-				coarsen_density(rh_Poisson, f, bspectral_sampling);
+				coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
 
@@ -888,7 +881,7 @@ int main(int argc, const char *argv[])
 				music::ulog.Print("Computing baryon velocitites...");
 				//... do baryons
 				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), theta_baryon, rh_TF, rand, f, false, bbshift);
-				coarsen_density(rh_Poisson, f, bspectral_sampling);
+				coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
 
@@ -970,7 +963,7 @@ int main(int argc, const char *argv[])
 			music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 
 			GenerateDensityHierarchy(cf, the_cosmo_calc.get(), my_tf_type, rh_TF, rand, f, false, false);
-			coarsen_density(rh_Poisson, f, bspectral_sampling);
+			coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 			f.add_refinement_mask(rh_Poisson.get_coord_shift());
 			normalize_density(f);
 
@@ -1076,7 +1069,7 @@ int main(int argc, const char *argv[])
 				music::ulog.Print("Computing baryon displacements...");
 
 				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), theta_baryon, rh_TF, rand, f, false, bbshift);
-				coarsen_density(rh_Poisson, f, bspectral_sampling);
+				coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
 
@@ -1174,7 +1167,7 @@ int main(int argc, const char *argv[])
 					my_tf_type = delta_matter;
 
 				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), my_tf_type, rh_TF, rand, f, false, false);
-				coarsen_density(rh_Poisson, f, bspectral_sampling);
+				coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
 
@@ -1272,7 +1265,7 @@ int main(int argc, const char *argv[])
 				music::ulog.Print("Computing baryon density...");
 
 				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), delta_baryon, rh_TF, rand, f, true, false);
-				coarsen_density(rh_Poisson, f, bspectral_sampling);
+				coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
 
@@ -1315,7 +1308,7 @@ int main(int argc, const char *argv[])
 				music::ulog.Print("Computing baryon displacements...");
 
 				GenerateDensityHierarchy(cf, the_cosmo_calc.get(), delta_baryon, rh_TF, rand, f, false, bbshift);
-				coarsen_density(rh_Poisson, f, bspectral_sampling);
+				coarsen_density(rh_Poisson, f, use_fourier_coarsening);
 				f.add_refinement_mask(rh_Poisson.get_coord_shift());
 				normalize_density(f);
 

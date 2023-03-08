@@ -1171,6 +1171,34 @@ public:
 
 				music::ilog.Print("  .level %d : corrected patch overlap mean value by %f", ilevel, coarsesum - finesum);
 			}
+		}else{
+			//... enforce fine mean density over same patch
+			if (ilevel > levelmin())
+			{
+				int ox = m_pgrids[ilevel]->offset(0);
+				int oy = m_pgrids[ilevel]->offset(1);
+				int oz = m_pgrids[ilevel]->offset(2);
+
+				#pragma omp parallel for reduction(+:coarsesum,coarsecount) collapse(3)
+				for (unsigned i = 0; i < nx / 2; ++i)
+					for (unsigned j = 0; j < ny / 2; ++j)
+						for (unsigned k = 0; k < nz / 2; ++k)
+						{
+							coarsesum += (*m_pgrids[ilevel - 1])(i + ox, j + oy, k + oz);
+							coarsecount++;
+						}
+
+				coarsesum /= (double)coarsecount;
+				finesum /= (double)finecount;
+
+				#pragma omp parallel for collapse(3)
+				for (unsigned i = 0; i < nx / 2; ++i)
+					for (unsigned j = 0; j < ny / 2; ++j)
+						for (unsigned k = 0; k < nz / 2; ++k)
+							(*m_pgrids[ilevel - 1])(i + ox, j + oy, k + oz) -= (coarsesum - finesum);
+
+				music::ilog.Print("  .level %d : corrected patch overlap mean value by %f", ilevel, coarsesum - finesum);
+			}
 		}
 
 		find_new_levelmin();

@@ -187,7 +187,7 @@ namespace cosmology
             // compute amount of cold dark matter as the rest
             pmap_["Omega_c"] = this->get("Omega_m") - this->get("Omega_b") - this->get("Omega_nu_massive");
 
-            if (cf.get_value_safe<bool>("cosmology", "ZeroRadiation", false))
+            if (cf.get_value_safe<bool>("cosmology", "ZeroRadiation", true))
             {
                 pmap_["Omega_r"] = 0.0;
             }

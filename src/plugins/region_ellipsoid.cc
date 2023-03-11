@@ -723,9 +723,12 @@ public:
         pellip_[levelmax_]->get_center(c);
         pellip_[levelmax_]->get_matrix(A);
 
-        music::ilog.Print("Region center for ellipsoid determined at\n\t xc = ( %f %f %f )", c[0], c[1], c[2]);
-        music::ilog.Print("Ellipsoid matrix determined as\n\t      ( %f %f %f )\n\t  A = ( %f %f %f )\n\t      ( %f %f %f )",
-                A[0], A[1], A[2], A[3], A[4], A[5], A[6], A[7], A[8]);
+        music::ilog << "Region center for ellipsoid determined at" << std::endl
+            <<"\t xc = ( " << c[0] << " " << c[1] << " " << c[2] << " )" << std::endl;
+        music::ilog << "Ellipsoid matrix determined as" <<std ::endl 
+            << "\t      / "  << std::setw(8) << A[0] << " " << std::setw(8) << A[1] << " " << std::setw(8) << A[2] << " \\" << std::endl
+            << "\t  A = | "  << std::setw(8) << A[3] << " " << std::setw(8) << A[4] << " " << std::setw(8) << A[5] << " |" << std::endl
+            << "\t      \\ " << std::setw(8) << A[6] << " " << std::setw(8) << A[7] << " " << std::setw(8) << A[8] << " /" << std::endl;
 
         // expand the ellipsoid by one grid cell
 

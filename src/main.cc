@@ -654,7 +654,7 @@ int main(int argc, const char *argv[])
 						//... displacement
 						the_poisson_solver->gradient(icoord, u, data_forIO);
 					double dispmax = compute_finest_absmax(data_forIO);
-					music::ilog.Print("max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
+					music::ilog.Print("\t - max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
 					coarsen_density(rh_Poisson, data_forIO, false);
 					
 					//... compute counter-mode to minimize advection errors
@@ -784,14 +784,13 @@ int main(int argc, const char *argv[])
 					//... velocity kick to keep refined region centered?
 
 					double sigv = compute_finest_sigma(data_forIO);
-					music::ilog.Print("sigma of %c-velocity of high-res particles is %f", 'x' + icoord, sigv);
+					music::ulog.Print("sigma of %c-velocity of high-res particles is %f", 'x' + icoord, sigv);
 
 					double meanv = compute_finest_mean(data_forIO);
-					music::ilog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 					music::ulog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 
 					double maxv = compute_finest_absmax(data_forIO);
-					music::ilog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
+					music::ulog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
@@ -854,14 +853,13 @@ int main(int argc, const char *argv[])
 					data_forIO *= cosmo_vfact;
 
 					double sigv = compute_finest_sigma(data_forIO);
-					music::ilog.Print("sigma of %c-velocity of high-res DM is %f", 'x' + icoord, sigv);
+					music::ulog.Print("sigma of %c-velocity of high-res DM is %f", 'x' + icoord, sigv);
 
 					double meanv = compute_finest_mean(data_forIO);
-					music::ilog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 					music::ulog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 
 					double maxv = compute_finest_absmax(data_forIO);
-					music::ilog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
+					music::ulog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
@@ -913,14 +911,13 @@ int main(int argc, const char *argv[])
 					data_forIO *= cosmo_vfact;
 
 					double sigv = compute_finest_sigma(data_forIO);
-					music::ilog.Print("sigma of %c-velocity of high-res baryons is %f", 'x' + icoord, sigv);
+					music::ulog.Print("sigma of %c-velocity of high-res baryons is %f", 'x' + icoord, sigv);
 
 					double meanv = compute_finest_mean(data_forIO);
-					music::ilog.Print("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 					music::ulog.Print("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 
 					double maxv = compute_finest_absmax(data_forIO);
-					music::ilog.Print("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
+					music::ulog.Print("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
@@ -1033,14 +1030,13 @@ int main(int argc, const char *argv[])
 				double sigv = compute_finest_sigma(data_forIO);
 
 				double meanv = compute_finest_mean(data_forIO);
-				music::ilog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 				music::ulog.Print("mean of %c-velocity of high-res particles is %f", 'x' + icoord, meanv);
 
 				double maxv = compute_finest_absmax(data_forIO);
-				music::ilog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
+				music::ulog.Print("max of abs of %c-velocity of high-res particles is %f", 'x' + icoord, maxv);
 
-				music::ilog << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
-				music::ilog << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
+				music::ilog << "\t - velocity component " << icoord << " : sigma = " << sigv << std::endl;
+				music::ilog << "\t - velocity component " << icoord << " : mean = " << meanv << std::endl;
 
 				coarsen_density(rh_Poisson, data_forIO, false);
 
@@ -1131,14 +1127,13 @@ int main(int argc, const char *argv[])
 					double sigv = compute_finest_sigma(data_forIO);
 
 					double meanv = compute_finest_mean(data_forIO);
-					music::ilog.Print("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 					music::ulog.Print("mean of %c-velocity of high-res baryons is %f", 'x' + icoord, meanv);
 
 					double maxv = compute_finest_absmax(data_forIO);
-					music::ilog.Print("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
+					music::ulog.Print("max of abs of %c-velocity of high-res baryons is %f", 'x' + icoord, maxv);
 
-					music::ilog << " - velocity component " << icoord << " : sigma = " << sigv << std::endl;
-					music::ilog << " - velocity component " << icoord << " : mean = " << meanv << std::endl;
+					music::ilog << "\t - velocity component " << icoord << " : sigma = " << sigv << std::endl;
+					music::ilog << "\t - velocity component " << icoord << " : mean = " << meanv << std::endl;
 
 					coarsen_density(rh_Poisson, data_forIO, false);
 
@@ -1243,7 +1238,7 @@ int main(int argc, const char *argv[])
 					the_poisson_solver->gradient(icoord, u1, data_forIO);
 
 				double dispmax = compute_finest_absmax(data_forIO);
-				music::ilog.Print("max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
+				music::ilog.Print("\t - max. %c-displacement of HR particles is %f [mean dx]", 'x' + icoord, dispmax * (double)(1ll << data_forIO.levelmax()));
 
 				coarsen_density(rh_Poisson, data_forIO, false);
 

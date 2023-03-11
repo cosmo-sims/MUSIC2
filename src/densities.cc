@@ -118,7 +118,7 @@ void fft_coarsen(m1 &v, m2 &V)
 }
 
 template <typename m1, typename m2>
-void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
+void fft_interpolate(m1 &V, m2 &v, int margin, bool from_basegrid = false)
 {
 	int oxf = v.offset(0), oyf = v.offset(1), ozf = v.offset(2);
 	size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf + 2;
@@ -216,10 +216,10 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 				std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
 				val *= val_phas * 8.0;
 
-				if (false){ //(i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
-					double blend_coarse_x = Meyer_scaling_function(kx, nxc / 2);
-					double blend_coarse_y = Meyer_scaling_function(ky, nyc / 2);
-					double blend_coarse_z = Meyer_scaling_function(kz, nzc / 2);
+				if(i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
+					double blend_coarse_x = Meyer_scaling_function(kx, nxc / 2 / (margin/2));
+					double blend_coarse_y = Meyer_scaling_function(ky, nyc / 2 / (margin/2));
+					double blend_coarse_z = Meyer_scaling_function(kz, nzc / 2 / (margin/2));
 					double blend_coarse = blend_coarse_x*blend_coarse_y*blend_coarse_z;
 					double blend_fine = 1.0-blend_coarse;
 
@@ -227,10 +227,10 @@ void fft_interpolate(m1 &V, m2 &v, bool from_basegrid = false)
 					IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
 				}
 
-				if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
-					RE(cfine[qf]) = val.real();
-					IM(cfine[qf]) = val.imag();
-				}
+				// if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
+				// 	RE(cfine[qf]) = val.real();
+				// 	IM(cfine[qf]) = val.imag();
+				// }
 			}
 
 	delete[] rcoarse;
@@ -321,25 +321,26 @@ void GenerateDensityHierarchy(config_file &cf, const cosmology::calculator* cc, 
 							  grid_hierarchy &delta, bool smooth, bool shift)
 {
 	auto ptf = cc->transfer_function_.get();
-	unsigned levelmin, levelmax, levelminPoisson;
+
 	std::vector<long> rngseeds;
 	std::vector<std::string> rngfnames;
 
 	double tstart, tend;
-
 #if defined(_OPENMP)
 	tstart = omp_get_wtime();
 #else
 	tstart = (double)clock() / CLOCKS_PER_SEC;
 #endif
 
-	levelminPoisson = cf.get_value<unsigned>("setup", "levelmin");
-	levelmin = cf.get_value_safe<unsigned>("setup", "levelmin_TF", levelminPoisson);
-	levelmax = cf.get_value<unsigned>("setup", "levelmax");
+	unsigned levelminPoisson = cf.get_value<unsigned>("setup", "levelmin");
+	unsigned levelmin = cf.get_value_safe<unsigned>("setup", "levelmin_TF", levelminPoisson);
+	unsigned levelmax = cf.get_value<unsigned>("setup", "levelmax");
+
+	unsigned margin =  cf.get_value_safe<unsigned>("setup", "convolution_margin", 8);
 
 	bool fix  = cf.get_value_safe<bool>("setup","fix_mode_amplitude",false);
 	bool flip = cf.get_value_safe<bool>("setup","flip_mode_amplitude",false);
-	bool fourier_splicing = cf.get_value_safe<bool>("setup","fourier_splicing",true);
+	bool fourier_splicing = true; //cf.get_value_safe<bool>("setup","fourier_splicing",true);
 
 	if( fix && levelmin != levelmax ){
 		music::wlog.Print("You have chosen mode fixing for a zoom. This is not well tested,\n please proceed at your own risk...");
@@ -364,6 +365,7 @@ void GenerateDensityHierarchy(config_file &cf, const cosmology::calculator* cc, 
 		convolution::perform(the_tf_kernel->fetch_kernel(levelmin, false), reinterpret_cast<void *>(top->get_data_ptr()), shift, fix, flip);
 
 		delta.create_base_hierarchy(levelmin);
+
 		top->copy(*delta.get_grid(levelmin));
 
 		for (int i = 1; i < nlevels; ++i)
@@ -397,9 +399,9 @@ void GenerateDensityHierarchy(config_file &cf, const cosmology::calculator* cc, 
 
 			if( fourier_splicing ){
 				if (i == 1)
-					fft_interpolate(*top, *fine, true);
+					fft_interpolate(*top, *fine, margin, true);
 				else
-					fft_interpolate(*coarse, *fine, false);
+					fft_interpolate(*coarse, *fine, margin, false);
 			}
 
 			delta.add_patch(refh.offset(levelmin + i, 0),

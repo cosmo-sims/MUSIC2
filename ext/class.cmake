@@ -3,7 +3,7 @@ include(FetchContent)
 FetchContent_Declare(
     class
     GIT_REPOSITORY https://github.com/ohahn/class_public.git
-    GIT_TAG master
+    GIT_TAG monofonic_v1
     GIT_SHALLOW YES
     GIT_PROGRESS TRUE
     USES_TERMINAL_DOWNLOAD TRUE   # <---- this is needed only for Ninja

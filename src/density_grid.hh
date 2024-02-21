@@ -105,12 +105,12 @@ public:
    * @param i the dimension for which size is to be returned
    * @returns array size along dimension i
    */
-  size_t size(int i)
+  size_t size(int i) const
   {
     return nv_[i];
   }
 
-  int offset(int i)
+  int offset(int i) const
   {
     return ov_[i];
   }

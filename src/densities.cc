@@ -217,20 +217,15 @@ void fft_interpolate(m1 &V, m2 &v, int margin, bool from_basegrid = false)
 				val *= val_phas * 8.0;
 
 				if(i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
-					double blend_coarse_x = Meyer_scaling_function(kx, nxc / 2 / (margin/2));
-					double blend_coarse_y = Meyer_scaling_function(ky, nyc / 2 / (margin/2));
-					double blend_coarse_z = Meyer_scaling_function(kz, nzc / 2 / (margin/2));
+					double blend_coarse_x = Meyer_scaling_function(kx, nxc / 2);
+					double blend_coarse_y = Meyer_scaling_function(ky, nyc / 2);
+					double blend_coarse_z = Meyer_scaling_function(kz, nzc / 2);
 					double blend_coarse = blend_coarse_x*blend_coarse_y*blend_coarse_z;
 					double blend_fine = 1.0-blend_coarse;
 
 					RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
 					IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
 				}
-
-				// if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
-				// 	RE(cfine[qf]) = val.real();
-				// 	IM(cfine[qf]) = val.imag();
-				// }
 			}
 
 	delete[] rcoarse;
@@ -373,21 +368,21 @@ void GenerateDensityHierarchy(config_file &cf, const cosmology::calculator* cc, 
 			music::ilog.Print("Performing noise convolution on level %3d...", levelmin + i);
 			/////////////////////////////////////////////////////////////////////////
 			//... add new refinement patch
-			music::ulog.Print("Allocating refinement patch");
-			music::ulog.Print("   offset=(%5d,%5d,%5d)", refh.offset(levelmin + i, 0),
+			music::ilog.Print("Allocating refinement patch");
+			music::ilog.Print("   offset=(%5d,%5d,%5d)", refh.offset(levelmin + i, 0),
 					refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2));
-			music::ulog.Print("   size  =(%5d,%5d,%5d)", refh.size(levelmin + i, 0),
+			music::ilog.Print("   size  =(%5d,%5d,%5d)", refh.size(levelmin + i, 0),
 					refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
 
 			if( refh.get_margin() > 0 ){
 				fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin + i, 0), refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2),
 																								 refh.size(levelmin + i, 0), refh.size(levelmin + i, 1), refh.size(levelmin + i, 2),
 																								 refh.get_margin(), refh.get_margin(), refh.get_margin() );
-				music::ulog.Print("    margin = %d",refh.get_margin());
+				music::ilog.Print("    margin = %d",refh.get_margin());
 			}else{
 				fine = new PaddedDensitySubGrid<real_t>( refh.offset(levelmin + i, 0), refh.offset(levelmin + i, 1), refh.offset(levelmin + i, 2),
 																								 refh.size(levelmin + i, 0), refh.size(levelmin + i, 1), refh.size(levelmin + i, 2));
-				music::ulog.Print("    margin = %d",refh.size(levelmin + i, 0)/2);
+				music::ilog.Print("    margin = %d",refh.size(levelmin + i, 0)/2);
 			}
 			/////////////////////////////////////////////////////////////////////////
 
@@ -491,7 +486,7 @@ void normalize_levelmin_density(grid_hierarchy &delta)
 	//return;
 
 	long double sum = 0.0;
-	unsigned levelmin = delta.levelmin(), levelmax = delta.levelmax();
+	const unsigned levelmin = delta.levelmin();
 
 	{
 		size_t nx, ny, nz;
@@ -538,6 +533,7 @@ void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, b
 	}
 	else
 	{
+		mg_straight().restrict(*(u.get_grid(u.levelmax())), *(u.get_grid(u.levelmax() - 1)));
 		for (int i = levelmin_TF; i >= (int)rh.levelmin(); --i)
 			mg_straight().restrict(*(u.get_grid(i)), *(u.get_grid(i - 1)));
 	}

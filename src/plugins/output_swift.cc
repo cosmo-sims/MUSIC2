@@ -534,26 +534,26 @@ public:
   swift_output_plugin(config_file &cf) : output_plugin(cf) {
     // ensure that everyone knows we want to do SPH, implies: bsph=1, bbshift=1, decic_baryons=1
     // -> instead of just writing gas densities (which are here ignored), the gas displacements are also written
-    cf.insertValue("setup", "do_SPH", "yes");
+    cf.insert_value("setup", "do_SPH", "yes");
 
     // init header and config parameters
     nPartTotal = std::vector<long long>(NTYPES, 0);
     massTable = std::vector<double>(NTYPES, 0.0);
 
-    coarsePartType = cf.getValueSafe<unsigned>("output", "swift_coarsetype", COARSE_DM_DEFAULT_PARTTYPE);
-    UnitLength_in_cm = cf.getValueSafe<double>("output", "swift_unitlength", 3.085678e24); // 1.0 Mpc
-    UnitMass_in_g = cf.getValueSafe<double>("output", "swift_unitmass", 1.989e43);         // 1.0e10 solar masses
-    UnitVelocity_in_cm_per_s = cf.getValueSafe<double>("output", "swift_unitvel", 1e5);    // 1 km/sec
+    coarsePartType = cf.get_value_safe<unsigned>("output", "swift_coarsetype", COARSE_DM_DEFAULT_PARTTYPE);
+    UnitLength_in_cm = cf.get_value_safe<double>("output", "swift_unitlength", 3.085678e24); // 1.0 Mpc
+    UnitMass_in_g = cf.get_value_safe<double>("output", "swift_unitmass", 1.989e43);         // 1.0e10 solar masses
+    UnitVelocity_in_cm_per_s = cf.get_value_safe<double>("output", "swift_unitvel", 1e5);    // 1 km/sec
 
-    omega0 = cf.getValue<double>("cosmology", "Omega_m");
-    omega_b = cf.getValue<double>("cosmology", "Omega_b");
-    omega_L = cf.getValue<double>("cosmology", "Omega_L");
-    redshift = cf.getValue<double>("setup", "zstart");
-    boxSize = cf.getValue<double>("setup", "boxlength");
-    doBaryons = cf.getValueSafe<bool>("setup", "baryons", false);
-    useLongIDs = cf.getValueSafe<bool>("output", "swift_longids", false);
-    numFiles = cf.getValueSafe<unsigned>("output", "swift_num_files", 1);
-    doublePrec = cf.getValueSafe<bool>("output", "swift_doubleprec", 0);
+    omega0 = cf.get_value<double>("cosmology", "Omega_m");
+    omega_b = cf.get_value<double>("cosmology", "Omega_b");
+    omega_L = cf.get_value<double>("cosmology", "Omega_L");
+    redshift = cf.get_value<double>("setup", "zstart");
+    boxSize = cf.get_value<double>("setup", "boxlength");
+    doBaryons = cf.get_value_safe<bool>("setup", "baryons", false);
+    useLongIDs = cf.get_value_safe<bool>("output", "swift_longids", false);
+    numFiles = cf.get_value_safe<unsigned>("output", "swift_num_files", 1);
+    doublePrec = cf.get_value_safe<bool>("output", "swift_doubleprec", 0);
 
     for (unsigned i = 0; i < numFiles; i++)
       nPart.push_back(std::vector<unsigned int>(NTYPES, 0));
@@ -573,7 +573,7 @@ public:
     gridboost = 1;
 
     if (levelmin_ != levelmax_) {
-      double lxref[3], x0ref[3], x1ref[3];
+      vec3_t lxref, x0ref, x1ref;
       double pmgrid_new;
 
       the_region_generator->get_AABB(x0ref, x1ref, levelmax_); // generalized beyond box
@@ -593,10 +593,10 @@ public:
     }
 
     // calculate Tini for gas
-    hubbleParam = cf.getValue<double>("cosmology", "H0") / 100.0;
-    Tcmb0 = cf.getValueSafe<double>("cosmology", "Tcmb0", 2.7255); //from monofonIC Planck2018EE+BAO+SN
-    gamma = cf.getValueSafe<double>("cosmology", "gamma", 5.0 / 3.0);
-    YHe = cf.getValueSafe<double>("cosmology", "YHe", 0.245421); //from monofonIC Planck2018EE+BAO+SN
+    hubbleParam = cf.get_value<double>("cosmology", "H0") / 100.0;
+    Tcmb0 = cf.get_value_safe<double>("cosmology", "Tcmb0", 2.7255); //from monofonIC Planck2018EE+BAO+SN
+    gamma = cf.get_value_safe<double>("cosmology", "gamma", 5.0 / 3.0);
+    YHe = cf.get_value_safe<double>("cosmology", "YHe", 0.245421); //from monofonIC Planck2018EE+BAO+SN
 
     double astart = 1.0 / (1.0 + redshift);
     double h2 = hubbleParam * hubbleParam;
@@ -620,7 +620,7 @@ public:
     if (coarsePartType == GAS_PARTTYPE || coarsePartType == HIGHRES_DM_PARTTYPE)
       throw std::runtime_error("Error: Specified illegal Swift particle type for coarse particles.");
     if (coarsePartType == STAR_PARTTYPE)
-      LOGWARN("WARNING: Specified coarse particle type will collide with stars if USE_SFR enabled.");
+      music::wlog.Print("WARNING: Specified coarse particle type will collide with stars if USE_SFR enabled.");
 
     // create file(s)
     for (unsigned i = 0; i < numFiles; i++) {

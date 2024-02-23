@@ -331,11 +331,11 @@ void GenerateDensityHierarchy(config_file &cf, const cosmology::calculator* cc, 
 	unsigned levelmin = cf.get_value_safe<unsigned>("setup", "levelmin_TF", levelminPoisson);
 	unsigned levelmax = cf.get_value<unsigned>("setup", "levelmax");
 
-	unsigned margin =  cf.get_value_safe<unsigned>("setup", "convolution_margin", 8);
+	unsigned margin =  cf.get_value_safe<unsigned>("setup", "convolution_margin", 4);
 
 	bool fix  = cf.get_value_safe<bool>("setup","fix_mode_amplitude",false);
 	bool flip = cf.get_value_safe<bool>("setup","flip_mode_amplitude",false);
-	bool fourier_splicing = true; //cf.get_value_safe<bool>("setup","fourier_splicing",true);
+	bool fourier_splicing = cf.get_value_safe<bool>("setup","fourier_splicing",true);
 
 	if( fix && levelmin != levelmax ){
 		music::wlog.Print("You have chosen mode fixing for a zoom. This is not well tested,\n please proceed at your own risk...");
@@ -521,12 +521,11 @@ void normalize_levelmin_density(grid_hierarchy &delta)
 }
 
 
-void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, bool kspace)
+void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, bool bfourier_coarsening )
 {
 	const unsigned levelmin_TF = u.levelmin();
-	const bool benforce_coarse = !kspace;
 
-	if (kspace)
+	if (bfourier_coarsening)
 	{
 		for (int i = levelmin_TF; i >= (int)rh.levelmin(); --i)
 			fft_coarsen(*(u.get_grid(i)), *(u.get_grid(i - 1)));
@@ -547,7 +546,7 @@ void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, b
 						rh.size(i, 0), rh.size(i, 1), rh.size(i, 2), benforce_coarse);
 		}
 	}
-	if( !benforce_coarse ){
+	if( !fourier_coarsening ){
 		normalize_levelmin_density( u );
 	}
 }

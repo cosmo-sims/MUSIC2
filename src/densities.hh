@@ -27,6 +27,6 @@ void GenerateDensityUnigrid(config_file &cf, const cosmology::calculator*, tf_ty
 
 void normalize_density(grid_hierarchy &delta);
 
-void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, bool kspace);
+void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, bool bfourier_coarsening );
 
 #endif

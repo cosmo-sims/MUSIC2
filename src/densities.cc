@@ -543,10 +543,10 @@ void coarsen_density(const refinement_hierarchy &rh, GridHierarchy<real_t> &u, b
 			|| rh.size(i, 0) != u.get_grid(i)->size(0) || rh.size(i, 1) != u.get_grid(i)->size(1) || rh.size(i, 2) != u.get_grid(i)->size(2))
 		{
 			u.cut_patch(i, rh.offset_abs(i, 0), rh.offset_abs(i, 1), rh.offset_abs(i, 2),
-						rh.size(i, 0), rh.size(i, 1), rh.size(i, 2), benforce_coarse);
+						rh.size(i, 0), rh.size(i, 1), rh.size(i, 2), !bfourier_coarsening );
 		}
 	}
-	if( !fourier_coarsening ){
+	if( !bfourier_coarsening ){
 		normalize_levelmin_density( u );
 	}
 }

@@ -335,7 +335,7 @@ void GenerateDensityHierarchy(config_file &cf, const cosmology::calculator* cc, 
 
 	bool fix  = cf.get_value_safe<bool>("setup","fix_mode_amplitude",false);
 	bool flip = cf.get_value_safe<bool>("setup","flip_mode_amplitude",false);
-	bool fourier_splicing = cf.get_value_safe<bool>("setup","fourier_splicing",true);
+	bool fourier_splicing = true; //cf.get_value_safe<bool>("setup","fourier_splicing",true);
 
 	if( fix && levelmin != levelmax ){
 		music::wlog.Print("You have chosen mode fixing for a zoom. This is not well tested,\n please proceed at your own risk...");

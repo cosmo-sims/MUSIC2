@@ -1,4 +1,4 @@
-// This file is part of monofonIC (MUSIC2)
+// This file is part of MUSIC
 // A software package to generate ICs for cosmological simulations
 // Copyright (C) 2020 by Oliver Hahn & Michael Michaux (this file)
 // 

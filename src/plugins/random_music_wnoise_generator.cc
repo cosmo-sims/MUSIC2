@@ -605,9 +605,6 @@ music_wnoise_generator<T>::music_wnoise_generator(music_wnoise_generator<T> &rc,
       {
         int ii(i), jj(j), kk(k);
 
-        // if( i==(int)nxc/2 ) continue;
-        // if( j==(int)nyc/2 ) continue;
-
         if (i > (int)nxc / 2)
           ii += (int)nx / 2;
         if (j > (int)nyc / 2)
@@ -629,18 +626,6 @@ music_wnoise_generator<T>::music_wnoise_generator(music_wnoise_generator<T> &rc,
 
         val *= val_phas * sqrt8;
 
-        // // if (x0_ == NULL || lx_ == NULL){
-        //   if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2)
-        //   {
-        //     RE(cfine[qf]) = val.real();
-        //     IM(cfine[qf]) = val.imag();
-        //   }
-        //   else
-        //   {
-        //     RE(cfine[qf]) = val.real();
-        //     IM(cfine[qf]) = 0.0;
-        //   }
-        // // }
         if(i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
 					double blend_coarse_x = Meyer_scaling_function(kx, nxc / 2);
 					double blend_coarse_y = Meyer_scaling_function(ky, nyc / 2);

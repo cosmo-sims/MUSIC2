@@ -206,7 +206,6 @@ void fft_interpolate(m1 &V, m2 &v, int margin, bool from_basegrid = false)
 				double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
 
 				double phase = -0.5 * M_PI * (kx / nxc + ky / nyc + kz / nzc);
-				// double phase = -0.5 * M_PI * (kx / nxc + ky / nyc + kz / nzc);
 
 				std::complex<double> val_phas(cos(phase), sin(phase));
 

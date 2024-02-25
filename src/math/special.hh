@@ -24,14 +24,12 @@ inline double Meyer_scaling_function( double k, double kmax )
 	constexpr double fourpithirds{4.0*M_PI/3.0};
 	auto nu = []( double x ){ return x<0.0?0.0:(x<1.0?x:1.0); };
 
-	// k = std::abs(k)/kmax * fourpithirds;
     k = std::abs(k)/kmax * 2 * M_PI;
 
 	if( k < twopithirds ) return 1.0;
 	else if( k< fourpithirds ){
 		return std::cos( 0.5*M_PI * nu(3*k/(2*M_PI)-1.0) );
 	}
-	// if( k < fourpithirds ) return 1.0;
 	return 0.0;
 }
 

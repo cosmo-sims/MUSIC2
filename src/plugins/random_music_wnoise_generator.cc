@@ -4,6 +4,8 @@
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 
+#include "math/special.hh"
+
 #include "random.hh"
 #include "random_music_wnoise_generator.hh"
 
@@ -627,18 +629,33 @@ music_wnoise_generator<T>::music_wnoise_generator(music_wnoise_generator<T> &rc,
 
         val *= val_phas * sqrt8;
 
-        // if (x0_ == NULL || lx_ == NULL){
-          if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2)
-          {
-            RE(cfine[qf]) = val.real();
-            IM(cfine[qf]) = val.imag();
-          }
-          else
-          {
-            RE(cfine[qf]) = val.real();
-            IM(cfine[qf]) = 0.0;
-          }
-        // }
+        // // if (x0_ == NULL || lx_ == NULL){
+        //   if (i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2)
+        //   {
+        //     RE(cfine[qf]) = val.real();
+        //     IM(cfine[qf]) = val.imag();
+        //   }
+        //   else
+        //   {
+        //     RE(cfine[qf]) = val.real();
+        //     IM(cfine[qf]) = 0.0;
+        //   }
+        // // }
+        if(i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
+					double blend_coarse_x = Meyer_scaling_function(kx, nxc / 2);
+					double blend_coarse_y = Meyer_scaling_function(ky, nyc / 2);
+					double blend_coarse_z = Meyer_scaling_function(kz, nzc / 2);
+
+          // double blend_coarse_x = Shannon_scaling_function(kx, nxc / 2);
+					// double blend_coarse_y = Shannon_scaling_function(ky, nyc / 2);
+					// double blend_coarse_z = Shannon_scaling_function(kz, nzc / 2);
+
+          double blend_coarse = blend_coarse_x*blend_coarse_y*blend_coarse_z;
+					double blend_fine = std::sqrt(1.0-blend_coarse*blend_coarse);
+
+					RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
+					IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
+				}
       }
 
     delete[] rcoarse;

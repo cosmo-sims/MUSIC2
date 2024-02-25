@@ -17,6 +17,8 @@
 
 #include <cstring>
 
+#include "math/special.hh"
+
 #include "densities.hh"
 #include "random.hh"
 #include "convolution_kernel.hh"
@@ -24,20 +26,6 @@
 //TODO: this should be a larger number by default, just to maintain consistency with old default
 #define DEF_RAN_CUBE_SIZE 32
 
-double Meyer_scaling_function( double k, double kmax )
-{
-	constexpr double twopithirds{2.0*M_PI/3.0};
-	constexpr double fourpithirds{4.0*M_PI/3.0};
-	auto nu = []( double x ){ return x<0.0?0.0:(x<1.0?x:1.0); };
-
-	k = std::abs(k)/kmax * fourpithirds;
-
-	if( k < twopithirds ) return 1.0;
-	else if( k< fourpithirds ){
-		return std::cos( 0.5*M_PI * nu(3*k/(2*M_PI)-1.0) );
-	}
-	return 0.0;
-}
 
 template <typename m1, typename m2>
 void fft_coarsen(m1 &v, m2 &V)
@@ -131,6 +119,7 @@ void fft_interpolate(m1 &V, m2 &v, int margin, bool from_basegrid = false)
 	size_t nxf = v.size(0), nyf = v.size(1), nzf = v.size(2), nzfp = nzf + 2;
 	size_t mxf = v.margin(0), myf = v.margin(1), mzf = v.margin(2);
 
+	// adjust offsets to respect margins, all grids have 'margins' except basegrid (which is periodic)
 	if (!from_basegrid)
 	{
 		oxf +=  mxf/2;
@@ -217,22 +206,21 @@ void fft_interpolate(m1 &V, m2 &v, int margin, bool from_basegrid = false)
 				double kz = (k <= (int)nzc / 2) ? (double)k : (double)(k - (int)nzc);
 
 				double phase = -0.5 * M_PI * (kx / nxc + ky / nyc + kz / nzc);
+				// double phase = -0.5 * M_PI * (kx / nxc + ky / nyc + kz / nzc);
 
 				std::complex<double> val_phas(cos(phase), sin(phase));
 
 				std::complex<double> val(RE(ccoarse[qc]), IM(ccoarse[qc]));
 				val *= val_phas * 8.0;
 
-				if(i != (int)nxc / 2 && j != (int)nyc / 2 && k != (int)nzc / 2){
-					double blend_coarse_x = Meyer_scaling_function(kx, nxc / 2);
-					double blend_coarse_y = Meyer_scaling_function(ky, nyc / 2);
-					double blend_coarse_z = Meyer_scaling_function(kz, nzc / 2);
-					double blend_coarse = blend_coarse_x*blend_coarse_y*blend_coarse_z;
-					double blend_fine = 1.0-blend_coarse;
+				double blend_coarse_x = Meyer_scaling_function(kx, nxc / 4);
+				double blend_coarse_y = Meyer_scaling_function(ky, nyc / 4);
+				double blend_coarse_z = Meyer_scaling_function(kz, nzc / 4);
+				double blend_coarse = blend_coarse_x*blend_coarse_y*blend_coarse_z;
+				double blend_fine = 1.0-blend_coarse;
 
-					RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
-					IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
-				}
+				RE(cfine[qf]) = blend_fine * RE(cfine[qf]) + blend_coarse * val.real();
+				IM(cfine[qf]) = blend_fine * IM(cfine[qf]) + blend_coarse * val.imag();
 			}
 
 	delete[] rcoarse;

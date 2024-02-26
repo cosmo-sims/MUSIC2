@@ -11,10 +11,13 @@
 
 
 template <typename T>
-void rapid_proto_ngenic_rng(size_t res, long baseseed, music_wnoise_generator<T> &R)
-{
-	music::ulog.Print("Invoking the N-GenIC random number generator");
+void music_wnoise_generator<T>:: gen_topgrid_NGenIC(size_t res, long baseseed) {
+  music::ulog.Print(
+      "Generating large-scale random numbers using N-GenIC RNG with seed %ld",
+      baseseed);
 
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////
+  // execute N-GenIC rando number generator
 	unsigned *seedtable = new unsigned[res * res];
 
 	gsl_rng *random_generator = gsl_rng_alloc(gsl_rng_ranlxd1);
@@ -138,7 +141,7 @@ void rapid_proto_ngenic_rng(size_t res, long baseseed, music_wnoise_generator<T>
 	for (int i = 0; i < (int)res; ++i)
 		for (size_t j = 0; j < res; ++j)
 			for (size_t k = 0; k < res; ++k)
-				R(i, j, k) = rnoise[((size_t)i * res + j) * res + k];
+				(*this)(i, j, k) = rnoise[((size_t)i * res + j) * res + k];
 
 	delete[] rnoise;
 }
@@ -154,7 +157,8 @@ music_wnoise_generator<T>::music_wnoise_generator(unsigned res, unsigned cubesiz
 }
 
 template <typename T>
-music_wnoise_generator<T>::music_wnoise_generator(unsigned res, unsigned cubesize, long baseseed, bool zeromean)
+music_wnoise_generator<T>::music_wnoise_generator(  unsigned res, unsigned cubesize, long baseseed, 
+                                                    bool bUseNGenIC, bool zeromean )
     : res_(res), cubesize_(cubesize), ncubes_(1), baseseed_(baseseed)
 {
   music::ilog.Print("Generating random numbers (2) with seed %ld", baseseed);
@@ -162,23 +166,19 @@ music_wnoise_generator<T>::music_wnoise_generator(unsigned res, unsigned cubesiz
   double mean = 0.0;
   size_t res_l = res;
 
-  bool musicnoise = true;
-  if (!musicnoise)
-    cubesize_ = res_;
-
-  if (!musicnoise)
-    music::elog.Print("This currently breaks compatibility. Need to disable by hand! Make sure to not check into repo");
+  if( bUseNGenIC ){
+    cubesize_ = res;
+    ncubes_   = 1;
+  }
 
   initialize();
 
-  if (musicnoise)
+  if( !bUseNGenIC ){
     mean = fill_all();
-  else
-  {
-    rnums_.push_back(new Meshvar<T>(res, 0, 0, 0));
-    cubemap_[0] = 0; // create dummy map index
-    register_cube(0, 0, 0);
-    rapid_proto_ngenic_rng( res_, baseseed_, *this );
+  }else{
+    mean = 0.0;
+    gen_topgrid_NGenIC( res_, baseseed_ );
+    zeromean = false;
   }
 
   if (zeromean)

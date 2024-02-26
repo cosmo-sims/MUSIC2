@@ -16,6 +16,10 @@ void music_wnoise_generator<T>:: gen_topgrid_NGenIC(size_t res, long baseseed) {
       "Generating large-scale random numbers using N-GenIC RNG with seed %ld",
       baseseed);
 
+  rnums_.push_back(new Meshvar<T>(res, 0, 0, 0));
+  cubemap_[0] = 0; // create dummy map index
+  register_cube(0, 0, 0);
+
   /////////////////////////////////////////////////////////////////////////////////////////////////////////
   // execute N-GenIC rando number generator
 	unsigned *seedtable = new unsigned[res * res];
@@ -48,87 +52,76 @@ void music_wnoise_generator<T>:: gen_topgrid_NGenIC(size_t res, long baseseed) {
 	real_t *rnoise = new real_t[res * res * (res + 2)];
 	complex_t *knoise = reinterpret_cast<complex_t *>(rnoise);
 
-	double fnorm = 1. / sqrt(res * res * res);
+  double fnorm = pow((double)res, -1.5);
 
-// #warning need to check for race conditions below
-	//#pragma omp parallel for
-	for (size_t i = 0; i < res; i++)
-	{
-		int ii = (int)res - (int)i;
-		if (ii == (int)res)
-			ii = 0;
+// /#warning need to check for race conditions below
+//#pragma omp parallel for
+  for (size_t i = 0; i < res; i++) {
+    int ii = (int)res - (int)i;
+    if (ii == (int)res)
+      ii = 0;
 
-		for (size_t j = 0; j < res; j++)
-		{
-			gsl_rng_set(random_generator, seedtable[i * res + j]);
+    for (size_t j = 0; j < res; j++) {
+      gsl_rng_set(random_generator, seedtable[i * res + j]);
+      for (size_t k = 0; k < res / 2; k++) {
+        double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
+        double ampl;
+        do {
+          ampl = gsl_rng_uniform(random_generator);
+        } while (ampl == 0);
 
-			for (size_t k = 0; k < res / 2; k++)
-			{
-				double phase = gsl_rng_uniform(random_generator) * 2 * M_PI;
-				double ampl;
-				do
-					ampl = gsl_rng_uniform(random_generator);
-				while (ampl == 0);
+        if (i == res / 2 || j == res / 2 || k == res / 2)
+          continue;
+        if (i == 0 && j == 0 && k == 0)
+          continue;
 
-				if (i == res / 2 || j == res / 2 || k == res / 2)
-					continue;
-				if (i == 0 && j == 0 && k == 0)
-					continue;
+        T rp = -sqrt(-log(ampl)) * cos(phase) * fnorm;
+        T ip = -sqrt(-log(ampl)) * sin(phase) * fnorm;
 
-				T rp = -sqrt(-log(ampl)) * cos(phase) * fnorm;
-				T ip = -sqrt(-log(ampl)) * sin(phase) * fnorm;
+        if (k > 0) {
+          RE(knoise[(i * res + j) * (res / 2 + 1) + k]) = rp;
+          IM(knoise[(i * res + j) * (res / 2 + 1) + k]) = ip;
+        } else /* k=0 plane needs special treatment */
+        {
+          if (i == 0) {
+            if (j >= res / 2) {
+              continue;
+            } else {
+              int jj =
+                  (int)res - (int)j; /* note: j!=0 surely holds at this point */
 
-				if (k > 0)
-				{
-					RE(knoise[(i * res + j) * (res / 2 + 1) + k]) = rp;
-					IM(knoise[(i * res + j) * (res / 2 + 1) + k]) = ip;
-				}
-				else /* k=0 plane needs special treatment */
-				{
-					if (i == 0)
-					{
-						if (j >= res / 2)
-							continue;
-						else
-						{
-							int jj = (int)res - (int)j; /* note: j!=0 surely holds at this point */
+              RE(knoise[(i * res + j) * (res / 2 + 1) + k]) = rp;
+              IM(knoise[(i * res + j) * (res / 2 + 1) + k]) = ip;
 
-							RE(knoise[(i * res + j) * (res / 2 + 1) + k]) = rp;
-							IM(knoise[(i * res + j) * (res / 2 + 1) + k]) = ip;
+              RE(knoise[(i * res + jj) * (res / 2 + 1) + k]) = rp;
+              IM(knoise[(i * res + jj) * (res / 2 + 1) + k]) = -ip;
+            }
+          } else {
+            if (i >= res / 2) {
+              continue;
+            } else {
+              int ii = (int)res - (int)i;
+              if (ii == (int)res)
+                ii = 0;
+              int jj = (int)res - (int)j;
+              if (jj == (int)res)
+                jj = 0;
 
-							RE(knoise[(i * res + jj) * (res / 2 + 1) + k]) = rp;
-							IM(knoise[(i * res + jj) * (res / 2 + 1) + k]) = -ip;
-						}
-					}
-					else
-					{
-						if (i >= res / 2)
-							continue;
-						else
-						{
-							int ii = (int)res - (int)i;
-							if (ii == (int)res)
-								ii = 0;
-							int jj = (int)res - (int)j;
-							if (jj == (int)res)
-								jj = 0;
+              RE(knoise[(i * res + j) * (res / 2 + 1) + k]) = rp;
+              IM(knoise[(i * res + j) * (res / 2 + 1) + k]) = ip;
 
-							RE(knoise[(i * res + j) * (res / 2 + 1) + k]) = rp;
-							IM(knoise[(i * res + j) * (res / 2 + 1) + k]) = ip;
+              if (ii >= 0 && ii < (int)res) {
+                RE(knoise[(ii * res + jj) * (res / 2 + 1) + k]) = rp;
+                IM(knoise[(ii * res + jj) * (res / 2 + 1) + k]) = -ip;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
 
-							if (ii >= 0 && ii < (int)res)
-							{
-								RE(knoise[(ii * res + jj) * (res / 2 + 1) + k]) = rp;
-								IM(knoise[(ii * res + jj) * (res / 2 + 1) + k]) = -ip;
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	delete[] seedtable;
+  delete[] seedtable;
 
 	//... perform FT to real space
 	fftw_plan_t plan = FFTW_API(plan_dft_c2r_3d)(res, res, res, knoise, rnoise, FFTW_ESTIMATE);
@@ -140,7 +133,7 @@ void music_wnoise_generator<T>:: gen_topgrid_NGenIC(size_t res, long baseseed) {
 	for (int i = 0; i < (int)res; ++i)
 		for (size_t j = 0; j < res; ++j)
 			for (size_t k = 0; k < res; ++k)
-				(*this)(i, j, k) = rnoise[((size_t)i * res + j) * res + k];
+				(*this)(i, j, k) = -rnoise[((size_t)i * res + j) * (res + 2) + k];
 
 	delete[] rnoise;
 }
@@ -168,8 +161,6 @@ music_wnoise_generator<T>::music_wnoise_generator(  unsigned res, unsigned cubes
   if( bUseNGenIC ){
     cubesize_ = res;
     ncubes_   = 1;
-    rnums_.push_back(new Meshvar<T>(res, 0, 0, 0));
-    cubemap_[0] = 0; // create dummy map index
   }
 
   initialize();

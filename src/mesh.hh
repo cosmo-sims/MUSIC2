@@ -1324,7 +1324,7 @@ public:
 		preserve_dims_ = cf_.get_value_safe<bool>("setup", "preserve_dims", false);
 		equal_extent_ = cf_.get_value_safe<bool>("setup", "force_equal_extent", false);
 		blocking_factor_ = cf.get_value_safe<unsigned>("setup", "blocking_factor", 0);
-		margin_ = cf.get_value_safe<int>("setup", "convolution_margin", 32);
+		margin_ = cf.get_value_safe<int>("setup", "convolution_margin", 4);
 
 		bool bnoshift = cf_.get_value_safe<bool>("setup", "no_shift", false);
 		bool force_shift = cf_.get_value_safe<bool>("setup", "force_shift", false);

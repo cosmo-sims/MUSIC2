@@ -596,6 +596,7 @@ int main(int argc, const char *argv[])
 	poisson_plugin *the_poisson_solver = the_poisson_plugin_creator->create(cf);
 
 	// .. this parameter needs to be read after the random module is initialised as it will be overwritten by it
+	// .. e.g. PANPHASIA wants false, while MUSIC RNG wants true
 	const bool use_fourier_coarsening = cf.get_value_safe<bool>("setup", "fourier_splicing", true);
 
 	//---------------------------------------------------------------------------------

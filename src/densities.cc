@@ -27,6 +27,7 @@
 #define DEF_RAN_CUBE_SIZE 32
 
 
+/* interpolate upwards in the hierarchy */
 template <typename m1, typename m2>
 void fft_coarsen(m1 &v, m2 &V)
 {
@@ -84,13 +85,14 @@ void fft_coarsen(m1 &v, m2 &V)
 
 				val_fine *= val_phas * fftnorm / 8.0; 
 
-				if( i!=(int)nxF/2 && j!=(int)nyF/2 && k!=(int)nzF/2 ){
-					RE(ccoarse[qc]) = val_fine.real();
-					IM(ccoarse[qc]) = val_fine.imag();
-				}else{
-					RE(ccoarse[qc]) = 0.0;//val_fine.real();
-					IM(ccoarse[qc]) = 0.0;//val_fine.imag();
-				}
+				double blend_coarse_x = Meyer_scaling_function(kx, nxF / 2);
+				double blend_coarse_y = Meyer_scaling_function(ky, nyF / 2);
+				double blend_coarse_z = Meyer_scaling_function(kz, nzF / 2);
+
+				double blend_coarse = blend_coarse_x*blend_coarse_y*blend_coarse_z;
+
+				RE(ccoarse[qc]) = val_fine.real() * blend_coarse;
+				IM(ccoarse[qc]) = val_fine.imag() * blend_coarse;
 			}
 
 	delete[] rfine;
@@ -112,6 +114,7 @@ void fft_coarsen(m1 &v, m2 &V)
 	FFTW_API(destroy_plan)(ipc);
 }
 
+/* interpolate downwards in the hierarchy */
 template <typename m1, typename m2>
 void fft_interpolate(m1 &V, m2 &v, int margin, bool from_basegrid = false)
 {

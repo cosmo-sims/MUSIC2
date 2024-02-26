@@ -136,7 +136,6 @@ void music_wnoise_generator<T>:: gen_topgrid_NGenIC(size_t res, long baseseed) {
 	FFTW_API(destroy_plan)(plan);
 
 	// copy to array that holds the random numbers
-
 #pragma omp parallel for
 	for (int i = 0; i < (int)res; ++i)
 		for (size_t j = 0; j < res; ++j)
@@ -169,6 +168,8 @@ music_wnoise_generator<T>::music_wnoise_generator(  unsigned res, unsigned cubes
   if( bUseNGenIC ){
     cubesize_ = res;
     ncubes_   = 1;
+    rnums_.push_back(new Meshvar<T>(res, 0, 0, 0));
+    cubemap_[0] = 0; // create dummy map index
   }
 
   initialize();
@@ -176,6 +177,7 @@ music_wnoise_generator<T>::music_wnoise_generator(  unsigned res, unsigned cubes
   if( !bUseNGenIC ){
     mean = fill_all();
   }else{
+    music::ilog.Print("Using N-GenIC generator for top grid...");
     mean = 0.0;
     gen_topgrid_NGenIC( res_, baseseed_ );
     zeromean = false;

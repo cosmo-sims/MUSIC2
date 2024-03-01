@@ -39,6 +39,9 @@ protected:
   //! subtract a constant from an entire cube
   void subtract_from_cube(int i, int j, int k, double val);
 
+  //! usees the N-GenIC random number generator to set up the top grid
+  void gen_topgrid_NGenIC( size_t res, long baseseed );
+
   //! copy random numbers from a cube to a full grid array
   template <class C>
   void copy_cube(int i, int j, int k, C &dat)
@@ -127,7 +130,7 @@ public:
   music_wnoise_generator(music_wnoise_generator<T> &rc, unsigned cubesize, long baseseed, int *x0_ = NULL, int *lx_ = NULL, bool zeromean = true);
 
   //! constructor
-  music_wnoise_generator(unsigned res, unsigned cubesize, long baseseed, bool zeromean = true);
+  music_wnoise_generator(unsigned res, unsigned cubesize, long baseseed, bool bUseNGenIC, bool zeromean = true );
 
   //! constructor to read white noise from file
   music_wnoise_generator(unsigned res, std::string randfname, bool rndsign);

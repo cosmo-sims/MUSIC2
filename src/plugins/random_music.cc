@@ -145,6 +145,7 @@ void RNG_music::parse_random_parameters(void)
 void RNG_music::compute_random_numbers(void)
 {
   bool rndsign = pcf_->get_value_safe<bool>("random", "grafic_sign", false);
+  bool bUseNGenIC = pcf_->get_value_safe<bool>("random","coarse_ngenic",false);
 
   std::vector<rng *> randc(std::max(levelmax_, levelmin_seed_) + 1, (rng *)NULL);
 
@@ -156,7 +157,8 @@ void RNG_music::compute_random_numbers(void)
     if (rngfnames_[levelmin_seed_].size() > 0)
       randc[levelmin_seed_] = new rng(1 << levelmin_seed_, rngfnames_[levelmin_seed_], rndsign);
     else
-      randc[levelmin_seed_] = new rng(1 << levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_]);
+      randc[levelmin_seed_] = new rng(1 << levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_],
+                                      bUseNGenIC, true);
 
     for (int i = levelmin_seed_ + 1; i <= levelmin_; ++i)
     {
@@ -178,7 +180,7 @@ void RNG_music::compute_random_numbers(void)
       randc[levelmin_seed_] = new rng(1 << levelmin_seed_, rngfnames_[levelmin_seed_], rndsign);
     else
       randc[levelmin_seed_] =
-          new rng(1 << levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_]); //, x0, lx );
+          new rng(1 << levelmin_seed_, ran_cube_size_, rngseeds_[levelmin_seed_], bUseNGenIC, true); //, x0, lx );
 
     for (int ilevel = levelmin_seed_ - 1; ilevel >= (int)levelmin_; --ilevel)
     {
@@ -205,7 +207,7 @@ void RNG_music::compute_random_numbers(void)
     if (rngfnames_[levelmin_].size() > 0)
       randc[levelmin_] = new rng(1 << levelmin_, rngfnames_[levelmin_], rndsign);
     else
-      randc[levelmin_] = new rng(1 << levelmin_, ran_cube_size_, rngseeds_[levelmin_]);
+      randc[levelmin_] = new rng(1 << levelmin_, ran_cube_size_, rngseeds_[levelmin_], bUseNGenIC, true);
   }
 
   store_rnd(levelmin_, randc[levelmin_]);

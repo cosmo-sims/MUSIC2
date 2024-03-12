@@ -330,7 +330,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   // music::ilog.Print("ileft_corner_p[0,1,2]  = (%d,%d,%d)",ileft_corner_p[0],ileft_corner_p[1],ileft_corner_p[2]);
   // music::ilog.Print("nxremap[0,1,2]  = (%d,%d,%d)",nxremap[0],nxremap[1],nxremap[2]);
 
-  size_t ngp = nxremap[0] * nxremap[1] * (nxremap[2] + 2);
+  size_t ngp = size_t(nxremap[0]) * size_t(nxremap[1]) * size_t(nxremap[2] + 2);
 
   pr0 = new real_t[ngp];
   pr1 = new real_t[ngp];
@@ -431,7 +431,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
                     ((kk >= 0) && (kk < nxremap[2])))
                 {
 
-                  size_t idx = ((size_t)ii * nxremap[1] + (size_t)jj) * (nxremap[2] + 2) + (size_t)kk;
+                  size_t idx = (size_t(ii) * nxremap[1] + size_t(jj)) * (nxremap[2] + 2) + size_t(kk);
                   adv_panphasia_cell_properties_(ps, &ii, &jj, &kk, &ps->layer_min, &ps->layer_max, &ps->indep_field,
                                                  cell_prop);
 

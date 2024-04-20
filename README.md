@@ -3,18 +3,14 @@ MUSIC v2 - multi-scale cosmological initial conditions
 
 MUSIC is a computer program to generate nested grid initial conditions for high-resolution "zoom" cosmological simulations. A detailed description of some of the algorithms can be found in [Hahn & Abel (2011)](http://arxiv.org/abs/1103.6031), but version 2.0 is much improved and has a much lower memory footprint. To learn how to use MUSIC, please [read the Wiki](https://github.com/cosmo-sims/music/wiki). 
 
-Current MUSIC key features are:
+Current MUSIC key features include:
 
-- Supports output for RAMSES, ENZO, Arepo, Gadget-2/3, ART, Pkdgrav/Gasoline and NyX via plugins. New codes can be added.
-
+- Supports output for RAMSES, ENZO, Arepo, Swift, Gadget-2/3, ART, Pkdgrav/Gasoline and NyX via plugins. New codes can be added.
 - Support for first (1LPT) and second order (2LPT) Lagrangian perturbation theory.
-
+- Full integration of the [PANPHASIA](https://arxiv.org/abs/1306.5968) hierarchical Gaussian random fields
 - Pluggable transfer functions, currently CAMB, Eisenstein&Hu, BBKS, Warm Dark Matter variants. Distinct baryon+CDM fields.
-
 - Minimum bounding ellipsoid and convex hull shaped high-res regions supported with most codes, supports refinement mask generation for RAMSES.
-
 - Parallelized with OpenMP
-    
 - Requires FFTW3, GSL (and HDF5 for output for some codes)
 
 ## Building MUSIC

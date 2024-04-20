@@ -44,17 +44,17 @@ jobs:
     - name: Install prerequisite libraries
       # Install 3rd party libraries
       run: |
-        apt-get update -qq
-        apt-get install gcc g++ gfortran -qq -y
+        sudo apt-get update -qq
+        sudo apt-get install gcc g++ gfortran -qq -y
         gcc --version
         #  Install a CMake 3.0.2 version.
-        apt-get install git cmake pkg-config cmake-data -y --force-yes
+        sudo apt-get install git cmake pkg-config cmake-data -y --force-yes
         # Print the CMake version.
         cmake --version   
         # Install the necessary libraries
-        apt-get install libfftw3-dev -y
-        apt-get install libgsl-dev -y
-        apt-get install libhdf5-serial-dev -y
+        sudo apt-get install libfftw3-dev -y
+        sudo apt-get install libgsl-dev -y
+        sudo apt-get install libhdf5-serial-dev -y
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.

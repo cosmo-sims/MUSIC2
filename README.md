@@ -1,3 +1,5 @@
+[![CMake on multiple platforms](https://github.com/cosmo-sims/MUSIC/actions/workflows/cmake-multi-platform.yml/badge.svg)](https://github.com/cosmo-sims/MUSIC/actions/workflows/cmake-multi-platform.yml)
+
 MUSIC v2 - multi-scale cosmological initial conditions
 ======================================================
 

@@ -7,7 +7,7 @@ MUSIC is a computer program to generate nested grid initial conditions for high-
 
 Current MUSIC key features include:
 
-- Supports output for RAMSES, ENZO, Arepo, Swift, Gadget-2/3, ART, Pkdgrav/Gasoline and NyX via plugins. New codes can be added.
+- Supports output for RAMSES, ENZO, Arepo, Swift, Gadget-2/3, ART, Pkdgrav/Gasoline, NyX, and GAMER-2 via plugins. New codes can be added.
 - Support for first (1LPT) and second order (2LPT) Lagrangian perturbation theory.
 - Full integration of the [PANPHASIA](https://arxiv.org/abs/1306.5968) hierarchical Gaussian random fields
 - Pluggable transfer functions, currently CAMB, Eisenstein&Hu, BBKS, Warm Dark Matter variants. Distinct baryon+CDM fields.

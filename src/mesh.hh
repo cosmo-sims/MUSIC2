@@ -1521,6 +1521,18 @@ public:
 			kr = ((kr % gridding_unit_) != 0) ? (kr / gridding_unit_ + 1) * gridding_unit_ : kr;
 		}
 
+		// require alighment with coarser block
+		if (blocking_factor_)
+		{
+			unsigned coarse_block = 2 * blocking_factor_;
+			il -= il % coarse_block;
+			jl -= jl % coarse_block;
+			kl -= kl % coarse_block;
+			ir += (nresmax - ir) % coarse_block;
+			jr += (nresmax - jr) % coarse_block;
+			kr += (nresmax - kr) % coarse_block;
+		}
+
 		// if doing unigrid, set region to whole box
 		if (levelmin_ == levelmax_)
 		{
@@ -1632,6 +1644,19 @@ public:
 				ir = ((ir % gridding_unit_) != 0) ? (ir / gridding_unit_ + 1) * gridding_unit_ : ir;
 				jr = ((jr % gridding_unit_) != 0) ? (jr / gridding_unit_ + 1) * gridding_unit_ : jr;
 				kr = ((kr % gridding_unit_) != 0) ? (kr / gridding_unit_ + 1) * gridding_unit_ : kr;
+			}
+
+			// require alighment with coarser block
+			if (blocking_factor_)
+			{
+				unsigned coarse_block = 2 * blocking_factor_;
+				int nres = 1 << ilevel;
+				il -= il % coarse_block;
+				jl -= jl % coarse_block;
+				kl -= kl % coarse_block;
+				ir += (nres - ir) % coarse_block;
+				jr += (nres - jr) % coarse_block;
+				kr += (nres - kr) % coarse_block;
 			}
 
 			if (il >= ir || jl >= jr || kl >= kr || il < 0 || jl < 0 || kl < 0)

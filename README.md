@@ -3,7 +3,11 @@
 MUSIC v2 - multi-scale cosmological initial conditions
 ======================================================
 
-MUSIC is a computer program to generate nested grid initial conditions for high-resolution "zoom" cosmological simulations. A detailed description of some of the algorithms can be found in [Hahn & Abel (2011)](http://arxiv.org/abs/1103.6031), but version 2.0 is much improved and has a much lower memory footprint. To learn how to use MUSIC, please [read the Wiki](https://github.com/cosmo-sims/music/wiki). 
+MUSIC is a computer program to generate nested grid initial conditions for high-resolution "zoom" cosmological simulations. A detailed description of some of the algorithms can be found in [Hahn & Abel (2011)](http://arxiv.org/abs/1103.6031), but version 2.0 is much improved and has a much lower memory footprint. 
+
+*Be aware that v1 and v2 do not produce entirely consistent zooms, due to the changes in the way the noise hierarchy is composed. So do not upgrade if you need to exactly reproduce a zoom run generated with v1, there is currently no backwards compatibility mode.*
+
+To learn how to use MUSIC, please [read the Wiki](https://github.com/cosmo-sims/music/wiki). 
 
 Current MUSIC key features include:
 

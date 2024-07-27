@@ -47,16 +47,16 @@ class gamer2_output_plugin : public output_plugin
     double hubble_;
     bool bbaryons_;
 
-    real_t gamer_unit_length_;
-    real_t gamer_unit_time_;
-    real_t gamer_unit_density_;
-    real_t gamer_unit_mass_;
-    real_t gamer_unit_velocity_;
+    double gamer_unit_length_;
+    double gamer_unit_time_;
+    double gamer_unit_density_;
+    double gamer_unit_mass_;
+    double gamer_unit_velocity_;
 
-    real_t music_unit_length_;
-    real_t music_unit_density_;
-    real_t music_unit_mass_;
-    real_t music_unit_velocity_;
+    double music_unit_length_;
+    double music_unit_density_;
+    double music_unit_mass_;
+    double music_unit_velocity_;
 
     size_t write2tempfile_par(std::string fname, const grid_hierarchy &gh, unsigned ilevel, real_t fac = 1.0, real_t shift = 0.0)
     {

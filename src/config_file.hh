@@ -161,6 +161,10 @@ public:
       }
 
       items_[in_section + '/' + name] = value;
+
+      size_t lastindex = filename.find_last_of('.');
+      std::string config_basename = filename.substr(0, lastindex);
+      items_["meta/config_basename"] = config_basename;
     }
   }
 
@@ -286,6 +290,12 @@ public:
   template <class T>
   T get_value_safe(std::string const &key, T default_value) const {
     return get_value_safe("", key, default_value);
+  }
+
+  std::string get_path_relative_to_config(std::string const &filename) const {
+    std::string empty_string;
+    const std::string basename = get_value_safe("meta", "config_basename", empty_string);
+    return basename + "_" + filename;
   }
 
   //! dumps all key-value pairs to a std::ostream

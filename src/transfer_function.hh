@@ -163,7 +163,7 @@ public:
 	double pnorm_, sqrtpnorm_;
 	static tf_type type_;
 
-	TransferFunction_k(tf_type type, transfer_function *tf, real_t nspec, real_t pnorm)
+	TransferFunction_k(tf_type type, transfer_function *tf, real_t nspec, real_t pnorm, config_file &cf)
 			: pnorm_(pnorm)
 	{
 		ptf_ = tf;
@@ -171,7 +171,7 @@ public:
 		sqrtpnorm_ = sqrt(pnorm_);
 		type_ = type;
 
-		std::string fname("input_powerspec.txt");
+		std::string fname(cf.get_path_relative_to_config("input_powerspec.txt"));
 		if (type == delta_cdm || type == delta_matter)
 		{
 			std::ofstream ofs(fname.c_str());

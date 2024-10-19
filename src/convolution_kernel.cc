@@ -177,7 +177,7 @@ public:
 		pnorm_ = ptf->cosmo_params_["pnorm"];
 		kfac_ = 2.0 * M_PI / boxlength_;
 		kmax_ = kfac_ / 2;
-		tfk_ = new TransferFunction_k(type_, ptf_, nspec_, pnorm_);
+		tfk_ = new TransferFunction_k(type_, ptf_, nspec_, pnorm_, cf);
 
 		cparam_.nx = 1;
 		cparam_.ny = 1;

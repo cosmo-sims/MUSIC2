@@ -78,7 +78,7 @@ real_t multigrid_poisson_plugin::solve(grid_hierarchy &f, grid_hierarchy &u)
 	ps_presmooth = cf_.get_value_safe<unsigned>("poisson", "pre_smooth", 3);
 	ps_postsmooth = cf_.get_value_safe<unsigned>("poisson", "post_smooth", 3);
 	ps_smoother_name = cf_.get_value_safe<std::string>("poisson", "smoother", "gs");
-	order = cf_.get_value_safe<unsigned>("poisson", "laplace_order", 4);
+	order = cf_.get_value_safe<unsigned>("poisson", "laplace_order", 6);
 
 	multigrid::opt::smtype ps_smtype = multigrid::opt::sm_gauss_seidel;
 
@@ -157,7 +157,7 @@ real_t multigrid_poisson_plugin::gradient(int dir, grid_hierarchy &u, grid_hiera
 {
 	Du = u;
 
-	unsigned order = cf_.get_value_safe<unsigned>("poisson", "grad_order", 4);
+	unsigned order = cf_.get_value_safe<unsigned>("poisson", "grad_order", 6);
 
 	switch (order)
 	{
@@ -182,7 +182,7 @@ real_t multigrid_poisson_plugin::gradient_add(int dir, grid_hierarchy &u, grid_h
 {
 	// Du = u;
 
-	unsigned order = cf_.get_value_safe<unsigned>("poisson", "grad_order", 4);
+	unsigned order = cf_.get_value_safe<unsigned>("poisson", "grad_order", 6);
 
 	switch (order)
 	{

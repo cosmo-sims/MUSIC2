@@ -38,7 +38,7 @@ default_options::default_options()
 	//... [poisson] ...
 	ADD_DEF("mgacc",			"poisson",	"accuracy",			"1e-4");
 	ADD_DEF("mggrad",			"poisson",	"grad_order",		"6");
-	ADD_DEF("mglapl",			"poisson",	"laplce_order",		"6");
+	ADD_DEF("mglapl",			"poisson",	"laplace_order",		"6");
 	ADD_DEF("fft_fine",			"poisson",	"fft_fine",			"yes");
 	ADD_DEF("kspace_poisson",	"poisson",	"kspace",			"no");
 	

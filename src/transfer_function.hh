@@ -225,6 +225,12 @@ public:
 							<< std::endl;
 				}
 			}
+			if (ofs.fail()) {
+				std::string message = "Could not write to file: " + fname;
+				music::elog << message << std::endl;
+				throw std::runtime_error(message);
+			}
+			ofs.close();
 		}
 	}
 

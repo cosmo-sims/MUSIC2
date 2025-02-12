@@ -54,7 +54,6 @@ class gamer2_output_plugin : public output_plugin
     double gamer_unit_velocity_;
 
     double music_unit_length_;
-    double music_unit_density_;
     double music_unit_mass_;
     double music_unit_velocity_;
 
@@ -302,7 +301,6 @@ class gamer2_output_plugin : public output_plugin
         // MUSIC units
         music_unit_length_   = const_Mpc / hubble_;
         music_unit_mass_     = const_Msun / hubble_;
-        music_unit_density_  = music_unit_mass_ / (music_unit_length_ * music_unit_length_ * music_unit_length_);
         music_unit_velocity_ = 1.0e5 * boxlength_;
     }
 
@@ -511,8 +509,8 @@ class gamer2_output_plugin : public output_plugin
         {
             std::string temp_fname = "___ic_temp_" + std::to_string(1000 * id_gas_rho + ilevel) + ".bin";
 
-            real_t fac = music_unit_density_ / gamer_unit_density_;
-            write2tempfile_grid(temp_fname, gh, ilevel, fac, 0);
+            real_t fac = omegab_ / omegam_;
+            write2tempfile_grid(temp_fname, gh, ilevel, fac, fac);
         }
     }
 

@@ -173,8 +173,8 @@ protected:
     float X[16];
     float c[3];
     float A[9], Ainv[9];
-    float *Q;
-    float *u;
+    double *Q;
+    double *u;
 
     float detA, detA13;
 
@@ -307,8 +307,8 @@ public:
         // --- initialize ---
         music::ilog.Print("computing minimum bounding ellipsoid from %lld points", N);
 
-        Q = new float[4 * N];
-        u = new float[N];
+        Q = new double[4 * N];
+        u = new double[N];
 
         // normalize coordinate frame
         double xcenter[3] = {0.0, 0.0, 0.0};

@@ -35,17 +35,17 @@ inline X sqr(X x)
 }
 
 //! Determinant of 3x3 matrix
-inline double Determinant_3x3(const float *data)
+inline double Determinant_3x3(const double *data)
 {
-    float detS = data[0] * (data[4] * data[8] - data[7] * data[5]) - data[1] * (data[3] * data[8] - data[5] * data[6]) + data[2] * (data[3] * data[7] - data[4] * data[6]);
+    double detS = data[0] * (data[4] * data[8] - data[7] * data[5]) - data[1] * (data[3] * data[8] - data[5] * data[6]) + data[2] * (data[3] * data[7] - data[4] * data[6]);
 
     return detS;
 }
 
 //! Inverse of 3x3 matrix
-inline void Inverse_3x3(const float *data, float *m)
+inline void Inverse_3x3(const double *data, double *m)
 {
-    float invdet = 1.0f / Determinant_3x3(data);
+    double invdet = 1.0 / Determinant_3x3(data);
 
     m[0] = (data[4] * data[8] - data[7] * data[5]) * invdet;
     m[1] = -(data[1] * data[8] - data[2] * data[7]) * invdet;
@@ -58,7 +58,7 @@ inline void Inverse_3x3(const float *data, float *m)
     m[8] = (data[0] * data[4] - data[1] * data[3]) * invdet;
 }
 
-void Inverse_4x4(float *mat)
+void Inverse_4x4(double *mat)
 {
     double tmp[12]; /* temp array for pairs */
     double src[16]; /* array of transpose source matrix */
@@ -170,17 +170,17 @@ class min_ellipsoid
 {
 protected:
     size_t N;
-    float X[16];
-    float c[3];
-    float A[9], Ainv[9];
+    double X[16];
+    double c[3];
+    double A[9], Ainv[9];
     double *Q;
     double *u;
 
-    float detA, detA13;
+    double detA, detA13;
 
-    float v1[3], v2[3], v3[3], r1, r2, r3;
+    double v1[3], v2[3], v3[3], r1, r2, r3;
 
-    float V[9], mu[3];
+    double V[9], mu[3];
 
     bool axes_computed, hold_point_data;
 
@@ -245,7 +245,7 @@ protected:
     void compute(double tol = 1e-4, int maxit = 10000)
     {
         double err = 10.0 * tol;
-        float *unew = new float[N];
+        double *unew = new double[N];
         int count = 0;
         double temp;
 
@@ -264,7 +264,7 @@ protected:
             Inverse_4x4(X);
 
             int imax = 0;
-            float Mmax = -1e30;
+            double Mmax = -1e30;
             double m;
             for (size_t i = 0; i < N; ++i)
             {
@@ -279,7 +279,7 @@ protected:
                 }
             }
 
-            float step_size = (Mmax - 4.0f) / (4.0f * (Mmax - 1.0f)), step_size1 = 1.0f - step_size;
+            double step_size = (Mmax - 4.0) / (4.0 * (Mmax - 1.0)), step_size1 = 1.0 - step_size;
             for (size_t i = 0; i < N; ++i)
                 unew[i] = u[i] * step_size1;
             unew[imax] += step_size;
@@ -312,7 +312,7 @@ public:
 
         // normalize coordinate frame
         double xcenter[3] = {0.0, 0.0, 0.0};
-        double pmax = -1e30, pmin = 1e30;
+        double pmax[3] = {-1e30,-1e30,-1e30}, pmin[3] = {1e30,1e30,1e30};
         for (size_t i = 0; i < N; ++i)
         {
             int i3 = 3 * i;
@@ -323,11 +323,12 @@ public:
                                                                     : P[i3 + j];
 
                 xcenter[j] += p;
-                pmax = p > pmax ? p : pmax;
-                pmin = p < pmin ? p : pmin;
+                pmax[j] = p > pmax[j] ? p : pmax[j];
+                pmin[j] = p < pmin[j] ? p : pmin[j];
             }
         }
-        double L = 2.0 * (pmax - pmin);
+        double L = 2.0 * std::min((pmax[0] - pmin[0]),std::min(pmax[1]-pmin[1],pmax[2]-pmin[2]));
+        
         xcenter[0] = fmod(xcenter[0] / N + 1.0, 1.0);
         xcenter[1] = fmod(xcenter[1] / N + 1.0, 1.0);
         xcenter[2] = fmod(xcenter[2] / N + 1.0, 1.0);
@@ -353,7 +354,7 @@ public:
             int i4 = 4 * i, i3 = 3 * i;
             for (size_t j = 0; j < 3; ++j)
                 Q[i4 + j] = P[i3 + j];
-            Q[i4 + 3] = 1.0f;
+            Q[i4 + 3] = 1.0;
         }
 
         //--- compute the actual ellipsoid using the Khachiyan Algorithm ---
@@ -519,7 +520,7 @@ public:
             xc[i] = c[i];
     }
 
-    void get_matrix(float *AA)
+    void get_matrix(double *AA)
     {
         for (int i = 0; i < 9; ++i)
             AA[i] = A[i];
@@ -532,19 +533,19 @@ public:
         return 1.0;
     }
 
-    void expand_ellipsoid(float dr)
+    void expand_ellipsoid(double dr)
     {
         if (!axes_computed)
         {
             music::ulog.Print("computing ellipsoid axes.....");
             compute_axes();
         }
-        // float muold[3] = {mu[0],mu[1],mu[2]};
-        float munew[3];
+        // double muold[3] = {mu[0],mu[1],mu[2]};
+        double munew[3];
         for (int i = 0; i < 3; ++i)
             munew[i] = sgn(mu[i]) / sqr(1.0 / sqrt(fabs(mu[i])) + dr);
 
-        float Anew[9];
+        double Anew[9];
         for (int i = 0; i < 3; ++i)
             for (int j = 0; j < 3; ++j)
             {
@@ -719,7 +720,7 @@ public:
 
         // output the center
         vec3_t c;
-        float A[9];
+        double A[9];
         pellip_[levelmax_]->get_center(c);
         pellip_[levelmax_]->get_matrix(A);
 

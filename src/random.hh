@@ -100,6 +100,16 @@ protected:
 	RNG_plugin *generator_;
 	int levelmin_, levelmax_;
 
+	//! cache of the white noise per level, so it is generated only once per run
+	struct cached_noise
+	{
+		std::array<size_t, 3> n;
+		std::array<int, 3> o;
+		std::vector<T> data;
+	};
+	bool cache_noise_;
+	std::map<int, cached_noise> noise_cache_;
+
 public:
 	//! constructor
 	explicit random_number_generator(config_file &cf)
@@ -108,6 +118,9 @@ public:
 		levelmin_ = pcf_->get_value<int>("setup", "levelmin");
 		levelmax_ = pcf_->get_value<int>("setup", "levelmax");
 		generator_ = select_RNG_plugin(cf);
+		cache_noise_ = pcf_->get_value_safe<bool>("random", "cache_noise", false);
+		if (cache_noise_)
+			music::ilog << "White noise is cached and generated only once per level" << std::endl;
 	}
 
 	//! destructor
@@ -125,7 +138,22 @@ public:
 	template <typename array>
 	void load(array &A, int ilevel)
 	{
+		if (cache_noise_)
+		{
+			auto it = noise_cache_.find(ilevel);
+			if (it != noise_cache_.end() && it->second.n == std::array<size_t, 3>{A.nx_, A.ny_, A.nz_} &&
+					it->second.o == std::array<int, 3>{A.ox_, A.oy_, A.oz_} && it->second.data.size() == A.data_.size())
+			{
+				music::ilog << "Reusing cached white noise for level " << ilevel << std::endl;
+				A.data_ = it->second.data;
+				return;
+			}
+		}
+
 		generator_->fill_grid(ilevel, A);
+
+		if (cache_noise_)
+			noise_cache_[ilevel] = cached_noise{{A.nx_, A.ny_, A.nz_}, {A.ox_, A.oy_, A.oz_}, A.data_};
 	}
 };
 

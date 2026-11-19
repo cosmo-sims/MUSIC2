@@ -42,6 +42,10 @@ extern "C"
 #include <omp.h>
 #endif
 
+#ifdef HAVE_HDF5
+#include "plugins/HDF_IO.hh"
+#endif
+
 #include <general.hh>
 #include <defaults.hh>
 #include <output.hh>
@@ -378,6 +382,92 @@ void output_system_info()
 
 region_generator_plugin *the_region_generator;
 
+//! Generate only the white noise on all levels and write it to an HDF5 file, skipping cosmology, convolutions and IC output
+int run_white_noise_only(config_file &cf)
+{
+#ifdef HAVE_HDF5
+	const std::string fname = cf.get_value_safe<std::string>("output", "WhiteNoiseFile", "white_noise.hdf5");
+
+	music::ilog << "===============================================================================" << std::endl;
+	music::ilog << "   WHITE-NOISE-ONLY MODE\n";
+	music::ilog << "-------------------------------------------------------------------------------" << std::endl;
+	music::ilog << "Only the white noise is generated; cosmology, convolutions and IC output are skipped." << std::endl;
+	music::ilog << std::setw(32) << std::left << "Output file" << " : " << fname << std::endl;
+
+	the_region_generator = select_region_generator_plugin(cf);
+	noise_generator rand(cf);
+
+	refinement_hierarchy rh_Poisson(cf);
+	store_grid_structure(cf, rh_Poisson);
+	print_hierarchy_stats(cf, rh_Poisson);
+	refinement_hierarchy rh_TF(rh_Poisson);
+	modify_grid_for_TF(rh_Poisson, rh_TF, cf);
+	rand.initialize_for_grid_structure(rh_TF);
+
+	HDFCreateFile(fname);
+
+	const unsigned levelmin = rh_TF.levelmin(), levelmax = rh_TF.levelmax();
+	for (unsigned ilevel = levelmin; ilevel <= levelmax; ++ilevel)
+	{
+		double wtime = get_wtime();
+		DensityGrid<real_t> *grid(nullptr);
+		if (ilevel == levelmin)
+		{
+			const unsigned nbase = 1 << levelmin;
+			grid = new DensityGrid<real_t>(nbase, nbase, nbase);
+		}
+		else if (rh_TF.get_margin() > 0)
+		{
+			grid = new PaddedDensitySubGrid<real_t>(rh_TF.offset(ilevel, 0), rh_TF.offset(ilevel, 1), rh_TF.offset(ilevel, 2),
+																							rh_TF.size(ilevel, 0), rh_TF.size(ilevel, 1), rh_TF.size(ilevel, 2),
+																							rh_TF.get_margin(), rh_TF.get_margin(), rh_TF.get_margin());
+		}
+		else
+		{
+			grid = new PaddedDensitySubGrid<real_t>(rh_TF.offset(ilevel, 0), rh_TF.offset(ilevel, 1), rh_TF.offset(ilevel, 2),
+																							rh_TF.size(ilevel, 0), rh_TF.size(ilevel, 1), rh_TF.size(ilevel, 2));
+		}
+
+		music::ilog << "Generating white noise on level " << ilevel << " (" << grid->nx_ << " x " << grid->ny_ << " x " << grid->nz_ << " cells)..." << std::endl;
+		rand.load(*grid, ilevel);
+
+		//... copy the field without the FFT padding and compute its mean and variance
+		const size_t nx = grid->nx_, ny = grid->ny_, nz = grid->nz_;
+		std::vector<real_t> data(nx * ny * nz);
+		double sum = 0.0, sum2 = 0.0;
+#pragma omp parallel for reduction(+ : sum, sum2)
+		for (size_t i = 0; i < nx; ++i)
+			for (size_t j = 0; j < ny; ++j)
+				for (size_t k = 0; k < nz; ++k)
+				{
+					const real_t w = (*grid)(i, j, k);
+					data[(i * ny + j) * nz + k] = w;
+					sum += w;
+					sum2 += w * w;
+				}
+		const double ncells = double(nx) * double(ny) * double(nz), mean = sum / ncells;
+
+		char name[64];
+		snprintf(name, 64, "level_%03u", ilevel);
+		unsigned nd[3] = {unsigned(nx), unsigned(ny), unsigned(nz)};
+		HDFWriteDataset3D(fname, name, nd, data);
+		snprintf(name, 64, "level_%03u_offset", ilevel);
+		HDFWriteDataset(fname, name, std::vector<int>{grid->ox_, grid->oy_, grid->oz_});
+
+		music::ilog << "   mean = " << mean << ", variance = " << sum2 / ncells - mean * mean
+								<< ", took " << get_wtime() - wtime << " s" << std::endl;
+		delete grid;
+	}
+
+	music::ilog << "===============================================================================" << std::endl;
+	music::ilog << " - Wrote white noise for levels " << levelmin << " to " << levelmax << " to \'" << fname << "\'" << std::endl;
+	return 0;
+#else
+	music::elog << "WhiteNoiseOnly requires HDF5 support." << std::endl;
+	return 1;
+#endif
+}
+
 int main(int argc, const char *argv[])
 {
 	const unsigned nbnd = 4;
@@ -468,6 +558,18 @@ int main(int argc, const char *argv[])
 		cf.insert_value("setup", "levelmin_TF", cf.get_value<std::string>("setup", "levelmin"));
 	}
 
+
+	//------------------------------------------------------------------------------
+	//... white-noise-only mode: generate and write the white noise, then stop
+	//------------------------------------------------------------------------------
+	if (cf.get_value_safe<bool>("setup", "WhiteNoiseOnly", false))
+	{
+		int status = run_white_noise_only(cf);
+		if (CONFIG::FFTW_threads_ok)
+			FFTW_API(cleanup_threads)();
+		music::ilog << " - Done!" << std::endl << std::endl;
+		return status;
+	}
 
 	//------------------------------------------------------------------------------
 	//... initialize cosmology

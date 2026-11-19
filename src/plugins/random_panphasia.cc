@@ -242,7 +242,12 @@ void RNG_panphasia::forward_transform_field(real_t *field, int nx, int ny, int n
   real_t *rfield = reinterpret_cast<real_t *>(field);
   complex_t *cfield = reinterpret_cast<complex_t *>(field);
 
+  // multi-threaded FFT for the PANPHASIA fields only
+  if (CONFIG::FFTW_threads_ok)
+    FFTW_API(plan_with_nthreads)(CONFIG::num_threads);
   fftw_plan_t pf = FFTW_API(plan_dft_r2c_3d)(nx, ny, nz, rfield, cfield, FFTW_ESTIMATE);
+  if (CONFIG::FFTW_threads_ok)
+    FFTW_API(plan_with_nthreads)(1);
 
   FFTW_API(execute)(pf);
 
@@ -255,7 +260,12 @@ void RNG_panphasia::backward_transform_field(real_t *field, int nx, int ny, int 
   real_t *rfield = reinterpret_cast<real_t *>(field);
   complex_t *cfield = reinterpret_cast<complex_t *>(field);
 
+  // multi-threaded FFT for the PANPHASIA fields only
+  if (CONFIG::FFTW_threads_ok)
+    FFTW_API(plan_with_nthreads)(CONFIG::num_threads);
   fftw_plan_t ipf = FFTW_API(plan_dft_c2r_3d)(nx, ny, nz, cfield, rfield, FFTW_ESTIMATE);
+  if (CONFIG::FFTW_threads_ok)
+    FFTW_API(plan_with_nthreads)(1);
   FFTW_API(execute)(ipf);
   FFTW_API(destroy_plan(ipf));
 }

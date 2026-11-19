@@ -38,6 +38,10 @@ extern "C"
 #include <exception>
 #include <cfenv>
 
+#if defined(_OPENMP)
+#include <omp.h>
+#endif
+
 #include <general.hh>
 #include <defaults.hh>
 #include <output.hh>
@@ -432,6 +436,11 @@ int main(int argc, const char *argv[])
 	//------------------------------------------------------------------------------
 	CONFIG::FFTW_threads_ok = FFTW_API(init_threads)();
 	CONFIG::num_threads = cf.get_value_safe<unsigned>("execution", "NumThreads",std::thread::hardware_concurrency());
+
+	// use NumThreads for OpenMP
+#if defined(_OPENMP)
+	omp_set_num_threads(CONFIG::num_threads);
+#endif
 
 	music::ilog << "-------------------------------------------------------------------------------" << std::endl;
 	output_system_info();

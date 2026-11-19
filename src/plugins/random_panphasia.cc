@@ -272,8 +272,8 @@ void RNG_panphasia::backward_transform_field(real_t *field, int nx, int ny, int 
 
 void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 {
-  real_t *pr0, *pr1, *pr2, *pr3, *pr4;
-  complex_t *pc0, *pc1, *pc2, *pc3, *pc4;
+  real_t *pr0, *pw;
+  complex_t *pc0, *pcw;
 
   // determine resolution and offset so that we can do proper resampling
   int ileft[3], ileft_corner[3], nx[3], nxremap[3];
@@ -342,393 +342,228 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 
   size_t ngp = size_t(nxremap[0]) * size_t(nxremap[1]) * size_t(nxremap[2] + 2);
 
+  // The field is built up in Fourier space in pr0, adding one PANPHASIA Legendre coefficient at a
+  // time through a single work array pw. This needs two grids instead of one per coefficient,
+  // at the cost of evaluating the PANPHASIA cells once per coefficient.
   pr0 = new real_t[ngp];
-  pr1 = new real_t[ngp];
-  pr2 = new real_t[ngp];
-  pr3 = new real_t[ngp];
-  pr4 = new real_t[ngp];
+  pw = new real_t[ngp];
 
   pc0 = reinterpret_cast<complex_t *>(pr0);
-  pc1 = reinterpret_cast<complex_t *>(pr1);
-  pc2 = reinterpret_cast<complex_t *>(pr2);
-  pc3 = reinterpret_cast<complex_t *>(pr3);
-  pc4 = reinterpret_cast<complex_t *>(pr4);
+  pcw = reinterpret_cast<complex_t *>(pw);
 
   music::ilog.Print("calculating PANPHASIA random numbers for level %d...", level);
   clear_panphasia_thread_states();
 
   double t1 = get_wtime();
   double tp = t1;
+  double tcells = 0.0;
 
-#pragma omp parallel
+  //... evaluate PANPHASIA cell property iprop for all cells and store it in dst
+  auto evaluate_cells = [&](real_t *dst, int iprop)
   {
-#ifdef _OPENMP
-    const int mythread = omp_get_thread_num();
-#else
-    const int mythread = 0;
-#endif
-    int odd_x, odd_y, odd_z;
-    int ng_level = ngrid_ * (1 << (level - levelmin_)); // full resolution of current level
-
-    int verbosity = (mythread == 0);
-    char descriptor[100];
-    memset(descriptor, 0, 100);
-    memcpy(descriptor, descriptor_string_.c_str(), descriptor_string_.size());
-
-    if (level == levelmin_)
+    const double tstart = get_wtime();
+  #pragma omp parallel
     {
-      start_panphasia_(&lstate[mythread], descriptor, &ng_level, &verbosity);
-    }
+  #ifdef _OPENMP
+      const int mythread = omp_get_thread_num();
+  #else
+      const int mythread = 0;
+  #endif
+      int odd_x, odd_y, odd_z;
+      int ng_level = ngrid_ * (1 << (level - levelmin_)); // full resolution of current level
 
-    {
-      int level_p, lextra;
-      long long ix_rel[3];
-      panphasia_descriptor d(descriptor_string_);
+      int verbosity = (mythread == 0);
+      char descriptor[100];
+      memset(descriptor, 0, 100);
+      memcpy(descriptor, descriptor_string_.c_str(), descriptor_string_.size());
 
-      lextra = (log10((double)ng_level / (double)d.i_base) + 0.001) / log10(2.0);
-      level_p = d.wn_level_base + lextra;
-      assert(ng_level == (1 << lextra) * d.i_base);
-
-      ix_rel[0] = ileft_corner_p[0];
-      ix_rel[1] = ileft_corner_p[1];
-      ix_rel[2] = ileft_corner_p[2];
-
-      // Code above ignores the coordinate_system_shift_ - but currently this is set to zero //
-
-      lstate[mythread].layer_min = 0;
-      lstate[mythread].layer_max = level_p;
-      lstate[mythread].indep_field = 1;
-
-      set_phases_and_rel_origin_(&lstate[mythread], descriptor, &level_p, &ix_rel[0], &ix_rel[1], &ix_rel[2],
-                                 &verbosity);
-
-      // music::ulog.Print(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0], ix_rel[1], ix_rel[2]);
-
-      odd_x = ix_rel[0] % 2;
-      odd_y = ix_rel[1] % 2;
-      odd_z = ix_rel[2] % 2;
-    }
-
-    if (verbosity)
-      t1 = get_wtime();
-
-      //***************************************************************
-      // Process Panphasia values: p000, p001, p010, p100 and indep field
-      //****************************************************************
-      //                START                                         //
-
-#pragma omp for // nowait
-    for (int i = 0; i < nxremap[0] / 2 + odd_x; ++i)
-    {
-      double cell_prop[9];
-      pan_state_ *ps = &lstate[mythread];
-
-      for (int j = 0; j < nxremap[1] / 2 + odd_y; ++j)
-        for (int k = 0; k < nxremap[2] / 2 + odd_z; ++k)
-        {
-
-          // ARJ - added inner set of loops to speed up evaluation of Panphasia
-
-          for (int ix = 0; ix < 2; ++ix)
-            for (int iy = 0; iy < 2; ++iy)
-              for (int iz = 0; iz < 2; ++iz)
-              {
-                int ii = 2 * i + ix - odd_x;
-                int jj = 2 * j + iy - odd_y;
-                int kk = 2 * k + iz - odd_z;
-
-                if (((ii >= 0) && (ii < nxremap[0])) && ((jj >= 0) && (jj < nxremap[1])) &&
-                    ((kk >= 0) && (kk < nxremap[2])))
-                {
-
-                  size_t idx = (size_t(ii) * nxremap[1] + size_t(jj)) * (nxremap[2] + 2) + size_t(kk);
-                  adv_panphasia_cell_properties_(ps, &ii, &jj, &kk, &ps->layer_min, &ps->layer_max, &ps->indep_field,
-                                                 cell_prop);
-
-                  pr0[idx] = cell_prop[0];
-                  pr1[idx] = cell_prop[4];
-                  pr2[idx] = cell_prop[2];
-                  pr3[idx] = cell_prop[1];
-                  pr4[idx] = cell_prop[8];
-                }
-              }
-        }
-    }
-  }
-  music::ulog.Print("time for calculating PANPHASIA for level %d : %f s, %f µs/cell", level, get_wtime() - t1,
-          1e6 * (get_wtime() - t1) / ((double)nxremap[2] * (double)nxremap[1] * (double)nxremap[0]));
-  music::ulog.Print("time for calculating PANPHASIA for level %d : %f s, %f µs/cell", level, get_wtime() - t1,
-          1e6 * (get_wtime() - t1) / ((double)nxremap[2] * (double)nxremap[1] * (double)nxremap[0]));
-
-  //////////////////////////////////////////////////////////////////////////////////////////////
-
-  music::ulog.Print("\033[31mtiming level %d [adv_panphasia_cell_properties]: %f s\033[0m", level, get_wtime() - tp);
-  tp = get_wtime();
-
-  /////////////////////////////////////////////////////////////////////////
-  // transform and convolve with Legendres
-
-  forward_transform_field(pr0, nxremap[0], nxremap[1], nxremap[2]);
-  forward_transform_field(pr1, nxremap[0], nxremap[1], nxremap[2]);
-  forward_transform_field(pr2, nxremap[0], nxremap[1], nxremap[2]);
-  forward_transform_field(pr3, nxremap[0], nxremap[1], nxremap[2]);
-  forward_transform_field(pr4, nxremap[0], nxremap[1], nxremap[2]);
-
-#pragma omp parallel for
-  for (int i = 0; i < nxremap[0]; i++)
-    for (int j = 0; j < nxremap[1]; j++)
-      for (int k = 0; k < nxremap[2] / 2 + 1; k++)
+      if (level == levelmin_)
       {
-        size_t idx = ((size_t)i * nxremap[1] + (size_t)j) * (nxremap[2] / 2 + 1) + (size_t)k;
-
-        double fx(1.0), fy(1.0), fz(1.0), arg = 0.;
-        ccomplex_t gx(0., 0.), gy(0., 0.), gz(0., 0.);
-
-        int ii(i), jj(j), kk(k);
-        if (i > nxremap[0] / 2)
-          ii -= nxremap[0];
-        if (j > nxremap[1] / 2)
-          jj -= nxremap[1];
-
-        // int kkmax = std::max(abs(ii),std::max(abs(jj),abs(kk)));
-
-        if (ii != 0)
-        {
-          arg = M_PI * (double)ii / (double)nxremap[0];
-          fx = sin(arg) / arg;
-          gx = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
-        }
-        else
-        {
-          fx = 1.0;
-          gx = 0.0;
-        }
-
-        if (jj != 0)
-        {
-          arg = M_PI * (double)jj / (double)nxremap[1];
-          fy = sin(arg) / arg;
-          gy = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
-        }
-        else
-        {
-          fy = 1.0;
-          gy = 0.0;
-        }
-
-        if (kk != 0)
-        {
-          arg = M_PI * (double)kk / (double)nxremap[2];
-          fz = sin(arg) / arg;
-          gz = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
-        }
-        else
-        {
-          fz = 1.0;
-          gz = 0.0;
-        }
-
-        ccomplex_t temp_comp = (fx + sqrt(3.0) * gx) * (fy + sqrt(3.0) * gy) * (fz + sqrt(3.0) * gz);
-        double magnitude = sqrt(1.0 - std::abs(temp_comp * temp_comp));
-
-        if (abs(ii) != nxremap[0] / 2 && abs(jj) != nxremap[1] / 2 &&
-            abs(kk) != nxremap[2] / 2)
-        { // kkmax != nxremap[2]/2 ){
-          ccomplex_t x, y0(RE(pc0[idx]), IM(pc0[idx])), y1(RE(pc1[idx]), IM(pc1[idx])), y2(RE(pc2[idx]), IM(pc2[idx])),
-              y3(RE(pc3[idx]), IM(pc3[idx])), y4(RE(pc4[idx]), IM(pc4[idx]));
-
-          x = y0 * fx * fy * fz + sqrt(3.0) * (y1 * gx * fy * fz + y2 * fx * gy * fz + y3 * fx * fy * gz) +
-              y4 * magnitude;
-
-          RE(pc0[idx]) = x.real();
-          IM(pc0[idx]) = x.imag();
-        }
+        start_panphasia_(&lstate[mythread], descriptor, &ng_level, &verbosity);
       }
 
-  //                END
+      {
+        int level_p, lextra;
+        long long ix_rel[3];
+        panphasia_descriptor d(descriptor_string_);
 
-  music::ulog.Print("\033[31mtiming level %d [build panphasia field]: %f s\033[0m", level, get_wtime() - tp);
-  tp = get_wtime();
+        lextra = (log10((double)ng_level / (double)d.i_base) + 0.001) / log10(2.0);
+        level_p = d.wn_level_base + lextra;
+        assert(ng_level == (1 << lextra) * d.i_base);
 
-  //***************************************************************
-  // Process Panphasia values: p000, p001, p010, p100 and indep field
-  //****************************************************************
+        ix_rel[0] = ileft_corner_p[0];
+        ix_rel[1] = ileft_corner_p[1];
+        ix_rel[2] = ileft_corner_p[2];
 
-#pragma omp parallel
-  {
-#ifdef _OPENMP
-    const int mythread = omp_get_thread_num();
-#else
-    const int mythread = 0;
-#endif
-    int odd_x, odd_y, odd_z;
-    int ng_level = ngrid_ * (1 << (level - levelmin_)); // full resolution of current level
-    int verbosity = (mythread == 0);
-    char descriptor[100];
-    memset(descriptor, 0, 100);
-    memcpy(descriptor, descriptor_string_.c_str(), descriptor_string_.size());
+        // Code above ignores the coordinate_system_shift_ - but currently this is set to zero //
 
-    if (level == levelmin_)
-    {
-      start_panphasia_(&lstate[mythread], descriptor, &ng_level, &verbosity);
-    }
+        lstate[mythread].layer_min = 0;
+        lstate[mythread].layer_max = level_p;
+        lstate[mythread].indep_field = 1;
 
-    {
-      int level_p, lextra;
-      long long ix_rel[3];
-      panphasia_descriptor d(descriptor_string_);
+        set_phases_and_rel_origin_(&lstate[mythread], descriptor, &level_p, &ix_rel[0], &ix_rel[1], &ix_rel[2],
+                                   &verbosity);
 
-      lextra = (log10((double)ng_level / (double)d.i_base) + 0.001) / log10(2.0);
-      level_p = d.wn_level_base + lextra;
+        // music::ulog.Print(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0], ix_rel[1], ix_rel[2]);
 
-      assert(ng_level == (1 << lextra) * d.i_base);
+        odd_x = ix_rel[0] % 2;
+        odd_y = ix_rel[1] % 2;
+        odd_z = ix_rel[2] % 2;
+      }
 
-      ix_rel[0] = ileft_corner_p[0];
-      ix_rel[1] = ileft_corner_p[1];
-      ix_rel[2] = ileft_corner_p[2];
+      if (verbosity)
+        t1 = get_wtime();
 
-      // Code above ignores the coordinate_system_shift_ - but currently this is set to zero //
+        //***************************************************************
+        // Process Panphasia values: p000, p001, p010, p100 and indep field
+        //****************************************************************
+        //                START                                         //
 
-      lstate[mythread].layer_min = 0;
-      lstate[mythread].layer_max = level_p;
-      lstate[mythread].indep_field = 1;
+  #pragma omp for // nowait
+      for (int i = 0; i < nxremap[0] / 2 + odd_x; ++i)
+      {
+        double cell_prop[9];
+        pan_state_ *ps = &lstate[mythread];
 
-      set_phases_and_rel_origin_(&lstate[mythread], descriptor, &level_p, &ix_rel[0], &ix_rel[1], &ix_rel[2],
-                                 &verbosity);
+        for (int j = 0; j < nxremap[1] / 2 + odd_y; ++j)
+          for (int k = 0; k < nxremap[2] / 2 + odd_z; ++k)
+          {
 
-      // music::ilog.Print(" called set_phases_and_rel_origin level %d ix_rel iy_rel iz_rel %d %d %d\n", level_p, ix_rel[0], ix_rel[1], ix_rel[2]);
+            // ARJ - added inner set of loops to speed up evaluation of Panphasia
 
-      odd_x = ix_rel[0] % 2;
-      odd_y = ix_rel[1] % 2;
-      odd_z = ix_rel[2] % 2;
-    }
-
-    if (verbosity)
-      t1 = get_wtime();
-
-//                START                                         //
-//***************************************************************
-// Process Panphasia values: p110, p011, p101, p111
-//****************************************************************
-#pragma omp for // nowait
-    for (int i = 0; i < nxremap[0] / 2 + odd_x; ++i)
-    {
-      double cell_prop[9];
-      pan_state_ *ps = &lstate[mythread];
-
-      for (int j = 0; j < nxremap[1] / 2 + odd_y; ++j)
-        for (int k = 0; k < nxremap[2] / 2 + odd_z; ++k)
-        {
-
-          // ARJ - added inner set of loops to speed up evaluation of Panphasia
-
-          for (int ix = 0; ix < 2; ++ix)
-            for (int iy = 0; iy < 2; ++iy)
-              for (int iz = 0; iz < 2; ++iz)
-              {
-                int ii = 2 * i + ix - odd_x;
-                int jj = 2 * j + iy - odd_y;
-                int kk = 2 * k + iz - odd_z;
-
-                if (((ii >= 0) && (ii < nxremap[0])) && ((jj >= 0) && (jj < nxremap[1])) &&
-                    ((kk >= 0) && (kk < nxremap[2])))
+            for (int ix = 0; ix < 2; ++ix)
+              for (int iy = 0; iy < 2; ++iy)
+                for (int iz = 0; iz < 2; ++iz)
                 {
+                  int ii = 2 * i + ix - odd_x;
+                  int jj = 2 * j + iy - odd_y;
+                  int kk = 2 * k + iz - odd_z;
 
-                  size_t idx = ((size_t)ii * nxremap[1] + (size_t)jj) * (nxremap[2] + 2) + (size_t)kk;
-                  adv_panphasia_cell_properties_(ps, &ii, &jj, &kk, &ps->layer_min, &ps->layer_max, &ps->indep_field,
-                                                 cell_prop);
+                  if (((ii >= 0) && (ii < nxremap[0])) && ((jj >= 0) && (jj < nxremap[1])) &&
+                      ((kk >= 0) && (kk < nxremap[2])))
+                  {
 
-                  pr1[idx] = cell_prop[6];
-                  pr2[idx] = cell_prop[3];
-                  pr3[idx] = cell_prop[5];
-                  pr4[idx] = cell_prop[7];
+                    size_t idx = (size_t(ii) * nxremap[1] + size_t(jj)) * (nxremap[2] + 2) + size_t(kk);
+                    adv_panphasia_cell_properties_(ps, &ii, &jj, &kk, &ps->layer_min, &ps->layer_max, &ps->indep_field,
+                                                   cell_prop);
+
+                    dst[idx] = cell_prop[iprop];
+                  }
                 }
-              }
-        }
+          }
+      }
     }
-  }
-  music::ilog.Print("time for calculating PANPHASIA for level %d : %f s, %f µs/cell", level, get_wtime() - t1,
-          1e6 * (get_wtime() - t1) / ((double)nxremap[2] * (double)nxremap[1] * (double)nxremap[0]));
+    tcells += get_wtime() - tstart;
+  };
 
-  music::ulog.Print("\033[31mtiming level %d [adv_panphasia_cell_properties2]: %f s \033[0m", level, get_wtime() - tp);
-  tp = get_wtime();
+  //... Fourier-space factors of the Legendre basis for mode (i,j,k), false for Nyquist modes
+  auto mode_factors = [&](int i, int j, int k, double &fx, double &fy, double &fz,
+                          ccomplex_t &gx, ccomplex_t &gy, ccomplex_t &gz) -> bool
+  {
+    double arg = 0.;
+    int ii(i), jj(j), kk(k);
+    if (i > nxremap[0] / 2)
+      ii -= nxremap[0];
+    if (j > nxremap[1] / 2)
+      jj -= nxremap[1];
 
-  /////////////////////////////////////////////////////////////////////////
-  // transform and convolve with Legendres
+    fx = fy = fz = 1.0;
+    gx = gy = gz = 0.0;
+    if (ii != 0)
+    {
+      arg = M_PI * (double)ii / (double)nxremap[0];
+      fx = sin(arg) / arg;
+      gx = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
+    }
+    if (jj != 0)
+    {
+      arg = M_PI * (double)jj / (double)nxremap[1];
+      fy = sin(arg) / arg;
+      gy = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
+    }
+    if (kk != 0)
+    {
+      arg = M_PI * (double)kk / (double)nxremap[2];
+      fz = sin(arg) / arg;
+      gz = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
+    }
+    return (abs(ii) != nxremap[0] / 2 && abs(jj) != nxremap[1] / 2 && abs(kk) != nxremap[2] / 2);
+  };
 
-  forward_transform_field(pr1, nxremap[0], nxremap[1], nxremap[2]);
-  forward_transform_field(pr2, nxremap[0], nxremap[1], nxremap[2]);
-  forward_transform_field(pr3, nxremap[0], nxremap[1], nxremap[2]);
-  forward_transform_field(pr4, nxremap[0], nxremap[1], nxremap[2]);
+  //... evaluate coefficient iprop, transform it and add weight(k) * coefficient to pc0
+  auto add_coefficient = [&](int iprop, auto weight)
+  {
+    evaluate_cells(pw, iprop);
+    forward_transform_field(pw, nxremap[0], nxremap[1], nxremap[2]);
 
 #pragma omp parallel for
-  for (int i = 0; i < nxremap[0]; i++)
-    for (int j = 0; j < nxremap[1]; j++)
-      for (int k = 0; k < nxremap[2] / 2 + 1; k++)
-      {
-        size_t idx = ((size_t)i * nxremap[1] + (size_t)j) * (nxremap[2] / 2 + 1) + (size_t)k;
-
-        double fx(1.0), fy(1.0), fz(1.0), arg = 0.;
-        ccomplex_t gx(0., 0.), gy(0., 0.), gz(0., 0.);
-
-        int ii(i), jj(j), kk(k);
-        if (i > nxremap[0] / 2)
-          ii -= nxremap[0];
-        if (j > nxremap[1] / 2)
-          jj -= nxremap[1];
-
-        // int kkmax = std::max(abs(ii),std::max(abs(jj),abs(kk)));
-
-        if (ii != 0)
+    for (int i = 0; i < nxremap[0]; i++)
+      for (int j = 0; j < nxremap[1]; j++)
+        for (int k = 0; k < nxremap[2] / 2 + 1; k++)
         {
-          arg = M_PI * (double)ii / (double)nxremap[0];
-          fx = sin(arg) / arg;
-          gx = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
-        }
-        else
-        {
-          fx = 1.0;
-          gx = 0.0;
-        }
-
-        if (jj != 0)
-        {
-          arg = M_PI * (double)jj / (double)nxremap[1];
-          fy = sin(arg) / arg;
-          gy = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
-        }
-        else
-        {
-          fy = 1.0;
-          gy = 0.0;
-        }
-
-        if (kk != 0)
-        {
-          arg = M_PI * (double)kk / (double)nxremap[2];
-          fz = sin(arg) / arg;
-          gz = ccomplex_t(0.0, (arg * cos(arg) - sin(arg)) / (arg * arg));
-        }
-        else
-        {
-          fz = 1.0;
-          gz = 0.0;
-        }
-
-        if (abs(ii) != nxremap[0] / 2 && abs(jj) != nxremap[1] / 2 &&
-            abs(kk) != nxremap[2] / 2)
-        { // kkmax != nxremap[2]/2 ){
-          ccomplex_t x, y1(RE(pc1[idx]), IM(pc1[idx])), y2(RE(pc2[idx]), IM(pc2[idx])), y3(RE(pc3[idx]), IM(pc3[idx])),
-              y4(RE(pc4[idx]), IM(pc4[idx]));
-
-          x = 3.0 * (y1 * gx * gy * fz + y2 * fx * gy * gz + y3 * gx * fy * gz) + sqrt(27.0) * y4 * gx * gy * gz;
-
+          double fx, fy, fz;
+          ccomplex_t gx, gy, gz;
+          if (!mode_factors(i, j, k, fx, fy, fz, gx, gy, gz))
+            continue;
+          size_t idx = ((size_t)i * nxremap[1] + (size_t)j) * (nxremap[2] / 2 + 1) + (size_t)k;
+          ccomplex_t y(RE(pcw[idx]), IM(pcw[idx]));
+          ccomplex_t x = weight(y, fx, fy, fz, gx, gy, gz);
           RE(pc0[idx]) = RE(pc0[idx]) + x.real();
           IM(pc0[idx]) = IM(pc0[idx]) + x.imag();
         }
+  };
+
+  /////////////////////////////////////////////////////////////////////////
+  // p000: transform and multiply by its Legendre factor (Nyquist modes are left as they are)
+
+  evaluate_cells(pr0, 0);
+  forward_transform_field(pr0, nxremap[0], nxremap[1], nxremap[2]);
+
+#pragma omp parallel for
+  for (int i = 0; i < nxremap[0]; i++)
+    for (int j = 0; j < nxremap[1]; j++)
+      for (int k = 0; k < nxremap[2] / 2 + 1; k++)
+      {
+        double fx, fy, fz;
+        ccomplex_t gx, gy, gz;
+        if (!mode_factors(i, j, k, fx, fy, fz, gx, gy, gz))
+          continue;
+        size_t idx = ((size_t)i * nxremap[1] + (size_t)j) * (nxremap[2] / 2 + 1) + (size_t)k;
+        ccomplex_t y0(RE(pc0[idx]), IM(pc0[idx]));
+        ccomplex_t x = y0 * fx * fy * fz;
+        RE(pc0[idx]) = x.real();
+        IM(pc0[idx]) = x.imag();
       }
 
-  music::ulog.Print("\033[31mtiming level %d [build panphasia field2]: %f s\033[0m", level, get_wtime() - tp);
+  /////////////////////////////////////////////////////////////////////////
+  // p100, p010, p001 and the independent field
+
+  add_coefficient(4, [](ccomplex_t y, double fx, double fy, double fz, ccomplex_t gx, ccomplex_t gy, ccomplex_t gz)
+                  { return sqrt(3.0) * (y * gx * fy * fz); });
+  add_coefficient(2, [](ccomplex_t y, double fx, double fy, double fz, ccomplex_t gx, ccomplex_t gy, ccomplex_t gz)
+                  { return sqrt(3.0) * (y * fx * gy * fz); });
+  add_coefficient(1, [](ccomplex_t y, double fx, double fy, double fz, ccomplex_t gx, ccomplex_t gy, ccomplex_t gz)
+                  { return sqrt(3.0) * (y * fx * fy * gz); });
+  add_coefficient(8, [](ccomplex_t y, double fx, double fy, double fz, ccomplex_t gx, ccomplex_t gy, ccomplex_t gz)
+                  {
+                    ccomplex_t temp_comp = (fx + sqrt(3.0) * gx) * (fy + sqrt(3.0) * gy) * (fz + sqrt(3.0) * gz);
+                    double magnitude = sqrt(1.0 - std::abs(temp_comp * temp_comp));
+                    return y * magnitude; });
+
+  /////////////////////////////////////////////////////////////////////////
+  // p110, p011, p101, p111
+
+  add_coefficient(6, [](ccomplex_t y, double fx, double fy, double fz, ccomplex_t gx, ccomplex_t gy, ccomplex_t gz)
+                  { return 3.0 * (y * gx * gy * fz); });
+  add_coefficient(3, [](ccomplex_t y, double fx, double fy, double fz, ccomplex_t gx, ccomplex_t gy, ccomplex_t gz)
+                  { return 3.0 * (y * fx * gy * gz); });
+  add_coefficient(5, [](ccomplex_t y, double fx, double fy, double fz, ccomplex_t gx, ccomplex_t gy, ccomplex_t gz)
+                  { return 3.0 * (y * gx * fy * gz); });
+  add_coefficient(7, [](ccomplex_t y, double fx, double fy, double fz, ccomplex_t gx, ccomplex_t gy, ccomplex_t gz)
+                  { return sqrt(27.0) * (y * gx * gy * gz); });
+
+  music::ilog.Print("time for calculating PANPHASIA cells for level %d : %f s (9 coefficients)", level, tcells);
+  music::ulog.Print("\033[31mtiming level %d [build panphasia field]: %f s\033[0m", level, get_wtime() - tp);
   tp = get_wtime();
 
   //                END
@@ -745,7 +580,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
   {
 
     music::ulog.Print("Remapping fields from dimension %d -> %d", nxremap[0], nx_m[0]);
-    memset(pr1, 0, ngp * sizeof(real_t));
+    memset(pw, 0, ngp * sizeof(real_t));
 
     #pragma omp parallel for
     for (int i = 0; i < nxremap[0]; i++)
@@ -770,12 +605,12 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
             double total_phase_shift;
             total_phase_shift = inter_grid_phase_adjustment_ * (double)(ii + jj + kk);
             x = x * exp(ccomplex_t(0.0, total_phase_shift));
-            RE(pc1[idx2]) = x.real();
-            IM(pc1[idx2]) = x.imag();
+            RE(pcw[idx2]) = x.real();
+            IM(pcw[idx2]) = x.imag();
           }
         }
 
-    memcpy(pr0, pr1, ngp * sizeof(real_t));
+    memcpy(pr0, pw, ngp * sizeof(real_t));
   }
 
   // if (level == 9)
@@ -794,10 +629,7 @@ void RNG_panphasia::fill_grid(int level, DensityGrid<real_t> &R)
 
   /////////////////////////////////////////////////////////////////////////
   // copy to random data structure
-  delete[] pr1;
-  delete[] pr2;
-  delete[] pr3;
-  delete[] pr4;
+  delete[] pw;
 
   music::ilog.Print("Copying random field data %d,%d,%d -> %d,%d,%d", nxremap[0], nxremap[1], nxremap[2], nx[0], nx[1], nx[2]);
   music::ilog.Print("iexpand_levt = %d,%d,%d", iexpand_left[0], iexpand_left[1], iexpand_left[2]);
